@@ -9,11 +9,9 @@ const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const path = require('path');
 
-// ✅ RUTA DE LA BASE DE DATOS AJUSTADA PARA DESPLIEGUE
 const DB_PATH = path.join(process.env.DATA_DIR || '.', 'database.db');
 
 const app = express();
-// ✅ PUERTO AJUSTADO PARA DESPLIEGUE
 const PORT = process.env.PORT || 3000;
 
 // Zona horaria ajustada a Caracas, Venezuela
@@ -32,7 +30,6 @@ app.use(
 );
 
 // -------------------- DB --------------------
-// ✅ CONEXIÓN USANDO LA RUTA DINÁMICA
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) console.error('Error DB:', err.message);
   else console.log(`SQLite conectado en: ${DB_PATH}`);
@@ -176,6 +173,38 @@ app.get('/logout', (req, res) => {
 });
 app.get('/api/user-info', apiAuth, (req, res) => res.json(req.session.user));
 
+
+// ✅ =======================================================
+// ✅ INICIO: NUEVA API PARA BUSCAR CLIENTES (AUTOCOMPLETAR)
+// ✅ =======================================================
+app.get('/api/clientes/search', apiAuth, (req, res) => {
+    const term = req.query.term;
+    if (!term || term.length < 2) {
+        return res.json([]);
+    }
+    
+    // Usamos LIKE para buscar coincidencias parciales de forma segura con parámetros
+    const sql = `
+        SELECT nombre FROM clientes 
+        WHERE nombre LIKE ? 
+        ORDER BY nombre
+        LIMIT 10`;
+    
+    const params = [`%${term}%`];
+
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            return res.status(500).json({ message: 'Error al buscar clientes.' });
+        }
+        // Devolvemos solo un array de nombres
+        res.json(rows.map(row => row.nombre));
+    });
+});
+// =======================================================
+// ✅ FIN: NUEVA API PARA BUSCAR CLIENTES
+// =======================================================
+
+
 // -------------------- APIs de Costos y KPIs --------------------
 
 // Reusa una función para calcular el costo promedio actual de VES en CLP
@@ -273,7 +302,7 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
                 capitalInicialClp: capitalInicialClp || 0,
                 totalGananciaAcumuladaClp: totalGananciaAcumuladaClp,
                 capitalTotalClp: capitalTotalClp, 
-                saldoDisponibleClp: 0, // Este valor se calculará afuera con el saldo VES
+                saldoDisponibleClp: 0,
             });
         }).catch(e => {
             console.error("Error en Master Dashboard Queries:", e);
@@ -467,300 +496,4 @@ app.get('/api/operaciones/export', apiAuth, (req, res) => {
   const params = [];
 
   const where = [];
-  if (req.query.startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(req.query.startDate); }
-  if (req.query.endDate)   { where.push(`date(op.fecha) <= date(?)`); params.push(req.query.endDate); }
-  if (req.query.cliente)   { where.push(`c.nombre LIKE ?`); params.push(`%${req.query.cliente}%`); }
-  if (user.role === 'master' && req.query.operador) {
-    where.push(`u.username LIKE ?`); params.push(`%${req.query.operador}%`);
-  }
-  if (where.length) sql += ` WHERE ` + where.join(' AND ');
-  sql += ` ORDER BY op.fecha DESC, op.id DESC`;
-
-  db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ message: 'Error export' });
-
-    const header = ['Fecha', 'Operador', 'Cliente', 'Monto CLP', 'Costo CLP', 'Comision VES', 'Tasa', 'Monto VES', 'Obs.'];
-    const csv = [header.join(',')]
-      .concat(
-        rows.map((r) =>
-          [
-            r.fecha,
-            `"${r.operador}"`,
-            `"${r.cliente}"`,
-            r.monto_clp,
-            r.costo_clp, 
-            r.comision_ves, 
-            r.tasa,
-            r.monto_ves,
-            `"${(r.observaciones || '').replace(/"/g, '""')}"`,
-          ].join(',')
-        )
-      )
-      .join('\n');
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="historico_envios.csv"');
-    res.send('\uFEFF' + csv);
-  });
-});
-
-// -------------------- API de Resumen Histórico --------------------
-app.get('/api/historico/resumen', apiAuth, onlyMaster, (req, res) => {
-    const { startDate, endDate } = req.query;
-    let sql = `
-        SELECT 
-            c.nombre AS cliente_nombre,
-            IFNULL(SUM(op.monto_clp), 0) AS total_clp_recibido,
-            IFNULL(SUM(op.costo_clp), 0) AS total_costo_clp
-        FROM operaciones op
-        JOIN clientes c ON op.cliente_id = c.id
-    `;
-    const where = [];
-    const params = [];
-    if (startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(startDate); }
-    if (endDate) { where.push(`date(op.fecha) <= date(?)`); params.push(endDate); }
-    if (where.length) { sql += ` WHERE ` + where.join(' AND '); }
-    sql += ` GROUP BY c.nombre ORDER BY total_clp_recibido DESC`;
-
-    db.all(sql, params, (err, rows) => {
-        if (err) return res.status(500).json({ message: 'Error al procesar el resumen.' });
-
-        const resumen = rows.map(row => {
-            const gananciaBruta = row.total_clp_recibido - row.total_costo_clp;
-            const comisionCliente = row.total_clp_recibido * 0.003;
-            const gananciaNeta = gananciaBruta - comisionCliente;
-            
-            return {
-                cliente_nombre: row.cliente_nombre,
-                total_clp_recibido: row.total_clp_recibido,
-                total_costo_clp: row.total_costo_clp,
-                ganancia_bruta: gananciaNeta
-            };
-        });
-
-        res.json(resumen);
-    });
-});
-
-// -------------------- API de Rendimiento por Operador --------------------
-app.get('/api/rendimiento/operadores', apiAuth, onlyMaster, (req, res) => {
-    const { startDate, endDate } = req.query;
-    let sql = `
-        SELECT 
-            u.username AS operador_nombre,
-            IFNULL(COUNT(op.id), 0) AS total_operaciones,
-            IFNULL(COUNT(DISTINCT op.cliente_id), 0) AS clientes_unicos,
-            IFNULL(SUM(op.monto_clp), 0) AS total_clp_enviado
-        FROM operaciones op
-        JOIN usuarios u ON op.usuario_id = u.id
-    `;
-    const where = [];
-    const params = [];
-    if (startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(startDate); }
-    if (endDate) { where.push(`date(op.fecha) <= date(?)`); params.push(endDate); }
-    if (where.length) { sql += ` WHERE ` + where.join(' AND '); }
-    sql += ` GROUP BY u.username ORDER BY total_clp_enviado DESC`;
-
-    db.all(sql, params, (err, rows) => {
-        if (err) return res.status(500).json({ message: 'Error al procesar el reporte.' });
-        
-        const rendimiento = rows.map(row => {
-            const volumenMillones = row.total_clp_enviado / 1000000;
-            const bonificacionUsd = Math.floor(volumenMillones) * 2;
-            return {
-                ...row,
-                bonificacion_usd: bonificacionUsd,
-                millones_comisionables: Math.floor(volumenMillones)
-            };
-        });
-        res.json(rendimiento);
-    });
-});
-
-
-// -------------------- Tasas (configuracion) --------------------
-const readConfig = (clave, cb) => {
-  db.get(`SELECT valor FROM configuracion WHERE clave=?`, [clave], (e, row) =>
-    cb(e, row ? row.valor : null)
-  );
-};
-const upsertConfig = (clave, valor, cb) => {
-  db.run(
-    `INSERT INTO configuracion(clave,valor) VALUES(?,?)
-     ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor`,
-    [clave, valor],
-    cb
-  );
-};
-
-app.get('/api/tasas', apiAuth, (req, res) => {
-  const result = {};
-  readConfig('tasaNivel1', (e1, v1) => {
-    result.tasaNivel1 = v1 ? Number(v1) : null;
-    readConfig('tasaNivel2', (e2, v2) => {
-      result.tasaNivel2 = v2 ? Number(v2) : null;
-      readConfig('tasaNivel3', (e3, v3) => {
-        result.tasaNivel3 = v3 ? Number(v3) : null;
-        res.json(result);
-      });
-    });
-  });
-});
-
-app.post('/api/tasas', apiAuth, onlyMaster, (req, res) => {
-  const { tasaNivel1, tasaNivel2, tasaNivel3 } = req.body;
-  upsertConfig('tasaNivel1', String(tasaNivel1 ?? ''), () => {
-    upsertConfig('tasaNivel2', String(tasaNivel2 ?? ''), () => {
-      upsertConfig('tasaNivel3', String(tasaNivel3 ?? ''), () => res.json({ ok: true }));
-    });
-  });
-});
-
-// -------------------- Capital Inicial Config --------------------
-app.post('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
-    const { capitalInicialClp } = req.body;
-    const capClp = Number(capitalInicialClp) || 0;
-    
-    upsertConfig('capitalInicialClp', String(capClp), () => {
-        upsertConfig('capitalAcumulativoClp', String(capClp), () => { 
-             upsertConfig('saldoVesOnline', '0', () => {
-                 upsertConfig('capitalCostoVesPorClp', '0', () => {
-                     upsertConfig('totalGananciaAcumuladaClp', '0', () => res.json({ ok: true }));
-                 });
-             });
-        });
-    });
-});
-app.get('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
-    const keys = ['capitalInicialClp', 'saldoInicialVes', 'capitalCostoVesPorClp'];
-    Promise.all(keys.map(readConfigValue))
-        .then(([capitalInicialClp, saldoInicialVes, costoVesPorClp]) => res.json({ capitalInicialClp, saldoInicialVes, costoVesPorClp }))
-        .catch(e => res.status(500).json({ message: 'Error al leer configuración' }));
-});
-
-
-// -------------------- APIs de Gestión de Usuarios --------------------
-app.get('/api/usuarios', apiAuth, onlyMaster, (req, res) => {
-    db.all(`SELECT id, username, role FROM usuarios`, [], (err, rows) => {
-        if (err) return res.status(500).json({ message: 'Error al listar usuarios' });
-        res.json(rows || []);
-    });
-});
-
-app.put('/api/usuarios/:id', apiAuth, onlyMaster, async (req, res) => {
-    const userId = req.params.id;
-    const { username, password, role } = req.body;
-    let sql = `UPDATE usuarios SET username = ?, role = ? WHERE id = ?`;
-    let params = [username, role, userId];
-
-    if (password) {
-        const hash = await bcrypt.hash(password, 10);
-        sql = `UPDATE usuarios SET username = ?, role = ?, password = ? WHERE id = ?`;
-        params = [username, role, hash, userId];
-    }
-    
-    db.run(sql, params, function (e) {
-        if (e) return res.status(500).json({ message: 'Error al actualizar usuario' });
-        res.json({ message: 'Usuario actualizado con éxito.' });
-    });
-});
-
-// -------------------- Operadores (crear) --------------------
-app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ message: 'Datos incompletos' });
-  const hash = await bcrypt.hash(password, 10);
-  db.run(
-    `INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`,
-    [username, hash, 'operador'],
-    (e) => {
-      if (e) return res.status(400).json({ message: 'No se pudo crear (¿duplicado?)' });
-      res.json({ message: 'Operador creado' });
-    }
-  );
-});
-
-// -------------------- API de Búsqueda de Clientes --------------------
-// Nueva ruta: /api/clientes/search
-// Recibe: query param `q` (texto parcial)
-// Retorna: array de nombres de clientes que coinciden (case-insensitive), limitado a 50 resultados
-app.get('/api/clientes/search', apiAuth, (req, res) => {
-  try {
-    const q = (req.query.q || '').trim();
-    if (!q) return res.json([]);
-    // Usamos LIKE con COLLATE NOCASE para búsqueda insensible a mayúsculas/minúsculas
-    const like = `%${q}%`;
-    db.all(
-      `SELECT nombre FROM clientes WHERE nombre LIKE ? COLLATE NOCASE ORDER BY nombre LIMIT 50`,
-      [like],
-      (err, rows) => {
-        if (err) {
-          console.error('Error buscando clientes:', err);
-          return res.status(500).json({ message: 'Error buscando clientes' });
-        }
-        res.json((rows || []).map(r => r.nombre));
-      }
-    );
-  } catch (e) {
-    console.error('Error en /api/clientes/search:', e);
-    res.status(500).json({ message: 'Error interno' });
-  }
-});
-
-// -------------------- APIs de Gestión de Compras --------------------
-app.get('/api/compras', apiAuth, onlyMaster, (req, res) => {
-    db.all(`SELECT * FROM compras ORDER BY fecha DESC`, [], (err, rows) => {
-        if (err) return res.status(500).json({ message: 'Error al listar compras' });
-        res.json(rows || []);
-    });
-});
-
-app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
-    const { clp_invertido, ves_obtenido } = req.body;
-    const clp = Number(clp_invertido || 0);
-    const ves = Number(ves_obtenido || 0);
-
-    if (clp <= 0 || ves <= 0) {
-        return res.status(400).json({ message: 'Los montos de CLP y VES deben ser mayores a cero.' });
-    }
-
-    const tasa = clp / ves;
-    const fecha = hoyLocalYYYYMMDD();
-
-    db.run(
-        `INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_clp_ves, fecha) VALUES (?, ?, ?, ?, ?)`,
-        [req.session.user.id, clp, ves, tasa, fecha],
-        function(err) {
-            if (err) return res.status(500).json({ message: 'Error al guardar la compra.' });
-
-            updateConfigState('saldoVesOnline', ves, (errVes) => {
-                if (errVes) console.error("Error al actualizar saldo VES:", errVes);
-                updateConfigState('capitalAcumulativoClp', -clp, (errClp) => {
-                    if (errClp) console.error("Error al actualizar capital CLP:", errClp);
-                    res.json({ message: 'Compra registrada con éxito.' });
-                });
-            });
-        }
-    );
-});
-
-app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
-    const compraId = req.params.id;
-    const { clp_invertido, ves_obtenido, fecha } = req.body;
-    const clp = Number(clp_invertido || 0);
-    const ves = Number(ves_obtenido || 0);
-    const tasa = clp / (ves || 1);
-    
-    const sql = `
-        UPDATE compras 
-        SET clp_invertido = ?, ves_obtenido = ?, tasa_clp_ves = ?, fecha = ? 
-        WHERE id = ?`;
-    
-    db.run(sql, [clp, ves, tasa, fecha, compraId], function (e) {
-        if (e) return res.status(500).json({ message: 'Error al actualizar compra' });
-        res.json({ message: 'Compra actualizada con éxito. Recargue la página para ver los KPIs actualizados.' });
-    });
-});
-
-// -------------------- Start --------------------
-app.listen(PORT, () => console.log(`http://localhost:${PORT}`));
+  if (req.query.startDate
