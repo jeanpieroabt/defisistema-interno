@@ -36,11 +36,14 @@
     thead th{background:var(--light);border-bottom:1px solid var(--border);color:var(--muted)}
     tbody tr:nth-child(even){background:var(--light)}
     .kpi-ves {border:2px solid var(--primary); background:#eaf4ff; padding:15px; border-radius:12px; text-align:center; margin-bottom:24px; box-shadow:0 4px 6px rgba(0,0,0,0.05);}
-    .kpi-ves h3 {color:var(--primary); margin:0 0 5px; font-size:1rem;}
-    .kpi-ves strong {font-size:1.8rem; font-weight:900; display:block;}
-    .kpi-h4 { color:var(--muted); font-size:.92rem; margin-bottom:4px; }
 
-    /* Estilos para el Modal de Edición */
+    /* Autocomplete styles */
+    .autocomplete-container{position:relative;}
+    .autocomplete-suggestions{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);z-index:1000;display:none;border-radius:8px;max-height:220px;overflow:auto}
+    .suggestion-item{padding:10px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,0.04)}
+    .suggestion-item:hover{background-color:var(--light)}
+    .suggestion-empty{padding:10px;color:var(--muted)}
+    /* Modal */
     .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;justify-content:center;align-items:center;z-index:1000}
     .modal-content{background:#fff;padding:25px;border-radius:12px;width:100%;max-width:500px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
     .modal-content h2{margin-top:0}.modal-form .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
@@ -113,7 +116,13 @@
       <h2>Registrar Nuevo Envío</h2>
       <form id="frm">
         <div><label for="fch">Fecha del Envío</label><input type="date" id="fch" required></div>
-        <div><label for="cli">Nombre del Cliente</label><input type="text" id="cli" required></div>
+
+        <div class="autocomplete-container">
+          <label for="cli">Nombre del Cliente</label>
+          <input type="text" id="cli" required autocomplete="off" />
+          <div class="autocomplete-suggestions" id="clientSuggestions"></div>
+        </div>
+
         <div><label for="mclp">Monto en CLP ($)</label><input type="number" id="mclp" required></div>
         <div><label for="tasa">Tasa</label><input type="number" id="tasa" step="0.0001" required></div>
         <div class="highlight">
@@ -140,7 +149,13 @@
       <form id="editForm" class="modal-form">
         <div class="form-grid">
           <div><label>Fecha</label><input type="date" id="editFecha" required></div>
-          <div><label>Cliente</label><input type="text" id="editCliente" required></div>
+
+          <div class="autocomplete-container">
+            <label>Cliente</label>
+            <input type="text" id="editCliente" required autocomplete="off">
+            <div class="autocomplete-suggestions" id="editClientSuggestions"></div>
+          </div>
+
           <div><label>Monto CLP</label><input type="number" id="editMontoClp" required></div>
           <div><label>Tasa</label><input type="number" id="editTasa" step="0.0001" required></div>
           <div class="form-full"><label>Observaciones</label><input type="text" id="editObs"></div>
@@ -287,6 +302,70 @@
         }
     });
 
+    // --- AUTOCOMPLETE helper (cliente) ---
+    function addClientAutocomplete(inputEl, suggestionsEl) {
+      let lastQuery = '';
+      inputEl.addEventListener('input', async () => {
+        const q = String(inputEl.value || '').trim();
+        if (q.length < 2) {
+          suggestionsEl.style.display = 'none';
+          suggestionsEl.innerHTML = '';
+          return;
+        }
+        // Avoid duplicate calls for same query
+        if (q === lastQuery) { suggestionsEl.style.display = suggestionsEl.children.length ? 'block' : 'none'; return; }
+        lastQuery = q;
+
+        try {
+          const res = await fetch(`/api/clientes/search?term=${encodeURIComponent(q)}`);
+          if (!res.ok) throw new Error('network');
+          const names = await res.json();
+          suggestionsEl.innerHTML = '';
+          if (names && names.length) {
+            names.forEach(name => {
+              const item = document.createElement('div');
+              item.className = 'suggestion-item';
+              item.textContent = name;
+              item.addEventListener('click', () => {
+                inputEl.value = name;
+                suggestionsEl.style.display = 'none';
+                suggestionsEl.innerHTML = '';
+                inputEl.dispatchEvent(new Event('input')); // update dependents
+              });
+              suggestionsEl.appendChild(item);
+            });
+            suggestionsEl.style.display = 'block';
+          } else {
+            const empty = document.createElement('div');
+            empty.className = 'suggestion-empty';
+            empty.textContent = 'Sin resultados';
+            suggestionsEl.appendChild(empty);
+            suggestionsEl.style.display = 'block';
+          }
+        } catch (e) {
+          suggestionsEl.style.display = 'none';
+        }
+      });
+
+      // hide when clicking outside
+      document.addEventListener('click', (ev) => {
+        if (!inputEl.contains(ev.target) && !suggestionsEl.contains(ev.target)) {
+          suggestionsEl.style.display = 'none';
+        }
+      });
+
+      // allow using keyboard to pick first suggestion with Enter
+      inputEl.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' && suggestionsEl.style.display === 'block') {
+          const first = suggestionsEl.querySelector('.suggestion-item');
+          if (first) {
+            ev.preventDefault();
+            first.click();
+          }
+        }
+      });
+    }
+
     (async () => {
       // Auth
       const info = await fetch('/api/user-info');
@@ -363,6 +442,10 @@
         if (user.role === 'master') await cargarMasterMetrics();
         else await cargarOperatorKpi(); 
       });
+
+      // --- Setup client autocompletes (main form + edit modal) ---
+      addClientAutocomplete(document.getElementById('cli'), document.getElementById('clientSuggestions'));
+      addClientAutocomplete(document.getElementById('editCliente'), document.getElementById('editClientSuggestions'));
 
       // Carga inicial
       await cargarTabla();

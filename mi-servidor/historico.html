@@ -30,6 +30,13 @@
     .modal-content h2{margin-top:0}.modal-form .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
     .modal-form .form-full{grid-column:1/-1}
     .modal-buttons{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+
+    /* Autocomplete styles */
+    .autocomplete-container{position:relative;}
+    .autocomplete-suggestions{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);z-index:1000;display:none;border-radius:8px;max-height:220px;overflow:auto}
+    .suggestion-item{padding:10px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,0.04)}
+    .suggestion-item:hover{background-color:var(--light)}
+    .suggestion-empty{padding:10px;color:var(--muted)}
   </style>
 </head>
 <body>
@@ -46,7 +53,13 @@
         <div><label>Desde</label><input type="date" id="fDesde"></div>
         <div><label>Hasta</label><input type="date" id="fHasta"></div>
         <div><label>Cliente</label><input type="text" id="fCliente" placeholder="Nombre del cliente"></div>
-        <div><label>Operador</label><input type="text" id="fOperador" placeholder="(solo Master)"></div>
+
+        <!-- Operador con autocompletado -->
+        <div class="autocomplete-container">
+          <label>Operador</label>
+          <input type="text" id="fOperador" placeholder="(solo Master)" autocomplete="off">
+          <div class="autocomplete-suggestions" id="operatorSuggestions"></div>
+        </div>
       </div>
       <div class="btns">
         <button id="btnFiltrar" class="btn-primary">Ver Detalle</button>
@@ -300,7 +313,75 @@
     });
     
     document.getElementById('cancelEdit').addEventListener('click', cerrarModalEdicion);
-    
+
+    // -----------------------
+    // Autocomplete (Operadores)
+    // -----------------------
+    function addOperatorAutocomplete(inputEl, suggestionsEl) {
+      let lastQuery = '';
+      inputEl.addEventListener('input', async () => {
+        const q = String(inputEl.value || '').trim();
+        if (q.length < 1) {
+          suggestionsEl.style.display = 'none';
+          suggestionsEl.innerHTML = '';
+          return;
+        }
+        if (q === lastQuery) {
+          suggestionsEl.style.display = suggestionsEl.children.length ? 'block' : 'none';
+          return;
+        }
+        lastQuery = q;
+
+        try {
+          const res = await fetch(`/api/usuarios/search?term=${encodeURIComponent(q)}`);
+          if (!res.ok) throw new Error('no-auth-or-network');
+          const names = await res.json();
+          suggestionsEl.innerHTML = '';
+          if (names && names.length) {
+            names.forEach(name => {
+              const item = document.createElement('div');
+              item.className = 'suggestion-item';
+              item.textContent = name;
+              item.addEventListener('click', () => {
+                inputEl.value = name;
+                suggestionsEl.style.display = 'none';
+                suggestionsEl.innerHTML = '';
+              });
+              suggestionsEl.appendChild(item);
+            });
+            suggestionsEl.style.display = 'block';
+          } else {
+            const empty = document.createElement('div');
+            empty.className = 'suggestion-empty';
+            empty.textContent = 'Sin resultados';
+            suggestionsEl.appendChild(empty);
+            suggestionsEl.style.display = 'block';
+          }
+        } catch (e) {
+          suggestionsEl.style.display = 'none';
+          suggestionsEl.innerHTML = '';
+        }
+      });
+
+      // Close suggestions on outside click
+      document.addEventListener('click', (ev) => {
+        if (!inputEl.contains(ev.target) && !suggestionsEl.contains(ev.target)) {
+          suggestionsEl.style.display = 'none';
+        }
+      });
+
+      // Enter selects first suggestion
+      inputEl.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' && suggestionsEl.style.display === 'block') {
+          const first = suggestionsEl.querySelector('.suggestion-item');
+          if (first) {
+            ev.preventDefault();
+            first.click();
+          }
+        }
+      });
+    }
+
     (async () => {
       const u = await user(); if(!u) return;
       if(u.role !== 'master'){
@@ -308,6 +389,9 @@
         document.getElementById('fOperador').placeholder = 'No disponible';
         document.getElementById('btnResumen').style.display = 'none';
         document.getElementById('btnRendimiento').style.display = 'none';
+      } else {
+        // sólo para master activamos autocomplete de operadores
+        addOperatorAutocomplete(document.getElementById('fOperador'), document.getElementById('operatorSuggestions'));
       }
       
       document.getElementById('btnFiltrar').onclick = cargar;

@@ -176,6 +176,37 @@ app.get('/logout', (req, res) => {
 });
 app.get('/api/user-info', apiAuth, (req, res) => res.json(req.session.user));
 
+// -------------------- Rutas de búsqueda añadidas --------------------
+// Estas rutas sirven para alimentar las sugerencias del frontend (autocompletes).
+// /api/clientes/search -> devuelve lista de nombres de clientes que coinciden
+// /api/usuarios/search -> devuelve lista de usernames (solo master puede consultar)
+app.get('/api/clientes/search', apiAuth, (req, res) => {
+    const term = String(req.query.term || '').trim();
+    if (!term || term.length < 2) return res.json([]);
+    db.all(
+      `SELECT nombre FROM clientes WHERE nombre LIKE ? ORDER BY nombre LIMIT 10`,
+      [`%${term}%`],
+      (err, rows) => {
+        if (err) return res.status(500).json({ message: 'Error al buscar clientes.' });
+        res.json((rows || []).map(r => r.nombre));
+      }
+    );
+});
+
+app.get('/api/usuarios/search', apiAuth, onlyMaster, (req, res) => {
+    const term = String(req.query.term || '').trim();
+    if (!term || term.length < 1) return res.json([]);
+    db.all(
+      `SELECT username FROM usuarios WHERE username LIKE ? ORDER BY username LIMIT 10`,
+      [`%${term}%`],
+      (err, rows) => {
+        if (err) return res.status(500).json({ message: 'Error al buscar usuarios.' });
+        res.json((rows || []).map(r => r.username));
+      }
+    );
+});
+// -------------------- Fin rutas de búsqueda --------------------
+
 // -------------------- APIs de Costos y KPIs --------------------
 
 // Reusa una función para calcular el costo promedio actual de VES en CLP
