@@ -680,6 +680,33 @@ app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
   );
 });
 
+// -------------------- API de Búsqueda de Clientes --------------------
+// Nueva ruta: /api/clientes/search
+// Recibe: query param `q` (texto parcial)
+// Retorna: array de nombres de clientes que coinciden (case-insensitive), limitado a 50 resultados
+app.get('/api/clientes/search', apiAuth, (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json([]);
+    // Usamos LIKE con COLLATE NOCASE para búsqueda insensible a mayúsculas/minúsculas
+    const like = `%${q}%`;
+    db.all(
+      `SELECT nombre FROM clientes WHERE nombre LIKE ? COLLATE NOCASE ORDER BY nombre LIMIT 50`,
+      [like],
+      (err, rows) => {
+        if (err) {
+          console.error('Error buscando clientes:', err);
+          return res.status(500).json({ message: 'Error buscando clientes' });
+        }
+        res.json((rows || []).map(r => r.nombre));
+      }
+    );
+  } catch (e) {
+    console.error('Error en /api/clientes/search:', e);
+    res.status(500).json({ message: 'Error interno' });
+  }
+});
+
 // -------------------- APIs de Gestión de Compras --------------------
 app.get('/api/compras', apiAuth, onlyMaster, (req, res) => {
     db.all(`SELECT * FROM compras ORDER BY fecha DESC`, [], (err, rows) => {
