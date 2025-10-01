@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administración</title>
+  <style>
+    :root { --primary:#007bff; --light:#f8f9fa; --border:#dee2e6; --muted:#6c757d; --dark:#343a40; }
+    body{ font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--light); color:var(--dark); margin:0; padding:24px;}
+    .card{ max-width:1100px; margin:0 auto; background:#fff; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.08); overflow:hidden}
+    .hdr{ display:flex; justify-content:space-between; align-items:center; padding:16px 22px; border-bottom:1px solid var(--border); }
+    .hdr h1{ margin:0; font-size:1.25rem;}
+    .content{ padding:20px 24px;}
+    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+    .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+    .box{ border:1px solid var(--border); border-radius:12px; padding:16px;}
+    label{ font-weight:600; color:var(--muted); font-size:.9rem; margin-bottom:6px; display:block}
+    input, select{ width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px }
+    button{ padding:12px 16px; border:none; border-radius:8px; cursor:pointer; font-weight:700 }
+    .btn{ background:var(--primary); color:#fff }
+    .btn-light{ background:#e9ecef }
+    .kpis{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px}
+    .kpi{ background:var(--light); border:1px solid var(--border); border-radius:12px; padding:14px }
+    .kpi h4{ margin:0 0 6px; color:var(--muted); font-size:.95rem }
+    .kpi strong{ font-size:1.1rem }
+    .full-width-table { margin-top: 20px; }
+    .full-width-table table { width: 100%; }
+    .full-width-table th, .full-width-table td { padding: 8px 12px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="hdr">
+      <h1>Panel de Administración</h1>
+      <div>
+        <button class="btn-light" onclick="window.open('/historico.html','_blank')">Histórico</button>
+        <button class="btn-primary" onclick="window.close()">Cerrar</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="kpis">
+        <div class="kpi"><h4>Ganancia Bruta (CLP)</h4><strong id="kpi-ganancia">—</strong></div>
+        <div class="kpi"><h4>Total Enviado (CLP)</h4><strong id="kpi-total">—</strong></div>
+        <div class="kpi"><h4>Margen Bruto</h4><strong id="kpi-margen">—</strong></div>
+      </div>
+      
+      <div class="box">
+        <h3>Capital CLP Inicial</h3>
+        <p style="color:var(--muted); font-size:.85rem; margin-bottom: 12px;">Establece el monto de la inversión inicial en CLP (moneda base). El saldo de VES inicia en cero.</p>
+        <form id="fCapital">
+          <div class="grid3" style="grid-template-columns: 1fr;">
+              <div><label>Capital CLP Inicial</label><input type="number" step="0.01" name="capitalInicialClp" id="iCapClp" required></div>
+          </div>
+          <div style="margin-top:10px"><button class="btn">Guardar Capital Inicial</button></div>
+        </form>
+      </div>
+      <div class="box" style="margin-top:16px">
+        <h3>Tasas de Venta Automáticas</h3>
+        <div class="grid3">
+          <div><label>≥ 5.000 CLP</label><input type="number" step="0.001" id="t1"></div>
+          <div><label>≥ 100.000 CLP</label><input type="number" step="0.001" id="t2"></div>
+          <div><label>≥ 250.000 CLP</label><input type="number" step="0.001" id="t3"></div>
+        </div>
+        <div style="margin-top:10px"><button id="saveTasas" class="btn">Guardar Tasas</button></div>
+      </div>
+
+      <div class="grid2" style="margin-top:16px">
+        <div class="box">
+          <h3>Comprar VES (con CLP)</h3>
+          <form id="fCompras">
+            <label>CLP Invertidos</label><input type="number" step="0.01" name="clp_invertido" required>
+            <label>VES Obtenidos</label><input type="number" step="0.01" name="ves_obtenido" required>
+            <div style="margin-top:10px"><button class="btn">Registrar Compra</button></div>
+          </form>
+        </div>
+        
+        <div class="box">
+          <h3>Gestionar Operadores</h3>
+          <form id="fOper">
+            <label>Usuario</label><input type="text" name="username" required>
+            <label>Contraseña</label><input type="password" name="password" required>
+            <div style="margin-top:10px"><button class="btn">Crear Operador</button></div>
+          </form>
+        </div>
+      </div>
+      
+      <div class="box full-width-table" style="margin-top:16px">
+          <h3>Editar Usuarios Existentes</h3>
+          <table class="table">
+              <thead>
+                  <tr>
+                      <th>ID</th>
+                      <th>Usuario</th>
+                      <th>Rol</th>
+                      <th>Acción</th>
+                  </tr>
+              </thead>
+              <tbody id="tbodyUsuarios">
+                  </tbody>
+          </table>
+      </div>
+
+      <div class="box full-width-table" style="margin-top:16px">
+          <h3>Historial de Compras (Edición)</h3>
+          <table class="table">
+              <thead>
+                  <tr>
+                      <th>ID</th>
+                      <th>Fecha</th>
+                      <th>CLP Invertido</th>
+                      <th>VES Obtenidos</th>
+                      <th>Tasa (VES/CLP)</th>
+                      <th>Acción</th>
+                  </tr>
+              </thead>
+              <tbody id="tbodyCompras">
+                  </tbody>
+          </table>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let usuarios = [];
+    let compras = [];
+    
+    // Función para formatear CLP
+    const fmtCLP = v => (v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
+
+    // ------------------- LÓGICA DE CARGA DE DATOS -------------------
+
+    async function loadKpis(){
+      const k = await (await fetch('/api/dashboard')).json();
+      const fmtCLP = v => (v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
+      document.getElementById('kpi-ganancia').textContent = fmtCLP(k.gananciaBruta);
+      document.getElementById('kpi-total').textContent    = fmtCLP(k.totalClpEnviado);
+      document.getElementById('kpi-margen').textContent   = ((k.margenBruto||0).toFixed(1)) + '%';
+    }
+
+    async function loadTasas(){
+      const t = await (await fetch('/api/tasas')).json();
+      document.getElementById('t1').value = t.tasaNivel1 || '';
+      document.getElementById('t2').value = t.tasaNivel2 || '';
+      document.getElementById('t3').value = t.tasaNivel3 || '';
+    }
+    
+    async function loadCapitalConfig(){
+      const c = await (await fetch('/api/config/capital')).json();
+      document.getElementById('iCapClp').value = c.capitalInicialClp || '';
+    }
+    
+    // ------------------- LÓGICA DE EDICIÓN DE USUARIOS -------------------
+
+    function renderUsuarios(){
+        const tbody = document.getElementById('tbodyUsuarios');
+        tbody.innerHTML = '';
+        usuarios.forEach(u => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${u.id}</td>
+                <td><input type="text" id="user-${u.id}-username" value="${u.username}"></td>
+                <td>
+                    <select id="user-${u.id}-role">
+                        <option value="master" ${u.role === 'master' ? 'selected' : ''}>Master</option>
+                        <option value="operador" ${u.role === 'operador' ? 'selected' : ''}>Operador</option>
+                    </select>
+                </td>
+                <td><button onclick="editUser(${u.id})" class="btn" style="padding: 6px 10px;">Guardar</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function fetchUsuarios(){
+        const r = await fetch('/api/usuarios');
+        usuarios = await r.json();
+        renderUsuarios();
+    }
+
+    async function editUser(id){
+        const username = document.getElementById(`user-${id}-username`).value;
+        const role = document.getElementById(`user-${id}-role`).value;
+        const password = prompt("Ingrese NUEVA contraseña para el usuario (deje vacío para mantener la actual):");
+        
+        const body = { username, role };
+        if (password) body.password = password;
+
+        const r = await fetch(`/api/usuarios/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+
+        const res = await r.json();
+        alert(res.message || (r.ok ? 'Usuario actualizado con éxito.' : 'Error al actualizar usuario.'));
+        if (r.ok) fetchUsuarios();
+    }
+    
+    // ------------------- LÓGICA DE EDICIÓN DE COMPRAS -------------------
+    
+    function renderCompras(){
+        const tbody = document.getElementById('tbodyCompras');
+        tbody.innerHTML = '';
+        compras.forEach(c => {
+            // ✅ CAMBIO 2: Se invirtió la fórmula para mostrar VES / CLP
+            const tasaMostrada = c.clp_invertido > 0 ? Number(c.ves_obtenido / c.clp_invertido).toFixed(6) : 0;
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${c.id}</td>
+                <td><input type="date" id="compra-${c.id}-fecha" value="${c.fecha}"></td>
+                <td><input type="number" step="0.01" id="compra-${c.id}-clp" value="${c.clp_invertido}"></td>
+                <td><input type="number" step="0.01" id="compra-${c.id}-ves" value="${c.ves_obtenido}"></td>
+                <td>${tasaMostrada}</td>
+                <td><button onclick="editCompra(${c.id})" class="btn" style="padding: 6px 10px;">Guardar</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function fetchCompras(){
+        const r = await fetch('/api/compras');
+        compras = await r.json();
+        renderCompras();
+    }
+    
+    async function editCompra(id){
+        const fecha = document.getElementById(`compra-${id}-fecha`).value;
+        const clp_invertido = document.getElementById(`compra-${id}-clp`).value;
+        const ves_obtenido = document.getElementById(`compra-${id}-ves`).value;
+
+        const body = { fecha, clp_invertido, ves_obtenido };
+
+        const r = await fetch(`/api/compras/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+
+        const res = await r.json();
+        alert(res.message || (r.ok ? 'Compra actualizada con éxito.': 'Error al actualizar compra.'));
+        if (r.ok) {
+            fetchCompras();
+            loadKpis(); 
+        }
+    }
+
+
+    // ------------------- LISTENERS -------------------
+    
+    document.getElementById('fCapital').onsubmit = async (e)=>{
+      e.preventDefault();
+      // ✅ Solo enviamos el CLP
+      const body = {
+          capitalInicialClp: document.getElementById('iCapClp').value
+      };
+      
+      const resp = await fetch('/api/config/capital',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const res = await resp.json();
+      alert(res.message || (resp.ok?'Capital inicial configurado correctamente.':'Error al configurar capital.'));
+      if(resp.ok){ loadKpis(); loadCapitalConfig(); }
+    };
+    
+    document.getElementById('saveTasas').onclick = async ()=>{
+      const body = {
+        tasaNivel1: document.getElementById('t1').value,
+        tasaNivel2: document.getElementById('t2').value,
+        tasaNivel3: document.getElementById('t3').value
+      };
+      const r = await fetch('/api/tasas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(r.ok){ alert('Tasas guardadas'); loadTasas(); } else { alert('Error guardando tasas'); }
+    };
+
+    document.getElementById('fCompras').onsubmit = async (e)=>{
+      e.preventDefault();
+      const body = Object.fromEntries(new FormData(e.target).entries());
+      const resp = await fetch('/api/compras',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const res = await resp.json();
+      alert(res.message || (resp.ok?'Compra VES registrada':'Error'));
+      if(resp.ok){ e.target.reset(); loadKpis(); fetchCompras(); }
+    };
+    
+    document.getElementById('fOper').onsubmit = async (e)=>{
+      e.preventDefault();
+      const body = Object.fromEntries(new FormData(e.target).entries());
+      const resp = await fetch('/api/create-operator',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const res = await resp.json();
+      alert(res.message || (resp.ok?'Operador creado':'Error'));
+      if(resp.ok) e.target.reset();
+    };
+
+    (async ()=>{ 
+        await Promise.all([loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras()]); 
+    })();
+  </script>
+</body>
+</html>

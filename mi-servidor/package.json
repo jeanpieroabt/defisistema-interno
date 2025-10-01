@@ -1,0 +1,15 @@
+{
+  "name": "defi-oracle-app",
+  "version": "1.0.0",
+  "description": "Aplicación de registro de envíos.",
+  "main": "servidor.js",
+  "scripts": {
+    "start": "node servidor.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "sqlite3": "^5.1.6"
+  }
+}
