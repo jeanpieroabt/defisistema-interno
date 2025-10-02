@@ -651,15 +651,14 @@ app.post('/api/tasas', apiAuth, onlyMaster, (req, res) => {
 app.post('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
     const { capitalInicialClp } = req.body;
     const capClp = Number(capitalInicialClp) || 0;
-    
-    upsertConfig('capitalInicialClp', String(capClp), () => {
-        upsertConfig('capitalAcumulativoClp', String(capClp), () => { 
-             upsertConfig('saldoVesOnline', '0', () => {
-                 upsertConfig('capitalCostoVesPorClp', '0', () => {
-                     upsertConfig('totalGananciaAcumuladaClp', '0', () => res.json({ ok: true }));
-                 });
-             });
-        });
+
+    // Esta versión solo actualiza el capital inicial, sin borrar otros datos.
+    upsertConfig('capitalInicialClp', String(capClp), (err) => {
+        if (err) {
+            console.error("Error al guardar capital inicial:", err);
+            return res.status(500).json({ message: 'Error al actualizar el capital inicial.' });
+        }
+        res.json({ message: 'Capital inicial actualizado con éxito.' });
     });
 });
 app.get('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
