@@ -177,9 +177,6 @@ app.get('/logout', (req, res) => {
 app.get('/api/user-info', apiAuth, (req, res) => res.json(req.session.user));
 
 // -------------------- Rutas de búsqueda añadidas --------------------
-// Estas rutas sirven para alimentar las sugerencias del frontend (autocompletes).
-// /api/clientes/search -> devuelve lista de nombres de clientes que coinciden
-// /api/usuarios/search -> devuelve lista de usernames (solo master puede consultar)
 app.get('/api/clientes/search', apiAuth, (req, res) => {
     const term = String(req.query.term || '').trim();
     if (!term || term.length < 2) return res.json([]);
@@ -205,13 +202,9 @@ app.get('/api/usuarios/search', apiAuth, onlyMaster, (req, res) => {
       }
     );
 });
-// -------------------- Fin rutas de búsqueda --------------------
 
 // -------------------- APIs de Costos y KPIs --------------------
-
-// Reusa una función para calcular el costo promedio actual de VES en CLP
 const calcularCostoVesPorClp = (fecha, callback) => {
-    // Usamos CLP/VES para el COSTO UNITARIO: Cuánto CLP cuesta 1 VES
     db.get(
         `SELECT
             IFNULL(SUM(clp_invertido),0) as totalClpInvertido,
@@ -220,14 +213,9 @@ const calcularCostoVesPorClp = (fecha, callback) => {
         [], 
         (e, rowCompras) => {
             if (e) return callback(e, 0);
-
             const totalClpInvertido = rowCompras.totalClpInvertido;
             const totalVesComprado = rowCompras.totalVesComprado;
-            
-            // 1. Costo Promedio por Compras (CLP/VES)
             let costoVesPorClp = totalVesComprado > 0 ? totalClpInvertido / totalVesComprado : 0;
-            
-            // 2. Si no hay compras, intentamos usar el costo inicial (para las operaciones iniciales)
             if (costoVesPorClp === 0) {
                  db.get(`SELECT valor FROM configuracion WHERE clave='capitalCostoVesPorClp'`, [], (err, row) => {
                     const costoInicial = row ? Number(row.valor) : 0;
@@ -240,7 +228,6 @@ const calcularCostoVesPorClp = (fecha, callback) => {
     );
 };
 
-// API Dashboard para todos (Saldo VES) y Master (KPIs)
 app.get('/api/dashboard', apiAuth, (req, res) => { 
   const userRole = req.session.user?.role;
   const hoy = hoyLocalYYYYMMDD();
@@ -254,25 +241,10 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
         Promise.all([
             new Promise(resolve => calcularCostoVesPorClp(hoy, (e, costo) => resolve({ costoVesPorClp: costo || 0 }))),
             new Promise(resolve => {
-                db.get(
-                    `SELECT
-                        IFNULL(SUM(monto_clp),0) as totalClpEnviado,
-                        IFNULL(SUM(monto_ves),0) as totalVesEnviado
-                     FROM operaciones WHERE date(fecha)=date('now','localtime')`, 
-                    [], 
-                    (e, rowOps) => resolve({ totalClpEnviadoDia: rowOps?.totalClpEnviado || 0, totalVesEnviadoDia: rowOps?.totalVesEnviado || 0 })
-                );
+                db.get(`SELECT IFNULL(SUM(monto_clp),0) as totalClpEnviado, IFNULL(SUM(monto_ves),0) as totalVesEnviado FROM operaciones WHERE date(fecha)=date('now','localtime')`, [], (e, rowOps) => resolve({ totalClpEnviadoDia: rowOps?.totalClpEnviado || 0, totalVesEnviadoDia: rowOps?.totalVesEnviado || 0 }));
             }),
             new Promise(resolve => {
-                db.get(
-                    `SELECT
-                        IFNULL(SUM(ves_obtenido),0) as totalVesComprado,
-                        IFNULL(SUM(clp_invertido),0) as totalClpInvertido,
-                        (IFNULL(SUM(ves_obtenido),0) / IFNULL(SUM(clp_invertido), 1)) AS tasaCompra
-                     FROM compras`, 
-                    [], 
-                    (e, rowCompras) => resolve({ tasaCompraPromedio: rowCompras?.tasaCompra || 0 })
-                );
+                db.get(`SELECT IFNULL(SUM(ves_obtenido),0) as totalVesComprado, IFNULL(SUM(clp_invertido),0) as totalClpInvertido, (IFNULL(SUM(ves_obtenido),0) / IFNULL(SUM(clp_invertido), 1)) AS tasaCompra FROM compras`, [], (e, rowCompras) => resolve({ tasaCompraPromedio: rowCompras?.tasaCompra || 0 }));
             }),
             new Promise(resolve => {
                 db.all(`SELECT clave, valor FROM configuracion WHERE clave IN ('capitalInicialClp', 'totalGananciaAcumuladaClp')`, (e, rows) => {
@@ -288,39 +260,21 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
             const { capitalInicialClp, totalGananciaAcumuladaClp } = saldos;
             const tasaVentaPromedio = totalClpEnviadoDia > 0 ? totalVesEnviadoDia / totalClpEnviadoDia : 0;
             const costoTotalVesEnviadoClpDia = totalVesEnviadoDia * costoVesPorClp; 
-            
             const gananciaBrutaDia = totalClpEnviadoDia - costoTotalVesEnviadoClpDia;
             const comisionDelDia = totalClpEnviadoDia * 0.003;
             const gananciaNetaDelDia = gananciaBrutaDia - comisionDelDia;
-
             const capitalTotalClp = (capitalInicialClp || 0) + totalGananciaAcumuladaClp;
-
-            resolve({
-                totalClpEnviado: totalClpEnviadoDia,
-                gananciaBruta: gananciaNetaDelDia,
-                margenBruto: totalClpEnviadoDia ? (gananciaNetaDelDia / totalClpEnviadoDia) * 100 : 0,
-                tasaCompraPromedio: tasaCompraPromedio,
-                tasaVentaPromedio: tasaVentaPromedio,
-                capitalInicialClp: capitalInicialClp || 0,
-                totalGananciaAcumuladaClp: totalGananciaAcumuladaClp,
-                capitalTotalClp: capitalTotalClp, 
-                saldoDisponibleClp: 0, // Este valor se calculará afuera con el saldo VES
-            });
-        }).catch(e => {
-            console.error("Error en Master Dashboard Queries:", e);
-            resolve({}); 
-        });
+            resolve({ totalClpEnviado: totalClpEnviadoDia, gananciaBruta: gananciaNetaDelDia, margenBruto: totalClpEnviadoDia ? (gananciaNetaDelDia / totalClpEnviadoDia) * 100 : 0, tasaCompraPromedio: tasaCompraPromedio, tasaVentaPromedio: tasaVentaPromedio, capitalInicialClp: capitalInicialClp || 0, totalGananciaAcumuladaClp: totalGananciaAcumuladaClp, capitalTotalClp: capitalTotalClp, saldoDisponibleClp: 0 });
+        }).catch(e => { console.error("Error en Master Dashboard Queries:", e); resolve({}); });
     }),
   ];
   
   Promise.all(queries).then(results => {
       const saldoVes = results[0].saldoVesOnline;
       const masterData = results[1] || {};
-
       const tasaCompra = masterData.tasaCompraPromedio || 0;
       const valorClpDelInventarioVes = tasaCompra > 0 ? saldoVes / tasaCompra : 0;
       masterData.saldoDisponibleClp = valorClpDelInventarioVes;
-
       const resData = { saldoVesOnline: saldoVes, ...masterData };
       res.json(resData);
   }).catch(e => {
@@ -333,10 +287,7 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
 app.get('/api/monthly-sales', apiAuth, (req, res) => {
   const user = req.session.user;
   const inicioMes = inicioMesLocalYYYYMMDD();
-  let sql = `
-    SELECT IFNULL(SUM(monto_clp), 0) AS totalClpMensual
-    FROM operaciones
-    WHERE date(fecha) >= date(?)`;
+  let sql = `SELECT IFNULL(SUM(monto_clp), 0) AS totalClpMensual FROM operaciones WHERE date(fecha) >= date(?)`;
   const params = [inicioMes];
   if (user.role !== 'master') {
     sql += ` AND usuario_id = ?`;
@@ -347,7 +298,6 @@ app.get('/api/monthly-sales', apiAuth, (req, res) => {
     res.json({ totalClpMensual: row.totalClpMensual });
   });
 });
-
 
 // -------------------- Operaciones --------------------
 app.get('/api/operaciones', apiAuth, (req, res) => {
@@ -368,9 +318,21 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
   if (req.query.startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(req.query.startDate); }
   if (req.query.endDate)   { where.push(`date(op.fecha) <= date(?)`); params.push(req.query.endDate); }
   if (req.query.cliente)   { where.push(`c.nombre LIKE ?`); params.push(`%${req.query.cliente}%`); }
+  
+  // =======================================================
+  // INICIO DE LA MODIFICACIÓN
+  // =======================================================
   if (user.role === 'master' && req.query.operador) {
+    // Si es master y filtra por operador, se aplica el filtro
     where.push(`u.username LIKE ?`); params.push(`%${req.query.operador}%`);
+  } else if (user.role === 'operador' && req.query.historico) {
+    // Si es un operador consultando el histórico, forzamos a que solo vea sus propias operaciones.
+    where.push(`op.usuario_id = ?`); params.push(user.id);
   }
+  // =======================================================
+  // FIN DE LA MODIFICACIÓN
+  // =======================================================
+
   if (where.length) {
     sql += (sql.includes('WHERE') ? ' AND ' : ' WHERE ') + where.join(' AND ');
   }
@@ -393,24 +355,16 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
 
   readConfigValue('saldoVesOnline').then(saldoVes => {
       if (vesTotalDescontar > saldoVes) return res.status(400).json({ message: 'Saldo VES online insuficiente.' });
-
       calcularCostoVesPorClp(fechaGuardado, (e, costoVesPorClp) => {
           if (e) return res.status(500).json({ message: 'Error al calcular costo' });
-          
           const costoVesEnviadoClp = montoVes * costoVesPorClp;
           const gananciaBruta = montoClp - costoVesEnviadoClp;
           const comisionClp = montoClp * 0.003;
           const gananciaNeta = gananciaBruta - comisionClp;
-
           db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, c) => {
             const guardar = (cliente_id) => {
-              db.run(
-                `INSERT INTO operaciones(usuario_id,cliente_id,fecha,monto_clp,monto_ves,tasa,observaciones,costo_clp,comision_ves)
-                 VALUES (?,?,?,?,?,?,?,?,?)`,
-                [req.session.user.id, cliente_id, fechaGuardado, montoClp, montoVes, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes],
-                function (e) {
+              db.run(`INSERT INTO operaciones(usuario_id,cliente_id,fecha,monto_clp,monto_ves,tasa,observaciones,costo_clp,comision_ves) VALUES (?,?,?,?,?,?,?,?,?)`, [req.session.user.id, cliente_id, fechaGuardado, montoClp, montoVes, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes], function (e) {
                   if (e) return res.status(500).json({ message: 'Error al guardar' });
-                  
                   updateConfigState('saldoVesOnline', -vesTotalDescontar, (err) => { 
                       if(err) console.error("Error al restar VES:", err);
                       updateConfigState('totalGananciaAcumuladaClp', gananciaNeta, (err) => {
@@ -424,12 +378,8 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
                 }
               );
             };
-
             if (c) return guardar(c.id);
-            db.run(
-              `INSERT INTO clientes(nombre,fecha_creacion) VALUES (?,?)`,
-              [cliente_nombre, new Date().toISOString()],
-              function (e2) {
+            db.run(`INSERT INTO clientes(nombre,fecha_creacion) VALUES (?,?)`, [cliente_nombre, new Date().toISOString()], function (e2) {
                 if (e2) return res.status(500).json({ message: 'Error cliente' });
                 guardar(this.lastID);
               }
@@ -445,38 +395,22 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
 app.put('/api/operaciones/:id', apiAuth, (req, res) => {
     const operacionId = req.params.id;
     const user = req.session.user;
-
     const { cliente_nombre, monto_clp, tasa, observaciones, fecha } = req.body;
     const montoClp = Number(monto_clp || 0);
     const tasaOp = Number(tasa || 0);
     const montoVes = montoClp * tasaOp;
-
     db.get('SELECT * FROM operaciones WHERE id = ?', [operacionId], (err, op) => {
-        if (err || !op) {
-            return res.status(404).json({ message: 'Operación no encontrada.' });
-        }
-
+        if (err || !op) { return res.status(404).json({ message: 'Operación no encontrada.' }); }
         const esMaster = user.role === 'master';
         const esSuOperacion = op.usuario_id === user.id;
         const esDeHoy = op.fecha === hoyLocalYYYYMMDD();
-
-        if (!esMaster && !(esSuOperacion && esDeHoy)) {
-            return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
-        }
-        
+        if (!esMaster && !(esSuOperacion && esDeHoy)) { return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' }); }
         calcularCostoVesPorClp(fecha, (e, costoVesPorClp) => {
             if (e) return res.status(500).json({ message: 'Error al recalcular el costo.' });
-
             const nuevoCostoClp = montoVes * costoVesPorClp;
-
             db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, c) => {
                 if (err || !c) return res.status(400).json({ message: 'Cliente no encontrado.' });
-
-                const sql = `
-                    UPDATE operaciones 
-                    SET cliente_id=?, fecha=?, monto_clp=?, monto_ves=?, tasa=?, observaciones=?, costo_clp=?
-                    WHERE id = ?`;
-                
+                const sql = `UPDATE operaciones SET cliente_id=?, fecha=?, monto_clp=?, monto_ves=?, tasa=?, observaciones=?, costo_clp=? WHERE id = ?`;
                 db.run(sql, [c.id, fecha, montoClp, montoVes, tasaOp, observaciones || '', nuevoCostoClp, operacionId], function (e) {
                     if (e) return res.status(500).json({ message: 'Error al actualizar la operación.' });
                     res.json({ message: 'Operación actualizada con éxito. Los saldos globales no se reajustan automáticamente.' });
@@ -486,49 +420,23 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
     });
 });
 
-
 app.get('/api/operaciones/export', apiAuth, (req, res) => {
   const user = req.session.user;
-  let sql = `
-    SELECT op.fecha, u.username AS operador, c.nombre AS cliente,
-           op.monto_clp, op.tasa, op.monto_ves, op.observaciones, op.costo_clp, op.comision_ves
-    FROM operaciones op
-    JOIN usuarios u ON op.usuario_id = u.id
-    JOIN clientes c ON op.cliente_id = c.id`;
+  let sql = `SELECT op.fecha, u.username AS operador, c.nombre AS cliente, op.monto_clp, op.tasa, op.monto_ves, op.observaciones, op.costo_clp, op.comision_ves FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id JOIN clientes c ON op.cliente_id = c.id`;
   const params = [];
-
   const where = [];
   if (req.query.startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(req.query.startDate); }
   if (req.query.endDate)   { where.push(`date(op.fecha) <= date(?)`); params.push(req.query.endDate); }
   if (req.query.cliente)   { where.push(`c.nombre LIKE ?`); params.push(`%${req.query.cliente}%`); }
-  if (user.role === 'master' && req.query.operador) {
-    where.push(`u.username LIKE ?`); params.push(`%${req.query.operador}%`);
-  }
+  if (user.role === 'master' && req.query.operador) { where.push(`u.username LIKE ?`); params.push(`%${req.query.operador}%`); }
   if (where.length) sql += ` WHERE ` + where.join(' AND ');
   sql += ` ORDER BY op.fecha DESC, op.id DESC`;
-
   db.all(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ message: 'Error export' });
-
     const header = ['Fecha', 'Operador', 'Cliente', 'Monto CLP', 'Costo CLP', 'Comision VES', 'Tasa', 'Monto VES', 'Obs.'];
     const csv = [header.join(',')]
-      .concat(
-        rows.map((r) =>
-          [
-            r.fecha,
-            `"${r.operador}"`,
-            `"${r.cliente}"`,
-            r.monto_clp,
-            r.costo_clp, 
-            r.comision_ves, 
-            r.tasa,
-            r.monto_ves,
-            `"${(r.observaciones || '').replace(/"/g, '""')}"`,
-          ].join(',')
-        )
-      )
+      .concat(rows.map((r) => [r.fecha, `"${r.operador}"`, `"${r.cliente}"`, r.monto_clp, r.costo_clp, r.comision_ves, r.tasa, r.monto_ves, `"${(r.observaciones || '').replace(/"/g, '""')}"`].join(',')))
       .join('\n');
-
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="historico_envios.csv"');
     res.send('\uFEFF' + csv);
@@ -538,37 +446,20 @@ app.get('/api/operaciones/export', apiAuth, (req, res) => {
 // -------------------- API de Resumen Histórico --------------------
 app.get('/api/historico/resumen', apiAuth, onlyMaster, (req, res) => {
     const { startDate, endDate } = req.query;
-    let sql = `
-        SELECT 
-            c.nombre AS cliente_nombre,
-            IFNULL(SUM(op.monto_clp), 0) AS total_clp_recibido,
-            IFNULL(SUM(op.costo_clp), 0) AS total_costo_clp
-        FROM operaciones op
-        JOIN clientes c ON op.cliente_id = c.id
-    `;
-    const where = [];
-    const params = [];
+    let sql = `SELECT c.nombre AS cliente_nombre, IFNULL(SUM(op.monto_clp), 0) AS total_clp_recibido, IFNULL(SUM(op.costo_clp), 0) AS total_costo_clp FROM operaciones op JOIN clientes c ON op.cliente_id = c.id`;
+    const where = []; const params = [];
     if (startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(startDate); }
     if (endDate) { where.push(`date(op.fecha) <= date(?)`); params.push(endDate); }
     if (where.length) { sql += ` WHERE ` + where.join(' AND '); }
     sql += ` GROUP BY c.nombre ORDER BY total_clp_recibido DESC`;
-
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al procesar el resumen.' });
-
         const resumen = rows.map(row => {
             const gananciaBruta = row.total_clp_recibido - row.total_costo_clp;
             const comisionCliente = row.total_clp_recibido * 0.003;
             const gananciaNeta = gananciaBruta - comisionCliente;
-            
-            return {
-                cliente_nombre: row.cliente_nombre,
-                total_clp_recibido: row.total_clp_recibido,
-                total_costo_clp: row.total_costo_clp,
-                ganancia_bruta: gananciaNeta
-            };
+            return { cliente_nombre: row.cliente_nombre, total_clp_recibido: row.total_clp_recibido, total_costo_clp: row.total_costo_clp, ganancia_bruta: gananciaNeta };
         });
-
         res.json(resumen);
     });
 });
@@ -576,53 +467,26 @@ app.get('/api/historico/resumen', apiAuth, onlyMaster, (req, res) => {
 // -------------------- API de Rendimiento por Operador --------------------
 app.get('/api/rendimiento/operadores', apiAuth, onlyMaster, (req, res) => {
     const { startDate, endDate } = req.query;
-    let sql = `
-        SELECT 
-            u.username AS operador_nombre,
-            IFNULL(COUNT(op.id), 0) AS total_operaciones,
-            IFNULL(COUNT(DISTINCT op.cliente_id), 0) AS clientes_unicos,
-            IFNULL(SUM(op.monto_clp), 0) AS total_clp_enviado
-        FROM operaciones op
-        JOIN usuarios u ON op.usuario_id = u.id
-    `;
-    const where = [];
-    const params = [];
+    let sql = `SELECT u.username AS operador_nombre, IFNULL(COUNT(op.id), 0) AS total_operaciones, IFNULL(COUNT(DISTINCT op.cliente_id), 0) AS clientes_unicos, IFNULL(SUM(op.monto_clp), 0) AS total_clp_enviado FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id`;
+    const where = []; const params = [];
     if (startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(startDate); }
     if (endDate) { where.push(`date(op.fecha) <= date(?)`); params.push(endDate); }
     if (where.length) { sql += ` WHERE ` + where.join(' AND '); }
     sql += ` GROUP BY u.username ORDER BY total_clp_enviado DESC`;
-
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al procesar el reporte.' });
-        
         const rendimiento = rows.map(row => {
             const volumenMillones = row.total_clp_enviado / 1000000;
             const bonificacionUsd = Math.floor(volumenMillones) * 2;
-            return {
-                ...row,
-                bonificacion_usd: bonificacionUsd,
-                millones_comisionables: Math.floor(volumenMillones)
-            };
+            return { ...row, bonificacion_usd: bonificacionUsd, millones_comisionables: Math.floor(volumenMillones) };
         });
         res.json(rendimiento);
     });
 });
 
-
 // -------------------- Tasas (configuracion) --------------------
-const readConfig = (clave, cb) => {
-  db.get(`SELECT valor FROM configuracion WHERE clave=?`, [clave], (e, row) =>
-    cb(e, row ? row.valor : null)
-  );
-};
-const upsertConfig = (clave, valor, cb) => {
-  db.run(
-    `INSERT INTO configuracion(clave,valor) VALUES(?,?)
-     ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor`,
-    [clave, valor],
-    cb
-  );
-};
+const readConfig = (clave, cb) => db.get(`SELECT valor FROM configuracion WHERE clave=?`, [clave], (e, row) => cb(e, row ? row.valor : null));
+const upsertConfig = (clave, valor, cb) => db.run(`INSERT INTO configuracion(clave,valor) VALUES(?,?) ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor`, [clave, valor], cb);
 
 app.get('/api/tasas', apiAuth, (req, res) => {
   const result = {};
@@ -651,13 +515,8 @@ app.post('/api/tasas', apiAuth, onlyMaster, (req, res) => {
 app.post('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
     const { capitalInicialClp } = req.body;
     const capClp = Number(capitalInicialClp) || 0;
-
-    // Esta versión solo actualiza el capital inicial, sin borrar otros datos.
     upsertConfig('capitalInicialClp', String(capClp), (err) => {
-        if (err) {
-            console.error("Error al guardar capital inicial:", err);
-            return res.status(500).json({ message: 'Error al actualizar el capital inicial.' });
-        }
+        if (err) { console.error("Error al guardar capital inicial:", err); return res.status(500).json({ message: 'Error al actualizar el capital inicial.' }); }
         res.json({ message: 'Capital inicial actualizado con éxito.' });
     });
 });
@@ -667,7 +526,6 @@ app.get('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
         .then(([capitalInicialClp, saldoInicialVes, costoVesPorClp]) => res.json({ capitalInicialClp, saldoInicialVes, costoVesPorClp }))
         .catch(e => res.status(500).json({ message: 'Error al leer configuración' }));
 });
-
 
 // -------------------- APIs de Gestión de Usuarios --------------------
 app.get('/api/usuarios', apiAuth, onlyMaster, (req, res) => {
@@ -682,13 +540,11 @@ app.put('/api/usuarios/:id', apiAuth, onlyMaster, async (req, res) => {
     const { username, password, role } = req.body;
     let sql = `UPDATE usuarios SET username = ?, role = ? WHERE id = ?`;
     let params = [username, role, userId];
-
     if (password) {
         const hash = await bcrypt.hash(password, 10);
         sql = `UPDATE usuarios SET username = ?, role = ?, password = ? WHERE id = ?`;
         params = [username, role, hash, userId];
     }
-    
     db.run(sql, params, function (e) {
         if (e) return res.status(500).json({ message: 'Error al actualizar usuario' });
         res.json({ message: 'Usuario actualizado con éxito.' });
@@ -700,10 +556,7 @@ app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ message: 'Datos incompletos' });
   const hash = await bcrypt.hash(password, 10);
-  db.run(
-    `INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`,
-    [username, hash, 'operador'],
-    (e) => {
+  db.run(`INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`, [username, hash, 'operador'], (e) => {
       if (e) return res.status(400).json({ message: 'No se pudo crear (¿duplicado?)' });
       res.json({ message: 'Operador creado' });
     }
@@ -722,29 +575,19 @@ app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
     const { clp_invertido, ves_obtenido } = req.body;
     const clp = Number(clp_invertido || 0);
     const ves = Number(ves_obtenido || 0);
-
-    if (clp <= 0 || ves <= 0) {
-        return res.status(400).json({ message: 'Los montos de CLP y VES deben ser mayores a cero.' });
-    }
-
+    if (clp <= 0 || ves <= 0) { return res.status(400).json({ message: 'Los montos de CLP y VES deben ser mayores a cero.' }); }
     const tasa = clp / ves;
     const fecha = hoyLocalYYYYMMDD();
-
-    db.run(
-        `INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_clp_ves, fecha) VALUES (?, ?, ?, ?, ?)`,
-        [req.session.user.id, clp, ves, tasa, fecha],
-        function(err) {
-            if (err) return res.status(500).json({ message: 'Error al guardar la compra.' });
-
-            updateConfigState('saldoVesOnline', ves, (errVes) => {
-                if (errVes) console.error("Error al actualizar saldo VES:", errVes);
-                updateConfigState('capitalAcumulativoClp', -clp, (errClp) => {
-                    if (errClp) console.error("Error al actualizar capital CLP:", errClp);
-                    res.json({ message: 'Compra registrada con éxito.' });
-                });
+    db.run(`INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_clp_ves, fecha) VALUES (?, ?, ?, ?, ?)`, [req.session.user.id, clp, ves, tasa, fecha], function(err) {
+        if (err) return res.status(500).json({ message: 'Error al guardar la compra.' });
+        updateConfigState('saldoVesOnline', ves, (errVes) => {
+            if (errVes) console.error("Error al actualizar saldo VES:", errVes);
+            updateConfigState('capitalAcumulativoClp', -clp, (errClp) => {
+                if (errClp) console.error("Error al actualizar capital CLP:", errClp);
+                res.json({ message: 'Compra registrada con éxito.' });
             });
-        }
-    );
+        });
+    });
 });
 
 app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
@@ -753,12 +596,7 @@ app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
     const clp = Number(clp_invertido || 0);
     const ves = Number(ves_obtenido || 0);
     const tasa = clp / (ves || 1);
-    
-    const sql = `
-        UPDATE compras 
-        SET clp_invertido = ?, ves_obtenido = ?, tasa_clp_ves = ?, fecha = ? 
-        WHERE id = ?`;
-    
+    const sql = `UPDATE compras SET clp_invertido = ?, ves_obtenido = ?, tasa_clp_ves = ?, fecha = ? WHERE id = ?`;
     db.run(sql, [clp, ves, tasa, fecha, compraId], function (e) {
         if (e) return res.status(500).json({ message: 'Error al actualizar compra' });
         res.json({ message: 'Compra actualizada con éxito. Recargue la página para ver los KPIs actualizados.' });

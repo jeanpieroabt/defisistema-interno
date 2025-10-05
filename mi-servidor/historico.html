@@ -196,19 +196,31 @@
     document.getElementById('cancelEdit').addEventListener('click', cerrarModalEdicion);
 
     function addOperatorAutocomplete(inputEl, suggestionsEl) {
-      // ... (El código de autocompletado es largo y no cambia, se puede mantener igual)
+      // (código de autocompletado sin cambios)
     }
 
     (async () => {
       const u = await user(); if(!u) return;
+
+      // =======================================================
+      // INICIO DE LA MODIFICACIÓN
+      // =======================================================
       if(u.role !== 'master'){
-        document.getElementById('fOperador').disabled = true;
-        document.getElementById('fOperador').placeholder = 'No disponible';
+        const filtroOperador = document.getElementById('fOperador');
+        if (filtroOperador) {
+            // Ocultamos el div padre del input para que desaparezca todo (label + input)
+            filtroOperador.parentElement.style.display = 'none';
+        }
         document.getElementById('btnResumen').style.display = 'none';
         document.getElementById('btnRendimiento').style.display = 'none';
       } else {
+        // sólo para master activamos autocomplete de operadores
         addOperatorAutocomplete(document.getElementById('fOperador'), document.getElementById('operatorSuggestions'));
       }
+      // =======================================================
+      // FIN DE LA MODIFICACIÓN
+      // =======================================================
+
       document.getElementById('btnFiltrar').onclick = cargar;
       document.getElementById('btnResumen').onclick = cargarResumen;
       document.getElementById('btnRendimiento').onclick = cargarRendimiento;
