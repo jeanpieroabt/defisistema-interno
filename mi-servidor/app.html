@@ -5,9 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Defi Oracle - App</title>
   <link rel="stylesheet" href="style.css">
-</head>
+  
+  </head>
 <body>
+
   <div id="toast-container" class="toast-container"></div>
+
   <div class="container">
     <nav class="navbar">
       <div class="brand">
@@ -18,7 +21,7 @@
         <button class="btn-menu" id="menuBtn"><span id="userLabel">Usuario</span> ▾</button>
         <div class="dropdown" id="menuDrop">
           <a id="adminLink" href="/admin.html" target="_blank" style="display:none">Administración</a>
-          <a id="historicoLink" href="/historico.html" target="_blank" style="display:none">Histórico de Envíos</a>
+          <a id="historicoLink" href="/historico.html" target="_blank">Histórico de Envíos</a>
           <hr/>
           <a href="/logout">Cerrar Sesión</a>
         </div>
@@ -26,23 +29,45 @@
     </nav>
 
     <div class="content">
+      
+      <div id="kpiSaldoVes" class="kpi-ves" style="display: none;">
+          <h3>SALDO VES ONLINE DISPONIBLE</h3>
+          <strong id="kpiVesOnline">0,00 VES</strong>
+      </div>
+
       <section id="kpisSection" style="display:none">
         <h2>Dashboard en Tiempo Real</h2>
-        <div class="grid2">
-            <div class="kpi"><div style="color:var(--medium-grey)">Tasa Compra Promedio (VES/CLP)</div><div id="kpiTasaCompra" style="font-weight:800; color:var(--primary-color)">—</div></div>
-            <div class="kpi"><div style="color:var(--medium-grey)">Tasa Venta Promedio HOY (VES/CLP)</div><div id="kpiTasaVenta" style="font-weight:800; color:var(--primary-color)">—</div></div>
+        <div class="kpis-rates">
+            <div class="kpi" style="background: #f0f8ff;">
+                <div style="color:var(--muted)">Tasa Compra Promedio (VES/CLP)</div>
+                <div id="kpiTasaCompra" style="font-weight:800; color:var(--primary)">—</div>
+            </div>
+            <div class="kpi" style="background: #f0f8ff;">
+                <div style="color:var(--muted)">Tasa Venta Promedio HOY (VES/CLP)</div>
+                <div id="kpiTasaVenta" style="font-weight:800; color:var(--primary)">—</div>
+            </div>
         </div>
-        <div class="kpis" style="margin-top: 1rem;">
-          <div class="kpi"><h4>Ganancia Bruta HOY (CLP)</h4><strong id="kpiG">—</strong></div>
-          <div class="kpi"><h4>Total Enviado HOY (CLP)</h4><strong id="kpiT">—</strong></div>
-          <div class="kpi"><h4>Margen Bruto HOY</h4><strong id="kpiM">—</strong></div>
+        <div class="kpis-grid">
+          <div class="kpi"><div style="color:var(--muted)">Ganancia Bruta HOY (CLP)</div><div id="kpiG" style="font-weight:800">—</div></div>
+          <div class="kpi"><div style="color:var(--muted)">Total Enviado HOY (CLP)</div><div id="kpiT" style="font-weight:800">—</div></div>
+          <div class="kpi"><div style="color:var(--muted)">Margen Bruto HOY</div><div id="kpiM" style="font-weight:800">—</div></div>
         </div>
+        <h3 style="margin-top: 15px;">Capital e Inventario</h3>
+        <div class="kpis-grid">
+          <div class="kpi" style="background: #eaf4ff;"><div class="kpi-h4">Capital Total (CLP)</div><div id="kpiCapitalTotal" style="font-weight:800">—</div></div>
+          <div class="kpi"><div class="kpi-h4">Ganancia Acumulada (CLP)</div><div id="kpiGananciaAcumulada" style="font-weight:800">—</div></div>
+          
+          <div class="kpi">
+            <div class="kpi-h4">Inventario VES (Valor en CLP)</div>
+            <div id="kpiSaldoClpDisponible" style="font-weight:800">—</div>
+          </div>
+          </div>
       </section>
 
-      <section id="operatorKpi" style="display:none; margin-bottom: 24px;">
+      <section id="operatorKpi" style="margin-bottom: 24px; display:none;">
           <h2 style="margin-bottom: 12px;">Tu Total Enviado (Este Mes)</h2>
-          <div class="kpi" style="max-width:300px; margin: 0 auto; background:var(--secondary-color); color:white;">
-              <div style="font-weight:700;">CLP Enviado Total Registrado</div>
+          <div class="kpi" style="max-width:300px; margin: 0 auto; background:var(--secondary); color:var(--dark);">
+              <div style="color:var(--dark); font-weight:700;">CLP Enviado Total Registrado</div>
               <div id="kpiOperatorClp" style="font-size:1.5rem; font-weight:900">0,00</div>
           </div>
       </section>
@@ -50,38 +75,27 @@
       <h2>Registrar Nuevo Envío</h2>
       <form id="frm">
         <div class="form-group"><label for="fch">Fecha del Envío</label><input type="date" id="fch" required></div>
+
         <div class="autocomplete-container form-group">
           <label for="cli">Nombre del Cliente</label>
           <input type="text" id="cli" required autocomplete="off" />
           <div class="autocomplete-suggestions" id="clientSuggestions"></div>
         </div>
-        <div class="form-group">
-            <label for="ref">N° de Referencia Banco</label>
-            <input type="text" id="ref" required>
-        </div>
+
         <div class="form-group"><label for="mclp">Monto en CLP ($)</label><input type="number" id="mclp" required></div>
         <div class="form-group"><label for="tasa">Tasa</label><input type="number" id="tasa" step="0.0001" required></div>
-        <div class="kpi form-group">
-          <label>Monto a recibir en VES (preview)</label>
-          <div id="vesPreview" style="font-size:1.2rem;font-weight:800; color: var(--primary-color);">0,00</div>
+        <div class="highlight form-group">
+          <div style="font-weight:700;color:var(--muted);margin-bottom:6px">Monto a recibir en VES (preview)</div>
+          <div id="vesPreview" style="font-size:1.2rem;font-weight:800">0,00</div>
         </div>
         <div class="form-group"><label for="obs">Observaciones (opcional)</label><input type="text" id="obs"></div>
-        <button class="btn btn-primary" type="submit" style="width: auto;">Guardar Envío</button>
+        <button class="btn btn-primary" type="submit">Guardar Envío</button>
       </form>
 
       <h2 id="tituloTabla">Envíos Registrados</h2>
       <table>
         <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Operador</th>
-            <th>Cliente</th>
-            <th>Referencia</th> <th>Monto CLP</th>
-            <th>Tasa</th>
-            <th>Monto VES</th>
-            <th>Obs.</th>
-            <th>Acción</th>
-          </tr>
+          <tr><th>Fecha</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acción</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -94,35 +108,37 @@
       <form id="editForm" class="modal-form">
         <div class="form-grid">
           <div><label>Fecha</label><input type="date" id="editFecha" required></div>
+
           <div class="autocomplete-container">
             <label>Cliente</label>
             <input type="text" id="editCliente" required autocomplete="off">
             <div class="autocomplete-suggestions" id="editClientSuggestions"></div>
           </div>
-          <div>
-            <label>N° de Referencia</label>
-            <input type="text" id="editRef" required>
-          </div>
+
           <div><label>Monto CLP</label><input type="number" id="editMontoClp" required></div>
           <div><label>Tasa</label><input type="number" id="editTasa" step="0.0001" required></div>
           <div class="form-full"><label>Observaciones</label><input type="text" id="editObs"></div>
         </div>
         <div class="modal-buttons">
-          <button type="button" class="btn btn-light" id="cancelEdit">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+          <button type="button" class="btn-light" id="cancelEdit">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar Cambios</button>
         </div>
       </form>
     </div>
   </div>
 
+
   <script>
+    // AÑADIDO: Función para mostrar notificaciones Toast
     function showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.textContent = message;
         container.appendChild(toast);
+
         setTimeout(() => toast.classList.add('show'), 100);
+
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 500);
@@ -132,7 +148,11 @@
     let user = {};
     let operacionesData = [];
 
-    const getLocalYYYYMMDD = () => new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 10);
+    const getLocalYYYYMMDD = () => {
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    };
 
     async function cargarOperatorKpi(){
       const k = await (await fetch('/api/monthly-sales')).json();
@@ -140,37 +160,57 @@
       document.getElementById('kpiOperatorClp').textContent = fmt(k.totalClpMensual);
     }
     
+    async function cargarSaldoVes(){
+        const r = await fetch('/api/dashboard');
+        if (r.ok) {
+            const d = await r.json();
+            const fmtVES = v => (v||0).toLocaleString('es-VE', {minimumFractionDigits: 2});
+            document.getElementById('kpiVesOnline').textContent = `${fmtVES(d.saldoVesOnline)} VES`;
+        } else {
+             document.getElementById('kpiVesOnline').textContent = `0,00 VES`;
+        }
+        document.getElementById('kpiSaldoVes').style.display = 'block';
+    }
+
     async function cargarMasterMetrics(){
         if (user.role !== 'master') return;
         const r = await fetch('/api/dashboard');
         if (!r.ok) return; 
+
         const d = await r.json();
         const fmtCLP = v => (v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
+        const fmtRate = v => (v||0).toFixed(6);
+
         document.getElementById('kpiG').textContent = fmtCLP(d.gananciaBruta);
         document.getElementById('kpiT').textContent = fmtCLP(d.totalClpEnviado);
-        document.getElementById('kpiM').textContent = `${(d.margenBruto||0).toFixed(1)}%`;
-        document.getElementById('kpiTasaCompra').textContent = (d.tasaCompraPromedio||0).toFixed(6);
-        document.getElementById('kpiTasaVenta').textContent = (d.tasaVentaPromedio||0).toFixed(6);
+        document.getElementById('kpiM').textContent = ((d.margenBruto||0).toFixed(1)) + '%';
+        document.getElementById('kpiTasaCompra').textContent = fmtRate(d.tasaCompraPromedio);
+        document.getElementById('kpiTasaVenta').textContent = fmtRate(d.tasaVentaPromedio);
+        document.getElementById('kpiCapitalTotal').textContent = fmtCLP(d.capitalTotalClp);
+        document.getElementById('kpiGananciaAcumulada').textContent = fmtCLP(d.totalGananciaAcumuladaClp);
+        document.getElementById('kpiSaldoClpDisponible').textContent = fmtCLP(d.saldoDisponibleClp);
     }
 
     const fila = (op) => {
       const tr = document.createElement('tr');
-      const fechaFormateada = new Date(op.fecha + 'T00:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-'); 
+      const fecha = new Date(op.fecha + 'T00:00:00'); 
+      const fechaFormateada = fecha.toLocaleDateString('es-CL', {
+          day: '2-digit', month: '2-digit', year: 'numeric'
+      }).replace(/\//g, '-'); 
       const fmtCLP = v => Number(v).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
       const fmtVES = v => Number(v).toLocaleString('es-VE');
+
       const puedeEditar = (user.role === 'master') || (user.id === op.usuario_id && op.fecha === getLocalYYYYMMDD());
-      
-      // AÑADIDO: Celda para la referencia
+
       tr.innerHTML = `
         <td>${fechaFormateada}</td>
         <td>${op.operador}</td>
         <td>${op.cliente_nombre}</td>
-        <td>${op.referencia_banco || ''}</td>
         <td>${fmtCLP(op.monto_clp)}</td>
         <td>${Number(op.tasa).toFixed(4)}</td>
         <td>${fmtVES(op.monto_ves)}</td>
         <td>${op.observaciones || ''}</td>
-        <td>${puedeEditar ? `<button class="btn btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>` : ''}</td>`;
+        <td>${puedeEditar ? `<button class="btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>` : ''}</td>`;
       return tr;
     };
 
@@ -188,45 +228,111 @@
     function abrirModalEdicion(id) {
         const op = operacionesData.find(d => d.id === id);
         if (!op) return;
+
         modal.dataset.id = op.id;
         document.getElementById('editFecha').value = op.fecha;
         document.getElementById('editCliente').value = op.cliente_nombre;
         document.getElementById('editMontoClp').value = op.monto_clp;
         document.getElementById('editTasa').value = op.tasa;
         document.getElementById('editObs').value = op.observaciones || '';
-        document.getElementById('editRef').value = op.referencia_banco || ''; // AÑADIDO: Llenar campo de referencia
+        
         document.getElementById('editFecha').disabled = (user.role !== 'master');
+        
         modal.style.display = 'flex';
     }
 
-    function cerrarModalEdicion() { modal.style.display = 'none'; }
+    function cerrarModalEdicion() {
+        modal.style.display = 'none';
+    }
 
     editForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = modal.dataset.id;
-        // AÑADIDO: Recoger el valor del campo de referencia
         const body = {
             fecha: document.getElementById('editFecha').value,
             cliente_nombre: document.getElementById('editCliente').value,
-            referencia_banco: document.getElementById('editRef').value,
             monto_clp: document.getElementById('editMontoClp').value,
             tasa: document.getElementById('editTasa').value,
             observaciones: document.getElementById('editObs').value,
         };
-        const r = await fetch(`/api/operaciones/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+        const r = await fetch(`/api/operaciones/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+
         const res = await r.json();
+        // REEMPLAZADO: alert() por showToast()
         if (r.ok) {
             showToast(res.message || 'Operación actualizada.', 'success');
             cerrarModalEdicion();
             await cargarTabla();
             if (user.role === 'master') await cargarMasterMetrics();
+            else await cargarOperatorKpi(); 
         } else {
             showToast(res.message || 'Error al actualizar.', 'error');
         }
     });
 
     function addClientAutocomplete(inputEl, suggestionsEl) {
-      // (código de autocompletado sin cambios)
+      let lastQuery = '';
+      inputEl.addEventListener('input', async () => {
+        const q = String(inputEl.value || '').trim();
+        if (q.length < 2) {
+          suggestionsEl.style.display = 'none';
+          suggestionsEl.innerHTML = '';
+          return;
+        }
+        if (q === lastQuery) { suggestionsEl.style.display = suggestionsEl.children.length ? 'block' : 'none'; return; }
+        lastQuery = q;
+
+        try {
+          const res = await fetch(`/api/clientes/search?term=${encodeURIComponent(q)}`);
+          if (!res.ok) throw new Error('network');
+          const names = await res.json();
+          suggestionsEl.innerHTML = '';
+          if (names && names.length) {
+            names.forEach(name => {
+              const item = document.createElement('div');
+              item.className = 'suggestion-item';
+              item.textContent = name;
+              item.addEventListener('click', () => {
+                inputEl.value = name;
+                suggestionsEl.style.display = 'none';
+                suggestionsEl.innerHTML = '';
+                inputEl.dispatchEvent(new Event('input'));
+              });
+              suggestionsEl.appendChild(item);
+            });
+            suggestionsEl.style.display = 'block';
+          } else {
+            const empty = document.createElement('div');
+            empty.className = 'suggestion-empty';
+            empty.textContent = 'Sin resultados';
+            suggestionsEl.appendChild(empty);
+            suggestionsEl.style.display = 'block';
+          }
+        } catch (e) {
+          suggestionsEl.style.display = 'none';
+        }
+      });
+
+      document.addEventListener('click', (ev) => {
+        if (!inputEl.contains(ev.target) && !suggestionsEl.contains(ev.target)) {
+          suggestionsEl.style.display = 'none';
+        }
+      });
+
+      inputEl.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' && suggestionsEl.style.display === 'block') {
+          const first = suggestionsEl.querySelector('.suggestion-item');
+          if (first) {
+            ev.preventDefault();
+            first.click();
+          }
+        }
+      });
     }
 
     (async () => {
@@ -237,71 +343,83 @@
       
       if (user.role === 'master') {
         document.getElementById('adminLink').style.display = 'block';
-        document.getElementById('historicoLink').style.display = 'block';
         document.getElementById('kpisSection').style.display = 'block'; 
-      } else {
-        document.getElementById('tituloTabla').textContent = 'Tus Envíos Registrados (Hoy)';
+        document.getElementById('operatorKpi').style.display = 'none'; 
         document.getElementById('historicoLink').style.display = 'block';
+      } else {
+        document.getElementById('tituloTabla').textContent = 'Envíos Registrados (Hoy)';
+        document.getElementById('historicoLink').style.display = 'none'; 
         document.getElementById('operatorKpi').style.display = 'block';
-        await cargarOperatorKpi();
       }
 
       const btn = document.getElementById('menuBtn');
       const drop = document.getElementById('menuDrop');
       btn.addEventListener('click', () => drop.classList.toggle('show'));
       window.addEventListener('click', (e) => { if (!btn.contains(e.target)) drop.classList.remove('show'); });
-      
-      const fch = document.getElementById('fch'); 
+
+      const fch = document.getElementById('fch');
       fch.value = getLocalYYYYMMDD();
-      
-      let niveles = {}; 
+
+      let niveles = {};
       try { niveles = await (await fetch('/api/tasas')).json(); } catch (e) {}
-      
+
       const mclp = document.getElementById('mclp');
       const tasa = document.getElementById('tasa');
       const vesPreview = document.getElementById('vesPreview');
+      
       const aplicarTasaAutomatica = () => {
         const v = Number(mclp.value || 0);
         if (v >= 250000 && niveles.tasaNivel3) tasa.value = Number(niveles.tasaNivel3);
         else if (v >= 100000 && niveles.tasaNivel2) tasa.value = Number(niveles.tasaNivel2);
-        else if (v >= 5000 && niveles.tasaNivel1) tasa.value = Number(niveles.tasaNivel1);
+        else if (v >= 5000   && niveles.tasaNivel1) tasa.value = Number(niveles.tasaNivel1);
       };
-      const actualizarPreview = () => { vesPreview.textContent = (Number(mclp.value||0) * Number(tasa.value||0)).toLocaleString('es-VE'); };
+      const actualizarPreview = () => {
+        vesPreview.textContent = (Number(mclp.value||0) * Number(tasa.value||0)).toLocaleString('es-VE');
+      };
       mclp.addEventListener('input', () => { aplicarTasaAutomatica(); actualizarPreview(); });
       tasa.addEventListener('input', actualizarPreview);
       
       document.getElementById('cancelEdit').addEventListener('click', cerrarModalEdicion);
-      
+
       document.getElementById('frm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        // AÑADIDO: Recoger el valor del campo de referencia
-        const body = { 
-            fecha: fch.value, 
-            cliente_nombre: document.getElementById('cli').value.trim(), 
-            referencia_banco: document.getElementById('ref').value.trim(),
-            monto_clp: Number(mclp.value || 0), 
-            tasa: Number(tasa.value || 0), 
-            monto_ves: Number(mclp.value || 0) * Number(tasa.value || 0), 
-            observaciones: document.getElementById('obs').value.trim() 
+        const body = {
+          fecha: fch.value,
+          cliente_nombre: document.getElementById('cli').value.trim(),
+          monto_clp: Number(mclp.value || 0),
+          tasa: Number(tasa.value || 0),
+          monto_ves: Number(mclp.value || 0) * Number(tasa.value || 0),
+          observaciones: document.getElementById('obs').value.trim()
         };
-        const r = await fetch('/api/operaciones', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-        if (!r.ok) { 
-            const err = await r.json(); 
-            return showToast(`Error: ${err.message || 'Verifique los datos.'}`, 'error'); 
+        const r = await fetch('/api/operaciones', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(body)
+        });
+
+        // REEMPLAZADO: alert() por showToast()
+        if (!r.ok) {
+           const err = await r.json();
+           return showToast(`Error: ${err.message || 'Verifique el saldo.'}`, 'error');
         }
+
         showToast('Envío registrado con éxito.', 'success');
         e.target.reset();
         fch.value = getLocalYYYYMMDD();
         vesPreview.textContent = '0,00';
         await cargarTabla();
+        await cargarSaldoVes(); 
         if (user.role === 'master') await cargarMasterMetrics();
+        else await cargarOperatorKpi(); 
       });
-      
+
       addClientAutocomplete(document.getElementById('cli'), document.getElementById('clientSuggestions'));
       addClientAutocomplete(document.getElementById('editCliente'), document.getElementById('editClientSuggestions'));
-      
+
       await cargarTabla();
+      await cargarSaldoVes(); 
       if (user.role === 'master') await cargarMasterMetrics();
+      else await cargarOperatorKpi(); 
       actualizarPreview();
     })();
   </script>
