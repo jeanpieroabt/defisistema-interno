@@ -269,7 +269,7 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
                         IFNULL(SUM(ves_obtenido),0) as totalVesComprado,
                         IFNULL(SUM(clp_invertido),0) as totalClpInvertido,
                         (IFNULL(SUM(ves_obtenido),0) / IFNULL(SUM(clp_invertido), 1)) AS tasaCompra
-                     FROM compras`, 
+                     FROM compras WHERE date(fecha)=date('now','localtime')`, 
                     [], 
                     (e, rowCompras) => resolve({ tasaCompraPromedio: rowCompras?.tasaCompra || 0 })
                 );
