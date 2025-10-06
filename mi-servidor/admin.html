@@ -4,6 +4,23 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Administración</title>
   <link rel="stylesheet" href="style.css">
+  <!-- ANOTACIÓN: He añadido estilos directamente aquí para los nuevos botones y mejorar la alineación. -->
+  <style>
+    .actions-cell {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-save {
+      background-color: var(--secondary-color);
+      color: white;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+    .btn-danger {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+  </style>
 </head>
 <body>
   <div id="toast-container" class="toast-container"></div>
@@ -128,7 +145,18 @@
         tbody.innerHTML = '';
         usuarios.forEach(u => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${u.id}</td><td><input type="text" id="user-${u.id}-username" value="${u.username}"></td><td><select id="user-${u.id}-role"><option value="master" ${u.role === 'master' ? 'selected' : ''}>Master</option><option value="operador" ${u.role === 'operador' ? 'selected' : ''}>Operador</option></select></td><td><button onclick="editUser(${u.id})" class="btn btn-edit">Guardar</button></td>`;
+            // ANOTACIÓN: Se completa el HTML para la fila de usuarios, añadiendo el select y el botón de guardar.
+            tr.innerHTML = `
+                <td>${u.id}</td>
+                <td><input type="text" id="user-${u.id}-username" value="${u.username}"></td>
+                <td>
+                    <select id="user-${u.id}-role">
+                        <option value="master" ${u.role === 'master' ? 'selected' : ''}>Master</option>
+                        <option value="operador" ${u.role === 'operador' ? 'selected' : ''}>Operador</option>
+                    </select>
+                </td>
+                <td><button class="btn btn-save" onclick="editUser(${u.id})">Guardar</button></td>
+            `;
             tbody.appendChild(tr);
         });
     }
@@ -139,8 +167,12 @@
         const username = document.getElementById(`user-${id}-username`).value;
         const role = document.getElementById(`user-${id}-role`).value;
         const password = prompt("Ingrese NUEVA contraseña (deje vacío para no cambiar):");
+        // Si el usuario cancela el prompt, no hacemos nada.
+        if (password === null) return;
+        
         const body = { username, role };
         if (password) body.password = password;
+        
         const r = await fetch(`/api/usuarios/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const res = await r.json();
         showToast(res.message || 'Error', r.ok ? 'success' : 'error');
@@ -153,7 +185,18 @@
         compras.forEach(c => {
             const tasaMostrada = c.clp_invertido > 0 ? Number(c.ves_obtenido / c.clp_invertido).toFixed(6) : 0;
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${c.id}</td><td><input type="date" id="compra-${c.id}-fecha" value="${c.fecha}"></td><td><input type="number" step="0.01" id="compra-${c.id}-clp" value="${c.clp_invertido}"></td><td><input type="number" step="0.01" id="compra-${c.id}-ves" value="${c.ves_obtenido}"></td><td>${tasaMostrada}</td><td><button onclick="editCompra(${c.id})" class="btn btn-edit">Guardar</button> <button onclick="deleteCompra(${c.id})" class="btn btn-danger">Borrar</button></td>`;
+            // ANOTACIÓN: Se completa el HTML para la fila de compras, añadiendo los botones de guardar y borrar.
+            tr.innerHTML = `
+                <td>${c.id}</td>
+                <td><input type="date" id="compra-${c.id}-fecha" value="${c.fecha}"></td>
+                <td><input type="number" step="0.01" id="compra-${c.id}-clp" value="${c.clp_invertido}"></td>
+                <td><input type="number" step="0.01" id="compra-${c.id}-ves" value="${c.ves_obtenido}"></td>
+                <td>${tasaMostrada}</td>
+                <td class="actions-cell">
+                    <button class="btn btn-save" onclick="editCompra(${c.id})">Guardar</button>
+                    <button class="btn btn-danger" onclick="deleteCompra(${c.id})">Borrar</button>
+                </td>
+            `;
             tbody.appendChild(tr);
         });
     }
@@ -168,7 +211,11 @@
         const r = await fetch(`/api/compras/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const res = await r.json();
         showToast(res.message || 'Error', r.ok ? 'success' : 'error');
-        if (r.ok) { fetchCompras(); loadKpis(); }
+        if (r.ok) { 
+            // ANOTACIÓN: Se recargan ambas tablas para mantener la consistencia de los datos y KPIs.
+            fetchCompras(); 
+            loadKpis(); 
+        }
     }
 
     async function deleteCompra(id) {
@@ -176,7 +223,10 @@
         const r = await fetch(`/api/compras/${id}`, { method: 'DELETE' });
         const res = await r.json();
         showToast(res.message || 'Error', r.ok ? 'success' : 'error');
-        if (r.ok) { fetchCompras(); loadKpis(); }
+        if (r.ok) { 
+            fetchCompras(); 
+            loadKpis(); 
+        }
     }
 
     document.getElementById('fCapital').onsubmit = async (e)=>{
