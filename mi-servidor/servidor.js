@@ -73,7 +73,7 @@ db.serialize(() => {
     usuario_id INTEGER NOT NULL,
     clp_invertido REAL NOT NULL,
     ves_obtenido REAL NOT NULL,
-    tasa_clp_ves REAL NOT NULL,
+    tasa_compra REAL NOT NULL, // CAMBIO: Nombre de columna para claridad (antes tasa_clp_ves)
     fecha TEXT NOT NULL,
     FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
   )`);
@@ -83,8 +83,6 @@ db.serialize(() => {
     valor TEXT
   )`);
 });
-
-// ANOTACIÓN: Se ha eliminado el script de migración antiguo y problemático.
 
 // Semilla mínima
 db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -205,25 +203,26 @@ app.get('/api/usuarios/search', apiAuth, onlyMaster, (req, res) => {
 });
 
 // -------------------- APIs de Costos y KPIs --------------------
-// ANOTACIÓN: Esta es la nueva función para obtener la tasa de un día específico.
+// CAMBIO: Lógica de getAvgPurchaseRate actualizada para devolver VES/CLP
 const getAvgPurchaseRate = (date, callback) => {
     const sql = `SELECT SUM(clp_invertido) as totalClp, SUM(ves_obtenido) as totalVes FROM compras WHERE date(fecha) = date(?)`;
     db.get(sql, [date], (err, row) => {
         if (err) return callback(err, 0);
-        if (!row || !row.totalVes) return callback(null, 0);
-        const rate = row.totalClp / row.totalVes;
+        if (!row || !row.totalClp) return callback(null, 0); // Evitar división por cero
+        const rate = row.totalVes / row.totalClp; // Tasa en VES por CLP
         return callback(null, rate);
     });
 };
 
-const calcularCostoVesPorClp = (fecha, callback) => {
+const calcularCostoClpPorVes = (fecha, callback) => {
+    // CAMBIO: Esta función ahora calcula el inverso de la tasa VES/CLP para obtener el costo.
     getAvgPurchaseRate(fecha, (err, rate) => {
         if (err) return callback(err, 0);
-        if (rate > 0) return callback(null, 1 / rate); // El costo es el inverso de la tasa de compra
+        if (rate > 0) return callback(null, 1 / rate); // El costo CLP por VES es el inverso de la tasa VES por CLP
 
         const ayer = new Date(fecha);
-        ayer.setDate(ayer.getDate()); // Corregido para tomar el día de la operación, no el de hoy
-        const fechaAyer = new Date(ayer.getTime() - (24 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+        ayer.setDate(ayer.getDate() - 1); // Usar el día anterior a la fecha proporcionada
+        const fechaAyer = ayer.toISOString().slice(0, 10);
         
         getAvgPurchaseRate(fechaAyer, (errAyer, rateAyer) => {
             if (errAyer) return callback(errAyer, 0);
@@ -259,7 +258,8 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
         });
 
         Promise.all([
-            new Promise(resolve => calcularCostoVesPorClp(hoy, (e, costo) => resolve({ costoVesPorClp: costo || 0 }))),
+            // CAMBIO: Usar la nueva función para calcular el costo
+            new Promise(resolve => calcularCostoClpPorVes(hoy, (e, costo) => resolve({ costoClpPorVes: costo || 0 }))),
             new Promise(resolve => {
                 db.get(`SELECT IFNULL(SUM(monto_clp),0) as totalClpEnviado, IFNULL(SUM(monto_ves),0) as totalVesEnviado FROM operaciones WHERE date(fecha)=date('now','localtime')`, [], (e, rowOps) => {
                     if (e) { console.error(e); return resolve({totalClpEnviadoDia: 0, totalVesEnviadoDia: 0}); }
@@ -275,16 +275,20 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
                 });
             }),
         ]).then(([costo, ventas, tasas, saldos]) => {
-            const { costoVesPorClp } = costo;
+            const { costoClpPorVes } = costo; // CAMBIO
             const { totalClpEnviadoDia, totalVesEnviadoDia } = ventas;
             const { tasaCompraPromedio } = tasas;
             const { capitalInicialClp, totalGananciaAcumuladaClp } = saldos;
-            const tasaVentaPromedio = totalClpEnviadoDia > 0 ? totalVesEnviadoDia / totalClpEnviadoDia : 0;
-            const costoTotalVesEnviadoClpDia = totalVesEnviadoDia * costoVesPorClp; 
+            const tasaVentaPromedio = totalVesEnviadoDia > 0 ? totalVesEnviadoDia / totalClpEnviadoDia : 0;
+            const costoTotalVesEnviadoClpDia = totalVesEnviadoDia * costoClpPorVes; // CAMBIO
             const gananciaBrutaDia = totalClpEnviadoDia - costoTotalVesEnviadoClpDia;
             const comisionDelDia = totalClpEnviadoDia * 0.003;
             const gananciaNetaDelDia = gananciaBrutaDia - comisionDelDia;
             const capitalTotalClp = (capitalInicialClp || 0) + totalGananciaAcumuladaClp;
+            
+            // CAMBIO: El saldo disponible en CLP ahora se calcula con la tasa invertida.
+            const saldoDisponibleClp = tasaCompraPromedio > 0 ? (results[0].saldoVesOnline / tasaCompraPromedio) : 0;
+
             resolve({
                 totalClpEnviado: totalClpEnviadoDia,
                 gananciaBruta: gananciaNetaDelDia,
@@ -294,7 +298,7 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
                 capitalInicialClp: capitalInicialClp || 0,
                 totalGananciaAcumuladaClp: totalGananciaAcumuladaClp,
                 capitalTotalClp: capitalTotalClp, 
-                saldoDisponibleClp: 0,
+                saldoDisponibleClp: saldoDisponibleClp,
             });
         }).catch(e => { console.error("Error en Master Dashboard Queries:", e); resolve({}); });
     }),
@@ -303,8 +307,6 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
   Promise.all(queries).then(results => {
       const saldoVes = results[0].saldoVesOnline;
       const masterData = results[1] || {};
-      const tasaCompra = masterData.tasaCompraPromedio || 0;
-      masterData.saldoDisponibleClp = tasaCompra > 0 ? saldoVes / tasaCompra : 0;
       res.json({ saldoVesOnline: saldoVes, ...masterData });
   }).catch(e => {
       console.error("Error general en dashboard:", e);
@@ -384,9 +386,10 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
               });
           });
       });
-      Promise.all([findOrCreateCliente, new Promise((resolve, reject) => calcularCostoVesPorClp(fechaGuardado, (e, costo) => e ? reject(e) : resolve(costo)))])
-        .then(([cliente_id, costoVesPorClp]) => {
-            const costoVesEnviadoClp = montoVesNum * costoVesPorClp;
+      // CAMBIO: Usar la nueva función de costo
+      Promise.all([findOrCreateCliente, new Promise((resolve, reject) => calcularCostoClpPorVes(fechaGuardado, (e, costo) => e ? reject(e) : resolve(costo)))])
+        .then(([cliente_id, costoClpPorVes]) => {
+            const costoVesEnviadoClp = montoVesNum * costoClpPorVes;
             const gananciaBruta = montoClpNum - costoVesEnviadoClp;
             const comisionClp = montoClpNum * 0.003;
             const gananciaNeta = gananciaBruta - comisionClp;
@@ -432,7 +435,8 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
             if (!esMaster && !(esSuOperacion && esDeHoy)) {
                 return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
             }
-            calcularCostoVesPorClp(fecha, (e, costoVesPorClp) => {
+            // CAMBIO: Usar la nueva función de costo
+            calcularCostoClpPorVes(fecha, (e, costoClpPorVes) => {
                 if (e) return res.status(500).json({ message: 'Error al recalcular el costo.' });
                 db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, cliente) => {
                     if (err || !cliente) return res.status(400).json({ message: 'Cliente no encontrado.' });
@@ -441,7 +445,7 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
                     const montoClpNuevo = Number(monto_clp || 0);
                     const tasaNueva = Number(tasa || 0);
                     const montoVesNuevo = montoClpNuevo * tasaNueva;
-                    const costoClpNuevo = montoVesNuevo * costoVesPorClp;
+                    const costoClpNuevo = montoVesNuevo * costoClpPorVes;
                     const comisionVesNuevo = montoVesNuevo * 0.003;
                     const gananciaNetaNueva = (montoClpNuevo - costoClpNuevo) - (montoClpNuevo * 0.003);
                     const vesTotalNuevo = montoVesNuevo + comisionVesNuevo;
@@ -631,7 +635,8 @@ app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
   );
 });
 app.get('/api/compras', apiAuth, onlyMaster, (req, res) => {
-    db.all(`SELECT * FROM compras ORDER BY id DESC`, [], (err, rows) => {
+    // CAMBIO: Asegurarse de que el nombre de la columna es el correcto (tasa_compra)
+    db.all(`SELECT id, usuario_id, clp_invertido, ves_obtenido, tasa_compra, fecha FROM compras ORDER BY id DESC`, [], (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al listar compras' });
         res.json(rows || []);
     });
@@ -641,8 +646,10 @@ app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
     const clp = Number(clp_invertido || 0);
     const ves = Number(ves_obtenido || 0);
     if (clp <= 0 || ves <= 0) return res.status(400).json({ message: 'Los montos deben ser mayores a cero.' });
-    db.run(`INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_clp_ves, fecha) VALUES (?, ?, ?, ?, ?)`,
-        [req.session.user.id, clp, ves, clp / (ves || 1), hoyLocalYYYYMMDD()],
+    // CAMBIO: Calcular la tasa como VES/CLP
+    const tasa = ves / clp;
+    db.run(`INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_compra, fecha) VALUES (?, ?, ?, ?, ?)`,
+        [req.session.user.id, clp, ves, tasa, hoyLocalYYYYMMDD()],
         function(err) {
             if (err) return res.status(500).json({ message: 'Error al guardar la compra.' });
             db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [ves], (updateErr) => {
@@ -661,10 +668,12 @@ app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
         const vesNuevo = Number(ves_obtenido || 0);
         const deltaVes = vesNuevo - vesOriginal;
         const clpNuevo = Number(clp_invertido || 0);
-        const tasaNueva = clpNuevo / (vesNuevo || 1);
+        // CAMBIO: Calcular la nueva tasa como VES/CLP
+        const tasaNueva = clpNuevo > 0 ? vesNuevo / clpNuevo : 0;
         db.serialize(() => {
             db.run('BEGIN TRANSACTION');
-            db.run(`UPDATE compras SET clp_invertido = ?, ves_obtenido = ?, tasa_clp_ves = ?, fecha = ? WHERE id = ?`, [clpNuevo, vesNuevo, tasaNueva, fecha, compraId]);
+            // CAMBIO: Actualizar la columna correcta
+            db.run(`UPDATE compras SET clp_invertido = ?, ves_obtenido = ?, tasa_compra = ?, fecha = ? WHERE id = ?`, [clpNuevo, vesNuevo, tasaNueva, fecha, compraId]);
             db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
                 if (err) {
                     db.run('ROLLBACK');
