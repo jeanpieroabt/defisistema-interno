@@ -64,6 +64,7 @@ db.serialize(() => {
     observaciones TEXT,
     costo_clp REAL DEFAULT 0,  
     comision_ves REAL DEFAULT 0,
+    numero_recibo TEXT UNIQUE,
     FOREIGN KEY(usuario_id) REFERENCES usuarios(id),
     FOREIGN KEY(cliente_id) REFERENCES clientes(id)
   )`);
@@ -85,6 +86,30 @@ db.serialize(() => {
     valor TEXT
   )`);
 });
+
+
+// --- SCRIPT DE MIGRACIÓN DE BASE DE DATOS ---
+db.all("PRAGMA table_info(operaciones)", (err, columns) => {
+    if (err) {
+        console.error("Error al verificar la estructura de la tabla:", err);
+        return;
+    }
+    const hasReciboColumn = columns.some(col => col.name === 'numero_recibo');
+    if (!hasReciboColumn) {
+        console.log("Detectada tabla 'operaciones' antigua. Añadiendo columna 'numero_recibo'...");
+        db.run("ALTER TABLE operaciones ADD COLUMN numero_recibo TEXT UNIQUE", (alterErr) => {
+            if (alterErr) {
+                console.error("Error al añadir la columna 'numero_recibo':", alterErr);
+            } else {
+                console.log("Columna 'numero_recibo' añadida con éxito a la tabla 'operaciones'.");
+            }
+        });
+    } else {
+        console.log("La columna 'numero_recibo' ya existe en la tabla 'operaciones'. No se necesita migración.");
+    }
+});
+// --- FIN DEL SCRIPT DE MIGRACIÓN ---
+
 
 // Semilla mínima
 db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -175,6 +200,22 @@ app.get('/logout', (req, res) => {
   });
 });
 app.get('/api/user-info', apiAuth, (req, res) => res.json(req.session.user));
+
+// --- Endpoint para verificar número de recibo ---
+app.get('/api/recibo/check', apiAuth, (req, res) => {
+    const { numero, excludeId } = req.query;
+    if (!numero) return res.json({ usado: false });
+    let sql = `SELECT id FROM operaciones WHERE numero_recibo = ?`;
+    const params = [numero];
+    if (excludeId) {
+        sql += ' AND id != ?';
+        params.push(excludeId);
+    }
+    db.get(sql, params, (err, row) => {
+        if (err) return res.status(500).json({ message: 'Error en la base de datos' });
+        res.json({ usado: !!row });
+    });
+});
 
 // -------------------- Rutas de búsqueda añadidas --------------------
 app.get('/api/clientes/search', apiAuth, (req, res) => {
@@ -308,18 +349,13 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
   const params = [];
   const where = [];
 
-  // Filtro base por rol
   if (user.role !== 'master') {
     where.push('op.usuario_id = ?');
     params.push(user.id);
   }
-
-  // Filtro de contexto (página principal vs histórico)
   if (!req.query.historico) {
     where.push("date(op.fecha) = date('now','localtime')");
   }
-
-  // Filtros de búsqueda del usuario (desde histórico)
   if (req.query.startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(req.query.startDate); }
   if (req.query.endDate)   { where.push(`date(op.fecha) <= date(?)`); params.push(req.query.endDate); }
   if (req.query.cliente)   { where.push(`c.nombre LIKE ?`); params.push(`%${req.query.cliente}%`); }
@@ -330,7 +366,6 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
   if (where.length) {
     sql += ' WHERE ' + where.join(' AND ');
   }
-
   sql += ` ORDER BY op.id DESC`;
 
   db.all(sql, params, (err, rows) => {
@@ -343,7 +378,11 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
 });
 
 app.post('/api/operaciones', apiAuth, (req, res) => {
-  const { cliente_nombre, monto_clp, monto_ves, tasa, observaciones, fecha } = req.body;
+  const { cliente_nombre, monto_clp, monto_ves, tasa, observaciones, fecha, numero_recibo } = req.body;
+  if (!numero_recibo) {
+    return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
+  }
+
   const fechaGuardado = fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? fecha : hoyLocalYYYYMMDD();
   const montoVes = Number(monto_ves || 0);
   const montoClp = Number(monto_clp || 0);
@@ -359,23 +398,21 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
           const gananciaNeta = gananciaBruta - comisionClp;
           db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, c) => {
             const guardar = (cliente_id) => {
-              db.run(`INSERT INTO operaciones(usuario_id,cliente_id,fecha,monto_clp,monto_ves,tasa,observaciones,costo_clp,comision_ves) VALUES (?,?,?,?,?,?,?,?,?)`,
-                [req.session.user.id, cliente_id, fechaGuardado, montoClp, montoVes, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes],
+              db.run(`INSERT INTO operaciones(usuario_id,cliente_id,fecha,monto_clp,monto_ves,tasa,observaciones,costo_clp,comision_ves,numero_recibo) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                [req.session.user.id, cliente_id, fechaGuardado, montoClp, montoVes, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes, numero_recibo],
                 function (e) {
-                  if (e) return res.status(500).json({ message: 'Error al guardar' });
-                  updateConfigState('saldoVesOnline', -vesTotalDescontar, (err) => { 
-                      if(err) console.error("Error al restar VES:", err);
-                      updateConfigState('totalGananciaAcumuladaClp', gananciaNeta, (err) => {
-                          if(err) console.error("Error al sumar ganancia:", err);
-                          res.json({ id: this.lastID });
-                      });
-                  });
+                  if (e) return res.status(400).json({ message: 'Error al guardar: El número de recibo ya existe.' });
+                  
+                  db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar]);
+                  db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNeta]);
+                  
+                  res.json({ id: this.lastID });
                 }
               );
             };
             if (c) return guardar(c.id);
             db.run(`INSERT INTO clientes(nombre,fecha_creacion) VALUES (?,?)`, [cliente_nombre, new Date().toISOString()], function(e2) {
-              if (e2) return res.status(500).json({ message: 'Error cliente' });
+              if (e2) return res.status(500).json({ message: 'Error al crear cliente' });
               guardar(this.lastID);
             });
           });
@@ -389,50 +426,58 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
 app.put('/api/operaciones/:id', apiAuth, (req, res) => {
     const operacionId = req.params.id;
     const user = req.session.user;
-    const { cliente_nombre, monto_clp, tasa, observaciones, fecha } = req.body;
-    db.get('SELECT * FROM operaciones WHERE id = ?', [operacionId], (err, opOriginal) => {
-        if (err || !opOriginal) return res.status(404).json({ message: 'Operación no encontrada.' });
-        const esMaster = user.role === 'master';
-        const esSuOperacion = opOriginal.usuario_id === user.id;
-        const esDeHoy = opOriginal.fecha === hoyLocalYYYYMMDD();
-        if (!esMaster && !(esSuOperacion && esDeHoy)) return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
-        
-        calcularCostoVesPorClp(fecha, (e, costoVesPorClp) => {
-            if (e) return res.status(500).json({ message: 'Error al recalcular el costo.' });
-            db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, cliente) => {
-                if (err || !cliente) return res.status(400).json({ message: 'Cliente no encontrado.' });
-                
-                // --- Lógica Transaccional ---
-                const montoClpOriginal = opOriginal.monto_clp;
-                const costoClpOriginal = opOriginal.costo_clp;
-                const gananciaBrutaOriginal = montoClpOriginal - costoClpOriginal;
-                const comisionClpOriginal = montoClpOriginal * 0.003;
-                const gananciaNetaOriginal = gananciaBrutaOriginal - comisionClpOriginal;
-                const vesTotalOriginal = opOriginal.monto_ves + opOriginal.comision_ves;
-                const montoClpNuevo = Number(monto_clp || 0);
-                const tasaNueva = Number(tasa || 0);
-                const montoVesNuevo = montoClpNuevo * tasaNueva;
-                const costoClpNuevo = montoVesNuevo * costoVesPorClp;
-                const comisionVesNuevo = montoVesNuevo * 0.003;
-                const gananciaBrutaNueva = montoClpNuevo - costoClpNuevo;
-                const comisionClpNueva = montoClpNuevo * 0.003;
-                const gananciaNetaNueva = gananciaBrutaNueva - comisionClpNueva;
-                const vesTotalNuevo = montoVesNuevo + comisionVesNuevo;
-                const deltaGanancia = gananciaNetaNueva - gananciaNetaOriginal;
-                const deltaVes = vesTotalOriginal - vesTotalNuevo;
+    const { cliente_nombre, monto_clp, tasa, observaciones, fecha, numero_recibo } = req.body;
 
-                db.serialize(() => {
-                    db.run('BEGIN TRANSACTION');
-                    const sql = `UPDATE operaciones SET cliente_id=?, fecha=?, monto_clp=?, monto_ves=?, tasa=?, observaciones=?, costo_clp=?, comision_ves=? WHERE id = ?`;
-                    db.run(sql, [cliente.id, fecha, montoClpNuevo, montoVesNuevo, tasaNueva, observaciones || '', costoClpNuevo, comisionVesNuevo, operacionId]);
-                    db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [deltaGanancia]);
-                    db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
-                        if (err) {
-                            db.run('ROLLBACK');
-                            return res.status(500).json({ message: 'Error al actualizar saldos, se revirtió la operación.' });
-                        }
-                        db.run('COMMIT');
-                        res.json({ message: 'Operación y saldos actualizados con éxito.' });
+    if (!numero_recibo) {
+        return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
+    }
+
+    db.get('SELECT id FROM operaciones WHERE numero_recibo = ? AND id != ?', [numero_recibo, operacionId], (err, existing) => {
+        if (err) return res.status(500).json({ message: 'Error de base de datos al verificar recibo.' });
+        if (existing) return res.status(400).json({ message: 'El número de recibo ya está en uso por otra operación.' });
+        
+        db.get('SELECT * FROM operaciones WHERE id = ?', [operacionId], (err, opOriginal) => {
+            if (err || !opOriginal) return res.status(404).json({ message: 'Operación no encontrada.' });
+            
+            const esMaster = user.role === 'master';
+            const esSuOperacion = opOriginal.usuario_id === user.id;
+            const esDeHoy = opOriginal.fecha === hoyLocalYYYYMMDD();
+            if (!esMaster && !(esSuOperacion && esDeHoy)) {
+                return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
+            }
+            
+            calcularCostoVesPorClp(fecha, (e, costoVesPorClp) => {
+                if (e) return res.status(500).json({ message: 'Error al recalcular el costo.' });
+                db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, cliente) => {
+                    if (err || !cliente) return res.status(400).json({ message: 'Cliente no encontrado.' });
+                    
+                    const gananciaNetaOriginal = (opOriginal.monto_clp - opOriginal.costo_clp) - (opOriginal.monto_clp * 0.003);
+                    const vesTotalOriginal = opOriginal.monto_ves + opOriginal.comision_ves;
+
+                    const montoClpNuevo = Number(monto_clp || 0);
+                    const tasaNueva = Number(tasa || 0);
+                    const montoVesNuevo = montoClpNuevo * tasaNueva;
+                    const costoClpNuevo = montoVesNuevo * costoVesPorClp;
+                    const comisionVesNuevo = montoVesNuevo * 0.003;
+                    const gananciaNetaNueva = (montoClpNuevo - costoClpNuevo) - (montoClpNuevo * 0.003);
+                    const vesTotalNuevo = montoVesNuevo + comisionVesNuevo;
+
+                    const deltaGanancia = gananciaNetaNueva - gananciaNetaOriginal;
+                    const deltaVes = vesTotalOriginal - vesTotalNuevo;
+
+                    db.serialize(() => {
+                        db.run('BEGIN TRANSACTION');
+                        db.run(`UPDATE operaciones SET cliente_id=?, fecha=?, monto_clp=?, monto_ves=?, tasa=?, observaciones=?, costo_clp=?, comision_ves=?, numero_recibo=? WHERE id = ?`,
+                            [cliente.id, fecha, montoClpNuevo, montoVesNuevo, tasaNueva, observaciones || '', costoClpNuevo, comisionVesNuevo, numero_recibo, operacionId]);
+                        db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [deltaGanancia]);
+                        db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
+                            if (err) {
+                                db.run('ROLLBACK');
+                                return res.status(500).json({ message: 'Error al actualizar saldos, se revirtió la operación.' });
+                            }
+                            db.run('COMMIT');
+                            res.json({ message: 'Operación y saldos actualizados con éxito.' });
+                        });
                     });
                 });
             });
@@ -466,7 +511,6 @@ app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
-
 app.get('/api/operaciones/export', apiAuth, (req, res) => {
   const user = req.session.user;
   let sql = `SELECT op.fecha, u.username AS operador, c.nombre AS cliente, op.monto_clp, op.tasa, op.monto_ves, op.observaciones, op.costo_clp, op.comision_ves FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id JOIN clientes c ON op.cliente_id = c.id`;
@@ -488,7 +532,6 @@ app.get('/api/operaciones/export', apiAuth, (req, res) => {
   });
 });
 
-// -------------------- API de Resumen Histórico --------------------
 app.get('/api/historico/resumen', apiAuth, onlyMaster, (req, res) => {
     const { startDate, endDate } = req.query;
     let sql = `SELECT c.nombre AS cliente_nombre, IFNULL(SUM(op.monto_clp), 0) AS total_clp_recibido, IFNULL(SUM(op.costo_clp), 0) AS total_costo_clp FROM operaciones op JOIN clientes c ON op.cliente_id = c.id`;
@@ -516,7 +559,6 @@ app.get('/api/historico/resumen', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
-// -------------------- API de Rendimiento por Operador --------------------
 app.get('/api/rendimiento/operadores', apiAuth, onlyMaster, (req, res) => {
     const { startDate, endDate } = req.query;
     let sql = `SELECT u.username AS operador_nombre, IFNULL(COUNT(op.id), 0) AS total_operaciones, IFNULL(COUNT(DISTINCT op.cliente_id), 0) AS clientes_unicos, IFNULL(SUM(op.monto_clp), 0) AS total_clp_enviado FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id`;
@@ -539,7 +581,6 @@ app.get('/api/rendimiento/operadores', apiAuth, onlyMaster, (req, res) => {
 
 // -------------------- Tasas (configuracion) --------------------
 const readConfig = (clave, cb) => db.get(`SELECT valor FROM configuracion WHERE clave=?`, [clave], (e, row) => cb(e, row ? row.valor : null));
-const upsertConfig = (clave, valor, cb) => db.run(`INSERT INTO configuracion(clave,valor) VALUES(?,?) ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor`, [clave, valor], cb);
 app.get('/api/tasas', apiAuth, (req, res) => {
   const result = {};
   readConfig('tasaNivel1', (e1, v1) => {
@@ -580,17 +621,11 @@ app.get('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
 app.post('/api/config/ajustar-saldo-ves', apiAuth, onlyMaster, (req, res) => {
     const { nuevoSaldoVes } = req.body;
     const saldo = Number(nuevoSaldoVes);
-
     if (isNaN(saldo) || saldo < 0) {
         return res.status(400).json({ message: 'El valor del saldo debe ser un número positivo.' });
     }
-
-    // Usamos upsertConfig para establecer el valor, no para sumar/restar.
     upsertConfig('saldoVesOnline', String(saldo), (err) => {
-        if (err) {
-            console.error("Error al ajustar el saldo VES:", err);
-            return res.status(500).json({ message: 'Error al actualizar el saldo.' });
-        }
+        if (err) return res.status(500).json({ message: 'Error al actualizar el saldo.' });
         res.json({ message: 'Saldo VES Online actualizado con éxito.' });
     });
 });
@@ -636,7 +671,6 @@ app.get('/api/compras', apiAuth, onlyMaster, (req, res) => {
         res.json(rows || []);
     });
 });
-
 app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
     const { clp_invertido, ves_obtenido } = req.body;
     const clp = Number(clp_invertido || 0);
@@ -646,14 +680,11 @@ app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
         [req.session.user.id, clp, ves, clp / ves, hoyLocalYYYYMMDD()],
         function(err) {
             if (err) return res.status(500).json({ message: 'Error al guardar la compra.' });
-            updateConfigState('saldoVesOnline', ves, (errVes) => {
-                if (errVes) console.error("Error al actualizar saldo VES:", errVes);
-                res.json({ message: 'Compra registrada con éxito.' });
-            });
+            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [ves]);
+            res.json({ message: 'Compra registrada con éxito.' });
         }
     );
 });
-
 app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
     const compraId = req.params.id;
     const { clp_invertido, ves_obtenido, fecha } = req.body;
@@ -681,7 +712,6 @@ app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
         });
     });
 });
-
 app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
     const compraId = req.params.id;
     db.get('SELECT * FROM compras WHERE id = ?', [compraId], (err, compra) => {
@@ -703,7 +733,6 @@ app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
         });
     });
 });
-
 
 // -------------------- Start --------------------
 app.listen(PORT, () => console.log(`http://localhost:${PORT}`));
