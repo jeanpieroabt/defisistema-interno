@@ -207,7 +207,11 @@ app.get('/api/recibo/check', apiAuth, (req, res) => {
         params.push(excludeId);
     }
     db.get(sql, params, (err, row) => {
-        if (err) return res.status(500).json({ message: 'Error en la base de datos' });
+        // ANOTACIÓN: Se añade un log del error para poder depurar en el servidor por qué falla la BD.
+        if (err) {
+            console.error("Error en /api/recibo/check:", err.message);
+            return res.status(500).json({ message: 'Error en la base de datos al verificar el recibo.' });
+        }
         res.json({ usado: !!row });
     });
 });
@@ -274,7 +278,10 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
         Promise.all([
             new Promise(resolve => calcularCostoVesPorClp(hoy, (e, costo) => resolve({ costoVesPorClp: costo || 0 }))),
             new Promise(resolve => {
-                db.get(`SELECT IFNULL(SUM(monto_clp),0) as totalClpEnviado, IFNULL(SUM(monto_ves),0) as totalVesEnviado FROM operaciones WHERE date(fecha)=date('now','localtime')`, [], (e, rowOps) => resolve({ totalClpEnviadoDia: rowOps?.totalClpEnviado || 0, totalVesEnviadoDia: rowOps?.totalVesEnviado || 0 }));
+                db.get(`SELECT IFNULL(SUM(monto_clp),0) as totalClpEnviado, IFNULL(SUM(monto_ves),0) as totalVesEnviado FROM operaciones WHERE date(fecha)=date('now','localtime')`, [], (e, rowOps) => {
+                    if (e) { console.error(e); return resolve({totalClpEnviadoDia: 0, totalVesEnviadoDia: 0}); }
+                    resolve({ totalClpEnviadoDia: rowOps.totalClpEnviado, totalVesEnviadoDia: rowOps.totalVesEnviado });
+                });
             }),
             new Promise(resolve => {
                 db.get(`SELECT (IFNULL(SUM(ves_obtenido),0) / IFNULL(SUM(clp_invertido), 1)) AS tasaCompra FROM compras WHERE date(fecha)=date('now','localtime')`, [], (e, rowCompras) => resolve({ tasaCompraPromedio: rowCompras?.tasaCompra || 0 }));
@@ -375,47 +382,72 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
 
 app.post('/api/operaciones', apiAuth, (req, res) => {
   const { cliente_nombre, monto_clp, monto_ves, tasa, observaciones, fecha, numero_recibo } = req.body;
+  
+  // ANOTACIÓN: Se añaden validaciones de entrada para evitar errores 400 inesperados.
   if (!numero_recibo) {
     return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
   }
+  if (!cliente_nombre) {
+    return res.status(400).json({ message: 'El nombre del cliente es obligatorio.' });
+  }
+  if (!monto_clp || !tasa) {
+    return res.status(400).json({ message: 'El monto CLP y la tasa son obligatorios.' });
+  }
 
   const fechaGuardado = fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? fecha : hoyLocalYYYYMMDD();
-  const montoVes = Number(monto_ves || 0);
-  const montoClp = Number(monto_clp || 0);
-  const comisionVes = montoVes * 0.003;
-  const vesTotalDescontar = montoVes + comisionVes; 
+  const montoVesNum = Number(monto_ves || 0);
+  const montoClpNum = Number(monto_clp || 0);
+  const comisionVes = montoVesNum * 0.003;
+  const vesTotalDescontar = montoVesNum + comisionVes; 
+
   readConfigValue('saldoVesOnline').then(saldoVes => {
-      if (vesTotalDescontar > saldoVes) return res.status(400).json({ message: 'Saldo VES online insuficiente.' });
-      calcularCostoVesPorClp(fechaGuardado, (e, costoVesPorClp) => {
-          if (e) return res.status(500).json({ message: 'Error al calcular costo' });
-          const costoVesEnviadoClp = montoVes * costoVesPorClp;
-          const gananciaBruta = montoClp - costoVesEnviadoClp;
-          const comisionClp = montoClp * 0.003;
-          const gananciaNeta = gananciaBruta - comisionClp;
-          db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, c) => {
-            const guardar = (cliente_id) => {
-              db.run(`INSERT INTO operaciones(usuario_id,cliente_id,fecha,monto_clp,monto_ves,tasa,observaciones,costo_clp,comision_ves,numero_recibo) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                [req.session.user.id, cliente_id, fechaGuardado, montoClp, montoVes, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes, numero_recibo],
-                function (e) {
-                  if (e) return res.status(400).json({ message: 'Error al guardar: El número de recibo ya existe.' });
-                  
-                  db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar], (err1) => {
-                      if (err1) console.error("Error al restar VES:", err1);
-                      db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNeta], (err2) => {
-                          if (err2) console.error("Error al sumar ganancia:", err2);
-                          res.json({ id: this.lastID });
-                      });
-                  });
-                }
-              );
-            };
-            if (c) return guardar(c.id);
-            db.run(`INSERT INTO clientes(nombre,fecha_creacion) VALUES (?,?)`, [cliente_nombre, new Date().toISOString()], function(e2) {
-              if (e2) return res.status(500).json({ message: 'Error al crear cliente' });
-              guardar(this.lastID);
-            });
+      if (vesTotalDescontar > saldoVes) {
+        return res.status(400).json({ message: 'Saldo VES online insuficiente para cubrir el monto y la comisión.' });
+      }
+      
+      // ANOTACIÓN: Se reestructura la lógica para encontrar o crear el cliente de forma más segura.
+      const findOrCreateCliente = new Promise((resolve, reject) => {
+          db.get(`SELECT id FROM clientes WHERE nombre = ?`, [cliente_nombre], (err, cliente) => {
+              if (err) return reject(new Error('Error al buscar cliente.'));
+              if (cliente) return resolve(cliente.id);
+              
+              db.run(`INSERT INTO clientes(nombre, fecha_creacion) VALUES (?,?)`, [cliente_nombre, hoyLocalYYYYMMDD()], function(err) {
+                  if (err) return reject(new Error('Error al crear nuevo cliente.'));
+                  resolve(this.lastID);
+              });
           });
       });
+
+      Promise.all([findOrCreateCliente, new Promise((resolve, reject) => calcularCostoVesPorClp(fechaGuardado, (e, costo) => e ? reject(e) : resolve(costo)))])
+        .then(([cliente_id, costoVesPorClp]) => {
+            const costoVesEnviadoClp = montoVesNum * costoVesPorClp;
+            const gananciaBruta = montoClpNum - costoVesEnviadoClp;
+            const comisionClp = montoClpNum * 0.003;
+            const gananciaNeta = gananciaBruta - comisionClp;
+
+            db.run(`INSERT INTO operaciones(usuario_id,cliente_id,fecha,monto_clp,monto_ves,tasa,observaciones,costo_clp,comision_ves,numero_recibo) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+              [req.session.user.id, cliente_id, fechaGuardado, montoClpNum, montoVesNum, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes, numero_recibo],
+              function (err) {
+                if (err) {
+                    // ANOTACIÓN: Se devuelve un error más específico si el recibo está duplicado.
+                    if (err.message.includes('UNIQUE constraint failed')) {
+                        return res.status(400).json({ message: 'Error: El número de recibo ya existe.' });
+                    }
+                    return res.status(500).json({ message: 'Error inesperado al guardar la operación.' });
+                }
+                
+                // Actualizar saldos en paralelo para mayor eficiencia
+                db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar]);
+                db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNeta]);
+                
+                res.status(201).json({ id: this.lastID, message: 'Operación registrada con éxito.' });
+              }
+            );
+        })
+        .catch(error => {
+            console.error("Error en la promesa de operación:", error.message);
+            res.status(500).json({ message: error.message || 'Error al procesar la operación.' });
+        });
   }).catch(e => {
       console.error("Error validando saldo VES:", e);
       res.status(500).json({ message: 'Error al obtener saldo VES.' });
@@ -524,7 +556,8 @@ app.get('/api/operaciones/export', apiAuth, (req, res) => {
   db.all(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ message: 'Error export' });
     const header = ['Fecha', 'Recibo', 'Operador', 'Cliente', 'Monto CLP', 'Costo CLP', 'Comision VES', 'Tasa', 'Monto VES', 'Obs.'];
-    const csv = [header.join(',')].concat(rows.map((r) => [r.fecha, r.numero_recibo, `"${r.operador}"`, `"${r.cliente}"`, r.monto_clp, r.costo_clp, r.comision_ves, r.tasa, r.monto_ves, `"${(r.observaciones || '').replace(/"/g, '""')}"`].join(','))).join('\n');
+    const csvData = rows.map((r) => [r.fecha, r.numero_recibo, `"${r.operador}"`, `"${r.cliente}"`, r.monto_clp, r.costo_clp, r.comision_ves, r.tasa, r.monto_ves, `"${(r.observaciones || '').replace(/"/g, '""')}"`].join(','));
+    const csv = [header.join(',')].concat(csvData).join('\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="historico_envios.csv"');
     res.send('\uFEFF' + csv);
