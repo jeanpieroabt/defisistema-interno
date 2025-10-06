@@ -11,7 +11,7 @@
     .hdr{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--border)}
     .hdr h1{margin:0;font-size:1.25rem}
     .content{padding:20px 24px}
-    .filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+    .filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px; align-items: start;}
     label{font-weight:700;color:var(--muted);font-size:.9rem;margin-bottom:6px;display:block}
     input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px}
     .btns{display:flex;gap:10px;margin-bottom:8px}
@@ -37,10 +37,15 @@
     .toast.show{opacity:1;transform:translateX(0)}
     .toast-success{background-color:#198754}
     .toast-error{background-color:#dc3545}
+
+    /* ANOTACIÓN: Estilos para el autocompletado */
+    .autocomplete-container{ position:relative; }
+    .autocomplete-suggestions{ position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border-color); z-index:1000; display:none; border-radius: 8px; max-height: 200px; overflow-y: auto; }
+    .suggestion-item{ padding:10px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04) }
+    .suggestion-item:hover{ background-color:var(--light-grey); }
   </style>
 </head>
 <body>
-  <!-- ANOTACIÓN: He añadido el contenedor de notificaciones (toast) que faltaba -->
   <div id="toast-container" class="toast-container"></div>
 
   <div class="card">
@@ -55,7 +60,12 @@
       <div class="filters">
         <div><label>Desde</label><input type="date" id="fDesde"></div>
         <div><label>Hasta</label><input type="date" id="fHasta"></div>
-        <div><label>Cliente</label><input type="text" id="fCliente" placeholder="Nombre del cliente"></div>
+        <!-- ANOTACIÓN: Estructura HTML para el autocompletado -->
+        <div class="autocomplete-container">
+          <label>Cliente</label>
+          <input type="text" id="fCliente" placeholder="Nombre del cliente" autocomplete="off">
+          <div class="autocomplete-suggestions" id="fClienteSuggestions"></div>
+        </div>
         <div><label>Operador</label><input type="text" id="fOperador" placeholder="(solo Master)"></div>
       </div>
       <div class="btns">
@@ -75,7 +85,6 @@
       <h2 id="tituloDetalle" style="margin-top: 20px;">Detalle de Envíos</h2>
       <table>
         <thead>
-          <!-- ANOTACIÓN: He añadido la columna Recibo que faltaba en el detalle del histórico -->
           <tr><th>Fecha</th><th>Recibo</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acción</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -87,7 +96,6 @@
     <div class="modal-content">
       <h2>Editar Envío</h2>
       <form id="editForm" class="modal-form">
-        <!-- ANOTACIÓN: He añadido el campo de Recibo al modal de edición, que faltaba. -->
         <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
           <div><label>Fecha</label><input type="date" id="editFecha" required></div>
           <div>
@@ -110,10 +118,9 @@
 
 
   <script>
-    let operacionesData = []; // Guardar los datos cargados para la edición
-    let user = {}; // ANOTACIÓN: Cambiado de userRole a user para ser consistente con app.html
+    let operacionesData = [];
+    let user = {};
 
-    // ANOTACIÓN: Añadida la función de notificaciones que faltaba.
     function showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
@@ -127,7 +134,6 @@
         }, 4000);
     }
     
-    // ANOTACIÓN: Añadida la función de validación de recibo que faltaba.
     let debounceTimeout;
     function checkRecibo(inputEl, statusEl, btnEl, excludeId = null) {
         clearTimeout(debounceTimeout);
@@ -159,6 +165,33 @@
         }, 400);
     }
 
+    // ANOTACIÓN: Función de autocompletado añadida.
+    function addClientAutocomplete(inputEl, suggestionsEl) {
+      let lastQuery = '';
+      inputEl.addEventListener('input', async () => {
+        const q = String(inputEl.value || '').trim();
+        if (q.length < 2) { suggestionsEl.style.display = 'none'; return; }
+        if (q === lastQuery) return;
+        lastQuery = q;
+        const res = await fetch(`/api/clientes/search?term=${encodeURIComponent(q)}`);
+        const names = await res.json();
+        suggestionsEl.innerHTML = '';
+        if (names && names.length) {
+          names.forEach(name => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item';
+            item.textContent = name;
+            item.onclick = () => { inputEl.value = name; suggestionsEl.style.display = 'none'; };
+            suggestionsEl.appendChild(item);
+          });
+          suggestionsEl.style.display = 'block';
+        } else {
+          suggestionsEl.style.display = 'none';
+        }
+      });
+      document.addEventListener('click', (ev) => { if (!inputEl.contains(ev.target)) suggestionsEl.style.display = 'none'; });
+    }
+
     async function fetchUser(){
       const r = await fetch('/api/user-info');
       if(!r.ok){ location.href='/login.html'; return null; }
@@ -175,7 +208,6 @@
       const fmtCLP = v => Number(v).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
       const fmtVES = v => Number(v).toLocaleString('es-VE');
 
-      // ANOTACIÓN: Lógica para añadir los botones de acción, incluyendo el de Borrar.
       let actions = `<button class="btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>`;
       if (user.role === 'master') {
         actions += ` <button class="btn-danger" onclick="deleteOperacion(${op.id})">Borrar</button>`;
@@ -190,13 +222,10 @@
         <td>${Number(op.tasa).toFixed(4)}</td>
         <td>${fmtVES(op.monto_ves)}</td>
         <td>${op.observaciones || ''}</td>
-        <td>${actions}</td>`; // Se usan las acciones generadas
+        <td>${actions}</td>`;
       return tr;
     }
     
-    // ----------------------------------------
-    // MODO: Detalle de Envíos
-    // ----------------------------------------
     async function cargar(){
       document.getElementById('resumenSection').style.display = 'none';
       document.getElementById('tituloDetalle').textContent = 'Detalle de Envíos';
@@ -209,13 +238,12 @@
         historico: '1'
       });
       const r = await fetch('/api/operaciones?' + params.toString());
-      operacionesData = await r.json(); // Guardar los datos
+      operacionesData = await r.json();
       const tb = document.getElementById('tbody');
       tb.innerHTML = '';
       operacionesData.forEach(d => tb.appendChild(row(d)));
     }
     
-    // ... (El resto de las funciones cargarResumen y cargarRendimiento no necesitan cambios)
     async function cargarResumen(){
         const fDesde = document.getElementById('fDesde').value;
         const fHasta = document.getElementById('fHasta').value;
@@ -301,7 +329,7 @@
             tbResumen.appendChild(tr);
         });
     }
-
+    
     function exportar(){
       const params = new URLSearchParams({
         startDate: document.getElementById('fDesde').value || '',
@@ -312,18 +340,16 @@
       location.href = '/api/operaciones/export?' + params.toString();
     }
 
-    // ANOTACIÓN: Añadida la función de borrado que faltaba.
     async function deleteOperacion(id) {
         if (!confirm('¿Estás seguro de que quieres borrar esta operación?\nEsta acción es irreversible y afectará los saldos globales.')) return;
         const r = await fetch(`/api/operaciones/${id}`, { method: 'DELETE' });
         const res = await r.json();
         showToast(res.message || 'Error', r.ok ? 'success' : 'error');
         if (r.ok) {
-            await cargar(); // Recargar la tabla principal
+            await cargar();
         }
     }
 
-    // --- LÓGICA DEL MODAL DE EDICIÓN ---
     const modal = document.getElementById('editModal');
     const editForm = document.getElementById('editForm');
     
@@ -333,13 +359,12 @@
 
         modal.dataset.id = op.id;
         document.getElementById('editFecha').value = op.fecha;
-        document.getElementById('editRecibo').value = op.numero_recibo || ''; // Añadido
+        document.getElementById('editRecibo').value = op.numero_recibo || '';
         document.getElementById('editCliente').value = op.cliente_nombre;
         document.getElementById('editMontoClp').value = op.monto_clp;
         document.getElementById('editTasa').value = op.tasa;
         document.getElementById('editObs').value = op.observaciones || '';
         
-        // ANOTACIÓN: Llamada a la función de validación del recibo en el modal
         checkRecibo(document.getElementById('editRecibo'), document.getElementById('editReciboStatus'), document.getElementById('btnGuardarCambios'), op.id);
         
         modal.style.display = 'flex';
@@ -354,7 +379,7 @@
         const id = modal.dataset.id;
         const body = {
             fecha: document.getElementById('editFecha').value,
-            numero_recibo: document.getElementById('editRecibo').value.trim(), // Añadido
+            numero_recibo: document.getElementById('editRecibo').value.trim(),
             cliente_nombre: document.getElementById('editCliente').value,
             monto_clp: document.getElementById('editMontoClp').value,
             tasa: document.getElementById('editTasa').value,
@@ -368,19 +393,18 @@
         });
 
         const res = await r.json();
-        // ANOTACIÓN: Cambiado de alert a showToast para una mejor UI.
         showToast(res.message || 'Error al actualizar.', r.ok ? 'success' : 'error');
 
         if (r.ok) {
             cerrarModalEdicion();
-            await cargar(); // Recargar la tabla
+            await cargar();
         }
     });
     
     document.getElementById('cancelEdit').addEventListener('click', cerrarModalEdicion);
     
     (async () => {
-      await fetchUser(); // ANOTACIÓN: Usamos la nueva función fetchUser
+      await fetchUser();
       if(!user) return;
 
       if(user.role !== 'master'){
@@ -401,9 +425,11 @@
       };
       document.getElementById('btnExport').onclick = exportar;
       
-      // ANOTACIÓN: Se añade el listener para el input del recibo en el modal.
       document.getElementById('editRecibo').addEventListener('input', () => checkRecibo(document.getElementById('editRecibo'), document.getElementById('editReciboStatus'), document.getElementById('btnGuardarCambios'), modal.dataset.id));
       
+      // ANOTACIÓN: Llamada a la función de autocompletado para el filtro de clientes.
+      addClientAutocomplete(document.getElementById('fCliente'), document.getElementById('fClienteSuggestions'));
+
       await cargar();
     })();
   </script>
