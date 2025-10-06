@@ -158,6 +158,7 @@
     let operacionesData = [];
     let debounceTimeout;
 
+    // ----------- VALIDACIÓN EN TIEMPO REAL DE RECIBO (NUEVO Y EDICIÓN) -----------
     function checkRecibo(inputEl, statusEl, btnEl, excludeId = null) {
         clearTimeout(debounceTimeout);
         statusEl.textContent = 'Verificando...';
@@ -168,6 +169,7 @@
             const numero = inputEl.value.trim();
             if (!numero) {
                 statusEl.textContent = '';
+                btnEl.disabled = true;
                 return;
             }
             let url = `/api/recibo/check?numero=${encodeURIComponent(numero)}`;
@@ -393,10 +395,17 @@
       
       document.getElementById('cancelEdit').addEventListener('click', cerrarModalEdicion);
       
+      // VALIDACIÓN AJAX DE RECIBO EN TIEMPO REAL
       document.getElementById('recibo').addEventListener('input', () => checkRecibo(document.getElementById('recibo'), document.getElementById('reciboStatus'), document.getElementById('btnGuardar')));
       document.getElementById('editRecibo').addEventListener('input', () => checkRecibo(document.getElementById('editRecibo'), document.getElementById('editReciboStatus'), document.getElementById('btnGuardarCambios'), modal.dataset.id));
       
       document.getElementById('frm').addEventListener('submit', async (e) => {
+        // Bloquea el submit si el recibo no está libre
+        if (document.getElementById('btnGuardar').disabled) {
+          e.preventDefault();
+          showToast('Debes ingresar un número de recibo válido y disponible.', 'error');
+          return;
+        }
         e.preventDefault();
         const body = { 
             fecha: fch.value, 
