@@ -554,6 +554,25 @@ app.get('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
         .catch(e => res.status(500).json({ message: 'Error al leer configuración' }));
 });
 
+// -------------------- Ajuste Manual Saldo VES --------------------
+app.post('/api/config/ajustar-saldo-ves', apiAuth, onlyMaster, (req, res) => {
+    const { nuevoSaldoVes } = req.body;
+    const saldo = Number(nuevoSaldoVes);
+
+    if (isNaN(saldo) || saldo < 0) {
+        return res.status(400).json({ message: 'El valor del saldo debe ser un número positivo.' });
+    }
+
+    // Usamos upsertConfig para establecer el valor, no para sumar/restar.
+    upsertConfig('saldoVesOnline', String(saldo), (err) => {
+        if (err) {
+            console.error("Error al ajustar el saldo VES:", err);
+            return res.status(500).json({ message: 'Error al actualizar el saldo.' });
+        }
+        res.json({ message: 'Saldo VES Online actualizado con éxito.' });
+    });
+});
+
 // -------------------- APIs de Gestión de Usuarios --------------------
 app.get('/api/usuarios', apiAuth, onlyMaster, (req, res) => {
     db.all(`SELECT id, username, role FROM usuarios`, [], (err, rows) => {
