@@ -21,7 +21,7 @@
         <button class="btn-menu" id="menuBtn"><span id="userLabel">Usuario</span> ▾</button>
         <div class="dropdown" id="menuDrop">
           <a id="adminLink" href="/admin.html" target="_blank" style="display:none">Administración</a>
-          <a id="historicoLink" href="/historico.html" target="_blank">Histórico de Envíos</a>
+          <a id="historicoLink" href="/historico.html" target="_blank" style="display:none">Histórico de Envíos</a>
           <hr/>
           <a href="/logout">Cerrar Sesión</a>
         </div>
@@ -305,14 +305,15 @@
       user = await info.json();
       document.getElementById('userLabel').textContent = user.username;
       
+      // Habilitar el link de Histórico para todos
+      document.getElementById('historicoLink').style.display = 'block';
+      
       if (user.role === 'master') {
         document.getElementById('adminLink').style.display = 'block';
         document.getElementById('kpisSection').style.display = 'block'; 
         document.getElementById('operatorKpi').style.display = 'none'; 
-        document.getElementById('historicoLink').style.display = 'block';
       } else {
         document.getElementById('tituloTabla').textContent = 'Envíos Registrados (Hoy)';
-        document.getElementById('historicoLink').style.display = 'none'; 
         document.getElementById('operatorKpi').style.display = 'block';
       }
 

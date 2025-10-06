@@ -306,16 +306,38 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
   const user = req.session.user;
   let sql = `SELECT op.*, u.username AS operador, c.nombre AS cliente_nombre FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id JOIN clientes c ON op.cliente_id = c.id`;
   const params = [];
-  if (user.role !== 'master' && !req.query.historico) { sql += ` WHERE op.usuario_id = ? AND date(op.fecha) = date('now','localtime')`; params.push(user.id); }
   const where = [];
+
+  // Filtro base por rol
+  if (user.role !== 'master') {
+    where.push('op.usuario_id = ?');
+    params.push(user.id);
+  }
+
+  // Filtro de contexto (página principal vs histórico)
+  if (!req.query.historico) {
+    where.push("date(op.fecha) = date('now','localtime')");
+  }
+
+  // Filtros de búsqueda del usuario (desde histórico)
   if (req.query.startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(req.query.startDate); }
   if (req.query.endDate)   { where.push(`date(op.fecha) <= date(?)`); params.push(req.query.endDate); }
   if (req.query.cliente)   { where.push(`c.nombre LIKE ?`); params.push(`%${req.query.cliente}%`); }
-  if (user.role === 'master' && req.query.operador) { where.push(`u.username LIKE ?`); params.push(`%${req.query.operador}%`); }
-  if (where.length) { sql += (sql.includes('WHERE') ? ' AND ' : ' WHERE ') + where.join(' AND '); }
+  if (user.role === 'master' && req.query.operador) {
+    where.push(`u.username LIKE ?`); params.push(`%${req.query.operador}%`);
+  }
+  
+  if (where.length) {
+    sql += ' WHERE ' + where.join(' AND ');
+  }
+
   sql += ` ORDER BY op.id DESC`;
+
   db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ message: 'Error al leer operaciones' });
+    if (err) {
+      console.error("SQL Error:", err.message);
+      return res.status(500).json({ message: 'Error al leer operaciones' });
+    }
     res.json(rows || []);
   });
 });
