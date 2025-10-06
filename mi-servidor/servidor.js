@@ -87,6 +87,7 @@ db.serialize(() => {
   )`);
 });
 
+
 // --- SCRIPT DE MIGRACIÓN DE BASE DE DATOS ---
 db.all("PRAGMA table_info(operaciones)", (err, columns) => {
     if (err) {
@@ -391,10 +392,13 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
                 function (e) {
                   if (e) return res.status(400).json({ message: 'Error al guardar: El número de recibo ya existe.' });
                   
-                  db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar]);
-                  db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNeta]);
-                  
-                  res.json({ id: this.lastID });
+                  db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar], (err) => {
+                      if (err) console.error("Error al restar VES:", err);
+                      db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNeta], (err) => {
+                          if (err) console.error("Error al sumar ganancia:", err);
+                          res.json({ id: this.lastID });
+                      });
+                  });
                 }
               );
             };
