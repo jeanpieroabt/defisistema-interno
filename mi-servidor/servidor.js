@@ -52,7 +52,6 @@ db.serialize(() => {
     fecha_creacion TEXT NOT NULL
   )`);
 
-  // fecha = YYYY-MM-DD (local)
   db.run(`CREATE TABLE IF NOT EXISTS operaciones(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id INTEGER NOT NULL,
@@ -69,7 +68,6 @@ db.serialize(() => {
     FOREIGN KEY(cliente_id) REFERENCES clientes(id)
   )`);
 
-  // Nueva tabla de Compras Simplificada: CLP -> VES
   db.run(`CREATE TABLE IF NOT EXISTS compras(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id INTEGER NOT NULL,
@@ -80,36 +78,13 @@ db.serialize(() => {
     FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
   )`);
   
-  // Key-Value para tasas, capital y estados de saldo
   db.run(`CREATE TABLE IF NOT EXISTS configuracion(
     clave TEXT PRIMARY KEY,
     valor TEXT
   )`);
 });
 
-
-// --- SCRIPT DE MIGRACIÓN DE BASE DE DATOS ---
-db.all("PRAGMA table_info(operaciones)", (err, columns) => {
-    if (err) {
-        console.error("Error al verificar la estructura de la tabla:", err);
-        return;
-    }
-    const hasReciboColumn = columns.some(col => col.name === 'numero_recibo');
-    if (!hasReciboColumn) {
-        console.log("Detectada tabla 'operaciones' antigua. Añadiendo columna 'numero_recibo'...");
-        db.run("ALTER TABLE operaciones ADD COLUMN numero_recibo TEXT UNIQUE", (alterErr) => {
-            if (alterErr) {
-                console.error("Error al añadir la columna 'numero_recibo':", alterErr);
-            } else {
-                console.log("Columna 'numero_recibo' añadida con éxito a la tabla 'operaciones'.");
-            }
-        });
-    } else {
-        console.log("La columna 'numero_recibo' ya existe en la tabla 'operaciones'. No se necesita migración.");
-    }
-});
-// --- FIN DEL SCRIPT DE MIGRACIÓN ---
-
+// ANOTACIÓN: Se ha eliminado el script de migración antiguo y problemático.
 
 // Semilla mínima
 db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -117,9 +92,9 @@ db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
     const hash = await bcrypt.hash('master123', 10);
     db.run(
       `INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`,
-      ['master', hash, 'master']
+      ['master', hash, 'master'],
+      () => console.log('Usuario semilla creado: master/master123')
     );
-    console.log('Usuario semilla: master/master123');
   }
 });
 
@@ -189,17 +164,13 @@ app.get('/logout', (req, res) => {
 });
 app.get('/api/user-info', apiAuth, (req, res) => res.json(req.session.user));
 
-// --- Endpoint para verificar número de recibo (VERSIÓN CORREGIDA ANTI-CACHÉ) ---
+// --- Endpoint para verificar número de recibo ---
 app.get('/api/recibo/check', apiAuth, (req, res) => {
     const { numero, excludeId } = req.query;
-    
-    // Cabeceras para prevenir que el navegador guarde la respuesta
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-
     if (!numero) return res.json({ usado: false });
-
     let sql = `SELECT id FROM operaciones WHERE numero_recibo = ?`;
     const params = [numero];
     if (excludeId) {
@@ -207,7 +178,6 @@ app.get('/api/recibo/check', apiAuth, (req, res) => {
         params.push(excludeId);
     }
     db.get(sql, params, (err, row) => {
-        // ANOTACIÓN: Se añade un log del error para poder depurar en el servidor por qué falla la BD.
         if (err) {
             console.error("Error en /api/recibo/check:", err.message);
             return res.status(500).json({ message: 'Error en la base de datos al verificar el recibo.' });
@@ -220,51 +190,50 @@ app.get('/api/recibo/check', apiAuth, (req, res) => {
 app.get('/api/clientes/search', apiAuth, (req, res) => {
     const term = String(req.query.term || '').trim();
     if (!term || term.length < 2) return res.json([]);
-    db.all(
-      `SELECT nombre FROM clientes WHERE nombre LIKE ? ORDER BY nombre LIMIT 10`,
-      [`%${term}%`],
-      (err, rows) => {
+    db.all(`SELECT nombre FROM clientes WHERE nombre LIKE ? ORDER BY nombre LIMIT 10`, [`%${term}%`], (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al buscar clientes.' });
         res.json((rows || []).map(r => r.nombre));
-      }
-    );
+    });
 });
-
 app.get('/api/usuarios/search', apiAuth, onlyMaster, (req, res) => {
     const term = String(req.query.term || '').trim();
     if (!term || term.length < 1) return res.json([]);
-    db.all(
-      `SELECT username FROM usuarios WHERE username LIKE ? ORDER BY username LIMIT 10`,
-      [`%${term}%`],
-      (err, rows) => {
+    db.all(`SELECT username FROM usuarios WHERE username LIKE ? ORDER BY username LIMIT 10`, [`%${term}%`], (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al buscar usuarios.' });
         res.json((rows || []).map(r => r.username));
-      }
-    );
+    });
 });
 
 // -------------------- APIs de Costos y KPIs --------------------
+// ANOTACIÓN: Esta es la nueva función para obtener la tasa de un día específico.
+const getAvgPurchaseRate = (date, callback) => {
+    const sql = `SELECT SUM(clp_invertido) as totalClp, SUM(ves_obtenido) as totalVes FROM compras WHERE date(fecha) = date(?)`;
+    db.get(sql, [date], (err, row) => {
+        if (err) return callback(err, 0);
+        if (!row || !row.totalVes) return callback(null, 0);
+        const rate = row.totalClp / row.totalVes;
+        return callback(null, rate);
+    });
+};
+
 const calcularCostoVesPorClp = (fecha, callback) => {
-    db.get(
-        `SELECT
-            IFNULL(SUM(clp_invertido),0) as totalClpInvertido,
-            IFNULL(SUM(ves_obtenido),0) as totalVesComprado
-         FROM compras WHERE date(fecha) = date(?)`, 
-        [fecha], 
-        (e, rowCompras) => {
-            if (e) return callback(e, 0);
-            const totalClpInvertido = rowCompras.totalClpInvertido;
-            const totalVesComprado = rowCompras.totalVesComprado;
-            let costoVesPorClp = totalVesComprado > 0 ? totalClpInvertido / totalVesComprado : 0;
-            if (costoVesPorClp === 0) {
-                 db.get(`SELECT valor FROM configuracion WHERE clave='capitalCostoVesPorClp'`, [], (err, row) => {
-                    callback(null, row ? Number(row.valor) : 0);
-                 });
-            } else {
-                 callback(null, costoVesPorClp);
-            }
-        }
-    );
+    getAvgPurchaseRate(fecha, (err, rate) => {
+        if (err) return callback(err, 0);
+        if (rate > 0) return callback(null, 1 / rate); // El costo es el inverso de la tasa de compra
+
+        const ayer = new Date(fecha);
+        ayer.setDate(ayer.getDate()); // Corregido para tomar el día de la operación, no el de hoy
+        const fechaAyer = new Date(ayer.getTime() - (24 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+        
+        getAvgPurchaseRate(fechaAyer, (errAyer, rateAyer) => {
+            if (errAyer) return callback(errAyer, 0);
+            if (rateAyer > 0) return callback(null, 1 / rateAyer);
+
+            readConfigValue('capitalCostoVesPorClp')
+                .then(costoConfig => callback(null, costoConfig))
+                .catch(e => callback(e, 0));
+        });
+    });
 };
 
 app.get('/api/dashboard', apiAuth, (req, res) => { 
@@ -275,6 +244,20 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
     readConfigValue('saldoVesOnline').then(saldo => ({ saldoVesOnline: saldo })),
     new Promise(resolve => {
         if (userRole !== 'master') return resolve({});
+        
+        const getTasaCompraPromise = new Promise(resolve => {
+            getAvgPurchaseRate(hoy, (err, rateHoy) => {
+                if (err || rateHoy > 0) return resolve({ tasaCompraPromedio: rateHoy || 0 });
+
+                const ayer = new Date();
+                ayer.setDate(ayer.getDate() - 1);
+                const fechaAyer = ayer.toISOString().slice(0, 10);
+                getAvgPurchaseRate(fechaAyer, (errAyer, rateAyer) => {
+                    resolve({ tasaCompraPromedio: rateAyer || 0 });
+                });
+            });
+        });
+
         Promise.all([
             new Promise(resolve => calcularCostoVesPorClp(hoy, (e, costo) => resolve({ costoVesPorClp: costo || 0 }))),
             new Promise(resolve => {
@@ -283,9 +266,7 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
                     resolve({ totalClpEnviadoDia: rowOps.totalClpEnviado, totalVesEnviadoDia: rowOps.totalVesEnviado });
                 });
             }),
-            new Promise(resolve => {
-                db.get(`SELECT (IFNULL(SUM(ves_obtenido),0) / IFNULL(SUM(clp_invertido), 1)) AS tasaCompra FROM compras WHERE date(fecha)=date('now','localtime')`, [], (e, rowCompras) => resolve({ tasaCompraPromedio: rowCompras?.tasaCompra || 0 }));
-            }),
+            getTasaCompraPromise,
             new Promise(resolve => {
                 db.all(`SELECT clave, valor FROM configuracion WHERE clave IN ('capitalInicialClp', 'totalGananciaAcumuladaClp')`, (e, rows) => {
                     const result = {};
@@ -331,7 +312,7 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
   });
 });
 
-// -------------------- Contador Mensual del Operador --------------------
+// ... (El resto del archivo, como Operaciones CRUD, no necesita cambios)
 app.get('/api/monthly-sales', apiAuth, (req, res) => {
   const user = req.session.user;
   const inicioMes = inicioMesLocalYYYYMMDD();
@@ -343,14 +324,11 @@ app.get('/api/monthly-sales', apiAuth, (req, res) => {
     res.json({ totalClpMensual: row.totalClpMensual });
   });
 });
-
-// -------------------- Operaciones CRUD --------------------
 app.get('/api/operaciones', apiAuth, (req, res) => {
   const user = req.session.user;
   let sql = `SELECT op.*, u.username AS operador, c.nombre AS cliente_nombre FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id JOIN clientes c ON op.cliente_id = c.id`;
   const params = [];
   const where = [];
-
   if (user.role !== 'master') {
     where.push('op.usuario_id = ?');
     params.push(user.id);
@@ -358,19 +336,16 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
   if (!req.query.historico) {
     where.push("date(op.fecha) = date('now','localtime')");
   }
-
   if (req.query.startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(req.query.startDate); }
   if (req.query.endDate)   { where.push(`date(op.fecha) <= date(?)`); params.push(req.query.endDate); }
   if (req.query.cliente)   { where.push(`c.nombre LIKE ?`); params.push(`%${req.query.cliente}%`); }
   if (user.role === 'master' && req.query.operador) {
     where.push(`u.username LIKE ?`); params.push(`%${req.query.operador}%`);
   }
-  
   if (where.length) {
     sql += ' WHERE ' + where.join(' AND ');
   }
   sql += ` ORDER BY op.id DESC`;
-
   db.all(sql, params, (err, rows) => {
     if (err) {
       console.error("SQL Error:", err.message);
@@ -379,11 +354,8 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
     res.json(rows || []);
   });
 });
-
 app.post('/api/operaciones', apiAuth, (req, res) => {
   const { cliente_nombre, monto_clp, monto_ves, tasa, observaciones, fecha, numero_recibo } = req.body;
-  
-  // ANOTACIÓN: Se añaden validaciones de entrada para evitar errores 400 inesperados.
   if (!numero_recibo) {
     return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
   }
@@ -393,53 +365,42 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
   if (!monto_clp || !tasa) {
     return res.status(400).json({ message: 'El monto CLP y la tasa son obligatorios.' });
   }
-
   const fechaGuardado = fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? fecha : hoyLocalYYYYMMDD();
   const montoVesNum = Number(monto_ves || 0);
   const montoClpNum = Number(monto_clp || 0);
   const comisionVes = montoVesNum * 0.003;
   const vesTotalDescontar = montoVesNum + comisionVes; 
-
   readConfigValue('saldoVesOnline').then(saldoVes => {
       if (vesTotalDescontar > saldoVes) {
         return res.status(400).json({ message: 'Saldo VES online insuficiente para cubrir el monto y la comisión.' });
       }
-      
-      // ANOTACIÓN: Se reestructura la lógica para encontrar o crear el cliente de forma más segura.
       const findOrCreateCliente = new Promise((resolve, reject) => {
           db.get(`SELECT id FROM clientes WHERE nombre = ?`, [cliente_nombre], (err, cliente) => {
               if (err) return reject(new Error('Error al buscar cliente.'));
               if (cliente) return resolve(cliente.id);
-              
               db.run(`INSERT INTO clientes(nombre, fecha_creacion) VALUES (?,?)`, [cliente_nombre, hoyLocalYYYYMMDD()], function(err) {
                   if (err) return reject(new Error('Error al crear nuevo cliente.'));
                   resolve(this.lastID);
               });
           });
       });
-
       Promise.all([findOrCreateCliente, new Promise((resolve, reject) => calcularCostoVesPorClp(fechaGuardado, (e, costo) => e ? reject(e) : resolve(costo)))])
         .then(([cliente_id, costoVesPorClp]) => {
             const costoVesEnviadoClp = montoVesNum * costoVesPorClp;
             const gananciaBruta = montoClpNum - costoVesEnviadoClp;
             const comisionClp = montoClpNum * 0.003;
             const gananciaNeta = gananciaBruta - comisionClp;
-
             db.run(`INSERT INTO operaciones(usuario_id,cliente_id,fecha,monto_clp,monto_ves,tasa,observaciones,costo_clp,comision_ves,numero_recibo) VALUES (?,?,?,?,?,?,?,?,?,?)`,
               [req.session.user.id, cliente_id, fechaGuardado, montoClpNum, montoVesNum, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes, numero_recibo],
               function (err) {
                 if (err) {
-                    // ANOTACIÓN: Se devuelve un error más específico si el recibo está duplicado.
                     if (err.message.includes('UNIQUE constraint failed')) {
                         return res.status(400).json({ message: 'Error: El número de recibo ya existe.' });
                     }
                     return res.status(500).json({ message: 'Error inesperado al guardar la operación.' });
                 }
-                
-                // Actualizar saldos en paralelo para mayor eficiencia
                 db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar]);
                 db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNeta]);
-                
                 res.status(201).json({ id: this.lastID, message: 'Operación registrada con éxito.' });
               }
             );
@@ -453,38 +414,30 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
       res.status(500).json({ message: 'Error al obtener saldo VES.' });
   });
 });
-
 app.put('/api/operaciones/:id', apiAuth, (req, res) => {
     const operacionId = req.params.id;
     const user = req.session.user;
     const { cliente_nombre, monto_clp, tasa, observaciones, fecha, numero_recibo } = req.body;
-
     if (!numero_recibo) {
         return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
     }
-
     db.get('SELECT id FROM operaciones WHERE numero_recibo = ? AND id != ?', [numero_recibo, operacionId], (err, existing) => {
         if (err) return res.status(500).json({ message: 'Error de base de datos al verificar recibo.' });
         if (existing) return res.status(400).json({ message: 'El número de recibo ya está en uso por otra operación.' });
-        
         db.get('SELECT * FROM operaciones WHERE id = ?', [operacionId], (err, opOriginal) => {
             if (err || !opOriginal) return res.status(404).json({ message: 'Operación no encontrada.' });
-            
             const esMaster = user.role === 'master';
             const esSuOperacion = opOriginal.usuario_id === user.id;
             const esDeHoy = opOriginal.fecha === hoyLocalYYYYMMDD();
             if (!esMaster && !(esSuOperacion && esDeHoy)) {
                 return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
             }
-            
             calcularCostoVesPorClp(fecha, (e, costoVesPorClp) => {
                 if (e) return res.status(500).json({ message: 'Error al recalcular el costo.' });
                 db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, cliente) => {
                     if (err || !cliente) return res.status(400).json({ message: 'Cliente no encontrado.' });
-                    
                     const gananciaNetaOriginal = (opOriginal.monto_clp - opOriginal.costo_clp) - (opOriginal.monto_clp * 0.003);
                     const vesTotalOriginal = opOriginal.monto_ves + opOriginal.comision_ves;
-
                     const montoClpNuevo = Number(monto_clp || 0);
                     const tasaNueva = Number(tasa || 0);
                     const montoVesNuevo = montoClpNuevo * tasaNueva;
@@ -492,10 +445,8 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
                     const comisionVesNuevo = montoVesNuevo * 0.003;
                     const gananciaNetaNueva = (montoClpNuevo - costoClpNuevo) - (montoClpNuevo * 0.003);
                     const vesTotalNuevo = montoVesNuevo + comisionVesNuevo;
-
                     const deltaGanancia = gananciaNetaNueva - gananciaNetaOriginal;
                     const deltaVes = vesTotalOriginal - vesTotalNuevo;
-
                     db.serialize(() => {
                         db.run('BEGIN TRANSACTION');
                         db.run(`UPDATE operaciones SET cliente_id=?, fecha=?, monto_clp=?, monto_ves=?, tasa=?, observaciones=?, costo_clp=?, comision_ves=?, numero_recibo=? WHERE id = ?`,
@@ -515,17 +466,14 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
         });
     });
 });
-
 app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
     const operacionId = req.params.id;
     db.get('SELECT * FROM operaciones WHERE id = ?', [operacionId], (err, op) => {
         if (err || !op) return res.status(404).json({ message: 'Operación no encontrada.' });
-
         const gananciaBruta = op.monto_clp - op.costo_clp;
         const comisionClp = op.monto_clp * 0.003;
         const gananciaNetaARevertir = gananciaBruta - comisionClp;
         const vesTotalARevertir = op.monto_ves + op.comision_ves;
-
         db.serialize(() => {
             db.run('BEGIN TRANSACTION');
             db.run('DELETE FROM operaciones WHERE id = ?', [operacionId]);
@@ -541,7 +489,6 @@ app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
         });
     });
 });
-
 app.get('/api/operaciones/export', apiAuth, (req, res) => {
   const user = req.session.user;
   let sql = `SELECT op.fecha, op.numero_recibo, u.username AS operador, c.nombre AS cliente, op.monto_clp, op.tasa, op.monto_ves, op.observaciones, op.costo_clp, op.comision_ves FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id JOIN clientes c ON op.cliente_id = c.id`;
@@ -563,7 +510,6 @@ app.get('/api/operaciones/export', apiAuth, (req, res) => {
     res.send('\uFEFF' + csv);
   });
 });
-
 app.get('/api/historico/resumen', apiAuth, onlyMaster, (req, res) => {
     const { startDate, endDate } = req.query;
     let sql = `SELECT c.nombre AS cliente_nombre, IFNULL(SUM(op.monto_clp), 0) AS total_clp_recibido, IFNULL(SUM(op.costo_clp), 0) AS total_costo_clp FROM operaciones op JOIN clientes c ON op.cliente_id = c.id`;
@@ -590,7 +536,6 @@ app.get('/api/historico/resumen', apiAuth, onlyMaster, (req, res) => {
         res.json(resumen);
     });
 });
-
 app.get('/api/rendimiento/operadores', apiAuth, onlyMaster, (req, res) => {
     const { startDate, endDate } = req.query;
     let sql = `SELECT u.username AS operador_nombre, IFNULL(COUNT(op.id), 0) AS total_operaciones, IFNULL(COUNT(DISTINCT op.cliente_id), 0) AS clientes_unicos, IFNULL(SUM(op.monto_clp), 0) AS total_clp_enviado FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id`;
@@ -610,8 +555,6 @@ app.get('/api/rendimiento/operadores', apiAuth, onlyMaster, (req, res) => {
         res.json(rendimiento);
     });
 });
-
-// -------------------- Tasas (configuracion) --------------------
 const readConfig = (clave, cb) => db.get(`SELECT valor FROM configuracion WHERE clave=?`, [clave], (e, row) => cb(e, row ? row.valor : null));
 app.get('/api/tasas', apiAuth, (req, res) => {
   const result = {};
@@ -634,8 +577,6 @@ app.post('/api/tasas', apiAuth, onlyMaster, (req, res) => {
     });
   });
 });
-
-// -------------------- Capital Inicial Config --------------------
 app.post('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
     const { capitalInicialClp } = req.body;
     upsertConfig('capitalInicialClp', String(Number(capitalInicialClp) || 0), (err) => {
@@ -648,8 +589,6 @@ app.get('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
         .then(([capitalInicialClp, saldoInicialVes, costoVesPorClp]) => res.json({ capitalInicialClp, saldoInicialVes, costoVesPorClp }))
         .catch(e => res.status(500).json({ message: 'Error al leer configuración' }));
 });
-
-// -------------------- Ajuste Manual Saldo VES --------------------
 app.post('/api/config/ajustar-saldo-ves', apiAuth, onlyMaster, (req, res) => {
     const { nuevoSaldoVes } = req.body;
     const saldo = Number(nuevoSaldoVes);
@@ -661,8 +600,6 @@ app.post('/api/config/ajustar-saldo-ves', apiAuth, onlyMaster, (req, res) => {
         res.json({ message: 'Saldo VES Online actualizado con éxito.' });
     });
 });
-
-// -------------------- APIs de Gestión de Usuarios --------------------
 app.get('/api/usuarios', apiAuth, onlyMaster, (req, res) => {
     db.all(`SELECT id, username, role FROM usuarios`, [], (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al listar usuarios' });
@@ -683,8 +620,6 @@ app.put('/api/usuarios/:id', apiAuth, onlyMaster, async (req, res) => {
         res.json({ message: 'Usuario actualizado con éxito.' });
     });
 });
-
-// -------------------- Operadores (crear) --------------------
 app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ message: 'Datos incompletos' });
@@ -695,8 +630,6 @@ app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
     }
   );
 });
-
-// -------------------- APIs de Gestión de Compras --------------------
 app.get('/api/compras', apiAuth, onlyMaster, (req, res) => {
     db.all(`SELECT * FROM compras ORDER BY id DESC`, [], (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al listar compras' });
@@ -724,14 +657,11 @@ app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
     const { clp_invertido, ves_obtenido, fecha } = req.body;
     db.get('SELECT * FROM compras WHERE id = ?', [compraId], (err, compraOriginal) => {
         if (err || !compraOriginal) return res.status(404).json({ message: 'Compra no encontrada.' });
-
         const vesOriginal = compraOriginal.ves_obtenido;
         const vesNuevo = Number(ves_obtenido || 0);
         const deltaVes = vesNuevo - vesOriginal;
-
         const clpNuevo = Number(clp_invertido || 0);
         const tasaNueva = clpNuevo / (vesNuevo || 1);
-
         db.serialize(() => {
             db.run('BEGIN TRANSACTION');
             db.run(`UPDATE compras SET clp_invertido = ?, ves_obtenido = ?, tasa_clp_ves = ?, fecha = ? WHERE id = ?`, [clpNuevo, vesNuevo, tasaNueva, fecha, compraId]);
@@ -750,9 +680,7 @@ app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
     const compraId = req.params.id;
     db.get('SELECT * FROM compras WHERE id = ?', [compraId], (err, compra) => {
         if (err || !compra) return res.status(404).json({ message: 'Compra no encontrada.' });
-
         const vesARevertir = compra.ves_obtenido;
-
         db.serialize(() => {
             db.run('BEGIN TRANSACTION');
             db.run('DELETE FROM compras WHERE id = ?', [compraId]);
@@ -768,5 +696,4 @@ app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
-// -------------------- Start --------------------
 app.listen(PORT, () => console.log(`http://localhost:${PORT}`));
