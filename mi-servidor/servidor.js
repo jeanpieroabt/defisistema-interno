@@ -189,10 +189,17 @@ app.get('/logout', (req, res) => {
 });
 app.get('/api/user-info', apiAuth, (req, res) => res.json(req.session.user));
 
-// --- Endpoint para verificar número de recibo ---
+// --- Endpoint para verificar número de recibo (VERSIÓN CORREGIDA ANTI-CACHÉ) ---
 app.get('/api/recibo/check', apiAuth, (req, res) => {
     const { numero, excludeId } = req.query;
+    
+    // Cabeceras para prevenir que el navegador guarde la respuesta
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     if (!numero) return res.json({ usado: false });
+
     let sql = `SELECT id FROM operaciones WHERE numero_recibo = ?`;
     const params = [numero];
     if (excludeId) {
