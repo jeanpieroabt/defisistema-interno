@@ -71,7 +71,7 @@
       <div class="box" style="margin-top:16px">
           <h3>Historial de Compras</h3>
           <table>
-              <thead><tr><th>ID</th><th>Fecha</th><th>CLP Invertido</th><th>VES Obtenidos</th><th>Tasa (VES/CLP)</th><th>Acción</th></tr></thead>
+              <thead><tr><th>ID</th><th>Fecha</th><th>CLP Invertido</th><th>VES Obtenidos</th><th>Tasa (VES/CLP)</th><th>Acciones</th></tr></thead>
               <tbody id="tbodyCompras"></tbody>
           </table>
       </div>
@@ -145,7 +145,7 @@
         compras.forEach(c => {
             const tasaMostrada = c.clp_invertido > 0 ? Number(c.ves_obtenido / c.clp_invertido).toFixed(6) : 0;
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${c.id}</td><td><input type="date" id="compra-${c.id}-fecha" value="${c.fecha}"></td><td><input type="number" step="0.01" id="compra-${c.id}-clp" value="${c.clp_invertido}"></td><td><input type="number" step="0.01" id="compra-${c.id}-ves" value="${c.ves_obtenido}"></td><td>${tasaMostrada}</td><td><button onclick="editCompra(${c.id})" class="btn btn-edit">Guardar</button></td>`;
+            tr.innerHTML = `<td>${c.id}</td><td><input type="date" id="compra-${c.id}-fecha" value="${c.fecha}"></td><td><input type="number" step="0.01" id="compra-${c.id}-clp" value="${c.clp_invertido}"></td><td><input type="number" step="0.01" id="compra-${c.id}-ves" value="${c.ves_obtenido}"></td><td>${tasaMostrada}</td><td><button onclick="editCompra(${c.id})" class="btn btn-edit">Guardar</button> <button onclick="deleteCompra(${c.id})" class="btn btn-danger">Borrar</button></td>`;
             tbody.appendChild(tr);
         });
     }
@@ -158,6 +158,14 @@
         const ves_obtenido = document.getElementById(`compra-${id}-ves`).value;
         const body = { fecha, clp_invertido, ves_obtenido };
         const r = await fetch(`/api/compras/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const res = await r.json();
+        showToast(res.message || 'Error', r.ok ? 'success' : 'error');
+        if (r.ok) { fetchCompras(); loadKpis(); }
+    }
+
+    async function deleteCompra(id) {
+        if (!confirm('¿Estás seguro de que quieres borrar esta compra?\nEsta acción es irreversible y afectará los saldos globales.')) return;
+        const r = await fetch(`/api/compras/${id}`, { method: 'DELETE' });
         const res = await r.json();
         showToast(res.message || 'Error', r.ok ? 'success' : 'error');
         if (r.ok) { fetchCompras(); loadKpis(); }
@@ -194,7 +202,7 @@
       const resp = await fetch('/api/create-operator',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       const res = await resp.json();
       showToast(res.message || 'Error', resp.ok ? 'success' : 'error');
-      if(resp.ok) e.target.reset();
+      if(resp.ok) { e.target.reset(); fetchUsuarios(); }
     };
 
     (async ()=>{ 

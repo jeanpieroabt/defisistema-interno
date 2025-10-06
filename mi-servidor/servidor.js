@@ -301,7 +301,7 @@ app.get('/api/monthly-sales', apiAuth, (req, res) => {
   });
 });
 
-// -------------------- Operaciones --------------------
+// -------------------- Operaciones CRUD --------------------
 app.get('/api/operaciones', apiAuth, (req, res) => {
   const user = req.session.user;
   let sql = `SELECT op.*, u.username AS operador, c.nombre AS cliente_nombre FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id JOIN clientes c ON op.cliente_id = c.id`;
@@ -381,15 +381,12 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
                 if (err || !cliente) return res.status(400).json({ message: 'Cliente no encontrado.' });
                 
                 // --- Lógica Transaccional ---
-                // 1. Calcular impacto original
                 const montoClpOriginal = opOriginal.monto_clp;
                 const costoClpOriginal = opOriginal.costo_clp;
                 const gananciaBrutaOriginal = montoClpOriginal - costoClpOriginal;
                 const comisionClpOriginal = montoClpOriginal * 0.003;
                 const gananciaNetaOriginal = gananciaBrutaOriginal - comisionClpOriginal;
                 const vesTotalOriginal = opOriginal.monto_ves + opOriginal.comision_ves;
-
-                // 2. Calcular impacto nuevo
                 const montoClpNuevo = Number(monto_clp || 0);
                 const tasaNueva = Number(tasa || 0);
                 const montoVesNuevo = montoClpNuevo * tasaNueva;
@@ -399,18 +396,15 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
                 const comisionClpNueva = montoClpNuevo * 0.003;
                 const gananciaNetaNueva = gananciaBrutaNueva - comisionClpNueva;
                 const vesTotalNuevo = montoVesNuevo + comisionVesNuevo;
-
-                // 3. Calcular deltas
                 const deltaGanancia = gananciaNetaNueva - gananciaNetaOriginal;
-                const deltaVes = vesTotalOriginal - vesTotalNuevo; // Si el nuevo es mayor, el delta es negativo (resta más)
+                const deltaVes = vesTotalOriginal - vesTotalNuevo;
 
-                // 4. Ejecutar como transacción
                 db.serialize(() => {
                     db.run('BEGIN TRANSACTION');
                     const sql = `UPDATE operaciones SET cliente_id=?, fecha=?, monto_clp=?, monto_ves=?, tasa=?, observaciones=?, costo_clp=?, comision_ves=? WHERE id = ?`;
                     db.run(sql, [cliente.id, fecha, montoClpNuevo, montoVesNuevo, tasaNueva, observaciones || '', costoClpNuevo, comisionVesNuevo, operacionId]);
-                    db.run(`UPDATE configuracion SET valor = valor + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [deltaGanancia]);
-                    db.run(`UPDATE configuracion SET valor = valor + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
+                    db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [deltaGanancia]);
+                    db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
                         if (err) {
                             db.run('ROLLBACK');
                             return res.status(500).json({ message: 'Error al actualizar saldos, se revirtió la operación.' });
@@ -423,6 +417,33 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
         });
     });
 });
+
+app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
+    const operacionId = req.params.id;
+    db.get('SELECT * FROM operaciones WHERE id = ?', [operacionId], (err, op) => {
+        if (err || !op) return res.status(404).json({ message: 'Operación no encontrada.' });
+
+        const gananciaBruta = op.monto_clp - op.costo_clp;
+        const comisionClp = op.monto_clp * 0.003;
+        const gananciaNetaARevertir = gananciaBruta - comisionClp;
+        const vesTotalARevertir = op.monto_ves + op.comision_ves;
+
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION');
+            db.run('DELETE FROM operaciones WHERE id = ?', [operacionId]);
+            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNetaARevertir]);
+            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [vesTotalARevertir], (err) => {
+                if (err) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ message: 'Error al revertir saldos, se canceló el borrado.' });
+                }
+                db.run('COMMIT');
+                res.json({ message: 'Operación borrada y saldos revertidos con éxito.' });
+            });
+        });
+    });
+});
+
 
 app.get('/api/operaciones/export', apiAuth, (req, res) => {
   const user = req.session.user;
@@ -569,11 +590,12 @@ app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
 
 // -------------------- APIs de Gestión de Compras --------------------
 app.get('/api/compras', apiAuth, onlyMaster, (req, res) => {
-    db.all(`SELECT * FROM compras ORDER BY fecha DESC`, [], (err, rows) => {
+    db.all(`SELECT * FROM compras ORDER BY id DESC`, [], (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al listar compras' });
         res.json(rows || []);
     });
 });
+
 app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
     const { clp_invertido, ves_obtenido } = req.body;
     const clp = Number(clp_invertido || 0);
@@ -590,18 +612,57 @@ app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
         }
     );
 });
+
 app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
+    const compraId = req.params.id;
     const { clp_invertido, ves_obtenido, fecha } = req.body;
-    const clp = Number(clp_invertido || 0);
-    const ves = Number(ves_obtenido || 0);
-    db.run(`UPDATE compras SET clp_invertido = ?, ves_obtenido = ?, tasa_clp_ves = ?, fecha = ? WHERE id = ?`,
-        [clp, ves, clp / (ves || 1), fecha, req.params.id],
-        function (e) {
-            if (e) return res.status(500).json({ message: 'Error al actualizar compra' });
-            res.json({ message: 'Compra actualizada con éxito. Recargue la página para ver los KPIs actualizados.' });
-        }
-    );
+    db.get('SELECT * FROM compras WHERE id = ?', [compraId], (err, compraOriginal) => {
+        if (err || !compraOriginal) return res.status(404).json({ message: 'Compra no encontrada.' });
+
+        const vesOriginal = compraOriginal.ves_obtenido;
+        const vesNuevo = Number(ves_obtenido || 0);
+        const deltaVes = vesNuevo - vesOriginal;
+
+        const clpNuevo = Number(clp_invertido || 0);
+        const tasaNueva = clpNuevo / (vesNuevo || 1);
+
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION');
+            db.run(`UPDATE compras SET clp_invertido = ?, ves_obtenido = ?, tasa_clp_ves = ?, fecha = ? WHERE id = ?`, [clpNuevo, vesNuevo, tasaNueva, fecha, compraId]);
+            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
+                if (err) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ message: 'Error al actualizar saldo, se revirtió la operación.' });
+                }
+                db.run('COMMIT');
+                res.json({ message: 'Compra y saldo actualizados con éxito.' });
+            });
+        });
+    });
 });
+
+app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
+    const compraId = req.params.id;
+    db.get('SELECT * FROM compras WHERE id = ?', [compraId], (err, compra) => {
+        if (err || !compra) return res.status(404).json({ message: 'Compra no encontrada.' });
+
+        const vesARevertir = compra.ves_obtenido;
+
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION');
+            db.run('DELETE FROM compras WHERE id = ?', [compraId]);
+            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesARevertir], (err) => {
+                if (err) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ message: 'Error al revertir saldo, se canceló el borrado.' });
+                }
+                db.run('COMMIT');
+                res.json({ message: 'Compra borrada y saldo revertido con éxito.' });
+            });
+        });
+    });
+});
+
 
 // -------------------- Start --------------------
 app.listen(PORT, () => console.log(`http://localhost:${PORT}`));

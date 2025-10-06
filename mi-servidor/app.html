@@ -95,7 +95,7 @@
       <h2 id="tituloTabla">Envíos Registrados</h2>
       <table>
         <thead>
-          <tr><th>Fecha</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acción</th></tr>
+          <tr><th>Fecha</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acciones</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -129,16 +129,13 @@
 
 
   <script>
-    // AÑADIDO: Función para mostrar notificaciones Toast
     function showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.textContent = message;
         container.appendChild(toast);
-
         setTimeout(() => toast.classList.add('show'), 100);
-
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 500);
@@ -194,13 +191,18 @@
     const fila = (op) => {
       const tr = document.createElement('tr');
       const fecha = new Date(op.fecha + 'T00:00:00'); 
-      const fechaFormateada = fecha.toLocaleDateString('es-CL', {
-          day: '2-digit', month: '2-digit', year: 'numeric'
-      }).replace(/\//g, '-'); 
+      const fechaFormateada = fecha.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-'); 
       const fmtCLP = v => Number(v).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
       const fmtVES = v => Number(v).toLocaleString('es-VE');
 
+      let actions = '';
       const puedeEditar = (user.role === 'master') || (user.id === op.usuario_id && op.fecha === getLocalYYYYMMDD());
+      if (puedeEditar) {
+        actions += `<button class="btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>`;
+      }
+      if (user.role === 'master') {
+        actions += ` <button class="btn btn-danger" onclick="deleteOperacion(${op.id})">Borrar</button>`;
+      }
 
       tr.innerHTML = `
         <td>${fechaFormateada}</td>
@@ -210,7 +212,7 @@
         <td>${Number(op.tasa).toFixed(4)}</td>
         <td>${fmtVES(op.monto_ves)}</td>
         <td>${op.observaciones || ''}</td>
-        <td>${puedeEditar ? `<button class="btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>` : ''}</td>`;
+        <td>${actions}</td>`;
       return tr;
     };
 
@@ -222,22 +224,25 @@
       operacionesData.forEach(d => tbody.appendChild(fila(d)));
     }
 
+    async function reloadAllKpis() {
+        await cargarSaldoVes(); 
+        if (user.role === 'master') await cargarMasterMetrics();
+        else await cargarOperatorKpi(); 
+    }
+
     const modal = document.getElementById('editModal');
     const editForm = document.getElementById('editForm');
     
     function abrirModalEdicion(id) {
         const op = operacionesData.find(d => d.id === id);
         if (!op) return;
-
         modal.dataset.id = op.id;
         document.getElementById('editFecha').value = op.fecha;
         document.getElementById('editCliente').value = op.cliente_nombre;
         document.getElementById('editMontoClp').value = op.monto_clp;
         document.getElementById('editTasa').value = op.tasa;
         document.getElementById('editObs').value = op.observaciones || '';
-        
         document.getElementById('editFecha').disabled = (user.role !== 'master');
-        
         modal.style.display = 'flex';
     }
 
@@ -248,91 +253,50 @@
     editForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = modal.dataset.id;
-        const body = {
-            fecha: document.getElementById('editFecha').value,
-            cliente_nombre: document.getElementById('editCliente').value,
-            monto_clp: document.getElementById('editMontoClp').value,
-            tasa: document.getElementById('editTasa').value,
-            observaciones: document.getElementById('editObs').value,
-        };
-
-        const r = await fetch(`/api/operaciones/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-
+        const body = { fecha: document.getElementById('editFecha').value, cliente_nombre: document.getElementById('editCliente').value, monto_clp: document.getElementById('editMontoClp').value, tasa: document.getElementById('editTasa').value, observaciones: document.getElementById('editObs').value };
+        const r = await fetch(`/api/operaciones/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         const res = await r.json();
-        // REEMPLAZADO: alert() por showToast()
+        showToast(res.message || 'Error', r.ok ? 'success' : 'error');
         if (r.ok) {
-            showToast(res.message || 'Operación actualizada.', 'success');
             cerrarModalEdicion();
             await cargarTabla();
-            if (user.role === 'master') await cargarMasterMetrics();
-            else await cargarOperatorKpi(); 
-        } else {
-            showToast(res.message || 'Error al actualizar.', 'error');
+            await reloadAllKpis();
         }
     });
+
+    async function deleteOperacion(id) {
+        if (!confirm('¿Estás seguro de que quieres borrar esta operación?\nEsta acción es irreversible y afectará los saldos globales.')) return;
+        const r = await fetch(`/api/operaciones/${id}`, { method: 'DELETE' });
+        const res = await r.json();
+        showToast(res.message || 'Error', r.ok ? 'success' : 'error');
+        if (r.ok) {
+            await cargarTabla();
+            await reloadAllKpis();
+        }
+    }
 
     function addClientAutocomplete(inputEl, suggestionsEl) {
       let lastQuery = '';
       inputEl.addEventListener('input', async () => {
         const q = String(inputEl.value || '').trim();
-        if (q.length < 2) {
-          suggestionsEl.style.display = 'none';
-          suggestionsEl.innerHTML = '';
-          return;
-        }
-        if (q === lastQuery) { suggestionsEl.style.display = suggestionsEl.children.length ? 'block' : 'none'; return; }
+        if (q.length < 2) { suggestionsEl.style.display = 'none'; return; }
+        if (q === lastQuery) return;
         lastQuery = q;
-
-        try {
-          const res = await fetch(`/api/clientes/search?term=${encodeURIComponent(q)}`);
-          if (!res.ok) throw new Error('network');
-          const names = await res.json();
-          suggestionsEl.innerHTML = '';
-          if (names && names.length) {
-            names.forEach(name => {
-              const item = document.createElement('div');
-              item.className = 'suggestion-item';
-              item.textContent = name;
-              item.addEventListener('click', () => {
-                inputEl.value = name;
-                suggestionsEl.style.display = 'none';
-                suggestionsEl.innerHTML = '';
-                inputEl.dispatchEvent(new Event('input'));
-              });
-              suggestionsEl.appendChild(item);
-            });
-            suggestionsEl.style.display = 'block';
-          } else {
-            const empty = document.createElement('div');
-            empty.className = 'suggestion-empty';
-            empty.textContent = 'Sin resultados';
-            suggestionsEl.appendChild(empty);
-            suggestionsEl.style.display = 'block';
-          }
-        } catch (e) {
-          suggestionsEl.style.display = 'none';
+        const res = await fetch(`/api/clientes/search?term=${encodeURIComponent(q)}`);
+        const names = await res.json();
+        suggestionsEl.innerHTML = '';
+        if (names && names.length) {
+          names.forEach(name => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item';
+            item.textContent = name;
+            item.onclick = () => { inputEl.value = name; suggestionsEl.style.display = 'none'; };
+            suggestionsEl.appendChild(item);
+          });
+          suggestionsEl.style.display = 'block';
         }
       });
-
-      document.addEventListener('click', (ev) => {
-        if (!inputEl.contains(ev.target) && !suggestionsEl.contains(ev.target)) {
-          suggestionsEl.style.display = 'none';
-        }
-      });
-
-      inputEl.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter' && suggestionsEl.style.display === 'block') {
-          const first = suggestionsEl.querySelector('.suggestion-item');
-          if (first) {
-            ev.preventDefault();
-            first.click();
-          }
-        }
-      });
+      document.addEventListener('click', (ev) => { if (!inputEl.contains(ev.target)) suggestionsEl.style.display = 'none'; });
     }
 
     (async () => {
@@ -359,67 +323,40 @@
 
       const fch = document.getElementById('fch');
       fch.value = getLocalYYYYMMDD();
-
       let niveles = {};
       try { niveles = await (await fetch('/api/tasas')).json(); } catch (e) {}
-
       const mclp = document.getElementById('mclp');
       const tasa = document.getElementById('tasa');
       const vesPreview = document.getElementById('vesPreview');
-      
       const aplicarTasaAutomatica = () => {
         const v = Number(mclp.value || 0);
         if (v >= 250000 && niveles.tasaNivel3) tasa.value = Number(niveles.tasaNivel3);
         else if (v >= 100000 && niveles.tasaNivel2) tasa.value = Number(niveles.tasaNivel2);
         else if (v >= 5000   && niveles.tasaNivel1) tasa.value = Number(niveles.tasaNivel1);
       };
-      const actualizarPreview = () => {
-        vesPreview.textContent = (Number(mclp.value||0) * Number(tasa.value||0)).toLocaleString('es-VE');
-      };
+      const actualizarPreview = () => { vesPreview.textContent = (Number(mclp.value||0) * Number(tasa.value||0)).toLocaleString('es-VE'); };
       mclp.addEventListener('input', () => { aplicarTasaAutomatica(); actualizarPreview(); });
       tasa.addEventListener('input', actualizarPreview);
-      
       document.getElementById('cancelEdit').addEventListener('click', cerrarModalEdicion);
-
       document.getElementById('frm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const body = {
-          fecha: fch.value,
-          cliente_nombre: document.getElementById('cli').value.trim(),
-          monto_clp: Number(mclp.value || 0),
-          tasa: Number(tasa.value || 0),
-          monto_ves: Number(mclp.value || 0) * Number(tasa.value || 0),
-          observaciones: document.getElementById('obs').value.trim()
-        };
-        const r = await fetch('/api/operaciones', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify(body)
-        });
-
-        // REEMPLAZADO: alert() por showToast()
+        const body = { fecha: fch.value, cliente_nombre: document.getElementById('cli').value.trim(), monto_clp: Number(mclp.value || 0), tasa: Number(tasa.value || 0), monto_ves: Number(mclp.value || 0) * Number(tasa.value || 0), observaciones: document.getElementById('obs').value.trim() };
+        const r = await fetch('/api/operaciones', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
         if (!r.ok) {
            const err = await r.json();
            return showToast(`Error: ${err.message || 'Verifique el saldo.'}`, 'error');
         }
-
         showToast('Envío registrado con éxito.', 'success');
         e.target.reset();
         fch.value = getLocalYYYYMMDD();
         vesPreview.textContent = '0,00';
         await cargarTabla();
-        await cargarSaldoVes(); 
-        if (user.role === 'master') await cargarMasterMetrics();
-        else await cargarOperatorKpi(); 
+        await reloadAllKpis();
       });
-
       addClientAutocomplete(document.getElementById('cli'), document.getElementById('clientSuggestions'));
       addClientAutocomplete(document.getElementById('editCliente'), document.getElementById('editClientSuggestions'));
-
       await cargarTabla();
-      await cargarSaldoVes(); 
-      if (user.role === 'master') await cargarMasterMetrics();
-      else await cargarOperatorKpi(); 
+      await reloadAllKpis();
       actualizarPreview();
     })();
   </script>

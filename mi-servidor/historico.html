@@ -17,10 +17,16 @@
       </div>
     </div>
     <div class="content">
-      <div class="grid3" style="grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px;">
+      <div class="grid3" style="grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; align-items: end;">
         <div><label>Desde</label><input type="date" id="fDesde"></div>
         <div><label>Hasta</label><input type="date" id="fHasta"></div>
-        <div><label>Cliente</label><input type="text" id="fCliente" placeholder="Nombre del cliente"></div>
+        
+        <div class="autocomplete-container">
+          <label>Cliente</label>
+          <input type="text" id="fCliente" placeholder="Nombre del cliente" autocomplete="off">
+          <div class="autocomplete-suggestions" id="clientSuggestionsHistorico"></div>
+        </div>
+        
         <div class="autocomplete-container">
           <label>Operador</label>
           <input type="text" id="fOperador" placeholder="(solo Master)" autocomplete="off">
@@ -44,7 +50,7 @@
       <h2 id="tituloDetalle" style="margin-top: 20px;">Detalle de Envíos</h2>
       <table>
         <thead>
-          <tr><th>Fecha</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acción</th></tr>
+          <tr><th>Fecha</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acciones</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -100,7 +106,12 @@
       const fechaFormateada = new Date(op.fecha + 'T00:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-'); 
       const fmtCLP = v => Number(v).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
       const fmtVES = v => Number(v).toLocaleString('es-VE');
-      tr.innerHTML = `<td>${fechaFormateada}</td><td>${op.operador}</td><td>${op.cliente_nombre}</td><td>${fmtCLP(op.monto_clp)}</td><td>${Number(op.tasa).toFixed(4)}</td><td>${fmtVES(op.monto_ves)}</td><td>${op.observaciones || ''}</td><td><button class="btn btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button></td>`;
+
+      let actions = `<button class="btn btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>`;
+      if (userRole === 'master') {
+          actions += ` <button class="btn btn-danger" onclick="deleteOperacion(${op.id})">Borrar</button>`;
+      }
+      tr.innerHTML = `<td>${fechaFormateada}</td><td>${op.operador}</td><td>${op.cliente_nombre}</td><td>${fmtCLP(op.monto_clp)}</td><td>${Number(op.tasa).toFixed(4)}</td><td>${fmtVES(op.monto_ves)}</td><td>${op.observaciones || ''}</td><td>${actions}</td>`;
       return tr;
     }
     
@@ -120,7 +131,7 @@
     async function cargarResumen(){
         const params = new URLSearchParams({ startDate: document.getElementById('fDesde').value || '', endDate: document.getElementById('fHasta').value || '' });
         document.getElementById('resumenTitle').textContent = 'Resumen Consolidado por Cliente';
-        document.getElementById('tbodyResumenHeader').innerHTML = `<th>Cliente</th><th style="text-align:right">CLP Recibido</th><th style="text-align:right">Costo Total</th><th style="text-align:right">Ganancia Bruta</th>`;
+        document.getElementById('tbodyResumenHeader').innerHTML = `<th>Cliente</th><th style="text-align:right">CLP Recibido</th><th style="text-align:right">Ganancia Bruta</th><th style="text-align:right">Ganancia Neta</th>`;
         document.getElementById('resumenSection').style.display = 'block';
         document.getElementById('tituloDetalle').style.display = 'none';
         document.querySelector('#tituloDetalle + table').style.display = 'none';
@@ -134,7 +145,7 @@
         const fmt = v => (v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
         data.forEach(d => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${d.cliente_nombre}</td><td style="text-align:right;">${fmt(d.total_clp_recibido)}</td><td style="text-align:right;">${fmt(d.total_costo_clp)}</td><td style="text-align:right; font-weight: 700; color: ${d.ganancia_bruta > 0 ? 'green' : 'red'};">${fmt(d.ganancia_bruta)}</td>`;
+            tr.innerHTML = `<td>${d.cliente_nombre}</td><td style="text-align:right;">${fmt(d.total_clp_recibido)}</td><td style="text-align:right;">${fmt(d.ganancia_bruta)}</td><td style="text-align:right; font-weight: 700; color: ${d.ganancia_neta > 0 ? 'green' : 'red'};">${fmt(d.ganancia_neta)}</td>`;
             tbResumen.appendChild(tr);
         });
     }
@@ -161,6 +172,39 @@
         });
     }
     
+    async function deleteOperacion(id) {
+        if (!confirm('¿Estás seguro de que quieres borrar esta operación?\nEsta acción es irreversible y afectará los saldos globales.')) return;
+        const r = await fetch(`/api/operaciones/${id}`, { method: 'DELETE' });
+        const res = await r.json();
+        showToast(res.message || 'Error', r.ok ? 'success' : 'error');
+        if (r.ok) { await cargar(); }
+    }
+
+    // FUNCIÓN DE AUTOCOMPLETADO DE CLIENTES AÑADIDA
+    function addClientAutocomplete(inputEl, suggestionsEl) {
+      let lastQuery = '';
+      inputEl.addEventListener('input', async () => {
+        const q = String(inputEl.value || '').trim();
+        if (q.length < 2) { suggestionsEl.style.display = 'none'; return; }
+        if (q === lastQuery) return;
+        lastQuery = q;
+        const res = await fetch(`/api/clientes/search?term=${encodeURIComponent(q)}`);
+        const names = await res.json();
+        suggestionsEl.innerHTML = '';
+        if (names && names.length) {
+          names.forEach(name => {
+            const item = document.createElement('div');
+            item.className = 'suggestion-item';
+            item.textContent = name;
+            item.onclick = () => { inputEl.value = name; suggestionsEl.style.display = 'none'; };
+            suggestionsEl.appendChild(item);
+          });
+          suggestionsEl.style.display = 'block';
+        }
+      });
+      document.addEventListener('click', (ev) => { if (!inputEl.contains(ev.target)) suggestionsEl.style.display = 'none'; });
+    }
+
     function exportar(){
       const params = new URLSearchParams({ startDate: document.getElementById('fDesde').value || '', endDate: document.getElementById('fHasta').value || '', cliente: document.getElementById('fCliente').value || '', operador: document.getElementById('fOperador').value || '' });
       location.href = '/api/operaciones/export?' + params.toString();
@@ -196,7 +240,29 @@
     document.getElementById('cancelEdit').addEventListener('click', cerrarModalEdicion);
 
     function addOperatorAutocomplete(inputEl, suggestionsEl) {
-      // ... (El código de autocompletado es largo y no cambia, se puede mantener igual)
+        let lastQuery = '';
+        inputEl.addEventListener('input', async () => {
+            const q = String(inputEl.value || '').trim();
+            if (q.length < 1) { suggestionsEl.style.display = 'none'; return; }
+            if(q === lastQuery) return;
+            lastQuery = q;
+            const res = await fetch(`/api/usuarios/search?term=${encodeURIComponent(q)}`);
+            const names = await res.json();
+            suggestionsEl.innerHTML = '';
+            if (names && names.length) {
+                names.forEach(name => {
+                    const item = document.createElement('div');
+                    item.className = 'suggestion-item';
+                    item.textContent = name;
+                    item.onclick = () => { inputEl.value = name; suggestionsEl.style.display = 'none'; };
+                    suggestionsEl.appendChild(item);
+                });
+                suggestionsEl.style.display = 'block';
+            } else {
+                suggestionsEl.style.display = 'none';
+            }
+        });
+        document.addEventListener('click', (ev) => { if (!inputEl.contains(ev.target)) suggestionsEl.style.display = 'none'; });
     }
 
     (async () => {
@@ -209,11 +275,18 @@
       } else {
         addOperatorAutocomplete(document.getElementById('fOperador'), document.getElementById('operatorSuggestions'));
       }
+
+      // LLAMADA A LA FUNCIÓN DE AUTOCOMPLETADO DE CLIENTES AÑADIDA
+      addClientAutocomplete(document.getElementById('fCliente'), document.getElementById('clientSuggestionsHistorico'));
+      
       document.getElementById('btnFiltrar').onclick = cargar;
       document.getElementById('btnResumen').onclick = cargarResumen;
       document.getElementById('btnRendimiento').onclick = cargarRendimiento;
       document.getElementById('btnLimpiar').onclick = ()=>{ 
-          ['fDesde','fHasta','fCliente','fOperador'].forEach(id=>document.getElementById(id).value=''); 
+          document.getElementById('fDesde').value='';
+          document.getElementById('fHasta').value='';
+          document.getElementById('fCliente').value='';
+          document.getElementById('fOperador').value='';
           cargar(); 
       };
       document.getElementById('btnExport').onclick = exportar;
