@@ -392,10 +392,10 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
                 function (e) {
                   if (e) return res.status(400).json({ message: 'Error al guardar: El número de recibo ya existe.' });
                   
-                  db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar], (err) => {
-                      if (err) console.error("Error al restar VES:", err);
-                      db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNeta], (err) => {
-                          if (err) console.error("Error al sumar ganancia:", err);
+                  db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar], (err1) => {
+                      if (err1) console.error("Error al restar VES:", err1);
+                      db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNeta], (err2) => {
+                          if (err2) console.error("Error al sumar ganancia:", err2);
                           res.json({ id: this.lastID });
                       });
                   });
@@ -669,11 +669,13 @@ app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
     const ves = Number(ves_obtenido || 0);
     if (clp <= 0 || ves <= 0) return res.status(400).json({ message: 'Los montos deben ser mayores a cero.' });
     db.run(`INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_clp_ves, fecha) VALUES (?, ?, ?, ?, ?)`,
-        [req.session.user.id, clp, ves, clp / ves, hoyLocalYYYYMMDD()],
+        [req.session.user.id, clp, ves, clp / (ves || 1), hoyLocalYYYYMMDD()],
         function(err) {
             if (err) return res.status(500).json({ message: 'Error al guardar la compra.' });
-            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [ves]);
-            res.json({ message: 'Compra registrada con éxito.' });
+            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [ves], (updateErr) => {
+                if(updateErr) return res.status(500).json({ message: 'Compra guardada, pero falló la actualización del saldo.' });
+                res.json({ message: 'Compra registrada con éxito.' });
+            });
         }
     );
 });
