@@ -87,7 +87,6 @@ db.serialize(() => {
   )`);
 });
 
-
 // --- SCRIPT DE MIGRACIÓN DE BASE DE DATOS ---
 db.all("PRAGMA table_info(operaciones)", (err, columns) => {
     if (err) {
@@ -144,25 +143,16 @@ const hoyLocalYYYYMMDD = () => {
 const inicioMesLocalYYYYMMDD = () => {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  // Formato: YYYY-MM-01
   return local.toISOString().slice(0, 7) + '-01'; 
 };
 
-// Helper para actualizar un valor de estado en la tabla configuracion
-const updateConfigState = (clave, delta, cb) => {
-    db.get(`SELECT valor FROM configuracion WHERE clave=?`, [clave], (err, row) => {
-        if(err) return cb(err);
-        const currentValue = row ? Number(row.valor) : 0;
-        const newValue = currentValue + delta;
-        
-        db.run(
-            `INSERT INTO configuracion(clave,valor) VALUES(?,?) ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor`,
-            [clave, String(newValue)],
-            cb
-        );
-    });
+const upsertConfig = (clave, valor, cb) => {
+  db.run(
+    `INSERT INTO configuracion(clave,valor) VALUES(?,?) ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor`,
+    [clave, valor],
+    cb
+  );
 };
-// Helper para leer valores de configuración
 const readConfigValue = (clave) => {
   return new Promise((resolve, reject) => {
     db.get(`SELECT valor FROM configuracion WHERE clave=?`, [clave], (e, row) => {
@@ -175,12 +165,9 @@ const readConfigValue = (clave) => {
 // -------------------- Páginas --------------------
 app.get('/', (req, res) => res.redirect('/login.html'));
 app.get('/app.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'app.html')));
-app.get('/admin.html', pageAuth, onlyMaster, (req, res) =>
-  res.sendFile(path.join(__dirname, 'admin.html'))
-);
-app.get('/historico.html', pageAuth, (req, res) => 
-  res.sendFile(path.join(__dirname, 'historico.html'))
-);
+app.get('/admin.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+app.get('/historico.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'historico.html')));
+
 // -------------------- Auth --------------------
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
@@ -356,6 +343,7 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
   if (!req.query.historico) {
     where.push("date(op.fecha) = date('now','localtime')");
   }
+
   if (req.query.startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(req.query.startDate); }
   if (req.query.endDate)   { where.push(`date(op.fecha) <= date(?)`); params.push(req.query.endDate); }
   if (req.query.cliente)   { where.push(`c.nombre LIKE ?`); params.push(`%${req.query.cliente}%`); }
@@ -513,7 +501,7 @@ app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
 
 app.get('/api/operaciones/export', apiAuth, (req, res) => {
   const user = req.session.user;
-  let sql = `SELECT op.fecha, u.username AS operador, c.nombre AS cliente, op.monto_clp, op.tasa, op.monto_ves, op.observaciones, op.costo_clp, op.comision_ves FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id JOIN clientes c ON op.cliente_id = c.id`;
+  let sql = `SELECT op.fecha, op.numero_recibo, u.username AS operador, c.nombre AS cliente, op.monto_clp, op.tasa, op.monto_ves, op.observaciones, op.costo_clp, op.comision_ves FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id JOIN clientes c ON op.cliente_id = c.id`;
   const params = [];
   const where = [];
   if (req.query.startDate) { where.push(`date(op.fecha) >= date(?)`); params.push(req.query.startDate); }
@@ -524,8 +512,8 @@ app.get('/api/operaciones/export', apiAuth, (req, res) => {
   sql += ` ORDER BY op.fecha DESC, op.id DESC`;
   db.all(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ message: 'Error export' });
-    const header = ['Fecha', 'Operador', 'Cliente', 'Monto CLP', 'Costo CLP', 'Comision VES', 'Tasa', 'Monto VES', 'Obs.'];
-    const csv = [header.join(',')].concat(rows.map((r) => [r.fecha, `"${r.operador}"`, `"${r.cliente}"`, r.monto_clp, r.costo_clp, r.comision_ves, r.tasa, r.monto_ves, `"${(r.observaciones || '').replace(/"/g, '""')}"`].join(','))).join('\n');
+    const header = ['Fecha', 'Recibo', 'Operador', 'Cliente', 'Monto CLP', 'Costo CLP', 'Comision VES', 'Tasa', 'Monto VES', 'Obs.'];
+    const csv = [header.join(',')].concat(rows.map((r) => [r.fecha, r.numero_recibo, `"${r.operador}"`, `"${r.cliente}"`, r.monto_clp, r.costo_clp, r.comision_ves, r.tasa, r.monto_ves, `"${(r.observaciones || '').replace(/"/g, '""')}"`].join(','))).join('\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="historico_envios.csv"');
     res.send('\uFEFF' + csv);
