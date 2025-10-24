@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+mi-servidor/node_modules/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+
+# Build artifacts
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

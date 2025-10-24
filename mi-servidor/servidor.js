@@ -8,6 +8,7 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const path = require('path');
+const { runMigrations } = require('./migracion');
 
 // ✅ RUTA DE LA BASE DE DATOS AJUSTADA PARA DESPLIEGUE
 const DB_PATH = path.join(process.env.DATA_DIR || '.', 'database.db');
@@ -38,74 +39,90 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
   else console.log(`SQLite conectado en: ${DB_PATH}`);
 });
 
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS usuarios(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('master','operador'))
-  )`);
+// Función para inicializar las tablas base
+function initializeTables() {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run(`CREATE TABLE IF NOT EXISTS usuarios(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('master','operador'))
+      )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS clientes(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre TEXT UNIQUE NOT NULL,
-    fecha_creacion TEXT NOT NULL
-  )`);
+      db.run(`CREATE TABLE IF NOT EXISTS clientes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT UNIQUE NOT NULL,
+        fecha_creacion TEXT NOT NULL
+      )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS operaciones(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    usuario_id INTEGER NOT NULL,
-    cliente_id INTEGER NOT NULL,
-    fecha TEXT NOT NULL,
-    monto_clp REAL NOT NULL,
-    monto_ves REAL NOT NULL,
-    tasa REAL NOT NULL,
-    observaciones TEXT,
-    costo_clp REAL DEFAULT 0,  
-    comision_ves REAL DEFAULT 0,
-    numero_recibo TEXT UNIQUE,
-    FOREIGN KEY(usuario_id) REFERENCES usuarios(id),
-    FOREIGN KEY(cliente_id) REFERENCES clientes(id)
-  )`);
+      db.run(`CREATE TABLE IF NOT EXISTS operaciones(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario_id INTEGER NOT NULL,
+        cliente_id INTEGER NOT NULL,
+        fecha TEXT NOT NULL,
+        monto_clp REAL NOT NULL,
+        monto_ves REAL NOT NULL,
+        tasa REAL NOT NULL,
+        observaciones TEXT,
+        costo_clp REAL DEFAULT 0,  
+        comision_ves REAL DEFAULT 0,
+        numero_recibo TEXT UNIQUE,
+        FOREIGN KEY(usuario_id) REFERENCES usuarios(id),
+        FOREIGN KEY(cliente_id) REFERENCES clientes(id)
+      )`);
 
-  // CORRECCIÓN: Se eliminó el comentario de JavaScript de dentro de la sentencia SQL.
-  db.run(`CREATE TABLE IF NOT EXISTS compras(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    usuario_id INTEGER NOT NULL,
-    clp_invertido REAL NOT NULL,
-    ves_obtenido REAL NOT NULL,
-    tasa_compra REAL NOT NULL,
-    fecha TEXT NOT NULL,
-    FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
-  )`);
-  
-  db.run(`CREATE TABLE IF NOT EXISTS configuracion(
-    clave TEXT PRIMARY KEY,
-    valor TEXT
-  )`);
-});
+      db.run(`CREATE TABLE IF NOT EXISTS compras(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario_id INTEGER NOT NULL,
+        clp_invertido REAL NOT NULL,
+        ves_obtenido REAL NOT NULL,
+        tasa_compra REAL NOT NULL,
+        fecha TEXT NOT NULL,
+        FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+      )`);
+      
+      db.run(`CREATE TABLE IF NOT EXISTS configuracion(
+        clave TEXT PRIMARY KEY,
+        valor TEXT
+      )`, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  });
+}
 
-// Semilla mínima
-db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
-  if (err) {
-    console.error('Error al verificar usuarios semilla:', err.message);
-    return;
-  }
-  if (!row || row.c === 0) {
-    const hash = await bcrypt.hash('master123', 10);
-    db.run(
-      `INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`,
-      ['master', hash, 'master'],
-      (err) => {
-        if (err) {
-          console.error('Error al insertar usuario semilla:', err.message);
-        } else {
-          console.log('Usuario semilla creado: master/master123');
-        }
+// Función para crear usuario semilla
+async function createSeedUser() {
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
+      if (err) {
+        console.error('Error al verificar usuarios semilla:', err.message);
+        return reject(err);
       }
-    );
-  }
-});
+      if (!row || row.c === 0) {
+        const hash = await bcrypt.hash('master123', 10);
+        db.run(
+          `INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`,
+          ['master', hash, 'master'],
+          (err) => {
+            if (err) {
+              console.error('Error al insertar usuario semilla:', err.message);
+              reject(err);
+            } else {
+              console.log('Usuario semilla creado: master/master123');
+              resolve();
+            }
+          }
+        );
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 
 // -------------------- Helpers --------------------
 const pageAuth = (req, res, next) => {
@@ -152,6 +169,8 @@ app.get('/', (req, res) => res.redirect('/login.html'));
 app.get('/app.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'app.html')));
 app.get('/admin.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/historico.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'historico.html')));
+app.get('/clientes.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'clientes.html')));
+
 
 // -------------------- Auth --------------------
 app.post('/login', (req, res) => {
@@ -229,14 +248,21 @@ const calcularCostoClpPorVes = (fecha, callback) => {
         if (err) return callback(err, 0);
         if (rate > 0) return callback(null, 1 / rate);
 
-        const ayer = new Date(fecha);
-        ayer.setDate(ayer.getDate() - 1);
-        const fechaAyer = ayer.toISOString().slice(0, 10);
-        
-        getAvgPurchaseRate(fechaAyer, (errAyer, rateAyer) => {
-            if (errAyer) return callback(errAyer, 0);
-            if (rateAyer > 0) return callback(null, 1 / rateAyer);
+        // Si no hay compras en la fecha dada, buscar la tasa de la última compra registrada en días anteriores
+        const sql = `SELECT SUM(clp_invertido) as totalClp, SUM(ves_obtenido) as totalVes 
+                     FROM compras 
+                     WHERE date(fecha) < date(?) 
+                     GROUP BY date(fecha) 
+                     ORDER BY date(fecha) DESC 
+                     LIMIT 1`;
+        db.get(sql, [fecha], (errPrev, rowPrev) => {
+            if (errPrev) return callback(errPrev, 0);
+            if (rowPrev && rowPrev.totalClp > 0) {
+                const ratePrev = rowPrev.totalVes / rowPrev.totalClp;
+                return callback(null, 1 / ratePrev);
+            }
 
+            // Si no hay compras anteriores, usar el valor de configuración
             readConfigValue('capitalCostoVesPorClp')
                 .then(costoConfig => callback(null, costoConfig))
                 .catch(e => callback(e, 0));
@@ -282,7 +308,8 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
                     resolve(result);
                 });
             }),
-        ]).then(([costo, ventas, tasas, saldos]) => {
+            readConfigValue('saldoVesOnline'),
+        ]).then(([costo, ventas, tasas, saldos, saldoVesOnline]) => {
             const { costoClpPorVes } = costo;
             const { totalClpEnviadoDia, totalVesEnviadoDia } = ventas;
             const { tasaCompraPromedio } = tasas;
@@ -294,7 +321,6 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
             const gananciaNetaDelDia = gananciaBrutaDia - comisionDelDia;
             const capitalTotalClp = (capitalInicialClp || 0) + totalGananciaAcumuladaClp;
             
-            const saldoVesOnline = results[0].saldoVesOnline;
             const saldoDisponibleClp = tasaCompraPromedio > 0 ? (saldoVesOnline / tasaCompraPromedio) : 0;
 
             resolve({
@@ -726,4 +752,133 @@ app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
-app.listen(PORT, () => console.log(`http://localhost:${PORT}`));
+// -------------------- APIs de Clientes (CRUD) --------------------
+app.get('/api/clientes', apiAuth, (req, res) => {
+    db.all(`SELECT id, nombre, rut, email, telefono, datos_bancarios, fecha_creacion FROM clientes ORDER BY nombre`, [], (err, rows) => {
+        if (err) {
+            console.error('Error al listar clientes:', err.message);
+            return res.status(500).json({ message: 'Error al listar clientes.' });
+        }
+        res.json(rows || []);
+    });
+});
+
+app.get('/api/clientes/:id', apiAuth, (req, res) => {
+    const clienteId = req.params.id;
+    db.get(`SELECT id, nombre, rut, email, telefono, datos_bancarios, fecha_creacion FROM clientes WHERE id = ?`, [clienteId], (err, row) => {
+        if (err) {
+            console.error('Error al obtener cliente:', err.message);
+            return res.status(500).json({ message: 'Error al obtener el cliente.' });
+        }
+        if (!row) {
+            return res.status(404).json({ message: 'Cliente no encontrado.' });
+        }
+        res.json(row);
+    });
+});
+
+app.post('/api/clientes', apiAuth, onlyMaster, (req, res) => {
+    const { nombre, rut, email, telefono, datos_bancarios } = req.body;
+    
+    if (!nombre || nombre.trim() === '') {
+        return res.status(400).json({ message: 'El nombre del cliente es obligatorio.' });
+    }
+
+    const fechaCreacion = hoyLocalYYYYMMDD();
+    
+    db.run(
+        `INSERT INTO clientes(nombre, rut, email, telefono, datos_bancarios, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?)`,
+        [nombre.trim(), rut || null, email || null, telefono || null, datos_bancarios || null, fechaCreacion],
+        function(err) {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint failed')) {
+                    return res.status(400).json({ message: 'Ya existe un cliente con ese nombre.' });
+                }
+                console.error('Error al crear cliente:', err.message);
+                return res.status(500).json({ message: 'Error al crear el cliente.' });
+            }
+            res.status(201).json({ id: this.lastID, message: 'Cliente creado con éxito.' });
+        }
+    );
+});
+
+app.put('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
+    const clienteId = req.params.id;
+    const { nombre, rut, email, telefono, datos_bancarios } = req.body;
+    
+    if (!nombre || nombre.trim() === '') {
+        return res.status(400).json({ message: 'El nombre del cliente es obligatorio.' });
+    }
+
+    db.run(
+        `UPDATE clientes SET nombre = ?, rut = ?, email = ?, telefono = ?, datos_bancarios = ? WHERE id = ?`,
+        [nombre.trim(), rut || null, email || null, telefono || null, datos_bancarios || null, clienteId],
+        function(err) {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint failed')) {
+                    return res.status(400).json({ message: 'Ya existe un cliente con ese nombre.' });
+                }
+                console.error('Error al actualizar cliente:', err.message);
+                return res.status(500).json({ message: 'Error al actualizar el cliente.' });
+            }
+            if (this.changes === 0) {
+                return res.status(404).json({ message: 'Cliente no encontrado.' });
+            }
+            res.json({ message: 'Cliente actualizado con éxito.' });
+        }
+    );
+});
+
+app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
+    const clienteId = req.params.id;
+    
+    // Verificar si el cliente tiene operaciones asociadas
+    db.get(`SELECT COUNT(*) as count FROM operaciones WHERE cliente_id = ?`, [clienteId], (err, row) => {
+        if (err) {
+            console.error('Error al verificar operaciones del cliente:', err.message);
+            return res.status(500).json({ message: 'Error al verificar operaciones del cliente.' });
+        }
+        
+        if (row && row.count > 0) {
+            return res.status(400).json({ 
+                message: `No se puede eliminar el cliente porque tiene ${row.count} operaciones asociadas. Eliminar el cliente afectaría el historial.` 
+            });
+        }
+        
+        db.run(`DELETE FROM clientes WHERE id = ?`, [clienteId], function(err) {
+            if (err) {
+                console.error('Error al eliminar cliente:', err.message);
+                return res.status(500).json({ message: 'Error al eliminar el cliente.' });
+            }
+            if (this.changes === 0) {
+                return res.status(404).json({ message: 'Cliente no encontrado.' });
+            }
+            res.json({ message: 'Cliente eliminado con éxito.' });
+        });
+    });
+});
+
+// -------------------- Inicio del Servidor con Migraciones --------------------
+async function startServer() {
+    try {
+        console.log('🔄 Inicializando tablas de base de datos...');
+        await initializeTables();
+        console.log('✅ Tablas base creadas/verificadas con éxito.');
+        
+        console.log('🔄 Ejecutando migraciones de base de datos...');
+        await runMigrations();
+        console.log('✅ Migraciones completadas con éxito.');
+        
+        await createSeedUser();
+        
+        app.listen(PORT, () => {
+            console.log(`✅ Servidor iniciado en http://localhost:${PORT}`);
+        });
+    } catch (error) {
+        console.error('❌ Error al inicializar el servidor:', error.message);
+        console.error('❌ El servidor no se iniciará hasta que la inicialización se complete con éxito.');
+        process.exit(1);
+    }
+}
+
+startServer();

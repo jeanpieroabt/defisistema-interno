@@ -1,111 +1,116 @@
-// migracion.js - Versión 2: Recrea la tabla para añadir la columna UNIQUE
+// migracion.js - Sistema de migraciones de base de datos
 
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const DB_PATH = path.join(process.env.DATA_DIR || '.', 'database.db');
 
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    return console.error('❌ Error al conectar con la base de datos:', err.message);
-  }
-  console.log('✅ Conectado a la base de datos para la migración.');
-});
+function runMigrations() {
+  return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database(DB_PATH, (err) => {
+      if (err) {
+        console.error('❌ Error al conectar con la base de datos:', err.message);
+        return reject(err);
+      }
+      console.log('✅ Conectado a la base de datos para migraciones.');
+    });
 
-// Usamos db.serialize para asegurar que los comandos se ejecuten en orden
-db.serialize(() => {
-  console.log('Iniciando proceso de migración...');
+    db.serialize(() => {
+      console.log('🔄 Iniciando proceso de migraciones...');
 
-  // 1. Iniciar una transacción para que todo el proceso sea atómico
-  db.run('BEGIN TRANSACTION;', function(err) {
-    if (err) {
-        console.error('❌ Error al iniciar la transacción. Abortando.', err.message);
-        db.run('ROLLBACK;');
-        return;
-    }
-    console.log('Paso 1: Transacción iniciada.');
-  });
+      // Verificar si la tabla clientes necesita nuevas columnas
+      db.all("PRAGMA table_info(clientes)", [], (err, columns) => {
+        if (err) {
+          console.error('❌ Error al verificar estructura de clientes:', err.message);
+          db.close();
+          return reject(err);
+        }
 
-  // 2. Renombrar la tabla vieja
-  db.run('ALTER TABLE operaciones RENAME TO operaciones_viejas;', function(err) {
-    if (err) {
-        // Si la tabla vieja ya existe, puede que el script fallara a la mitad antes.
-        if (err.message.includes('already exists')) {
-            console.log('⚠️ Parece que un intento de migración anterior falló. Limpiando tabla vieja...');
-            db.run('DROP TABLE operaciones_viejas;', (dropErr) => {
-                if(dropErr) return console.error('❌ No se pudo limpiar la tabla vieja. Abortando.', dropErr.message);
-                db.run('ALTER TABLE operaciones RENAME TO operaciones_viejas;');
+        const columnNames = columns ? columns.map(col => col.name) : [];
+        const requiredColumns = ['rut', 'email', 'telefono', 'datos_bancarios'];
+        const missingColumns = requiredColumns.filter(col => !columnNames.includes(col));
+
+        if (missingColumns.length > 0) {
+          console.log(`📝 Añadiendo columnas faltantes a tabla clientes: ${missingColumns.join(', ')}`);
+          
+          db.run('BEGIN TRANSACTION;');
+          
+          const alterTablePromises = [];
+          if (missingColumns.includes('rut')) {
+            alterTablePromises.push(new Promise((res, rej) => {
+              db.run('ALTER TABLE clientes ADD COLUMN rut TEXT', (err) => {
+                if (err) rej(err);
+                else { console.log('  ✓ Columna "rut" añadida'); res(); }
+              });
+            }));
+          }
+          if (missingColumns.includes('email')) {
+            alterTablePromises.push(new Promise((res, rej) => {
+              db.run('ALTER TABLE clientes ADD COLUMN email TEXT', (err) => {
+                if (err) rej(err);
+                else { console.log('  ✓ Columna "email" añadida'); res(); }
+              });
+            }));
+          }
+          if (missingColumns.includes('telefono')) {
+            alterTablePromises.push(new Promise((res, rej) => {
+              db.run('ALTER TABLE clientes ADD COLUMN telefono TEXT', (err) => {
+                if (err) rej(err);
+                else { console.log('  ✓ Columna "telefono" añadida'); res(); }
+              });
+            }));
+          }
+          if (missingColumns.includes('datos_bancarios')) {
+            alterTablePromises.push(new Promise((res, rej) => {
+              db.run('ALTER TABLE clientes ADD COLUMN datos_bancarios TEXT', (err) => {
+                if (err) rej(err);
+                else { console.log('  ✓ Columna "datos_bancarios" añadida'); res(); }
+              });
+            }));
+          }
+
+          Promise.all(alterTablePromises)
+            .then(() => {
+              db.run('COMMIT;', (err) => {
+                if (err) {
+                  console.error('❌ Error al confirmar transacción:', err.message);
+                  db.run('ROLLBACK;');
+                  db.close();
+                  reject(err);
+                } else {
+                  console.log('✅ Migraciones de tabla clientes completadas con éxito.');
+                  db.close();
+                  resolve();
+                }
+              });
+            })
+            .catch((err) => {
+              console.error('❌ Error en migraciones:', err.message);
+              db.run('ROLLBACK;');
+              db.close();
+              reject(err);
             });
         } else {
-             console.error('❌ Error en Paso 2 (renombrar tabla). Abortando.', err.message);
-             db.run('ROLLBACK;');
-             return;
+          console.log('✅ La tabla clientes ya tiene todas las columnas necesarias.');
+          db.close();
+          resolve();
         }
-    }
-    console.log('Paso 2: Tabla "operaciones" renombrada a "operaciones_viejas".');
+      });
+    });
   });
+}
 
-  // 3. Crear la nueva tabla con la estructura correcta
-  const createTableSql = `
-    CREATE TABLE operaciones (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      usuario_id INTEGER NOT NULL,
-      cliente_id INTEGER NOT NULL,
-      fecha TEXT NOT NULL,
-      monto_clp REAL NOT NULL,
-      monto_ves REAL NOT NULL,
-      tasa REAL NOT NULL,
-      observaciones TEXT,
-      costo_clp REAL DEFAULT 0,
-      comision_ves REAL DEFAULT 0,
-      numero_recibo TEXT UNIQUE,
-      FOREIGN KEY(usuario_id) REFERENCES usuarios(id),
-      FOREIGN KEY(cliente_id) REFERENCES clientes(id)
-    );`;
-  db.run(createTableSql, function(err) {
-    if (err) {
-        console.error('❌ Error en Paso 3 (crear nueva tabla). Abortando.', err.message);
-        db.run('ROLLBACK;');
-        return;
-    }
-    console.log('Paso 3: Nueva tabla "operaciones" creada con el esquema correcto.');
-  });
+// Si se ejecuta directamente
+if (require.main === module) {
+  runMigrations()
+    .then(() => {
+      console.log('✅ Proceso de migración finalizado correctamente.');
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error('❌ Error en el proceso de migración:', err.message);
+      process.exit(1);
+    });
+}
 
-  // 4. Copiar los datos de la tabla vieja a la nueva
-  const copyDataSql = `
-    INSERT INTO operaciones (id, usuario_id, cliente_id, fecha, monto_clp, monto_ves, tasa, observaciones, costo_clp, comision_ves)
-    SELECT id, usuario_id, cliente_id, fecha, monto_clp, monto_ves, tasa, observaciones, costo_clp, comision_ves
-    FROM operaciones_viejas;`;
-  db.run(copyDataSql, function(err) {
-    if (err) {
-        console.error('❌ Error en Paso 4 (copiar datos). Abortando.', err.message);
-        db.run('ROLLBACK;');
-        return;
-    }
-    console.log(`Paso 4: ${this.changes} filas de datos copiadas a la nueva tabla.`);
-  });
-
-  // 5. Eliminar la tabla vieja
-  db.run('DROP TABLE operaciones_viejas;', function(err) {
-    if (err) {
-        console.error('❌ Error en Paso 5 (eliminar tabla vieja). Abortando.', err.message);
-        db.run('ROLLBACK;');
-        return;
-    }
-    console.log('Paso 5: Tabla "operaciones_viejas" eliminada.');
-  });
-
-  // 6. Confirmar la transacción
-  db.run('COMMIT;', function(err) {
-    if (err) {
-        console.error('❌ Error al confirmar la transacción. La base de datos puede estar en un estado inconsistente.', err.message);
-        return;
-    }
-    console.log('✅ ¡Migración completada con éxito!');
-  });
-});
-
-// Cerrar la conexión
-db.close((err) => {
-  if (err) console.error('❌ Error al cerrar la base de datos:', err.message);
-});
+module.exports = { runMigrations };
