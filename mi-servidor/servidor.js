@@ -267,10 +267,8 @@ app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
 const getAvgPurchaseRate = (date, callback) => {
     const sql = `SELECT SUM(clp_invertido) as totalClp, SUM(ves_obtenido) as totalVes FROM compras WHERE date(fecha) = date(?)`;
     db.get(sql, [date], (err, row) => {
-        if (err) return callback(err, 0);
-        if (!row || !row.totalClp || row.totalClp === 0) return callback(null, 0);
-        const rate = row.totalVes / row.totalClp;
-        return callback(null, rate);
+        if (err || !row || !row.totalClp || row.totalClp === 0) return callback(err, 0);
+        callback(null, row.totalVes / row.totalClp);
     });
 };
 
@@ -280,13 +278,19 @@ const getAvgPurchaseRate = (date, callback) => {
 const calcularCostoClpPorVes = (fecha, callback) => {
     // 1. Intenta obtener la tasa de compra promedio del día actual.
     getAvgPurchaseRate(fecha, (err, rate) => {
-        if (err) return callback(err, 0);
+        if (err) {
+            console.error("Error obteniendo tasa del día:", err.message);
+            return callback(err, 0);
+        }
         // Si hay tasa para hoy, úsala.
         if (rate > 0) return callback(null, 1 / rate);
 
         // 2. Si no hay tasa para hoy, busca la tasa de la ÚLTIMA compra registrada, sin importar la fecha.
         db.get(`SELECT tasa_clp_ves FROM compras ORDER BY fecha DESC, id DESC LIMIT 1`, [], (errLast, lastPurchase) => {
-            if (errLast) return callback(errLast, 0);
+            if (errLast) {
+                console.error("Error obteniendo última tasa histórica:", errLast.message);
+                return callback(errLast, 0);
+            }
             // Si se encuentra una compra histórica, usa su tasa.
             if (lastPurchase && lastPurchase.tasa_clp_ves > 0) return callback(null, 1 / lastPurchase.tasa_clp_ves);
 
@@ -431,7 +435,16 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
               });
           });
       });
-      Promise.all([findOrCreateCliente, new Promise((resolve, reject) => calcularCostoClpPorVes(fechaGuardado, (e, costo) => e ? reject(e) : resolve(costo)))])
+      
+      const getCosto = new Promise((resolve, reject) => {
+          calcularCostoClpPorVes(fechaGuardado, (err, costo) => {
+              if (err) return reject(new Error('Error al calcular costo.'));
+              if (costo === 0) return reject(new Error('No se pudo determinar el costo de la operación. Registre una compra.'));
+              resolve(costo);
+          });
+      });
+
+      Promise.all([findOrCreateCliente, getCosto])
         .then(([cliente_id, costoClpPorVes]) => {
             const costoVesEnviadoClp = montoVesNum * costoClpPorVes;
             const gananciaBruta = montoClpNum - costoVesEnviadoClp;
