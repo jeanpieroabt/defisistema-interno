@@ -22,6 +22,7 @@
         <div class="dropdown" id="menuDrop">
           <a id="adminLink" href="/admin.html" target="_blank" style="display:none">Administración</a>
           <a id="historicoLink" href="/historico.html" target="_blank" style="display:none">Histórico de Envíos</a>
+          <a id="clientesLink" href="/clientes.html" target="_blank" style="display:none">Gestión de Clientes</a>
           <hr/>
           <a href="/logout">Cerrar Sesión</a>
         </div>
@@ -362,6 +363,7 @@
       document.getElementById('userLabel').textContent = user.username;
       
       document.getElementById('historicoLink').style.display = 'block';
+      document.getElementById('clientesLink').style.display = 'block';
       
       if (user.role === 'master') {
         document.getElementById('adminLink').style.display = 'block';

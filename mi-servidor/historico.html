@@ -33,14 +33,14 @@
     .modal-form .form-full{grid-column:1/-1}
     .modal-buttons{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
     #toast-container{position:fixed;top:20px;right:20px;z-index:1050;display:flex;flex-direction:column;gap:10px}
-    .toast{min-width:250px;padding:1rem 1.5rem;border-radius:0.5rem;color:#fff;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.1);opacity:0;transform:translateX(100%);transition:all .5s cubic-bezier(.68,-.55,.27,1.55)}
+    .toast{min-width:250px;padding:1rem 1.5rem;border-radius:0.5rem;color:#fff;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.1);opacity:0;transform:translateX(100%);transition:all .5s cubic-bezier(0.25, 0.46, 0.45, 0.94);}
     .toast.show{opacity:1;transform:translateX(0)}
     .toast-success{background-color:#198754}
     .toast-error{background-color:#dc3545}
 
     /* ANOTACIÓN: Estilos para el autocompletado */
     .autocomplete-container{ position:relative; }
-    .autocomplete-suggestions{ position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border-color); z-index:1000; display:none; border-radius: 8px; max-height: 200px; overflow-y: auto; }
+    .autocomplete-suggestions{ position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border-color); z-index:1000; display:none; border-radius: 8px; max-height: 200px; overflow-y:auto; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
     .suggestion-item{ padding:10px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04) }
     .suggestion-item:hover{ background-color:var(--light-grey); }
   </style>
@@ -52,6 +52,7 @@
     <div class="hdr">
       <h1>Histórico de Envíos</h1>
       <div class="btns">
+        <button class="btn btn-light" onclick="window.open('/clientes.html','_blank')">Gestión Clientes</button>
         <button id="btnExport" class="btn-light">Exportar CSV</button>
         <button class="btn-primary" onclick="window.close()">Cerrar</button>
       </div>

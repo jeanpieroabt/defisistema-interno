@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Clientes - Sistema Interno</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <h1>Gestión de Clientes</h1>
+            <nav>
+                <a href="/app.html">Registrar Envío</a>
+                <a href="/historico.html">Histórico</a>
+                <a href="/admin.html">Admin</a>
+                <a href="/clientes.html" class="active">Clientes</a>
+                <a href="/logout">Salir</a>
+            </nav>
+        </header>
+
+        <div class="card">
+            <button id="btnNuevoCliente" class="btn btn-primary" style="margin-bottom: 20px;">+ Agregar Nuevo Cliente</button>
+            
+            <h2>Clientes Registrados</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>RUT</th>
+                        <th>Email</th>
+                        <th>Teléfono</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyClientes"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal para Editar/Crear Cliente -->
+    <div class="modal-overlay" id="clienteModal">
+        <div class="modal-content">
+            <h2 id="modalTitle"></h2>
+            <form id="clienteForm" class="modal-form">
+                <input type="hidden" id="clienteId">
+                <div class="form-grid">
+                    <div class="form-full"><label>Nombre Completo</label><input type="text" id="nombre" required></div>
+                    <div><label>RUT</label><input type="text" id="rut"></div>
+                    <div><label>Email</label><input type="email" id="email"></div>
+                    <div><label>Teléfono</label><input type="text" id="telefono"></div>
+                    <div class="form-full"><label>Datos Bancarios (opcional)</label><textarea id="datosBancarios" rows="3"></textarea></div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="btnCancelar" class="btn btn-light">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tbody = document.getElementById('tbodyClientes');
+            const modal = document.getElementById('clienteModal');
+            const form = document.getElementById('clienteForm');
+            const modalTitle = document.getElementById('modalTitle');
+            const clienteIdInput = document.getElementById('clienteId');
+
+            function openModal() { modal.style.display = 'flex'; }
+            function closeModal() { modal.style.display = 'none'; form.reset(); clienteIdInput.value = ''; }
+
+            document.getElementById('btnNuevoCliente').addEventListener('click', () => {
+                modalTitle.textContent = 'Agregar Nuevo Cliente';
+                openModal();
+            });
+
+            document.getElementById('btnCancelar').addEventListener('click', closeModal);
+
+            async function cargarClientes() {
+                try {
+                    const response = await fetch('/api/clientes');
+                    if (!response.ok) throw new Error('No se pudo cargar la lista de clientes.');
+                    const clientes = await response.json();
+                    tbody.innerHTML = '';
+                    clientes.forEach(cliente => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${cliente.nombre}</td>
+                            <td>${cliente.rut || ''}</td>
+                            <td>${cliente.email || ''}</td>
+                            <td>${cliente.telefono || ''}</td>
+                            <td>
+                                <button class="btn-edit" data-id="${cliente.id}">Editar</button>
+                                <button class="btn-delete" data-id="${cliente.id}">Eliminar</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } catch (error) {
+                    console.error(error);
+                    alert(error.message);
+                }
+            }
+
+            tbody.addEventListener('click', async (e) => {
+                const clienteId = e.target.dataset.id;
+                if (!clienteId) return;
+
+                if (e.target.classList.contains('btn-edit')) {
+                    try {
+                        const res = await fetch(`/api/clientes/${clienteId}`);
+                        if (!res.ok) throw new Error('Cliente no encontrado.');
+                        const cliente = await res.json();
+                        modalTitle.textContent = 'Editar Cliente';
+                        clienteIdInput.value = cliente.id;
+                        document.getElementById('nombre').value = cliente.nombre;
+                        document.getElementById('rut').value = cliente.rut || '';
+                        document.getElementById('email').value = cliente.email || '';
+                        document.getElementById('telefono').value = cliente.telefono || '';
+                        document.getElementById('datosBancarios').value = cliente.datos_bancarios || '';
+                        openModal();
+                    } catch (error) {
+                        alert(error.message);
+                    }
+                }
+
+                if (e.target.classList.contains('btn-delete')) {
+                    if (confirm('¿Estás seguro de que quieres eliminar este cliente? Esta acción no se puede deshacer y podría afectar registros históricos.')) {
+                        try {
+                            const response = await fetch(`/api/clientes/${clienteId}`, { method: 'DELETE' });
+                            const result = await response.json();
+                            if (!response.ok) throw new Error(result.message);
+                            cargarClientes();
+                        } catch (error) {
+                            alert(`Error: ${error.message}`);
+                        }
+                    }
+                }
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = clienteIdInput.value;
+                const body = {
+                    nombre: document.getElementById('nombre').value,
+                    rut: document.getElementById('rut').value,
+                    email: document.getElementById('email').value,
+                    telefono: document.getElementById('telefono').value,
+                    datos_bancarios: document.getElementById('datosBancarios').value
+                };
+
+                const url = id ? `/api/clientes/${id}` : '/api/clientes';
+                const method = id ? 'PUT' : 'POST';
+
+                try {
+                    const response = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const result = await response.json();
+                    if(!response.ok) throw new Error(result.message);
+                    closeModal();
+                    cargarClientes();
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            });
+
+            cargarClientes();
+        });
+    </script>
+</body>
+</html>

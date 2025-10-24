@@ -51,6 +51,29 @@ db.serialize(() => {
     nombre TEXT UNIQUE NOT NULL,
     fecha_creacion TEXT NOT NULL
   )`);
+  
+  // ===============================================
+  // INICIO: MODIFICACIÓN PARA NUEVOS CAMPOS DE CLIENTE
+  // ===============================================
+  // Añadir nuevas columnas a la tabla de clientes si no existen.
+  // Es seguro ejecutar esto múltiples veces.
+  const columnasNuevas = [
+      'rut TEXT', 
+      'email TEXT', 
+      'telefono TEXT', 
+      'datos_bancarios TEXT'
+  ];
+  columnasNuevas.forEach(columna => {
+      const nombreColumna = columna.split(' ')[0];
+      db.run(`ALTER TABLE clientes ADD COLUMN ${columna}`, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+              console.error(`Error al añadir columna ${nombreColumna}:`, err.message);
+          }
+      });
+  });
+  // ===============================================
+  // FIN: MODIFICACIÓN PARA NUEVOS CAMPOS DE CLIENTE
+  // ===============================================
 
   db.run(`CREATE TABLE IF NOT EXISTS operaciones(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,6 +175,9 @@ app.get('/', (req, res) => res.redirect('/login.html'));
 app.get('/app.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'app.html')));
 app.get('/admin.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/historico.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'historico.html')));
+// INICIO: NUEVA RUTA PARA PÁGINA DE CLIENTES
+app.get('/clientes.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'clientes.html')));
+// FIN: NUEVA RUTA PARA PÁGINA DE CLIENTES
 
 // -------------------- Auth --------------------
 app.post('/login', (req, res) => {
@@ -212,6 +238,79 @@ app.get('/api/usuarios/search', apiAuth, onlyMaster, (req, res) => {
         res.json((rows || []).map(r => r.username));
     });
 });
+
+
+// =================================================================
+// INICIO: NUEVOS ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
+// =================================================================
+
+// GET - Obtener todos los clientes
+app.get('/api/clientes', apiAuth, (req, res) => {
+    db.all('SELECT * FROM clientes ORDER BY nombre', [], (err, rows) => {
+        if (err) return res.status(500).json({ message: 'Error al obtener clientes.' });
+        res.json(rows);
+    });
+});
+
+// GET - Obtener un cliente específico
+app.get('/api/clientes/:id', apiAuth, (req, res) => {
+    db.get('SELECT * FROM clientes WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ message: 'Error al obtener el cliente.' });
+        if (!row) return res.status(404).json({ message: 'Cliente no encontrado.' });
+        res.json(row);
+    });
+});
+
+// POST - Crear un nuevo cliente
+app.post('/api/clientes', apiAuth, (req, res) => {
+    const { nombre, rut, email, telefono, datos_bancarios } = req.body;
+    if (!nombre) return res.status(400).json({ message: 'El nombre es obligatorio.' });
+
+    const sql = `INSERT INTO clientes (nombre, rut, email, telefono, datos_bancarios, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?)`;
+    db.run(sql, [nombre, rut, email, telefono, datos_bancarios, hoyLocalYYYYMMDD()], function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(400).json({ message: 'Ya existe un cliente con ese nombre.' });
+            }
+            return res.status(500).json({ message: 'Error al crear el cliente.' });
+        }
+        res.status(201).json({ id: this.lastID, message: 'Cliente creado con éxito.' });
+    });
+});
+
+// PUT - Actualizar un cliente existente
+app.put('/api/clientes/:id', apiAuth, (req, res) => {
+    const { nombre, rut, email, telefono, datos_bancarios } = req.body;
+    if (!nombre) return res.status(400).json({ message: 'El nombre es obligatorio.' });
+    
+    const sql = `UPDATE clientes SET nombre = ?, rut = ?, email = ?, telefono = ?, datos_bancarios = ? WHERE id = ?`;
+    db.run(sql, [nombre, rut, email, telefono, datos_bancarios, req.params.id], function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(400).json({ message: 'Ya existe otro cliente con ese nombre.' });
+            }
+            return res.status(500).json({ message: 'Error al actualizar el cliente.' });
+        }
+        if (this.changes === 0) return res.status(404).json({ message: 'Cliente no encontrado.' });
+        res.json({ message: 'Cliente actualizado con éxito.' });
+    });
+});
+
+// DELETE - Eliminar un cliente (solo Master)
+app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
+    // Opcional: Se podría verificar si el cliente tiene operaciones antes de borrar.
+    // Por ahora, se permite el borrado directo.
+    db.run('DELETE FROM clientes WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ message: 'Error al eliminar el cliente.' });
+        if (this.changes === 0) return res.status(404).json({ message: 'Cliente no encontrado.' });
+        res.json({ message: 'Cliente eliminado con éxito.' });
+    });
+});
+
+// =================================================================
+// FIN: NUEVOS ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
+// =================================================================
+
 
 // -------------------- APIs de Costos y KPIs --------------------
 const getAvgPurchaseRate = (date, callback) => {
