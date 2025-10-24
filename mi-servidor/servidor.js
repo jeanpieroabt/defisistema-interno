@@ -80,11 +80,10 @@ const runMigrations = async () => {
     await addColumn('operaciones', 'comision_ves REAL DEFAULT 0');
 
     // =================================================================
-    // INICIO: CORRECCIÓN FINAL DE MIGRACIÓN PARA LA TABLA 'compras'
+    // INICIO: CORRECCIÓN FINAL USANDO EL NOMBRE DE COLUMNA CORRECTO
     // =================================================================
-    await dbRun(`CREATE TABLE IF NOT EXISTS compras(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, clp_invertido REAL NOT NULL, ves_obtenido REAL NOT NULL, fecha TEXT NOT NULL, FOREIGN KEY(usuario_id) REFERENCES usuarios(id))`);
-    // Añade la columna 'tasa_compra' sin la restricción NOT NULL para asegurar compatibilidad
-    await addColumn('compras', 'tasa_compra REAL DEFAULT 0');
+    await dbRun(`CREATE TABLE IF NOT EXISTS compras(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, clp_invertido REAL NOT NULL, ves_obtenido REAL NOT NULL, tasa_clp_ves REAL NOT NULL, fecha TEXT NOT NULL, FOREIGN KEY(usuario_id) REFERENCES usuarios(id))`);
+    await addColumn('compras', 'tasa_clp_ves REAL DEFAULT 0');
     // =================================================================
     // FIN: CORRECCIÓN FINAL
     // =================================================================
@@ -286,9 +285,9 @@ const calcularCostoClpPorVes = (fecha, callback) => {
         if (err) return callback(err, 0);
         if (rate > 0) return callback(null, 1 / rate);
 
-        db.get(`SELECT tasa_compra FROM compras ORDER BY fecha DESC, id DESC LIMIT 1`, [], (errLast, lastPurchase) => {
+        db.get(`SELECT tasa_clp_ves FROM compras ORDER BY fecha DESC, id DESC LIMIT 1`, [], (errLast, lastPurchase) => {
             if (errLast) return callback(errLast, 0);
-            if (lastPurchase && lastPurchase.tasa_compra > 0) return callback(null, 1 / lastPurchase.tasa_compra);
+            if (lastPurchase && lastPurchase.tasa_clp_ves > 0) return callback(null, 1 / lastPurchase.tasa_clp_ves);
 
             readConfigValue('capitalCostoVesPorClp')
                 .then(costoConfig => callback(null, costoConfig))
@@ -690,7 +689,7 @@ app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
 });
 
 app.get('/api/compras', apiAuth, onlyMaster, (req, res) => {
-    db.all(`SELECT id, usuario_id, clp_invertido, ves_obtenido, tasa_compra, fecha FROM compras ORDER BY id DESC`, [], (err, rows) => {
+    db.all(`SELECT id, usuario_id, clp_invertido, ves_obtenido, tasa_clp_ves, fecha FROM compras ORDER BY id DESC`, [], (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al listar compras' });
         res.json(rows || []);
     });
@@ -702,7 +701,7 @@ app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
     const ves = Number(ves_obtenido || 0);
     if (clp <= 0 || ves <= 0) return res.status(400).json({ message: 'Los montos deben ser mayores a cero.' });
     const tasa = ves / clp;
-    db.run(`INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_compra, fecha) VALUES (?, ?, ?, ?, ?)`,
+    db.run(`INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_clp_ves, fecha) VALUES (?, ?, ?, ?, ?)`,
         [req.session.user.id, clp, ves, tasa, hoyLocalYYYYMMDD()],
         function(err) {
             if (err) {
@@ -729,7 +728,7 @@ app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
         const tasaNueva = clpNuevo > 0 ? vesNuevo / clpNuevo : 0;
         db.serialize(() => {
             db.run('BEGIN TRANSACTION');
-            db.run(`UPDATE compras SET clp_invertido = ?, ves_obtenido = ?, tasa_compra = ?, fecha = ? WHERE id = ?`, [clpNuevo, vesNuevo, tasaNueva, fecha, compraId]);
+            db.run(`UPDATE compras SET clp_invertido = ?, ves_obtenido = ?, tasa_clp_ves = ?, fecha = ? WHERE id = ?`, [clpNuevo, vesNuevo, tasaNueva, fecha, compraId]);
             db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
                 if (err) {
                     db.run('ROLLBACK');
