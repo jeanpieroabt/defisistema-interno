@@ -38,74 +38,76 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
   else console.log(`SQLite conectado en: ${DB_PATH}`);
 });
 
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS usuarios(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('master','operador'))
-  )`);
+// Función para ejecutar una Promesa para cada sentencia SQL
+const dbRun = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.run(sql, params, function(err) {
+            if (err) reject(err);
+            else resolve(this);
+        });
+    });
+};
 
-  db.run(`CREATE TABLE IF NOT EXISTS clientes(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre TEXT UNIQUE NOT NULL,
-    fecha_creacion TEXT NOT NULL
-  )`);
+// =================================================================
+// INICIO: MIGRACIÓN Y VERIFICACIÓN DE BASE DE DATOS
+// =================================================================
+const runMigrations = async () => {
+    console.log('Iniciando verificación de la estructura de la base de datos...');
 
-  db.run(`CREATE TABLE IF NOT EXISTS operaciones(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    usuario_id INTEGER NOT NULL,
-    cliente_id INTEGER NOT NULL,
-    fecha TEXT NOT NULL,
-    monto_clp REAL NOT NULL,
-    monto_ves REAL NOT NULL,
-    tasa REAL NOT NULL,
-    observaciones TEXT,
-    costo_clp REAL DEFAULT 0,  
-    comision_ves REAL DEFAULT 0,
-    numero_recibo TEXT UNIQUE,
-    FOREIGN KEY(usuario_id) REFERENCES usuarios(id),
-    FOREIGN KEY(cliente_id) REFERENCES clientes(id)
-  )`);
-
-  // CORRECCIÓN: Se eliminó el comentario de JavaScript de dentro de la sentencia SQL.
-  db.run(`CREATE TABLE IF NOT EXISTS compras(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    usuario_id INTEGER NOT NULL,
-    clp_invertido REAL NOT NULL,
-    ves_obtenido REAL NOT NULL,
-    tasa_compra REAL NOT NULL,
-    fecha TEXT NOT NULL,
-    FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
-  )`);
-  
-  db.run(`CREATE TABLE IF NOT EXISTS configuracion(
-    clave TEXT PRIMARY KEY,
-    valor TEXT
-  )`);
-});
-
-// Semilla mínima
-db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
-  if (err) {
-    console.error('Error al verificar usuarios semilla:', err.message);
-    return;
-  }
-  if (!row || row.c === 0) {
-    const hash = await bcrypt.hash('master123', 10);
-    db.run(
-      `INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`,
-      ['master', hash, 'master'],
-      (err) => {
-        if (err) {
-          console.error('Error al insertar usuario semilla:', err.message);
-        } else {
-          console.log('Usuario semilla creado: master/master123');
+    const addColumn = async (tableName, columnDef) => {
+        const columnName = columnDef.split(' ')[0];
+        try {
+            await dbRun(`ALTER TABLE ${tableName} ADD COLUMN ${columnDef}`);
+            console.log(`✅ Columna '${columnName}' añadida a la tabla '${tableName}'.`);
+        } catch (err) {
+            if (!err.message.includes('duplicate column name')) {
+                console.error(`❌ Error al añadir columna ${columnName} a ${tableName}:`, err.message);
+                throw err;
+            }
         }
-      }
-    );
-  }
-});
+    };
+
+    await dbRun(`CREATE TABLE IF NOT EXISTS usuarios(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('master','operador')))`);
+    
+    await dbRun(`CREATE TABLE IF NOT EXISTS clientes(id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT UNIQUE NOT NULL, fecha_creacion TEXT NOT NULL)`);
+    await addColumn('clientes', 'rut TEXT');
+    await addColumn('clientes', 'email TEXT');
+    await addColumn('clientes', 'telefono TEXT');
+    await addColumn('clientes', 'datos_bancarios TEXT');
+
+    await dbRun(`CREATE TABLE IF NOT EXISTS operaciones(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, cliente_id INTEGER NOT NULL, fecha TEXT NOT NULL, monto_clp REAL NOT NULL, monto_ves REAL NOT NULL, tasa REAL NOT NULL, observaciones TEXT, numero_recibo TEXT UNIQUE, FOREIGN KEY(usuario_id) REFERENCES usuarios(id), FOREIGN KEY(cliente_id) REFERENCES clientes(id))`);
+    await addColumn('operaciones', 'costo_clp REAL DEFAULT 0');
+    await addColumn('operaciones', 'comision_ves REAL DEFAULT 0');
+
+    // =================================================================
+    // INICIO: CORRECCIÓN FINAL DE MIGRACIÓN PARA LA TABLA 'compras'
+    // =================================================================
+    await dbRun(`CREATE TABLE IF NOT EXISTS compras(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, clp_invertido REAL NOT NULL, ves_obtenido REAL NOT NULL, fecha TEXT NOT NULL, FOREIGN KEY(usuario_id) REFERENCES usuarios(id))`);
+    // Añade la columna 'tasa_compra' sin la restricción NOT NULL para asegurar compatibilidad
+    await addColumn('compras', 'tasa_compra REAL DEFAULT 0');
+    // =================================================================
+    // FIN: CORRECCIÓN FINAL
+    // =================================================================
+    
+    await dbRun(`CREATE TABLE IF NOT EXISTS configuracion(clave TEXT PRIMARY KEY, valor TEXT)`);
+
+    return new Promise(resolve => {
+        db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
+            if (err) return console.error('Error al verificar usuarios semilla:', err.message);
+            if (!row || row.c === 0) {
+                const hash = await bcrypt.hash('master123', 10);
+                await dbRun(`INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`, ['master', hash, 'master']);
+                console.log('✅ Usuario semilla creado: master/master123');
+            }
+            console.log('✅ Verificación de base de datos completada.');
+            resolve();
+        });
+    });
+};
+// =================================================================
+// FIN: MIGRACIÓN Y VERIFICACIÓN DE BASE DE DATOS
+// =================================================================
+
 
 // -------------------- Helpers --------------------
 const pageAuth = (req, res, next) => {
@@ -152,6 +154,7 @@ app.get('/', (req, res) => res.redirect('/login.html'));
 app.get('/app.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'app.html')));
 app.get('/admin.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/historico.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'historico.html')));
+app.get('/clientes.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'clientes.html')));
 
 // -------------------- Auth --------------------
 app.post('/login', (req, res) => {
@@ -213,6 +216,60 @@ app.get('/api/usuarios/search', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
+
+// =================================================================
+// INICIO: ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
+// =================================================================
+app.get('/api/clientes', apiAuth, (req, res) => {
+    db.all('SELECT * FROM clientes ORDER BY nombre', [], (err, rows) => {
+        if (err) return res.status(500).json({ message: 'Error al obtener clientes.' });
+        res.json(rows);
+    });
+});
+app.get('/api/clientes/:id', apiAuth, (req, res) => {
+    db.get('SELECT * FROM clientes WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ message: 'Error al obtener el cliente.' });
+        if (!row) return res.status(404).json({ message: 'Cliente no encontrado.' });
+        res.json(row);
+    });
+});
+app.post('/api/clientes', apiAuth, (req, res) => {
+    const { nombre, rut, email, telefono, datos_bancarios } = req.body;
+    if (!nombre) return res.status(400).json({ message: 'El nombre es obligatorio.' });
+    const sql = `INSERT INTO clientes (nombre, rut, email, telefono, datos_bancarios, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?)`;
+    db.run(sql, [nombre, rut, email, telefono, datos_bancarios, hoyLocalYYYYMMDD()], function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Ya existe un cliente con ese nombre.' });
+            return res.status(500).json({ message: 'Error al crear el cliente.' });
+        }
+        res.status(201).json({ id: this.lastID, message: 'Cliente creado con éxito.' });
+    });
+});
+app.put('/api/clientes/:id', apiAuth, (req, res) => {
+    const { nombre, rut, email, telefono, datos_bancarios } = req.body;
+    if (!nombre) return res.status(400).json({ message: 'El nombre es obligatorio.' });
+    const sql = `UPDATE clientes SET nombre = ?, rut = ?, email = ?, telefono = ?, datos_bancarios = ? WHERE id = ?`;
+    db.run(sql, [nombre, rut, email, telefono, datos_bancarios, req.params.id], function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Ya existe otro cliente con ese nombre.' });
+            return res.status(500).json({ message: 'Error al actualizar el cliente.' });
+        }
+        if (this.changes === 0) return res.status(404).json({ message: 'Cliente no encontrado.' });
+        res.json({ message: 'Cliente actualizado con éxito.' });
+    });
+});
+app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
+    db.run('DELETE FROM clientes WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ message: 'Error al eliminar el cliente.' });
+        if (this.changes === 0) return res.status(404).json({ message: 'Cliente no encontrado.' });
+        res.json({ message: 'Cliente eliminado con éxito.' });
+    });
+});
+// =================================================================
+// FIN: ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
+// =================================================================
+
+
 // -------------------- APIs de Costos y KPIs --------------------
 const getAvgPurchaseRate = (date, callback) => {
     const sql = `SELECT SUM(clp_invertido) as totalClp, SUM(ves_obtenido) as totalVes FROM compras WHERE date(fecha) = date(?)`;
@@ -229,13 +286,9 @@ const calcularCostoClpPorVes = (fecha, callback) => {
         if (err) return callback(err, 0);
         if (rate > 0) return callback(null, 1 / rate);
 
-        const ayer = new Date(fecha);
-        ayer.setDate(ayer.getDate() - 1);
-        const fechaAyer = ayer.toISOString().slice(0, 10);
-        
-        getAvgPurchaseRate(fechaAyer, (errAyer, rateAyer) => {
-            if (errAyer) return callback(errAyer, 0);
-            if (rateAyer > 0) return callback(null, 1 / rateAyer);
+        db.get(`SELECT tasa_compra FROM compras ORDER BY fecha DESC, id DESC LIMIT 1`, [], (errLast, lastPurchase) => {
+            if (errLast) return callback(errLast, 0);
+            if (lastPurchase && lastPurchase.tasa_compra > 0) return callback(null, 1 / lastPurchase.tasa_compra);
 
             readConfigValue('capitalCostoVesPorClp')
                 .then(costoConfig => callback(null, costoConfig))
@@ -244,82 +297,67 @@ const calcularCostoClpPorVes = (fecha, callback) => {
     });
 };
 
-app.get('/api/dashboard', apiAuth, (req, res) => { 
-  const userRole = req.session.user?.role;
-  const hoy = hoyLocalYYYYMMDD();
-  
-  const queries = [
-    readConfigValue('saldoVesOnline').then(saldo => ({ saldoVesOnline: saldo })),
-    new Promise(resolve => {
-        if (userRole !== 'master') return resolve({});
-        
-        const getTasaCompraPromise = new Promise(resolve => {
-            getAvgPurchaseRate(hoy, (err, rateHoy) => {
-                if (err || rateHoy > 0) return resolve({ tasaCompraPromedio: rateHoy || 0 });
+app.get('/api/dashboard', async (req, res) => {
+    try {
+        const userRole = req.session.user?.role;
+        const hoy = hoyLocalYYYYMMDD();
+        const saldoVesOnline = await readConfigValue('saldoVesOnline');
+        let masterData = {};
 
-                const ayer = new Date();
-                ayer.setDate(ayer.getDate() - 1);
-                const fechaAyer = ayer.toISOString().slice(0, 10);
-                getAvgPurchaseRate(fechaAyer, (errAyer, rateAyer) => {
-                    resolve({ tasaCompraPromedio: rateAyer || 0 });
-                });
-            });
-        });
+        if (userRole === 'master') {
+            const [costo, ventas, tasas, saldos] = await Promise.all([
+                new Promise(resolve => calcularCostoClpPorVes(hoy, (e, costo) => resolve({ costoClpPorVes: costo || 0 }))),
+                new Promise(resolve => {
+                    db.get(`SELECT IFNULL(SUM(monto_clp),0) as totalClpEnviado, IFNULL(SUM(monto_ves),0) as totalVesEnviado FROM operaciones WHERE date(fecha)=date(?)`, [hoy], (e, rowOps) => {
+                        if (e) { console.error(e); return resolve({totalClpEnviadoDia: 0, totalVesEnviadoDia: 0}); }
+                        resolve({ totalClpEnviadoDia: rowOps.totalClpEnviado, totalVesEnviadoDia: rowOps.totalVesEnviado });
+                    });
+                }),
+                new Promise(resolve => {
+                    getAvgPurchaseRate(hoy, (err, rateHoy) => {
+                        if (err || rateHoy > 0) return resolve({ tasaCompraPromedio: rateHoy || 0 });
+                        const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
+                        getAvgPurchaseRate(ayer.toISOString().slice(0, 10), (errAyer, rateAyer) => resolve({ tasaCompraPromedio: rateAyer || 0 }));
+                    });
+                }),
+                new Promise(resolve => {
+                    db.all(`SELECT clave, valor FROM configuracion WHERE clave IN ('capitalInicialClp', 'totalGananciaAcumuladaClp')`, (e, rows) => {
+                        const result = {};
+                        rows?.forEach(r => result[r.clave] = Number(r.valor) || 0);
+                        resolve(result);
+                    });
+                }),
+            ]);
 
-        Promise.all([
-            new Promise(resolve => calcularCostoClpPorVes(hoy, (e, costo) => resolve({ costoClpPorVes: costo || 0 }))),
-            new Promise(resolve => {
-                db.get(`SELECT IFNULL(SUM(monto_clp),0) as totalClpEnviado, IFNULL(SUM(monto_ves),0) as totalVesEnviado FROM operaciones WHERE date(fecha)=date('now','localtime')`, [], (e, rowOps) => {
-                    if (e) { console.error(e); return resolve({totalClpEnviadoDia: 0, totalVesEnviadoDia: 0}); }
-                    resolve({ totalClpEnviadoDia: rowOps.totalClpEnviado, totalVesEnviadoDia: rowOps.totalVesEnviado });
-                });
-            }),
-            getTasaCompraPromise,
-            new Promise(resolve => {
-                db.all(`SELECT clave, valor FROM configuracion WHERE clave IN ('capitalInicialClp', 'totalGananciaAcumuladaClp')`, (e, rows) => {
-                    const result = {};
-                    rows?.forEach(r => result[r.clave] = Number(r.valor) || 0);
-                    resolve(result);
-                });
-            }),
-        ]).then(([costo, ventas, tasas, saldos]) => {
             const { costoClpPorVes } = costo;
             const { totalClpEnviadoDia, totalVesEnviadoDia } = ventas;
             const { tasaCompraPromedio } = tasas;
-            const { capitalInicialClp, totalGananciaAcumuladaClp } = saldos;
+            const { capitalInicialClp = 0, totalGananciaAcumuladaClp = 0 } = saldos;
             const tasaVentaPromedio = totalVesEnviadoDia > 0 ? totalVesEnviadoDia / totalClpEnviadoDia : 0;
             const costoTotalVesEnviadoClpDia = totalVesEnviadoDia * costoClpPorVes;
             const gananciaBrutaDia = totalClpEnviadoDia - costoTotalVesEnviadoClpDia;
             const comisionDelDia = totalClpEnviadoDia * 0.003;
             const gananciaNetaDelDia = gananciaBrutaDia - comisionDelDia;
-            const capitalTotalClp = (capitalInicialClp || 0) + totalGananciaAcumuladaClp;
-            
-            const saldoVesOnline = results[0].saldoVesOnline;
+            const capitalTotalClp = capitalInicialClp + totalGananciaAcumuladaClp;
             const saldoDisponibleClp = tasaCompraPromedio > 0 ? (saldoVesOnline / tasaCompraPromedio) : 0;
 
-            resolve({
+            masterData = {
                 totalClpEnviado: totalClpEnviadoDia,
                 gananciaBruta: gananciaNetaDelDia,
                 margenBruto: totalClpEnviadoDia ? (gananciaNetaDelDia / totalClpEnviadoDia) * 100 : 0,
-                tasaCompraPromedio: tasaCompraPromedio,
-                tasaVentaPromedio: tasaVentaPromedio,
-                capitalInicialClp: capitalInicialClp || 0,
-                totalGananciaAcumuladaClp: totalGananciaAcumuladaClp,
-                capitalTotalClp: capitalTotalClp, 
-                saldoDisponibleClp: saldoDisponibleClp,
-            });
-        }).catch(e => { console.error("Error en Master Dashboard Queries:", e); resolve({}); });
-    }),
-  ];
-  
-  Promise.all(queries).then(results => {
-      const saldoVes = results[0].saldoVesOnline;
-      const masterData = results[1] || {};
-      res.json({ saldoVesOnline: saldoVes, ...masterData });
-  }).catch(e => {
-      console.error("Error general en dashboard:", e);
-      res.status(500).json({ message: 'Error al obtener datos del dashboard.' });
-  });
+                tasaCompraPromedio,
+                tasaVentaPromedio,
+                capitalInicialClp,
+                totalGananciaAcumuladaClp,
+                capitalTotalClp, 
+                saldoDisponibleClp,
+            };
+        }
+        res.json({ saldoVesOnline, ...masterData });
+    } catch (e) {
+        console.error("Error en GET /api/dashboard:", e);
+        res.status(500).json({ message: 'Error al obtener datos del dashboard.' });
+    }
 });
 
 app.get('/api/monthly-sales', apiAuth, (req, res) => {
@@ -358,7 +396,7 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
   sql += ` ORDER BY op.id DESC`;
   db.all(sql, params, (err, rows) => {
     if (err) {
-      console.error("SQL Error:", err.message);
+      console.error("SQL Error en GET /api/operaciones:", err.message);
       return res.status(500).json({ message: 'Error al leer operaciones' });
     }
     res.json(rows || []);
@@ -367,14 +405,8 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
 
 app.post('/api/operaciones', apiAuth, (req, res) => {
   const { cliente_nombre, monto_clp, monto_ves, tasa, observaciones, fecha, numero_recibo } = req.body;
-  if (!numero_recibo) {
-    return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
-  }
-  if (!cliente_nombre) {
-    return res.status(400).json({ message: 'El nombre del cliente es obligatorio.' });
-  }
-  if (!monto_clp || !tasa) {
-    return res.status(400).json({ message: 'El monto CLP y la tasa son obligatorios.' });
+  if (!numero_recibo || !cliente_nombre || !monto_clp || !tasa) {
+    return res.status(400).json({ message: 'Faltan campos obligatorios.' });
   }
   const fechaGuardado = fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? fecha : hoyLocalYYYYMMDD();
   const montoVesNum = Number(monto_ves || 0);
@@ -383,7 +415,7 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
   const vesTotalDescontar = montoVesNum + comisionVes; 
   readConfigValue('saldoVesOnline').then(saldoVes => {
       if (vesTotalDescontar > saldoVes) {
-        return res.status(400).json({ message: 'Saldo VES online insuficiente para cubrir el monto y la comisión.' });
+        return res.status(400).json({ message: 'Saldo VES online insuficiente.' });
       }
       const findOrCreateCliente = new Promise((resolve, reject) => {
           db.get(`SELECT id FROM clientes WHERE nombre = ?`, [cliente_nombre], (err, cliente) => {
@@ -405,9 +437,7 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
               [req.session.user.id, cliente_id, fechaGuardado, montoClpNum, montoVesNum, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes, numero_recibo],
               function (err) {
                 if (err) {
-                    if (err.message.includes('UNIQUE constraint failed')) {
-                        return res.status(400).json({ message: 'Error: El número de recibo ya existe.' });
-                    }
+                    if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Error: El número de recibo ya existe.' });
                     return res.status(500).json({ message: 'Error inesperado al guardar la operación.' });
                 }
                 db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar]);
@@ -430,24 +460,26 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
     const operacionId = req.params.id;
     const user = req.session.user;
     const { cliente_nombre, monto_clp, tasa, observaciones, fecha, numero_recibo } = req.body;
-    if (!numero_recibo) {
-        return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
-    }
+    if (!numero_recibo) return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
+    
     db.get('SELECT id FROM operaciones WHERE numero_recibo = ? AND id != ?', [numero_recibo, operacionId], (err, existing) => {
         if (err) return res.status(500).json({ message: 'Error de base de datos al verificar recibo.' });
         if (existing) return res.status(400).json({ message: 'El número de recibo ya está en uso por otra operación.' });
+        
         db.get('SELECT * FROM operaciones WHERE id = ?', [operacionId], (err, opOriginal) => {
             if (err || !opOriginal) return res.status(404).json({ message: 'Operación no encontrada.' });
+            
             const esMaster = user.role === 'master';
             const esSuOperacion = opOriginal.usuario_id === user.id;
             const esDeHoy = opOriginal.fecha === hoyLocalYYYYMMDD();
-            if (!esMaster && !(esSuOperacion && esDeHoy)) {
-                return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
-            }
+            if (!esMaster && !(esSuOperacion && esDeHoy)) return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
+
             calcularCostoClpPorVes(fecha, (e, costoClpPorVes) => {
                 if (e) return res.status(500).json({ message: 'Error al recalcular el costo.' });
+                
                 db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, cliente) => {
                     if (err || !cliente) return res.status(400).json({ message: 'Cliente no encontrado.' });
+                    
                     const gananciaNetaOriginal = (opOriginal.monto_clp - opOriginal.costo_clp) - (opOriginal.monto_clp * 0.003);
                     const vesTotalOriginal = opOriginal.monto_ves + opOriginal.comision_ves;
                     const montoClpNuevo = Number(monto_clp || 0);
@@ -459,6 +491,7 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
                     const vesTotalNuevo = montoVesNuevo + comisionVesNuevo;
                     const deltaGanancia = gananciaNetaNueva - gananciaNetaOriginal;
                     const deltaVes = vesTotalOriginal - vesTotalNuevo;
+                    
                     db.serialize(() => {
                         db.run('BEGIN TRANSACTION');
                         db.run(`UPDATE operaciones SET cliente_id=?, fecha=?, monto_clp=?, monto_ves=?, tasa=?, observaciones=?, costo_clp=?, comision_ves=?, numero_recibo=? WHERE id = ?`,
@@ -518,7 +551,7 @@ app.get('/api/operaciones/export', apiAuth, (req, res) => {
     if (err) return res.status(500).json({ message: 'Error export' });
     const header = ['Fecha', 'Recibo', 'Operador', 'Cliente', 'Monto CLP', 'Costo CLP', 'Comision VES', 'Tasa', 'Monto VES', 'Obs.'];
     const csvData = rows.map((r) => [r.fecha, r.numero_recibo, `"${r.operador}"`, `"${r.cliente}"`, r.monto_clp, r.costo_clp, r.comision_ves, r.tasa, r.monto_ves, `"${(r.observaciones || '').replace(/"/g, '""')}"`]);
-    const csv = [header.join(',')].concat(csvData).join('\n');
+    const csv = [header.join(',')].concat(csvData.map(row => row.join(','))).join('\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="historico_envios.csv"');
     res.send('\uFEFF' + csv);
@@ -672,7 +705,10 @@ app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
     db.run(`INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_compra, fecha) VALUES (?, ?, ?, ?, ?)`,
         [req.session.user.id, clp, ves, tasa, hoyLocalYYYYMMDD()],
         function(err) {
-            if (err) return res.status(500).json({ message: 'Error al guardar la compra.' });
+            if (err) {
+                console.error("Error en POST /api/compras:", err.message);
+                return res.status(500).json({ message: 'Error al guardar la compra.', error: err.message });
+            }
             db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [ves], (updateErr) => {
                 if(updateErr) return res.status(500).json({ message: 'Compra guardada, pero falló la actualización del saldo.' });
                 res.json({ message: 'Compra registrada con éxito.' });
@@ -726,4 +762,12 @@ app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
-app.listen(PORT, () => console.log(`http://localhost:${PORT}`));
+// Iniciar el servidor solo después de que las migraciones se hayan completado
+runMigrations()
+    .then(() => {
+        app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`));
+    })
+    .catch(err => {
+        console.error("❌ No se pudo iniciar el servidor debido a un error en la migración de la base de datos:", err);
+        process.exit(1); // Detiene la aplicación si la BD no se puede inicializar
+    });
