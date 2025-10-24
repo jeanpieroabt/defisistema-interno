@@ -79,7 +79,16 @@ const runMigrations = async () => {
     await addColumn('operaciones', 'costo_clp REAL DEFAULT 0');
     await addColumn('operaciones', 'comision_ves REAL DEFAULT 0');
 
-    await dbRun(`CREATE TABLE IF NOT EXISTS compras(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, clp_invertido REAL NOT NULL, ves_obtenido REAL NOT NULL, tasa_compra REAL NOT NULL, fecha TEXT NOT NULL, FOREIGN KEY(usuario_id) REFERENCES usuarios(id))`);
+    // =================================================================
+    // INICIO: CORRECCIÓN DE MIGRACIÓN PARA LA TABLA 'compras'
+    // =================================================================
+    // 1. Crear la tabla si no existe (posiblemente sin la columna 'tasa_compra')
+    await dbRun(`CREATE TABLE IF NOT EXISTS compras(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, clp_invertido REAL NOT NULL, ves_obtenido REAL NOT NULL, fecha TEXT NOT NULL, FOREIGN KEY(usuario_id) REFERENCES usuarios(id))`);
+    // 2. Añadir explícitamente la columna 'tasa_compra'. Si ya existe, no hará nada.
+    await addColumn('compras', 'tasa_compra REAL NOT NULL DEFAULT 0');
+    // =================================================================
+    // FIN: CORRECCIÓN DE MIGRACIÓN
+    // =================================================================
     
     await dbRun(`CREATE TABLE IF NOT EXISTS configuracion(clave TEXT PRIMARY KEY, valor TEXT)`);
 
