@@ -38,7 +38,29 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
   else console.log(`SQLite conectado en: ${DB_PATH}`);
 });
 
+
+// =================================================================
+// INICIO: MIGRACIÓN Y VERIFICACIÓN DE BASE DE DATOS
+// Este bloque se asegura de que la BD tenga la estructura correcta al iniciar.
+// =================================================================
 db.serialize(() => {
+  console.log('Iniciando verificación de la estructura de la base de datos...');
+
+  // Función auxiliar para añadir columnas de forma segura
+  const addColumn = (tableName, columnDef) => {
+    const columnName = columnDef.split(' ')[0];
+    db.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnDef}`, (err) => {
+      if (err) {
+        if (!err.message.includes('duplicate column name')) {
+          console.error(`❌ Error al añadir columna ${columnName} a ${tableName}:`, err.message);
+        }
+      } else {
+        console.log(`✅ Columna '${columnName}' añadida a la tabla '${tableName}'.`);
+      }
+    });
+  };
+
+  // 1. Tabla de Usuarios
   db.run(`CREATE TABLE IF NOT EXISTS usuarios(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
@@ -46,35 +68,20 @@ db.serialize(() => {
     role TEXT NOT NULL CHECK(role IN ('master','operador'))
   )`);
 
+  // 2. Tabla de Clientes
   db.run(`CREATE TABLE IF NOT EXISTS clientes(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT UNIQUE NOT NULL,
     fecha_creacion TEXT NOT NULL
-  )`);
-  
-  // ===============================================
-  // INICIO: MODIFICACIÓN PARA NUEVOS CAMPOS DE CLIENTE
-  // ===============================================
-  // Añadir nuevas columnas a la tabla de clientes si no existen.
-  // Es seguro ejecutar esto múltiples veces.
-  const columnasNuevas = [
-      'rut TEXT', 
-      'email TEXT', 
-      'telefono TEXT', 
-      'datos_bancarios TEXT'
-  ];
-  columnasNuevas.forEach(columna => {
-      const nombreColumna = columna.split(' ')[0];
-      db.run(`ALTER TABLE clientes ADD COLUMN ${columna}`, (err) => {
-          if (err && !err.message.includes('duplicate column name')) {
-              console.error(`Error al añadir columna ${nombreColumna}:`, err.message);
-          }
-      });
+  )`, () => {
+    // Añadir columnas adicionales a 'clientes' si no existen
+    addColumn('clientes', 'rut TEXT');
+    addColumn('clientes', 'email TEXT');
+    addColumn('clientes', 'telefono TEXT');
+    addColumn('clientes', 'datos_bancarios TEXT');
   });
-  // ===============================================
-  // FIN: MODIFICACIÓN PARA NUEVOS CAMPOS DE CLIENTE
-  // ===============================================
 
+  // 3. Tabla de Operaciones
   db.run(`CREATE TABLE IF NOT EXISTS operaciones(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id INTEGER NOT NULL,
@@ -84,14 +91,16 @@ db.serialize(() => {
     monto_ves REAL NOT NULL,
     tasa REAL NOT NULL,
     observaciones TEXT,
-    costo_clp REAL DEFAULT 0,  
-    comision_ves REAL DEFAULT 0,
     numero_recibo TEXT UNIQUE,
     FOREIGN KEY(usuario_id) REFERENCES usuarios(id),
     FOREIGN KEY(cliente_id) REFERENCES clientes(id)
-  )`);
+  )`, () => {
+    // Añadir columnas de costos y comisiones a 'operaciones' si no existen
+    addColumn('operaciones', 'costo_clp REAL DEFAULT 0');
+    addColumn('operaciones', 'comision_ves REAL DEFAULT 0');
+  });
 
-  // CORRECCIÓN: Se eliminó el comentario de JavaScript de dentro de la sentencia SQL.
+  // 4. Tabla de Compras
   db.run(`CREATE TABLE IF NOT EXISTS compras(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id INTEGER NOT NULL,
@@ -102,33 +111,30 @@ db.serialize(() => {
     FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
   )`);
   
+  // 5. Tabla de Configuración
   db.run(`CREATE TABLE IF NOT EXISTS configuracion(
     clave TEXT PRIMARY KEY,
     valor TEXT
   )`);
-});
 
-// Semilla mínima
-db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
-  if (err) {
-    console.error('Error al verificar usuarios semilla:', err.message);
-    return;
-  }
-  if (!row || row.c === 0) {
-    const hash = await bcrypt.hash('master123', 10);
-    db.run(
-      `INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`,
-      ['master', hash, 'master'],
-      (err) => {
-        if (err) {
-          console.error('Error al insertar usuario semilla:', err.message);
-        } else {
-          console.log('Usuario semilla creado: master/master123');
-        }
-      }
-    );
-  }
+  // 6. Semilla de usuario Master (solo si no hay usuarios)
+  db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
+    if (err) return console.error('Error al verificar usuarios semilla:', err.message);
+    if (!row || row.c === 0) {
+      const hash = await bcrypt.hash('master123', 10);
+      db.run(`INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`, ['master', hash, 'master'], (err) => {
+        if (err) console.error('Error al insertar usuario semilla:', err.message);
+        else console.log('✅ Usuario semilla creado: master/master123');
+      });
+    }
+  });
+
+  console.log('Verificación de base de datos completada.');
 });
+// =================================================================
+// FIN: MIGRACIÓN Y VERIFICACIÓN DE BASE DE DATOS
+// =================================================================
+
 
 // -------------------- Helpers --------------------
 const pageAuth = (req, res, next) => {
@@ -175,9 +181,7 @@ app.get('/', (req, res) => res.redirect('/login.html'));
 app.get('/app.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'app.html')));
 app.get('/admin.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/historico.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'historico.html')));
-// INICIO: NUEVA RUTA PARA PÁGINA DE CLIENTES
 app.get('/clientes.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'clientes.html')));
-// FIN: NUEVA RUTA PARA PÁGINA DE CLIENTES
 
 // -------------------- Auth --------------------
 app.post('/login', (req, res) => {
@@ -241,18 +245,14 @@ app.get('/api/usuarios/search', apiAuth, onlyMaster, (req, res) => {
 
 
 // =================================================================
-// INICIO: NUEVOS ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
+// INICIO: ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
 // =================================================================
-
-// GET - Obtener todos los clientes
 app.get('/api/clientes', apiAuth, (req, res) => {
     db.all('SELECT * FROM clientes ORDER BY nombre', [], (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al obtener clientes.' });
         res.json(rows);
     });
 });
-
-// GET - Obtener un cliente específico
 app.get('/api/clientes/:id', apiAuth, (req, res) => {
     db.get('SELECT * FROM clientes WHERE id = ?', [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ message: 'Error al obtener el cliente.' });
@@ -260,43 +260,31 @@ app.get('/api/clientes/:id', apiAuth, (req, res) => {
         res.json(row);
     });
 });
-
-// POST - Crear un nuevo cliente
 app.post('/api/clientes', apiAuth, (req, res) => {
     const { nombre, rut, email, telefono, datos_bancarios } = req.body;
     if (!nombre) return res.status(400).json({ message: 'El nombre es obligatorio.' });
-
     const sql = `INSERT INTO clientes (nombre, rut, email, telefono, datos_bancarios, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?)`;
     db.run(sql, [nombre, rut, email, telefono, datos_bancarios, hoyLocalYYYYMMDD()], function(err) {
         if (err) {
-            if (err.message.includes('UNIQUE constraint failed')) {
-                return res.status(400).json({ message: 'Ya existe un cliente con ese nombre.' });
-            }
+            if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Ya existe un cliente con ese nombre.' });
             return res.status(500).json({ message: 'Error al crear el cliente.' });
         }
         res.status(201).json({ id: this.lastID, message: 'Cliente creado con éxito.' });
     });
 });
-
-// PUT - Actualizar un cliente existente
 app.put('/api/clientes/:id', apiAuth, (req, res) => {
     const { nombre, rut, email, telefono, datos_bancarios } = req.body;
     if (!nombre) return res.status(400).json({ message: 'El nombre es obligatorio.' });
-    
     const sql = `UPDATE clientes SET nombre = ?, rut = ?, email = ?, telefono = ?, datos_bancarios = ? WHERE id = ?`;
     db.run(sql, [nombre, rut, email, telefono, datos_bancarios, req.params.id], function(err) {
         if (err) {
-            if (err.message.includes('UNIQUE constraint failed')) {
-                return res.status(400).json({ message: 'Ya existe otro cliente con ese nombre.' });
-            }
+            if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Ya existe otro cliente con ese nombre.' });
             return res.status(500).json({ message: 'Error al actualizar el cliente.' });
         }
         if (this.changes === 0) return res.status(404).json({ message: 'Cliente no encontrado.' });
         res.json({ message: 'Cliente actualizado con éxito.' });
     });
 });
-
-// DELETE - Eliminar un cliente (solo Master)
 app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
     db.run('DELETE FROM clientes WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ message: 'Error al eliminar el cliente.' });
@@ -304,9 +292,8 @@ app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
         res.json({ message: 'Cliente eliminado con éxito.' });
     });
 });
-
 // =================================================================
-// FIN: NUEVOS ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
+// FIN: ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
 // =================================================================
 
 
@@ -321,36 +308,21 @@ const getAvgPurchaseRate = (date, callback) => {
     });
 };
 
-// =================================================================
-// INICIO: LÓGICA MEJORADA PARA CALCULAR COSTO
-// =================================================================
 const calcularCostoClpPorVes = (fecha, callback) => {
-    // 1. Intenta obtener la tasa promedio para la fecha actual.
     getAvgPurchaseRate(fecha, (err, rate) => {
         if (err) return callback(err, 0);
-        if (rate > 0) {
-            // Si hay tasa para hoy, se usa esa.
-            return callback(null, 1 / rate);
-        }
+        if (rate > 0) return callback(null, 1 / rate);
 
-        // 2. Si no hay tasa para hoy, busca la tasa de la última compra registrada.
         db.get(`SELECT tasa_compra FROM compras ORDER BY fecha DESC, id DESC LIMIT 1`, [], (errLast, lastPurchase) => {
             if (errLast) return callback(errLast, 0);
-            if (lastPurchase && lastPurchase.tasa_compra > 0) {
-                // Si se encuentra una compra anterior, se usa su tasa.
-                return callback(null, 1 / lastPurchase.tasa_compra);
-            }
+            if (lastPurchase && lastPurchase.tasa_compra > 0) return callback(null, 1 / lastPurchase.tasa_compra);
 
-            // 3. Como último recurso, si no hay compras en todo el sistema, usa el valor de configuración.
             readConfigValue('capitalCostoVesPorClp')
                 .then(costoConfig => callback(null, costoConfig))
                 .catch(e => callback(e, 0));
         });
     });
 };
-// =================================================================
-// FIN: LÓGICA MEJORADA PARA CALCULAR COSTO
-// =================================================================
 
 app.get('/api/dashboard', apiAuth, (req, res) => { 
   const userRole = req.session.user?.role;
@@ -466,7 +438,7 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
   sql += ` ORDER BY op.id DESC`;
   db.all(sql, params, (err, rows) => {
     if (err) {
-      console.error("SQL Error:", err.message);
+      console.error("SQL Error en GET /api/operaciones:", err.message);
       return res.status(500).json({ message: 'Error al leer operaciones' });
     }
     res.json(rows || []);
@@ -475,14 +447,8 @@ app.get('/api/operaciones', apiAuth, (req, res) => {
 
 app.post('/api/operaciones', apiAuth, (req, res) => {
   const { cliente_nombre, monto_clp, monto_ves, tasa, observaciones, fecha, numero_recibo } = req.body;
-  if (!numero_recibo) {
-    return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
-  }
-  if (!cliente_nombre) {
-    return res.status(400).json({ message: 'El nombre del cliente es obligatorio.' });
-  }
-  if (!monto_clp || !tasa) {
-    return res.status(400).json({ message: 'El monto CLP y la tasa son obligatorios.' });
+  if (!numero_recibo || !cliente_nombre || !monto_clp || !tasa) {
+    return res.status(400).json({ message: 'Faltan campos obligatorios.' });
   }
   const fechaGuardado = fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? fecha : hoyLocalYYYYMMDD();
   const montoVesNum = Number(monto_ves || 0);
@@ -491,7 +457,7 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
   const vesTotalDescontar = montoVesNum + comisionVes; 
   readConfigValue('saldoVesOnline').then(saldoVes => {
       if (vesTotalDescontar > saldoVes) {
-        return res.status(400).json({ message: 'Saldo VES online insuficiente para cubrir el monto y la comisión.' });
+        return res.status(400).json({ message: 'Saldo VES online insuficiente.' });
       }
       const findOrCreateCliente = new Promise((resolve, reject) => {
           db.get(`SELECT id FROM clientes WHERE nombre = ?`, [cliente_nombre], (err, cliente) => {
@@ -513,9 +479,7 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
               [req.session.user.id, cliente_id, fechaGuardado, montoClpNum, montoVesNum, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes, numero_recibo],
               function (err) {
                 if (err) {
-                    if (err.message.includes('UNIQUE constraint failed')) {
-                        return res.status(400).json({ message: 'Error: El número de recibo ya existe.' });
-                    }
+                    if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Error: El número de recibo ya existe.' });
                     return res.status(500).json({ message: 'Error inesperado al guardar la operación.' });
                 }
                 db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar]);
@@ -538,24 +502,26 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
     const operacionId = req.params.id;
     const user = req.session.user;
     const { cliente_nombre, monto_clp, tasa, observaciones, fecha, numero_recibo } = req.body;
-    if (!numero_recibo) {
-        return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
-    }
+    if (!numero_recibo) return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
+    
     db.get('SELECT id FROM operaciones WHERE numero_recibo = ? AND id != ?', [numero_recibo, operacionId], (err, existing) => {
         if (err) return res.status(500).json({ message: 'Error de base de datos al verificar recibo.' });
         if (existing) return res.status(400).json({ message: 'El número de recibo ya está en uso por otra operación.' });
+        
         db.get('SELECT * FROM operaciones WHERE id = ?', [operacionId], (err, opOriginal) => {
             if (err || !opOriginal) return res.status(404).json({ message: 'Operación no encontrada.' });
+            
             const esMaster = user.role === 'master';
             const esSuOperacion = opOriginal.usuario_id === user.id;
             const esDeHoy = opOriginal.fecha === hoyLocalYYYYMMDD();
-            if (!esMaster && !(esSuOperacion && esDeHoy)) {
-                return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
-            }
+            if (!esMaster && !(esSuOperacion && esDeHoy)) return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
+
             calcularCostoClpPorVes(fecha, (e, costoClpPorVes) => {
                 if (e) return res.status(500).json({ message: 'Error al recalcular el costo.' });
+                
                 db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, cliente) => {
                     if (err || !cliente) return res.status(400).json({ message: 'Cliente no encontrado.' });
+                    
                     const gananciaNetaOriginal = (opOriginal.monto_clp - opOriginal.costo_clp) - (opOriginal.monto_clp * 0.003);
                     const vesTotalOriginal = opOriginal.monto_ves + opOriginal.comision_ves;
                     const montoClpNuevo = Number(monto_clp || 0);
@@ -567,6 +533,7 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
                     const vesTotalNuevo = montoVesNuevo + comisionVesNuevo;
                     const deltaGanancia = gananciaNetaNueva - gananciaNetaOriginal;
                     const deltaVes = vesTotalOriginal - vesTotalNuevo;
+                    
                     db.serialize(() => {
                         db.run('BEGIN TRANSACTION');
                         db.run(`UPDATE operaciones SET cliente_id=?, fecha=?, monto_clp=?, monto_ves=?, tasa=?, observaciones=?, costo_clp=?, comision_ves=?, numero_recibo=? WHERE id = ?`,
@@ -611,6 +578,9 @@ app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
+// ... resto del archivo sin cambios ...
+// (El resto del código para /api/operaciones/export, /api/historico/resumen, etc. sigue igual)
+
 app.get('/api/operaciones/export', apiAuth, (req, res) => {
   const user = req.session.user;
   let sql = `SELECT op.fecha, op.numero_recibo, u.username AS operador, c.nombre AS cliente, op.monto_clp, op.tasa, op.monto_ves, op.observaciones, op.costo_clp, op.comision_ves FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id JOIN clientes c ON op.cliente_id = c.id`;
@@ -626,7 +596,7 @@ app.get('/api/operaciones/export', apiAuth, (req, res) => {
     if (err) return res.status(500).json({ message: 'Error export' });
     const header = ['Fecha', 'Recibo', 'Operador', 'Cliente', 'Monto CLP', 'Costo CLP', 'Comision VES', 'Tasa', 'Monto VES', 'Obs.'];
     const csvData = rows.map((r) => [r.fecha, r.numero_recibo, `"${r.operador}"`, `"${r.cliente}"`, r.monto_clp, r.costo_clp, r.comision_ves, r.tasa, r.monto_ves, `"${(r.observaciones || '').replace(/"/g, '""')}"`]);
-    const csv = [header.join(',')].concat(csvData).join('\n');
+    const csv = [header.join(',')].concat(csvData.map(row => row.join(','))).join('\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="historico_envios.csv"');
     res.send('\uFEFF' + csv);
@@ -834,4 +804,4 @@ app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
-app.listen(PORT, () => console.log(`http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Servidor corriendo en http://localhost:${PORT}`));
