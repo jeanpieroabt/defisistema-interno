@@ -298,8 +298,6 @@ app.put('/api/clientes/:id', apiAuth, (req, res) => {
 
 // DELETE - Eliminar un cliente (solo Master)
 app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
-    // Opcional: Se podría verificar si el cliente tiene operaciones antes de borrar.
-    // Por ahora, se permite el borrado directo.
     db.run('DELETE FROM clientes WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ message: 'Error al eliminar el cliente.' });
         if (this.changes === 0) return res.status(404).json({ message: 'Cliente no encontrado.' });
@@ -323,25 +321,36 @@ const getAvgPurchaseRate = (date, callback) => {
     });
 };
 
+// =================================================================
+// INICIO: LÓGICA MEJORADA PARA CALCULAR COSTO
+// =================================================================
 const calcularCostoClpPorVes = (fecha, callback) => {
+    // 1. Intenta obtener la tasa promedio para la fecha actual.
     getAvgPurchaseRate(fecha, (err, rate) => {
         if (err) return callback(err, 0);
-        if (rate > 0) return callback(null, 1 / rate);
+        if (rate > 0) {
+            // Si hay tasa para hoy, se usa esa.
+            return callback(null, 1 / rate);
+        }
 
-        const ayer = new Date(fecha);
-        ayer.setDate(ayer.getDate() - 1);
-        const fechaAyer = ayer.toISOString().slice(0, 10);
-        
-        getAvgPurchaseRate(fechaAyer, (errAyer, rateAyer) => {
-            if (errAyer) return callback(errAyer, 0);
-            if (rateAyer > 0) return callback(null, 1 / rateAyer);
+        // 2. Si no hay tasa para hoy, busca la tasa de la última compra registrada.
+        db.get(`SELECT tasa_compra FROM compras ORDER BY fecha DESC, id DESC LIMIT 1`, [], (errLast, lastPurchase) => {
+            if (errLast) return callback(errLast, 0);
+            if (lastPurchase && lastPurchase.tasa_compra > 0) {
+                // Si se encuentra una compra anterior, se usa su tasa.
+                return callback(null, 1 / lastPurchase.tasa_compra);
+            }
 
+            // 3. Como último recurso, si no hay compras en todo el sistema, usa el valor de configuración.
             readConfigValue('capitalCostoVesPorClp')
                 .then(costoConfig => callback(null, costoConfig))
                 .catch(e => callback(e, 0));
         });
     });
 };
+// =================================================================
+// FIN: LÓGICA MEJORADA PARA CALCULAR COSTO
+// =================================================================
 
 app.get('/api/dashboard', apiAuth, (req, res) => { 
   const userRole = req.session.user?.role;
