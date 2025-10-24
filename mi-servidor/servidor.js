@@ -6,7 +6,7 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
-const session = require('express-session');
+const session = 'express-session';
 const path = require('path');
 
 // ✅ RUTA DE LA BASE DE DATOS AJUSTADA PARA DESPLIEGUE
@@ -48,6 +48,18 @@ const dbRun = (sql, params = []) => {
     });
 };
 
+const dbGet = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => err ? reject(err) : resolve(row));
+    });
+};
+
+const dbAll = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows));
+    });
+};
+
 // =================================================================
 // INICIO: MIGRACIÓN Y VERIFICACIÓN DE BASE DE DATOS
 // =================================================================
@@ -83,6 +95,36 @@ const runMigrations = async () => {
     await addColumn('compras', 'tasa_clp_ves REAL DEFAULT 0');
     
     await dbRun(`CREATE TABLE IF NOT EXISTS configuracion(clave TEXT PRIMARY KEY, valor TEXT)`);
+
+    // ✅ INICIO: Reparación de operaciones con costo_clp = 0
+    console.log('Buscando operaciones con costo cero para reparar...');
+    const opsToFix = await dbAll(`SELECT * FROM operaciones WHERE costo_clp = 0 AND monto_ves > 0`);
+    if (opsToFix.length > 0) {
+        console.log(`Se encontraron ${opsToFix.length} operaciones para reparar.`);
+        let repairedCount = 0;
+        for (const op of opsToFix) {
+            try {
+                const costoClpPorVes = await new Promise((resolve, reject) => {
+                    calcularCostoClpPorVes(op.fecha, (err, costo) => err ? reject(err) : resolve(costo));
+                });
+
+                if (costoClpPorVes > 0) {
+                    const nuevoCostoClp = op.monto_ves * costoClpPorVes;
+                    await dbRun(`UPDATE operaciones SET costo_clp = ? WHERE id = ?`, [nuevoCostoClp, op.id]);
+                    console.log(`  -> Operación #${op.id} reparada. Nuevo costo: ${nuevoCostoClp.toFixed(2)}`);
+                    repairedCount++;
+                } else {
+                    console.log(`  -> No se pudo encontrar un costo para la operación #${op.id} del ${op.fecha}. Se omite.`);
+                }
+            } catch (e) {
+                console.error(`  -> Error al reparar operación #${op.id}:`, e.message);
+            }
+        }
+        console.log(`✅ Reparación de costos finalizada. ${repairedCount} operaciones actualizadas.`);
+    } else {
+        console.log('✅ No se encontraron operaciones con costo cero que necesiten reparación.');
+    }
+    // ✅ FIN: Reparación
 
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -264,40 +306,60 @@ app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
 
 
 // -------------------- APIs de Costos y KPIs --------------------
+// ✅ FIX: Se asegura que el callback retorne un error si no hay tasa, en lugar de 0.
 const getAvgPurchaseRate = (date, callback) => {
     const sql = `SELECT SUM(clp_invertido) as totalClp, SUM(ves_obtenido) as totalVes FROM compras WHERE date(fecha) = date(?)`;
     db.get(sql, [date], (err, row) => {
-        if (err || !row || !row.totalClp || row.totalClp === 0) return callback(err, 0);
-        callback(null, row.totalVes / row.totalClp);
+        if (err) return callback(err, 0);
+        if (!row || !row.totalClp || row.totalClp === 0) {
+            // No hay compras para esta fecha, no es un error, pero no hay tasa.
+            return callback(null, 0);
+        }
+        const rate = row.totalVes / row.totalClp;
+        return callback(null, rate);
     });
 };
 
 // =================================================================
 // INICIO: LÓGICA DE CÁLCULO DE COSTO REFINADA
 // =================================================================
+// ✅ FIX: Lógica de fallback mejorada.
 const calcularCostoClpPorVes = (fecha, callback) => {
-    // 1. Intenta obtener la tasa de compra promedio del día actual.
+    // 1. Intenta obtener la tasa de compra promedio del día de la operación.
     getAvgPurchaseRate(fecha, (err, rate) => {
         if (err) {
-            console.error("Error obteniendo tasa del día:", err.message);
-            return callback(err, 0);
+            console.error(`Error obteniendo tasa de compra para el día ${fecha}:`, err.message);
+            return callback(err); // Propaga el error
         }
-        // Si hay tasa para hoy, úsala.
-        if (rate > 0) return callback(null, 1 / rate);
+        if (rate > 0) {
+            return callback(null, 1 / rate);
+        }
 
-        // 2. Si no hay tasa para hoy, busca la tasa de la ÚLTIMA compra registrada, sin importar la fecha.
-        db.get(`SELECT tasa_clp_ves FROM compras ORDER BY fecha DESC, id DESC LIMIT 1`, [], (errLast, lastPurchase) => {
+        // 2. Si no hay, busca la tasa de la ÚLTIMA compra ANTERIOR a la fecha de la operación.
+        db.get(`SELECT tasa_clp_ves FROM compras WHERE date(fecha) <= date(?) ORDER BY fecha DESC, id DESC LIMIT 1`, [fecha], (errLast, lastPurchase) => {
             if (errLast) {
-                console.error("Error obteniendo última tasa histórica:", errLast.message);
-                return callback(errLast, 0);
+                console.error(`Error obteniendo última tasa histórica para fecha ${fecha}:`, errLast.message);
+                return callback(errLast);
             }
-            // Si se encuentra una compra histórica, usa su tasa.
-            if (lastPurchase && lastPurchase.tasa_clp_ves > 0) return callback(null, 1 / lastPurchase.tasa_clp_ves);
+            if (lastPurchase && lastPurchase.tasa_clp_ves > 0) {
+                return callback(null, 1 / lastPurchase.tasa_clp_ves);
+            }
 
-            // 3. Como último recurso (solo para la primera operación de la historia), usa un valor de configuración.
-            readConfigValue('capitalCostoVesPorClp')
-                .then(costoConfig => callback(null, costoConfig))
-                .catch(e => callback(e, 0));
+            // 3. Como último recurso, busca CUALQUIER compra, incluso si es futura (para casos borde).
+            db.get(`SELECT tasa_clp_ves FROM compras ORDER BY fecha ASC, id ASC LIMIT 1`, [], (errNext, nextPurchase) => {
+                if (errNext) {
+                    console.error(`Error obteniendo primera tasa histórica disponible:`, errNext.message);
+                    return callback(errNext);
+                }
+                if (nextPurchase && nextPurchase.tasa_clp_ves > 0) {
+                    return callback(null, 1 / nextPurchase.tasa_clp_ves);
+                }
+
+                // 4. Si no hay absolutamente ninguna compra, usa el valor de configuración.
+                readConfigValue('capitalCostoVesPorClp')
+                    .then(costoConfig => callback(null, costoConfig))
+                    .catch(e => callback(e));
+            });
         });
     });
 };
@@ -439,7 +501,7 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
       const getCosto = new Promise((resolve, reject) => {
           calcularCostoClpPorVes(fechaGuardado, (err, costo) => {
               if (err) return reject(new Error('Error al calcular costo.'));
-              if (costo === 0) return reject(new Error('No se pudo determinar el costo de la operación. Registre una compra.'));
+              if (!costo || costo === 0) return reject(new Error('No se pudo determinar el costo de la operación. Registre una compra.'));
               resolve(costo);
           });
       });
@@ -492,7 +554,7 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
             if (!esMaster && !(esSuOperacion && esDeHoy)) return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
 
             calcularCostoClpPorVes(fecha, (e, costoClpPorVes) => {
-                if (e) return res.status(500).json({ message: 'Error al recalcular el costo.' });
+                if (e || !costoClpPorVes || costoClpPorVes === 0) return res.status(500).json({ message: 'Error al recalcular el costo. Verifique que existan compras registradas.' });
                 
                 db.get(`SELECT id FROM clientes WHERE nombre=?`, [cliente_nombre], (err, cliente) => {
                     if (err || !cliente) return res.status(400).json({ message: 'Cliente no encontrado.' });
