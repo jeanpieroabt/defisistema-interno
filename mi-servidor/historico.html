@@ -4,46 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Histórico de Envíos</title>
-  <style>
-    :root{--primary:#007bff;--dark:#343a40;--muted:#6c757d;--light:#f8f9fa;--border:#dee2e6; --danger: #dc3545; --warning: #ffc107; --info: #0dcaf0;}
-    body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--light);color:var(--dark);margin:0;padding:24px}
-    .card{max-width:1200px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.08);overflow:hidden}
-    .hdr{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--border)}
-    .hdr h1{margin:0;font-size:1.25rem}
-    .content{padding:20px 24px}
-    .filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px; align-items: start;}
-    label{font-weight:700;color:var(--muted);font-size:.9rem;margin-bottom:6px;display:block}
-    input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px}
-    .btns{display:flex;gap:10px;margin-bottom:8px}
-    button{padding:12px 16px;border:none;border-radius:8px;cursor:pointer;font-weight:800}
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-    .btn-primary{background:var(--primary);color:#fff}
-    .btn-light{background:#e9ecef}
-    .btn-info {background: var(--info); color: white;}
-    .btn-edit, .btn-danger { padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; }
-    .btn-edit{background:var(--warning); color:var(--dark);}
-    .btn-danger{background:var(--danger); color: white;}
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    th,td{padding:12px;text-align:left; white-space: nowrap;}
-    thead th{background:var(--light);border-bottom:1px solid var(--border);color:var(--muted)}
-    tbody tr:nth-child(even){background:var(--light)}
-    
-    .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;justify-content:center;align-items:center;z-index:1000}
-    .modal-content{background:#fff;padding:25px;border-radius:12px;width:100%;max-width:500px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
-    .modal-content h2{margin-top:0}.modal-form .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
-    .modal-form .form-full{grid-column:1/-1}
-    .modal-buttons{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
-    #toast-container{position:fixed;top:20px;right:20px;z-index:1050;display:flex;flex-direction:column;gap:10px}
-    .toast{min-width:250px;padding:1rem 1.5rem;border-radius:0.5rem;color:#fff;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.1);opacity:0;transform:translateX(100%);transition:all .5s cubic-bezier(0.68, -0.55, 0.27, 1.55);}
-    .toast.show{opacity:1;transform:translateX(0)}
-    .toast-success{background-color:#198754}
-    .toast-error{background-color:#dc3545}
-
-    .autocomplete-container{ position:relative; }
-    .autocomplete-suggestions{ position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border-color); z-index:1000; display:none; border-radius: 8px; max-height: 200px; overflow-y: auto; }
-    .suggestion-item{ padding:10px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04) }
-    .suggestion-item:hover{ background-color:var(--light-grey); }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="toast-container" class="toast-container"></div>
@@ -78,18 +39,22 @@
       
       <div id="resumenSection" style="margin-top: 20px; display: none;">
           <h2 id="resumenTitle">Resumen Consolidado</h2>
-          <table class="table">
-              <thead><tr id="tbodyResumenHeader"></tr></thead>
-              <tbody id="tbodyResumen"></tbody>
-          </table>
+          <div class="table-container">
+            <table class="table">
+                <thead><tr id="tbodyResumenHeader"></tr></thead>
+                <tbody id="tbodyResumen"></tbody>
+            </table>
+          </div>
       </div>
       <h2 id="tituloDetalle" style="margin-top: 20px;">Detalle de Envíos</h2>
-      <table>
-        <thead>
-          <tr><th>Fecha</th><th>Recibo</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Costo CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acción</th></tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr><th>Fecha</th><th>Recibo</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Costo CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acción</th></tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -125,7 +90,7 @@
     function showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
-        toast.className = `toast toast-${type === 'success' ? 'success' : 'error'}`;
+        toast.className = `toast toast-${type}`;
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(() => toast.classList.add('show'), 100);
@@ -229,7 +194,8 @@
     
     async function cargar(){
       document.getElementById('resumenSection').style.display = 'none';
-      document.getElementById('tituloDetalle').textContent = 'Detalle de Envíos';
+      document.getElementById('tituloDetalle').style.display = 'block';
+      document.querySelector('#tituloDetalle + .table-container').style.display = 'block';
       document.getElementById('btnRecalcular').disabled = true;
       
       const params = new URLSearchParams({
@@ -244,7 +210,7 @@
       const tb = document.getElementById('tbody');
       tb.innerHTML = '';
       operacionesData.forEach(d => tb.appendChild(row(d)));
-
+      
       if (operacionesData.length > 0 && user.role === 'master') {
           document.getElementById('btnRecalcular').disabled = false;
       }
@@ -297,8 +263,9 @@
             <th style="text-align:right">Ganancia Bruta</th>
         `;
         resumenSection.style.display = 'block';
-        document.getElementById('tituloDetalle').textContent = 'Detalle de Envíos (Oculto)';
-        document.getElementById('tbody').innerHTML = '';
+        document.getElementById('tituloDetalle').style.display = 'none';
+        document.querySelector('#tituloDetalle + .table-container').style.display = 'none';
+        
         tbResumen.innerHTML = '<tr><td colspan="4" style="text-align:center">Cargando...</td></tr>';
         
         const params = new URLSearchParams({ startDate: fDesde || '', endDate: fHasta || '' });
@@ -340,8 +307,9 @@
         `;
 
         document.getElementById('resumenSection').style.display = 'block';
-        document.getElementById('tituloDetalle').textContent = 'Detalle de Envíos (Oculto)';
-        document.getElementById('tbody').innerHTML = ''; 
+        document.getElementById('tituloDetalle').style.display = 'none';
+        document.querySelector('#tituloDetalle + .table-container').style.display = 'none';
+        
         tbResumen.innerHTML = '<tr><td colspan="5" style="text-align:center">Cargando...</td></tr>';
         
         const params = new URLSearchParams({ startDate: fDesde || '', endDate: fHasta || '' });
@@ -461,7 +429,8 @@
       document.getElementById('btnLimpiar').onclick = ()=>{ 
           ['fDesde','fHasta','fCliente','fOperador'].forEach(id=>document.getElementById(id).value=''); 
           document.getElementById('resumenSection').style.display = 'none';
-          document.getElementById('tituloDetalle').textContent = 'Detalle de Envíos';
+          document.getElementById('tituloDetalle').style.display = 'block';
+          document.querySelector('#tituloDetalle + .table-container').style.display = 'block';
           cargar(); 
       };
       document.getElementById('btnExport').onclick = exportar;
