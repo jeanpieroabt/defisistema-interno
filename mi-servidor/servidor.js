@@ -61,6 +61,60 @@ const dbAll = (sql, params = []) => {
 };
 
 // =================================================================
+// INICIO: LÓGICA DE CÁLCULO DE COSTO REFINADA
+// =================================================================
+const getAvgPurchaseRate = (date, callback) => {
+    const sql = `SELECT SUM(clp_invertido) as totalClp, SUM(ves_obtenido) as totalVes FROM compras WHERE date(fecha) = date(?)`;
+    db.get(sql, [date], (err, row) => {
+        if (err) return callback(err, 0);
+        if (!row || !row.totalClp || row.totalClp === 0) {
+            return callback(null, 0);
+        }
+        const rate = row.totalVes / row.totalClp;
+        return callback(null, rate);
+    });
+};
+
+const calcularCostoClpPorVes = (fecha, callback) => {
+    getAvgPurchaseRate(fecha, (err, rate) => {
+        if (err) {
+            console.error(`Error obteniendo tasa de compra para el día ${fecha}:`, err.message);
+            return callback(err);
+        }
+        if (rate > 0) {
+            return callback(null, 1 / rate);
+        }
+
+        db.get(`SELECT tasa_clp_ves FROM compras WHERE date(fecha) <= date(?) ORDER BY fecha DESC, id DESC LIMIT 1`, [fecha], (errLast, lastPurchase) => {
+            if (errLast) {
+                console.error(`Error obteniendo última tasa histórica para fecha ${fecha}:`, errLast.message);
+                return callback(errLast);
+            }
+            if (lastPurchase && lastPurchase.tasa_clp_ves > 0) {
+                return callback(null, 1 / lastPurchase.tasa_clp_ves);
+            }
+
+            db.get(`SELECT tasa_clp_ves FROM compras ORDER BY fecha ASC, id ASC LIMIT 1`, [], (errNext, nextPurchase) => {
+                if (errNext) {
+                    console.error(`Error obteniendo primera tasa histórica disponible:`, errNext.message);
+                    return callback(errNext);
+                }
+                if (nextPurchase && nextPurchase.tasa_clp_ves > 0) {
+                    return callback(null, 1 / nextPurchase.tasa_clp_ves);
+                }
+
+                readConfigValue('capitalCostoVesPorClp')
+                    .then(costoConfig => callback(null, costoConfig))
+                    .catch(e => callback(e));
+            });
+        });
+    });
+};
+// =================================================================
+// FIN: LÓGICA DE CÁLCULO DE COSTO REFINADA
+// =================================================================
+
+// =================================================================
 // INICIO: MIGRACIÓN Y VERIFICACIÓN DE BASE DE DATOS
 // =================================================================
 const runMigrations = async () => {
@@ -95,36 +149,6 @@ const runMigrations = async () => {
     await addColumn('compras', 'tasa_clp_ves REAL DEFAULT 0');
     
     await dbRun(`CREATE TABLE IF NOT EXISTS configuracion(clave TEXT PRIMARY KEY, valor TEXT)`);
-
-    // ✅ INICIO: Reparación de operaciones con costo_clp = 0
-    console.log('Buscando operaciones con costo cero para reparar...');
-    const opsToFix = await dbAll(`SELECT * FROM operaciones WHERE costo_clp = 0 AND monto_ves > 0`);
-    if (opsToFix.length > 0) {
-        console.log(`Se encontraron ${opsToFix.length} operaciones para reparar.`);
-        let repairedCount = 0;
-        for (const op of opsToFix) {
-            try {
-                const costoClpPorVes = await new Promise((resolve, reject) => {
-                    calcularCostoClpPorVes(op.fecha, (err, costo) => err ? reject(err) : resolve(costo));
-                });
-
-                if (costoClpPorVes > 0) {
-                    const nuevoCostoClp = op.monto_ves * costoClpPorVes;
-                    await dbRun(`UPDATE operaciones SET costo_clp = ? WHERE id = ?`, [nuevoCostoClp, op.id]);
-                    console.log(`  -> Operación #${op.id} reparada. Nuevo costo: ${nuevoCostoClp.toFixed(2)}`);
-                    repairedCount++;
-                } else {
-                    console.log(`  -> No se pudo encontrar un costo para la operación #${op.id} del ${op.fecha}. Se omite.`);
-                }
-            } catch (e) {
-                console.error(`  -> Error al reparar operación #${op.id}:`, e.message);
-            }
-        }
-        console.log(`✅ Reparación de costos finalizada. ${repairedCount} operaciones actualizadas.`);
-    } else {
-        console.log('✅ No se encontraron operaciones con costo cero que necesiten reparación.');
-    }
-    // ✅ FIN: Reparación
 
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -306,66 +330,6 @@ app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
 
 
 // -------------------- APIs de Costos y KPIs --------------------
-// ✅ FIX: Se asegura que el callback retorne un error si no hay tasa, en lugar de 0.
-const getAvgPurchaseRate = (date, callback) => {
-    const sql = `SELECT SUM(clp_invertido) as totalClp, SUM(ves_obtenido) as totalVes FROM compras WHERE date(fecha) = date(?)`;
-    db.get(sql, [date], (err, row) => {
-        if (err) return callback(err, 0);
-        if (!row || !row.totalClp || row.totalClp === 0) {
-            // No hay compras para esta fecha, no es un error, pero no hay tasa.
-            return callback(null, 0);
-        }
-        const rate = row.totalVes / row.totalClp;
-        return callback(null, rate);
-    });
-};
-
-// =================================================================
-// INICIO: LÓGICA DE CÁLCULO DE COSTO REFINADA
-// =================================================================
-// ✅ FIX: Lógica de fallback mejorada.
-const calcularCostoClpPorVes = (fecha, callback) => {
-    // 1. Intenta obtener la tasa de compra promedio del día de la operación.
-    getAvgPurchaseRate(fecha, (err, rate) => {
-        if (err) {
-            console.error(`Error obteniendo tasa de compra para el día ${fecha}:`, err.message);
-            return callback(err); // Propaga el error
-        }
-        if (rate > 0) {
-            return callback(null, 1 / rate);
-        }
-
-        // 2. Si no hay, busca la tasa de la ÚLTIMA compra ANTERIOR a la fecha de la operación.
-        db.get(`SELECT tasa_clp_ves FROM compras WHERE date(fecha) <= date(?) ORDER BY fecha DESC, id DESC LIMIT 1`, [fecha], (errLast, lastPurchase) => {
-            if (errLast) {
-                console.error(`Error obteniendo última tasa histórica para fecha ${fecha}:`, errLast.message);
-                return callback(errLast);
-            }
-            if (lastPurchase && lastPurchase.tasa_clp_ves > 0) {
-                return callback(null, 1 / lastPurchase.tasa_clp_ves);
-            }
-
-            // 3. Como último recurso, busca CUALQUIER compra, incluso si es futura (para casos borde).
-            db.get(`SELECT tasa_clp_ves FROM compras ORDER BY fecha ASC, id ASC LIMIT 1`, [], (errNext, nextPurchase) => {
-                if (errNext) {
-                    console.error(`Error obteniendo primera tasa histórica disponible:`, errNext.message);
-                    return callback(errNext);
-                }
-                if (nextPurchase && nextPurchase.tasa_clp_ves > 0) {
-                    return callback(null, 1 / nextPurchase.tasa_clp_ves);
-                }
-
-                // 4. Si no hay absolutamente ninguna compra, usa el valor de configuración.
-                readConfigValue('capitalCostoVesPorClp')
-                    .then(costoConfig => callback(null, costoConfig))
-                    .catch(e => callback(e));
-            });
-        });
-    });
-};
-// =================================================================
-// FIN: LÓGICA DE CÁLCULO DE COSTO REFINADA
-// =================================================================
 
 app.get('/api/dashboard', async (req, res) => {
     try {
@@ -614,6 +578,58 @@ app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
         });
     });
 });
+
+// ✅ NUEVO ENDPOINT PARA RECALCULAR COSTOS
+app.post('/api/operaciones/recalculate-costs', apiAuth, onlyMaster, async (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: 'Se requiere una lista de IDs de operaciones.' });
+    }
+
+    try {
+        await dbRun('BEGIN TRANSACTION');
+
+        const placeholders = ids.map(() => '?').join(',');
+        const opsOriginales = await dbAll(`SELECT * FROM operaciones WHERE id IN (${placeholders})`, ids);
+        
+        let gananciaAcumuladaDelta = 0;
+        let recalculadas = 0;
+
+        for (const op of opsOriginales) {
+            const costoClpPorVes = await new Promise((resolve, reject) => {
+                calcularCostoClpPorVes(op.fecha, (err, costo) => err ? reject(err) : resolve(costo));
+            });
+
+            if (costoClpPorVes > 0) {
+                const costoClpOriginal = op.costo_clp;
+                const gananciaNetaOriginal = (op.monto_clp - costoClpOriginal) - (op.monto_clp * 0.003);
+
+                const nuevoCostoClp = op.monto_ves * costoClpPorVes;
+                
+                if (Math.abs(nuevoCostoClp - costoClpOriginal) > 0.01) { // Solo actualizar si hay un cambio significativo
+                    await dbRun('UPDATE operaciones SET costo_clp = ? WHERE id = ?', [nuevoCostoClp, op.id]);
+                    
+                    const nuevaGananciaNeta = (op.monto_clp - nuevoCostoClp) - (op.monto_clp * 0.003);
+                    gananciaAcumuladaDelta += (nuevaGananciaNeta - gananciaNetaOriginal);
+                    recalculadas++;
+                }
+            }
+        }
+
+        if (recalculadas > 0) {
+            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaAcumuladaDelta]);
+        }
+
+        await dbRun('COMMIT');
+        res.json({ message: `Recalculación completada. ${recalculadas} operaciones actualizadas.`, totalAjusteGanancia: gananciaAcumuladaDelta });
+
+    } catch (error) {
+        await dbRun('ROLLBACK');
+        console.error("Error recalculando costos:", error);
+        res.status(500).json({ message: 'Error en el servidor al recalcular los costos.' });
+    }
+});
+
 
 app.get('/api/operaciones/export', apiAuth, (req, res) => {
   const user = req.session.user;

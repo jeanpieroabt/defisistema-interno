@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Histórico de Envíos</title>
   <style>
-    :root{--primary:#007bff;--dark:#343a40;--muted:#6c757d;--light:#f8f9fa;--border:#dee2e6; --danger: #dc3545; --warning: #ffc107;}
+    :root{--primary:#007bff;--dark:#343a40;--muted:#6c757d;--light:#f8f9fa;--border:#dee2e6; --danger: #dc3545; --warning: #ffc107; --info: #0dcaf0;}
     body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--light);color:var(--dark);margin:0;padding:24px}
-    .card{max-width:1100px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.08);overflow:hidden}
+    .card{max-width:1200px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.08);overflow:hidden}
     .hdr{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--border)}
     .hdr h1{margin:0;font-size:1.25rem}
     .content{padding:20px 24px}
@@ -16,31 +16,31 @@
     input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px}
     .btns{display:flex;gap:10px;margin-bottom:8px}
     button{padding:12px 16px;border:none;border-radius:8px;cursor:pointer;font-weight:800}
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-primary{background:var(--primary);color:#fff}
     .btn-light{background:#e9ecef}
+    .btn-info {background: var(--info); color: white;}
     .btn-edit, .btn-danger { padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; }
     .btn-edit{background:var(--warning); color:var(--dark);}
     .btn-danger{background:var(--danger); color: white;}
     table{width:100%;border-collapse:separate;border-spacing:0}
-    th,td{padding:12px;text-align:left}
+    th,td{padding:12px;text-align:left; white-space: nowrap;}
     thead th{background:var(--light);border-bottom:1px solid var(--border);color:var(--muted)}
     tbody tr:nth-child(even){background:var(--light)}
     
-    /* Estilos para el Modal de Edición */
     .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;justify-content:center;align-items:center;z-index:1000}
     .modal-content{background:#fff;padding:25px;border-radius:12px;width:100%;max-width:500px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
     .modal-content h2{margin-top:0}.modal-form .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
     .modal-form .form-full{grid-column:1/-1}
     .modal-buttons{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
     #toast-container{position:fixed;top:20px;right:20px;z-index:1050;display:flex;flex-direction:column;gap:10px}
-    .toast{min-width:250px;padding:1rem 1.5rem;border-radius:0.5rem;color:#fff;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.1);opacity:0;transform:translateX(100%);transition:all .5s cubic-bezier(0.25, 0.46, 0.45, 0.94);}
+    .toast{min-width:250px;padding:1rem 1.5rem;border-radius:0.5rem;color:#fff;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.1);opacity:0;transform:translateX(100%);transition:all .5s cubic-bezier(0.68, -0.55, 0.27, 1.55);}
     .toast.show{opacity:1;transform:translateX(0)}
     .toast-success{background-color:#198754}
     .toast-error{background-color:#dc3545}
 
-    /* ANOTACIÓN: Estilos para el autocompletado */
     .autocomplete-container{ position:relative; }
-    .autocomplete-suggestions{ position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border-color); z-index:1000; display:none; border-radius: 8px; max-height: 200px; overflow-y:auto; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .autocomplete-suggestions{ position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border-color); z-index:1000; display:none; border-radius: 8px; max-height: 200px; overflow-y: auto; }
     .suggestion-item{ padding:10px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04) }
     .suggestion-item:hover{ background-color:var(--light-grey); }
   </style>
@@ -53,6 +53,7 @@
       <h1>Histórico de Envíos</h1>
       <div class="btns">
         <button class="btn btn-light" onclick="window.open('/clientes.html','_blank')">Gestión Clientes</button>
+        <button id="btnRecalcular" class="btn-info" disabled>Recalcular Costos</button>
         <button id="btnExport" class="btn-light">Exportar CSV</button>
         <button class="btn-primary" onclick="window.close()">Cerrar</button>
       </div>
@@ -61,7 +62,6 @@
       <div class="filters">
         <div><label>Desde</label><input type="date" id="fDesde"></div>
         <div><label>Hasta</label><input type="date" id="fHasta"></div>
-        <!-- ANOTACIÓN: Estructura HTML para el autocompletado -->
         <div class="autocomplete-container">
           <label>Cliente</label>
           <input type="text" id="fCliente" placeholder="Nombre del cliente" autocomplete="off">
@@ -86,7 +86,7 @@
       <h2 id="tituloDetalle" style="margin-top: 20px;">Detalle de Envíos</h2>
       <table>
         <thead>
-          <tr><th>Fecha</th><th>Recibo</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acción</th></tr>
+          <tr><th>Fecha</th><th>Recibo</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Costo CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acción</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -125,7 +125,7 @@
     function showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
+        toast.className = `toast toast-${type === 'success' ? 'success' : 'error'}`;
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(() => toast.classList.add('show'), 100);
@@ -166,7 +166,6 @@
         }, 400);
     }
 
-    // ANOTACIÓN: Función de autocompletado añadida.
     function addClientAutocomplete(inputEl, suggestionsEl) {
       let lastQuery = '';
       inputEl.addEventListener('input', async () => {
@@ -220,6 +219,7 @@
         <td>${op.operador}</td>
         <td>${op.cliente_nombre}</td>
         <td>${fmtCLP(op.monto_clp)}</td>
+        <td style="color: ${op.costo_clp > 0 ? 'inherit' : 'red'}; font-weight: ${op.costo_clp > 0 ? 'normal' : 'bold'};">${fmtCLP(op.costo_clp)}</td>
         <td>${Number(op.tasa).toFixed(4)}</td>
         <td>${fmtVES(op.monto_ves)}</td>
         <td>${op.observaciones || ''}</td>
@@ -230,6 +230,7 @@
     async function cargar(){
       document.getElementById('resumenSection').style.display = 'none';
       document.getElementById('tituloDetalle').textContent = 'Detalle de Envíos';
+      document.getElementById('btnRecalcular').disabled = true;
       
       const params = new URLSearchParams({
         startDate: document.getElementById('fDesde').value || '',
@@ -243,8 +244,45 @@
       const tb = document.getElementById('tbody');
       tb.innerHTML = '';
       operacionesData.forEach(d => tb.appendChild(row(d)));
+
+      if (operacionesData.length > 0 && user.role === 'master') {
+          document.getElementById('btnRecalcular').disabled = false;
+      }
     }
     
+    async function recalcularCostos() {
+        if (operacionesData.length === 0) {
+            showToast('No hay operaciones cargadas para recalcular.', 'error');
+            return;
+        }
+        if (!confirm(`¿Desea recalcular el costo para las ${operacionesData.length} operaciones mostradas? Esta acción actualizará los costos y la ganancia acumulada.`)) {
+            return;
+        }
+
+        const btn = document.getElementById('btnRecalcular');
+        btn.disabled = true;
+        btn.textContent = 'Recalculando...';
+
+        try {
+            const ids = operacionesData.map(op => op.id);
+            const r = await fetch('/api/operaciones/recalculate-costs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids })
+            });
+            const res = await r.json();
+            showToast(res.message, r.ok ? 'success' : 'error');
+            if (r.ok) {
+                await cargar(); // Recargar la tabla para ver los cambios
+            }
+        } catch (e) {
+            showToast('Error de red al recalcular.', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Recalcular Costos';
+        }
+    }
+
     async function cargarResumen(){
         const fDesde = document.getElementById('fDesde').value;
         const fHasta = document.getElementById('fHasta').value;
@@ -413,11 +451,13 @@
         document.getElementById('fOperador').placeholder = 'No disponible';
         document.getElementById('btnResumen').style.display = 'none';
         document.getElementById('btnRendimiento').style.display = 'none';
+        document.getElementById('btnRecalcular').style.display = 'none';
       }
       
       document.getElementById('btnFiltrar').onclick = cargar;
       document.getElementById('btnResumen').onclick = cargarResumen;
       document.getElementById('btnRendimiento').onclick = cargarRendimiento;
+      document.getElementById('btnRecalcular').onclick = recalcularCostos;
       document.getElementById('btnLimpiar').onclick = ()=>{ 
           ['fDesde','fHasta','fCliente','fOperador'].forEach(id=>document.getElementById(id).value=''); 
           document.getElementById('resumenSection').style.display = 'none';
@@ -426,9 +466,8 @@
       };
       document.getElementById('btnExport').onclick = exportar;
       
-      document.getElementById('editRecibo').addEventListener('input', () => checkRecibo(document.getElementById('editRecibo'), document.getElementById('editReciboStatus'), document.getElementById('btnGuardarCambios'), modal.dataset.id));
+      document.getElementById('editRecibo').addEventListener('input', () => checkRecibo(document.getElementById('editRecibo'), document.getElementById('editReciboStatus'), document.getElementById('btnGuardarCambios')));
       
-      // ANOTACIÓN: Llamada a la función de autocompletado para el filtro de clientes.
       addClientAutocomplete(document.getElementById('fCliente'), document.getElementById('fClienteSuggestions'));
 
       await cargar();
