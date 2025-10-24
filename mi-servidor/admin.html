@@ -4,7 +4,6 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Administración</title>
   <link rel="stylesheet" href="style.css">
-  <!-- ANOTACIÓN: He añadido estilos directamente aquí para los nuevos botones y mejorar la alineación. -->
   <style>
     .actions-cell {
       display: flex;
@@ -27,7 +26,7 @@
   <div class="card">
     <div class="hdr">
       <h1>Panel de Administración</h1>
-      <div>
+      <div class="btns">
         <button class="btn btn-light" onclick="window.open('/historico.html','_blank')">Histórico</button>
         <button class="btn btn-light" onclick="window.open('/clientes.html','_blank')">Gestión Clientes</button>
         <button class="btn btn-primary" onclick="window.close()">Cerrar</button>
@@ -87,19 +86,23 @@
                 <label>Contraseña</label><input type="password" name="password" required>
                 <div style="margin-top:10px"><button class="btn btn-primary">Crear Operador</button></div>
               </form>
-              <table>
-                  <thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Acción</th></tr></thead>
-                  <tbody id="tbodyUsuarios"></tbody>
-              </table>
+              <div class="table-container">
+                <table>
+                    <thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Acción</th></tr></thead>
+                    <tbody id="tbodyUsuarios"></tbody>
+                </table>
+              </div>
           </div>
       </div>
 
       <div class="box" style="margin-top:16px">
           <h3>Historial de Compras</h3>
-          <table>
-              <thead><tr><th>ID</th><th>Fecha</th><th>CLP Invertido</th><th>VES Obtenidos</th><th>Tasa (VES/CLP)</th><th>Acciones</th></tr></thead>
-              <tbody id="tbodyCompras"></tbody>
-          </table>
+          <div class="table-container">
+            <table>
+                <thead><tr><th>ID</th><th>Fecha</th><th>CLP Invertido</th><th>VES Obtenidos</th><th>Tasa (VES/CLP)</th><th>Acciones</th></tr></thead>
+                <tbody id="tbodyCompras"></tbody>
+            </table>
+          </div>
       </div>
     </div>
   </div>
@@ -146,7 +149,6 @@
         tbody.innerHTML = '';
         usuarios.forEach(u => {
             const tr = document.createElement('tr');
-            // ANOTACIÓN: Se completa el HTML para la fila de usuarios, añadiendo el select y el botón de guardar.
             tr.innerHTML = `
                 <td>${u.id}</td>
                 <td><input type="text" id="user-${u.id}-username" value="${u.username}"></td>
@@ -156,7 +158,7 @@
                         <option value="operador" ${u.role === 'operador' ? 'selected' : ''}>Operador</option>
                     </select>
                 </td>
-                <td><button class="btn btn-save" onclick="editUser(${u.id})">Guardar</button></td>
+                <td class="actions-cell"><button class="btn btn-save" onclick="editUser(${u.id})">Guardar</button></td>
             `;
             tbody.appendChild(tr);
         });
@@ -168,7 +170,6 @@
         const username = document.getElementById(`user-${id}-username`).value;
         const role = document.getElementById(`user-${id}-role`).value;
         const password = prompt("Ingrese NUEVA contraseña (deje vacío para no cambiar):");
-        // Si el usuario cancela el prompt, no hacemos nada.
         if (password === null) return;
         
         const body = { username, role };
@@ -186,7 +187,6 @@
         compras.forEach(c => {
             const tasaMostrada = c.clp_invertido > 0 ? Number(c.ves_obtenido / c.clp_invertido).toFixed(6) : 0;
             const tr = document.createElement('tr');
-            // ANOTACIÓN: Se completa el HTML para la fila de compras, añadiendo los botones de guardar y borrar.
             tr.innerHTML = `
                 <td>${c.id}</td>
                 <td><input type="date" id="compra-${c.id}-fecha" value="${c.fecha}"></td>
@@ -213,7 +213,6 @@
         const res = await r.json();
         showToast(res.message || 'Error', r.ok ? 'success' : 'error');
         if (r.ok) { 
-            // ANOTACIÓN: Se recargan ambas tablas para mantener la consistencia de los datos y KPIs.
             fetchCompras(); 
             loadKpis(); 
         }
