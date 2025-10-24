@@ -6,7 +6,7 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
-const session = 'express-session';
+const session = require('express-session');
 const path = require('path');
 
 // ✅ RUTA DE LA BASE DE DATOS AJUSTADA PARA DESPLIEGUE
