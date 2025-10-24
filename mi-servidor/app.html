@@ -31,7 +31,6 @@
 
     <div class="content">
       
-      <!-- ANOTACIÓN: He añadido un estilo al div y al strong para hacer el saldo más grande y visible. -->
       <div id="kpiSaldoVes" class="kpi-ves" style="display: none; text-align: center; margin-bottom: 2rem; padding: 1rem; background: #f0f8ff; border-radius: var(--border-radius);">
           <h3 style="margin-bottom: 0.5rem; color: var(--muted); font-size: 1rem;">SALDO VES ONLINE DISPONIBLE</h3>
           <strong id="kpiVesOnline" style="font-size: 2rem; font-weight: 800; color: var(--primary-color);">0,00 VES</strong>
@@ -101,12 +100,14 @@
       </form>
 
       <h2 id="tituloTabla">Envíos Registrados</h2>
-      <table>
-        <thead>
-          <tr><th>Fecha</th><th>Recibo</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acciones</th></tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr><th>Fecha</th><th>Recibo</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acciones</th></tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
