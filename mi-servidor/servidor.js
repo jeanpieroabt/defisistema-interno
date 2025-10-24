@@ -578,9 +578,6 @@ app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
-// ... resto del archivo sin cambios ...
-// (El resto del código para /api/operaciones/export, /api/historico/resumen, etc. sigue igual)
-
 app.get('/api/operaciones/export', apiAuth, (req, res) => {
   const user = req.session.user;
   let sql = `SELECT op.fecha, op.numero_recibo, u.username AS operador, c.nombre AS cliente, op.monto_clp, op.tasa, op.monto_ves, op.observaciones, op.costo_clp, op.comision_ves FROM operaciones op JOIN usuarios u ON op.usuario_id = u.id JOIN clientes c ON op.cliente_id = c.id`;
