@@ -62,7 +62,7 @@ const runMigrations = async () => {
         } catch (err) {
             if (!err.message.includes('duplicate column name')) {
                 console.error(`❌ Error al añadir columna ${columnName} a ${tableName}:`, err.message);
-                throw err; // Detiene el proceso si hay un error grave
+                throw err;
             }
         }
     };
@@ -80,19 +80,18 @@ const runMigrations = async () => {
     await addColumn('operaciones', 'comision_ves REAL DEFAULT 0');
 
     // =================================================================
-    // INICIO: CORRECCIÓN DE MIGRACIÓN PARA LA TABLA 'compras'
+    // INICIO: CORRECCIÓN DEFINITIVA DE MIGRACIÓN PARA LA TABLA 'compras'
     // =================================================================
-    // 1. Crear la tabla si no existe (posiblemente sin la columna 'tasa_compra')
-    await dbRun(`CREATE TABLE IF NOT EXISTS compras(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, clp_invertido REAL NOT NULL, ves_obtenido REAL NOT NULL, fecha TEXT NOT NULL, FOREIGN KEY(usuario_id) REFERENCES usuarios(id))`);
-    // 2. Añadir explícitamente la columna 'tasa_compra'. Si ya existe, no hará nada.
+    // 1. Define la tabla con TODAS las columnas correctas desde el principio.
+    await dbRun(`CREATE TABLE IF NOT EXISTS compras(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, clp_invertido REAL NOT NULL, ves_obtenido REAL NOT NULL, tasa_compra REAL NOT NULL, fecha TEXT NOT NULL, FOREIGN KEY(usuario_id) REFERENCES usuarios(id))`);
+    // 2. Ejecuta addColumn para reparar la tabla existente en Render. Si la columna ya existe, no hará nada.
     await addColumn('compras', 'tasa_compra REAL NOT NULL DEFAULT 0');
     // =================================================================
-    // FIN: CORRECCIÓN DE MIGRACIÓN
+    // FIN: CORRECCIÓN DEFINITIVA
     // =================================================================
     
     await dbRun(`CREATE TABLE IF NOT EXISTS configuracion(clave TEXT PRIMARY KEY, valor TEXT)`);
 
-    // Semilla de usuario Master
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
             if (err) return console.error('Error al verificar usuarios semilla:', err.message);
@@ -248,7 +247,7 @@ app.post('/api/clientes', apiAuth, (req, res) => {
     });
 });
 app.put('/api/clientes/:id', apiAuth, (req, res) => {
-    const { nombre, rut, email, telefono, datos_bancarios } = req.body;
+    const { nombre, rut, email, telefono, datos_bancarios } = req.body.
     if (!nombre) return res.status(400).json({ message: 'El nombre es obligatorio.' });
     const sql = `UPDATE clientes SET nombre = ?, rut = ?, email = ?, telefono = ?, datos_bancarios = ? WHERE id = ?`;
     db.run(sql, [nombre, rut, email, telefono, datos_bancarios, req.params.id], function(err) {
@@ -707,7 +706,10 @@ app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
     db.run(`INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_compra, fecha) VALUES (?, ?, ?, ?, ?)`,
         [req.session.user.id, clp, ves, tasa, hoyLocalYYYYMMDD()],
         function(err) {
-            if (err) return res.status(500).json({ message: 'Error al guardar la compra.' });
+            if (err) {
+                console.error("Error en POST /api/compras:", err.message);
+                return res.status(500).json({ message: 'Error al guardar la compra.', error: err.message });
+            }
             db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [ves], (updateErr) => {
                 if(updateErr) return res.status(500).json({ message: 'Compra guardada, pero falló la actualización del saldo.' });
                 res.json({ message: 'Compra registrada con éxito.' });
