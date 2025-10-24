@@ -319,7 +319,7 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
             const gananciaBrutaDia = totalClpEnviadoDia - costoTotalVesEnviadoClpDia;
             const comisionDelDia = totalClpEnviadoDia * 0.003;
             const gananciaNetaDelDia = gananciaBrutaDia - comisionDelDia;
-            const capitalTotalClp = (capitalInicialClp || 0) + totalGananciaAcumuladaClp;
+            const capitalTotalClp = (capitalInicialClp || 0) + (totalGananciaAcumuladaClp || 0);
             
             const saldoDisponibleClp = tasaCompraPromedio > 0 ? (saldoVesOnline / tasaCompraPromedio) : 0;
 
@@ -330,7 +330,7 @@ app.get('/api/dashboard', apiAuth, (req, res) => {
                 tasaCompraPromedio: tasaCompraPromedio,
                 tasaVentaPromedio: tasaVentaPromedio,
                 capitalInicialClp: capitalInicialClp || 0,
-                totalGananciaAcumuladaClp: totalGananciaAcumuladaClp,
+                totalGananciaAcumuladaClp: totalGananciaAcumuladaClp || 0,
                 capitalTotalClp: capitalTotalClp, 
                 saldoDisponibleClp: saldoDisponibleClp,
             });
