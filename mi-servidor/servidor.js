@@ -279,12 +279,33 @@ app.get('/api/usuarios/search', apiAuth, onlyMaster, (req, res) => {
 // =================================================================
 // INICIO: ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
 // =================================================================
-app.get('/api/clientes', apiAuth, (req, res) => {
-    db.all('SELECT * FROM clientes ORDER BY nombre', [], (err, rows) => {
-        if (err) return res.status(500).json({ message: 'Error al obtener clientes.' });
-        res.json(rows);
-    });
+// ✅ ENDPOINT DE CLIENTES MODIFICADO PARA PAGINACIÓN Y BÚSQUEDA
+app.get('/api/clientes', apiAuth, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page || '1', 10);
+        const limit = parseInt(req.query.limit || '100', 10);
+        const search = req.query.search || '';
+        const offset = (page - 1) * limit;
+
+        const searchPattern = `%${search}%`;
+        
+        const countResult = await dbGet(`SELECT COUNT(*) as total FROM clientes WHERE nombre LIKE ?`, [searchPattern]);
+        const total = countResult.total;
+        
+        const clientes = await dbAll(`SELECT * FROM clientes WHERE nombre LIKE ? ORDER BY nombre LIMIT ? OFFSET ?`, [searchPattern, limit, offset]);
+
+        res.json({
+            clientes,
+            total,
+            page,
+            limit
+        });
+    } catch (error) {
+        console.error("Error en GET /api/clientes:", error);
+        res.status(500).json({ message: 'Error al obtener clientes.' });
+    }
 });
+
 app.get('/api/clientes/:id', apiAuth, (req, res) => {
     db.get('SELECT * FROM clientes WHERE id = ?', [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ message: 'Error al obtener el cliente.' });
