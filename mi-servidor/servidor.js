@@ -79,14 +79,8 @@ const runMigrations = async () => {
     await addColumn('operaciones', 'costo_clp REAL DEFAULT 0');
     await addColumn('operaciones', 'comision_ves REAL DEFAULT 0');
 
-    // =================================================================
-    // INICIO: CORRECCIÓN FINAL USANDO EL NOMBRE DE COLUMNA CORRECTO
-    // =================================================================
     await dbRun(`CREATE TABLE IF NOT EXISTS compras(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, clp_invertido REAL NOT NULL, ves_obtenido REAL NOT NULL, tasa_clp_ves REAL NOT NULL, fecha TEXT NOT NULL, FOREIGN KEY(usuario_id) REFERENCES usuarios(id))`);
     await addColumn('compras', 'tasa_clp_ves REAL DEFAULT 0');
-    // =================================================================
-    // FIN: CORRECCIÓN FINAL
-    // =================================================================
     
     await dbRun(`CREATE TABLE IF NOT EXISTS configuracion(clave TEXT PRIMARY KEY, valor TEXT)`);
 
@@ -280,21 +274,32 @@ const getAvgPurchaseRate = (date, callback) => {
     });
 };
 
+// =================================================================
+// INICIO: LÓGICA DE CÁLCULO DE COSTO REFINADA
+// =================================================================
 const calcularCostoClpPorVes = (fecha, callback) => {
+    // 1. Intenta obtener la tasa de compra promedio del día actual.
     getAvgPurchaseRate(fecha, (err, rate) => {
         if (err) return callback(err, 0);
+        // Si hay tasa para hoy, úsala.
         if (rate > 0) return callback(null, 1 / rate);
 
+        // 2. Si no hay tasa para hoy, busca la tasa de la ÚLTIMA compra registrada, sin importar la fecha.
         db.get(`SELECT tasa_clp_ves FROM compras ORDER BY fecha DESC, id DESC LIMIT 1`, [], (errLast, lastPurchase) => {
             if (errLast) return callback(errLast, 0);
+            // Si se encuentra una compra histórica, usa su tasa.
             if (lastPurchase && lastPurchase.tasa_clp_ves > 0) return callback(null, 1 / lastPurchase.tasa_clp_ves);
 
+            // 3. Como último recurso (solo para la primera operación de la historia), usa un valor de configuración.
             readConfigValue('capitalCostoVesPorClp')
                 .then(costoConfig => callback(null, costoConfig))
                 .catch(e => callback(e, 0));
         });
     });
 };
+// =================================================================
+// FIN: LÓGICA DE CÁLCULO DE COSTO REFINADA
+// =================================================================
 
 app.get('/api/dashboard', async (req, res) => {
     try {
