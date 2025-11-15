@@ -327,55 +327,95 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
                 .replace(/\s+/g, ' '); // Normalizar espacios
         };
         
-        // Función para verificar similitud (más estricta)
+        // Función para calcular similitud de Levenshtein
+        const levenshteinDistance = (str1, str2) => {
+            const len1 = str1.length;
+            const len2 = str2.length;
+            const matrix = [];
+            
+            for (let i = 0; i <= len1; i++) {
+                matrix[i] = [i];
+            }
+            for (let j = 0; j <= len2; j++) {
+                matrix[0][j] = j;
+            }
+            
+            for (let i = 1; i <= len1; i++) {
+                for (let j = 1; j <= len2; j++) {
+                    const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j] + 1,
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j - 1] + cost
+                    );
+                }
+            }
+            
+            return matrix[len1][len2];
+        };
+        
+        // Función para verificar similitud (más flexible)
         const sonSimilares = (nombre1, nombre2) => {
             const n1 = normalizar(nombre1);
             const n2 = normalizar(nombre2);
             
-            if (n1 === n2) return true; // Exactos
+            // Exactos
+            if (n1 === n2) return true;
             
-            const palabras1 = n1.split(' ');
-            const palabras2 = n2.split(' ');
+            const palabras1 = n1.split(' ').filter(p => p.length > 0);
+            const palabras2 = n2.split(' ').filter(p => p.length > 0);
             
-            // Solo considerar si uno contiene al otro cuando:
-            // 1. La diferencia de longitud es mínima (max 50% más largo)
-            // 2. Y el más corto tiene al menos 2 palabras O es muy específico (>8 chars)
-            const longitudMin = Math.min(n1.length, n2.length);
+            // Si uno contiene al otro completamente
+            if (n1.includes(n2) || n2.includes(n1)) {
+                const longitudMin = Math.min(n1.length, n2.length);
+                // Solo si el más corto tiene al menos 4 caracteres
+                if (longitudMin >= 4) return true;
+            }
+            
+            // Calcular similitud con Levenshtein (para nombres cortos similares)
             const longitudMax = Math.max(n1.length, n2.length);
-            const proporcion = longitudMax / longitudMin;
+            if (longitudMax <= 15) { // Solo para nombres relativamente cortos
+                const distancia = levenshteinDistance(n1, n2);
+                const similitud = 1 - (distancia / longitudMax);
+                // Si tienen más del 75% de similitud
+                if (similitud >= 0.75) return true;
+            }
             
-            if (proporcion <= 1.5 && longitudMin >= 8) {
-                if (n1.includes(n2) || n2.includes(n1)) {
-                    // Verificar que no sean solo fragmentos (ej: "Ale" no debe coincidir con "Alejandro")
-                    const palabrasCortas1 = palabras1.filter(p => p.length <= 3);
-                    const palabrasCortas2 = palabras2.filter(p => p.length <= 3);
+            // Verificar si comparten al menos una palabra significativa (>3 chars)
+            const palabrasSignificativas1 = palabras1.filter(p => p.length > 3);
+            const palabrasSignificativas2 = palabras2.filter(p => p.length > 3);
+            
+            for (const p1 of palabrasSignificativas1) {
+                for (const p2 of palabrasSignificativas2) {
+                    // Palabras iguales o muy similares
+                    if (p1 === p2) return true;
                     
-                    // Si alguno tiene solo palabras cortas (<=3 chars), no es duplicado confiable
-                    if (palabrasCortas1.length === palabras1.length || palabrasCortas2.length === palabras2.length) {
-                        return false;
+                    // Similitud entre palabras individuales
+                    if (p1.length >= 4 && p2.length >= 4) {
+                        const distPalabra = levenshteinDistance(p1, p2);
+                        const similitudPalabra = 1 - (distPalabra / Math.max(p1.length, p2.length));
+                        if (similitudPalabra >= 0.8) return true; // 80% similitud en palabra
                     }
                     
-                    return true;
+                    // Una palabra contiene a la otra
+                    if ((p1.length > 4 && p2.includes(p1)) || (p2.length > 4 && p1.includes(p2))) {
+                        return true;
+                    }
                 }
             }
             
-            // Verificar coincidencia exacta de apellidos (última palabra)
+            // Verificar coincidencia de apellidos (última palabra si hay varias)
             if (palabras1.length >= 2 && palabras2.length >= 2) {
                 const apellido1 = palabras1[palabras1.length - 1];
                 const apellido2 = palabras2[palabras2.length - 1];
                 
-                // Si los apellidos coinciden exactamente
-                if (apellido1 === apellido2 && apellido1.length > 3) {
-                    // Verificar si el primer nombre también coincide
-                    const primerNombre1 = palabras1[0];
-                    const primerNombre2 = palabras2[0];
+                if (apellido1.length > 3 && apellido2.length > 3) {
+                    // Apellidos iguales o muy similares
+                    if (apellido1 === apellido2) return true;
                     
-                    // Nombres iguales o muy similares
-                    if (primerNombre1 === primerNombre2 || 
-                        primerNombre1.includes(primerNombre2) || 
-                        primerNombre2.includes(primerNombre1)) {
-                        return true;
-                    }
+                    const distApellido = levenshteinDistance(apellido1, apellido2);
+                    const similApellido = 1 - (distApellido / Math.max(apellido1.length, apellido2.length));
+                    if (similApellido >= 0.85) return true; // 85% similitud en apellido
                 }
             }
             
