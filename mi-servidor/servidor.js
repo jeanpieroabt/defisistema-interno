@@ -327,24 +327,56 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
                 .replace(/\s+/g, ' '); // Normalizar espacios
         };
         
-        // Función para verificar similitud
+        // Función para verificar similitud (más estricta)
         const sonSimilares = (nombre1, nombre2) => {
             const n1 = normalizar(nombre1);
             const n2 = normalizar(nombre2);
             
             if (n1 === n2) return true; // Exactos
             
-            // Verificar si uno contiene al otro (ej: "maria solano" vs "maria fernanda solano")
-            if (n1.includes(n2) || n2.includes(n1)) return true;
+            const palabras1 = n1.split(' ');
+            const palabras2 = n2.split(' ');
             
-            // Verificar palabras en común (al menos 2 palabras coinciden)
-            const palabras1 = n1.split(' ').filter(p => p.length > 2);
-            const palabras2 = n2.split(' ').filter(p => p.length > 2);
+            // Solo considerar si uno contiene al otro cuando:
+            // 1. La diferencia de longitud es mínima (max 50% más largo)
+            // 2. Y el más corto tiene al menos 2 palabras O es muy específico (>8 chars)
+            const longitudMin = Math.min(n1.length, n2.length);
+            const longitudMax = Math.max(n1.length, n2.length);
+            const proporcion = longitudMax / longitudMin;
             
+            if (proporcion <= 1.5 && longitudMin >= 8) {
+                if (n1.includes(n2) || n2.includes(n1)) {
+                    // Verificar que no sean solo fragmentos (ej: "Ale" no debe coincidir con "Alejandro")
+                    const palabrasCortas1 = palabras1.filter(p => p.length <= 3);
+                    const palabrasCortas2 = palabras2.filter(p => p.length <= 3);
+                    
+                    // Si alguno tiene solo palabras cortas (<=3 chars), no es duplicado confiable
+                    if (palabrasCortas1.length === palabras1.length || palabrasCortas2.length === palabras2.length) {
+                        return false;
+                    }
+                    
+                    return true;
+                }
+            }
+            
+            // Verificar coincidencia exacta de apellidos (última palabra)
             if (palabras1.length >= 2 && palabras2.length >= 2) {
-                const coincidencias = palabras1.filter(p => palabras2.includes(p)).length;
-                // Si coinciden 2 o más palabras significativas, son similares
-                if (coincidencias >= 2) return true;
+                const apellido1 = palabras1[palabras1.length - 1];
+                const apellido2 = palabras2[palabras2.length - 1];
+                
+                // Si los apellidos coinciden exactamente
+                if (apellido1 === apellido2 && apellido1.length > 3) {
+                    // Verificar si el primer nombre también coincide
+                    const primerNombre1 = palabras1[0];
+                    const primerNombre2 = palabras2[0];
+                    
+                    // Nombres iguales o muy similares
+                    if (primerNombre1 === primerNombre2 || 
+                        primerNombre1.includes(primerNombre2) || 
+                        primerNombre2.includes(primerNombre1)) {
+                        return true;
+                    }
+                }
             }
             
             return false;
