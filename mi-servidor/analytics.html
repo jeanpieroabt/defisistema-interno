@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics de Clientes</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .metric-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: var(--border-radius);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .metric-card h3 {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    .metric-card .value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--primary-color);
+    }
+    .metric-card .progress {
+      font-size: 0.85rem;
+      color: var(--medium-grey);
+      margin-top: 0.5rem;
+    }
+    .alert-card {
+      background: white;
+      padding: 1rem;
+      border-radius: var(--border-radius);
+      margin-bottom: 0.75rem;
+      border-left: 4px solid;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .alert-card.warning { border-left-color: #ff9800; background: #fff8e1; }
+    .alert-card.danger { border-left-color: #f44336; background: #ffebee; }
+    .alert-card.info { border-left-color: #2196f3; background: #e3f2fd; }
+    .alert-icon {
+      font-size: 1.5rem;
+      margin-right: 1rem;
+    }
+    .alert-content {
+      flex: 1;
+    }
+    .alert-content strong {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .alert-content small {
+      color: var(--medium-grey);
+      font-size: 0.85rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge.success { background: #4caf50; color: white; }
+    .badge.warning { background: #ff9800; color: white; }
+    .badge.danger { background: #f44336; color: white; }
+    .badge.info { background: #2196f3; color: white; }
+    .badge.neutral { background: var(--light-grey); color: var(--dark); }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 2rem 0 1rem 0;
+    }
+    .tab-container {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid var(--light-grey);
+    }
+    .tab {
+      padding: 0.75rem 1.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--medium-grey);
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s;
+    }
+    .tab.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .cliente-row {
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .cliente-row:hover {
+      background: #f5f5f5;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--light-grey);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--primary-color);
+      transition: width 0.3s;
+    }
+    .progress-fill.success { background: #4caf50; }
+    .progress-fill.warning { background: #ff9800; }
+    .progress-fill.danger { background: #f44336; }
+    .form-inline {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+      margin-bottom: 1.5rem;
+    }
+    .form-inline > div {
+      flex: 1;
+    }
+    .stats-mini {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+    .stats-mini > div {
+      background: #f9f9f9;
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="toast-container" class="toast-container"></div>
+  
+  <div class="card">
+    <div class="hdr">
+      <h1>📊 Analytics de Clientes</h1>
+      <div class="btns">
+        <button class="btn btn-light" onclick="recargarDatos()">🔄 Actualizar</button>
+        <button class="btn btn-primary" onclick="window.close()">Cerrar</button>
+      </div>
+    </div>
+
+    <div class="content">
+      
+      <!-- TABS DE NAVEGACIÓN -->
+      <div class="tab-container">
+        <button class="tab active" onclick="cambiarTab('comportamiento')">📊 Comportamiento</button>
+        <button class="tab" onclick="cambiarTab('alertas')">🚨 Alertas</button>
+        <button class="tab" onclick="cambiarTab('nuevos')">👥 Nuevos Clientes</button>
+        <button class="tab" onclick="cambiarTab('metas')">🎯 Metas</button>
+      </div>
+
+      <!-- TAB 1: COMPORTAMIENTO DE CLIENTES -->
+      <div id="tab-comportamiento" class="tab-content active">
+        <div class="section-header">
+          <h2>Análisis de Comportamiento</h2>
+        </div>
+        
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Total Ops</th>
+                <th>Volumen CLP</th>
+                <th>Ticket Promedio</th>
+                <th>Frecuencia</th>
+                <th>Tendencia</th>
+                <th>Última Op</th>
+                <th>Días Inactivo</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyComportamiento"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 2: ALERTAS -->
+      <div id="tab-alertas" class="tab-content">
+        <div class="section-header">
+          <h2>🚨 Sistema de Alertas</h2>
+          <span id="contadorAlertas" class="badge danger">0 alertas</span>
+        </div>
+        
+        <div id="listaAlertas"></div>
+        <div id="sinAlertas" style="text-align:center; padding:2rem; color:var(--medium-grey); display:none;">
+          <h3>✅ No hay alertas activas</h3>
+          <p>Todos los clientes están activos y con comportamiento normal.</p>
+        </div>
+      </div>
+
+      <!-- TAB 3: NUEVOS CLIENTES -->
+      <div id="tab-nuevos" class="tab-content">
+        <div class="section-header">
+          <h2>👥 Clientes Nuevos</h2>
+          <input type="month" id="mesNuevos" class="btn btn-light" style="padding:0.5rem">
+        </div>
+        
+        <div class="analytics-grid" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="metric-card">
+            <h3>Total Nuevos</h3>
+            <div class="value" id="totalNuevos">0</div>
+          </div>
+          <div class="metric-card">
+            <h3>Con Operaciones</h3>
+            <div class="value" id="nuevosConOps">0</div>
+          </div>
+          <div class="metric-card">
+            <h3>Tasa Conversión</h3>
+            <div class="value" id="tasaConversion">0%</div>
+          </div>
+          <div class="metric-card">
+            <h3>Volumen Total</h3>
+            <div class="value" id="volumenNuevos">$0</div>
+          </div>
+        </div>
+        
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Fecha Registro</th>
+                <th>Días</th>
+                <th>Operaciones</th>
+                <th>Volumen</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyNuevos"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 4: METAS -->
+      <div id="tab-metas" class="tab-content">
+        <div class="section-header">
+          <h2>🎯 Dashboard de Metas</h2>
+          <button class="btn btn-secondary" onclick="mostrarFormMetas()">⚙️ Configurar Metas</button>
+        </div>
+        
+        <div class="analytics-grid">
+          <div class="metric-card">
+            <h3>Clientes Activos</h3>
+            <div class="value" id="metaClientesActivos">0 / 0</div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressClientesActivos"></div>
+            </div>
+            <div class="progress" id="pctClientesActivos">0%</div>
+          </div>
+          
+          <div class="metric-card">
+            <h3>Nuevos Clientes</h3>
+            <div class="value" id="metaNuevosClientes">0 / 0</div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressNuevosClientes"></div>
+            </div>
+            <div class="progress" id="pctNuevosClientes">0%</div>
+          </div>
+          
+          <div class="metric-card">
+            <h3>Volumen CLP</h3>
+            <div class="value" id="metaVolumenClp">$0 / $0</div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressVolumenClp"></div>
+            </div>
+            <div class="progress" id="pctVolumenClp">0%</div>
+          </div>
+          
+          <div class="metric-card">
+            <h3>Operaciones</h3>
+            <div class="value" id="metaOperaciones">0 / 0</div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressOperaciones"></div>
+            </div>
+            <div class="progress" id="pctOperaciones">0%</div>
+          </div>
+        </div>
+
+        <!-- FORMULARIO DE CONFIGURACIÓN DE METAS -->
+        <div id="formMetas" class="box" style="margin-top:2rem; display:none;">
+          <h3>Configurar Metas del Mes</h3>
+          <form id="formConfigMetas">
+            <div class="grid2">
+              <div>
+                <label>Meta Clientes Activos</label>
+                <input type="number" id="inputMetaClientesActivos" required>
+              </div>
+              <div>
+                <label>Meta Nuevos Clientes</label>
+                <input type="number" id="inputMetaNuevosClientes" required>
+              </div>
+              <div>
+                <label>Meta Volumen CLP</label>
+                <input type="number" step="0.01" id="inputMetaVolumenClp" required>
+              </div>
+              <div>
+                <label>Meta Operaciones</label>
+                <input type="number" id="inputMetaOperaciones" required>
+              </div>
+            </div>
+            <div style="margin-top:1rem; display:flex; gap:1rem;">
+              <button type="submit" class="btn btn-primary">💾 Guardar Metas</button>
+              <button type="button" class="btn btn-light" onclick="ocultarFormMetas()">Cancelar</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL DE DETALLE DE CLIENTE -->
+  <div class="modal-overlay" id="modalDetalle">
+    <div class="modal-content" style="max-width: 800px;">
+      <h2 id="detalleNombreCliente">Detalle del Cliente</h2>
+      
+      <div class="stats-mini" style="margin-bottom: 1.5rem;">
+        <div><strong>Total Operaciones:</strong> <span id="detalleTotalOps">0</span></div>
+        <div><strong>Volumen Total:</strong> <span id="detalleVolumenTotal">$0</span></div>
+        <div><strong>Ticket Promedio:</strong> <span id="detalleTicketPromedio">$0</span></div>
+        <div><strong>Primera Operación:</strong> <span id="detallePrimeraOp">—</span></div>
+        <div><strong>Última Operación:</strong> <span id="detalleUltimaOp">—</span></div>
+        <div><strong>Fecha Registro:</strong> <span id="detalleFechaRegistro">—</span></div>
+      </div>
+      
+      <h3>Historial Mensual</h3>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr><th>Mes</th><th>Operaciones</th><th>Volumen</th></tr>
+          </thead>
+          <tbody id="tbodyDetalleMensual"></tbody>
+        </table>
+      </div>
+      
+      <h3 style="margin-top:1.5rem">Últimas Operaciones</h3>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr><th>Fecha</th><th>Monto CLP</th><th>Monto VES</th><th>Tasa</th></tr>
+          </thead>
+          <tbody id="tbodyDetalleOps"></tbody>
+        </table>
+      </div>
+      
+      <div style="margin-top:1.5rem">
+        <button class="btn btn-primary" onclick="cerrarModalDetalle()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 500);
+      }, 4000);
+    }
+
+    let tabActual = 'comportamiento';
+    let datosComportamiento = [];
+    let datosAlertas = [];
+    let datosNuevos = {};
+    let datosMetas = {};
+
+    function cambiarTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector(`.tab[onclick="cambiarTab('${tab}')"]`).classList.add('active');
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      tabActual = tab;
+    }
+
+    const fmtCLP = v => Number(v || 0).toLocaleString('es-CL', {style:'currency', currency:'CLP'});
+    const fmtNum = v => Number(v || 0).toLocaleString('es-CL');
+
+    // ========== COMPORTAMIENTO DE CLIENTES ==========
+    async function cargarComportamiento() {
+      try {
+        const r = await fetch('/api/analytics/clientes/comportamiento');
+        datosComportamiento = await r.json();
+        renderComportamiento();
+      } catch (error) {
+        console.error('Error cargando comportamiento:', error);
+        showToast('Error al cargar comportamiento de clientes', 'error');
+      }
+    }
+
+    function renderComportamiento() {
+      const tbody = document.getElementById('tbodyComportamiento');
+      tbody.innerHTML = '';
+      
+      datosComportamiento.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.className = 'cliente-row';
+        tr.onclick = () => verDetalleCliente(c.id);
+        
+        let badgeFrecuencia = 'neutral';
+        if (c.frecuencia === 'Diario') badgeFrecuencia = 'success';
+        else if (c.frecuencia === 'Semanal') badgeFrecuencia = 'info';
+        else if (c.frecuencia === 'Mensual') badgeFrecuencia = 'warning';
+        
+        let badgeTendencia = 'neutral';
+        if (c.tendencia === 'creciente') badgeTendencia = 'success';
+        else if (c.tendencia === 'decreciente') badgeTendencia = 'danger';
+        
+        const diasInactivo = c.dias_desde_ultimo !== null ? c.dias_desde_ultimo : '—';
+        const ultimaOp = c.ultima_operacion || '—';
+        
+        tr.innerHTML = `
+          <td><strong>${c.nombre}</strong></td>
+          <td>${fmtNum(c.total_operaciones)}</td>
+          <td>${fmtCLP(c.volumen_total_clp)}</td>
+          <td>${fmtCLP(c.ticket_promedio)}</td>
+          <td><span class="badge ${badgeFrecuencia}">${c.frecuencia}</span></td>
+          <td><span class="badge ${badgeTendencia}">${c.tendencia}</span></td>
+          <td>${ultimaOp}</td>
+          <td>${diasInactivo}</td>
+          <td><button class="btn btn-light" onclick="event.stopPropagation(); verDetalleCliente(${c.id})">Ver</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ========== ALERTAS ==========
+    async function cargarAlertas() {
+      try {
+        const r = await fetch('/api/analytics/clientes/alertas');
+        datosAlertas = await r.json();
+        renderAlertas();
+      } catch (error) {
+        console.error('Error cargando alertas:', error);
+        showToast('Error al cargar alertas', 'error');
+      }
+    }
+
+    function renderAlertas() {
+      const contenedor = document.getElementById('listaAlertas');
+      const sinAlertas = document.getElementById('sinAlertas');
+      const contador = document.getElementById('contadorAlertas');
+      
+      contenedor.innerHTML = '';
+      
+      if (datosAlertas.length === 0) {
+        sinAlertas.style.display = 'block';
+        contador.textContent = '0 alertas';
+        contador.className = 'badge success';
+        return;
+      }
+      
+      sinAlertas.style.display = 'none';
+      contador.textContent = `${datosAlertas.length} alertas`;
+      contador.className = 'badge danger';
+      
+      datosAlertas.forEach(alerta => {
+        const card = document.createElement('div');
+        card.className = `alert-card ${alerta.severidad}`;
+        
+        let icono = '⚠️';
+        if (alerta.tipo === 'critico') icono = '🔴';
+        else if (alerta.tipo === 'disminucion') icono = '📉';
+        
+        card.innerHTML = `
+          <div class="alert-icon">${icono}</div>
+          <div class="alert-content">
+            <strong>${alerta.cliente_nombre}</strong>
+            <div>${alerta.mensaje}</div>
+            ${alerta.ultima_operacion ? `<small>Última operación: ${alerta.ultima_operacion}</small>` : ''}
+          </div>
+          <button class="btn btn-light" onclick="verDetalleCliente(${alerta.cliente_id})">Ver</button>
+        `;
+        
+        contenedor.appendChild(card);
+      });
+    }
+
+    // ========== NUEVOS CLIENTES ==========
+    async function cargarNuevos(mes = null) {
+      try {
+        const mesActual = mes || new Date().toISOString().slice(0, 7);
+        const r = await fetch(`/api/analytics/clientes/nuevos?mes=${mesActual}`);
+        datosNuevos = await r.json();
+        renderNuevos();
+      } catch (error) {
+        console.error('Error cargando nuevos clientes:', error);
+        showToast('Error al cargar nuevos clientes', 'error');
+      }
+    }
+
+    function renderNuevos() {
+      const { resumen, clientes } = datosNuevos;
+      
+      document.getElementById('totalNuevos').textContent = resumen.total_nuevos;
+      document.getElementById('nuevosConOps').textContent = resumen.con_operaciones;
+      document.getElementById('tasaConversion').textContent = `${resumen.tasa_conversion}%`;
+      document.getElementById('volumenNuevos').textContent = fmtCLP(resumen.volumen_total);
+      
+      const tbody = document.getElementById('tbodyNuevos');
+      tbody.innerHTML = '';
+      
+      clientes.forEach(c => {
+        const tr = document.createElement('tr');
+        
+        let badgeEstado = 'neutral';
+        let textoEstado = 'Sin actividad';
+        if (c.estado === 'activo') { badgeEstado = 'success'; textoEstado = 'Activo'; }
+        else if (c.estado === 'primera_compra') { badgeEstado = 'info'; textoEstado = 'Primera compra'; }
+        
+        tr.innerHTML = `
+          <td><strong>${c.nombre}</strong></td>
+          <td>${c.fecha_registro}</td>
+          <td>${c.dias_desde_registro}</td>
+          <td>${c.total_operaciones}</td>
+          <td>${fmtCLP(c.volumen_total)}</td>
+          <td><span class="badge ${badgeEstado}">${textoEstado}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ========== METAS ==========
+    async function cargarMetas() {
+      try {
+        const r = await fetch('/api/analytics/metas/dashboard');
+        datosMetas = await r.json();
+        renderMetas();
+      } catch (error) {
+        console.error('Error cargando metas:', error);
+        showToast('Error al cargar metas', 'error');
+      }
+    }
+
+    function renderMetas() {
+      const { metas, actuales, progreso } = datosMetas;
+      
+      // Clientes Activos
+      document.getElementById('metaClientesActivos').textContent = `${actuales.clientes_activos} / ${metas.clientes_activos}`;
+      document.getElementById('progressClientesActivos').style.width = `${Math.min(progreso.clientes_activos, 100)}%`;
+      document.getElementById('progressClientesActivos').className = `progress-fill ${progreso.clientes_activos >= 100 ? 'success' : progreso.clientes_activos >= 75 ? '' : 'warning'}`;
+      document.getElementById('pctClientesActivos').textContent = `${progreso.clientes_activos}% completado`;
+      
+      // Nuevos Clientes
+      document.getElementById('metaNuevosClientes').textContent = `${actuales.nuevos_clientes} / ${metas.nuevos_clientes}`;
+      document.getElementById('progressNuevosClientes').style.width = `${Math.min(progreso.nuevos_clientes, 100)}%`;
+      document.getElementById('progressNuevosClientes').className = `progress-fill ${progreso.nuevos_clientes >= 100 ? 'success' : progreso.nuevos_clientes >= 75 ? '' : 'warning'}`;
+      document.getElementById('pctNuevosClientes').textContent = `${progreso.nuevos_clientes}% completado`;
+      
+      // Volumen CLP
+      document.getElementById('metaVolumenClp').textContent = `${fmtCLP(actuales.volumen_clp)} / ${fmtCLP(metas.volumen_clp)}`;
+      document.getElementById('progressVolumenClp').style.width = `${Math.min(progreso.volumen_clp, 100)}%`;
+      document.getElementById('progressVolumenClp').className = `progress-fill ${progreso.volumen_clp >= 100 ? 'success' : progreso.volumen_clp >= 75 ? '' : 'warning'}`;
+      document.getElementById('pctVolumenClp').textContent = `${progreso.volumen_clp}% completado`;
+      
+      // Operaciones
+      document.getElementById('metaOperaciones').textContent = `${actuales.operaciones} / ${metas.operaciones}`;
+      document.getElementById('progressOperaciones').style.width = `${Math.min(progreso.operaciones, 100)}%`;
+      document.getElementById('progressOperaciones').className = `progress-fill ${progreso.operaciones >= 100 ? 'success' : progreso.operaciones >= 75 ? '' : 'warning'}`;
+      document.getElementById('pctOperaciones').textContent = `${progreso.operaciones}% completado`;
+      
+      // Prellenar formulario
+      document.getElementById('inputMetaClientesActivos').value = metas.clientes_activos;
+      document.getElementById('inputMetaNuevosClientes').value = metas.nuevos_clientes;
+      document.getElementById('inputMetaVolumenClp').value = metas.volumen_clp;
+      document.getElementById('inputMetaOperaciones').value = metas.operaciones;
+    }
+
+    function mostrarFormMetas() {
+      document.getElementById('formMetas').style.display = 'block';
+    }
+
+    function ocultarFormMetas() {
+      document.getElementById('formMetas').style.display = 'none';
+    }
+
+    document.getElementById('formConfigMetas').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const body = {
+        meta_clientes_activos: document.getElementById('inputMetaClientesActivos').value,
+        meta_nuevos_clientes: document.getElementById('inputMetaNuevosClientes').value,
+        meta_volumen_clp: document.getElementById('inputMetaVolumenClp').value,
+        meta_operaciones: document.getElementById('inputMetaOperaciones').value
+      };
+      
+      try {
+        const r = await fetch('/api/analytics/metas/configurar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        
+        const res = await r.json();
+        showToast(res.message, r.ok ? 'success' : 'error');
+        
+        if (r.ok) {
+          ocultarFormMetas();
+          await cargarMetas();
+        }
+      } catch (error) {
+        console.error('Error configurando metas:', error);
+        showToast('Error al guardar metas', 'error');
+      }
+    });
+
+    // ========== DETALLE DE CLIENTE ==========
+    async function verDetalleCliente(id) {
+      try {
+        const r = await fetch(`/api/analytics/clientes/detalle/${id}`);
+        const detalle = await r.json();
+        
+        document.getElementById('detalleNombreCliente').textContent = detalle.cliente.nombre;
+        document.getElementById('detalleTotalOps').textContent = detalle.estadisticas.total_ops;
+        document.getElementById('detalleVolumenTotal').textContent = fmtCLP(detalle.estadisticas.volumen_total);
+        document.getElementById('detalleTicketPromedio').textContent = fmtCLP(detalle.estadisticas.ticket_promedio);
+        document.getElementById('detallePrimeraOp').textContent = detalle.estadisticas.primera_op || '—';
+        document.getElementById('detalleUltimaOp').textContent = detalle.estadisticas.ultima_op || '—';
+        document.getElementById('detalleFechaRegistro').textContent = detalle.cliente.fecha_creacion || '—';
+        
+        // Historial mensual
+        const tbodyMensual = document.getElementById('tbodyDetalleMensual');
+        tbodyMensual.innerHTML = '';
+        detalle.historial_mensual.forEach(m => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${m.mes}</td>
+            <td>${m.operaciones}</td>
+            <td>${fmtCLP(m.volumen)}</td>
+          `;
+          tbodyMensual.appendChild(tr);
+        });
+        
+        // Últimas operaciones
+        const tbodyOps = document.getElementById('tbodyDetalleOps');
+        tbodyOps.innerHTML = '';
+        detalle.ultimas_operaciones.forEach(op => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${op.fecha}</td>
+            <td>${fmtCLP(op.monto_clp)}</td>
+            <td>${fmtNum(op.monto_ves)} VES</td>
+            <td>${Number(op.tasa).toFixed(4)}</td>
+          `;
+          tbodyOps.appendChild(tr);
+        });
+        
+        document.getElementById('modalDetalle').style.display = 'flex';
+      } catch (error) {
+        console.error('Error cargando detalle:', error);
+        showToast('Error al cargar detalle del cliente', 'error');
+      }
+    }
+
+    function cerrarModalDetalle() {
+      document.getElementById('modalDetalle').style.display = 'none';
+    }
+
+    // ========== INICIALIZACIÓN ==========
+    async function recargarDatos() {
+      showToast('Actualizando datos...', 'info');
+      
+      if (tabActual === 'comportamiento') await cargarComportamiento();
+      else if (tabActual === 'alertas') await cargarAlertas();
+      else if (tabActual === 'nuevos') await cargarNuevos();
+      else if (tabActual === 'metas') await cargarMetas();
+      
+      showToast('Datos actualizados', 'success');
+    }
+
+    // Selector de mes para nuevos clientes
+    document.getElementById('mesNuevos').addEventListener('change', (e) => {
+      cargarNuevos(e.target.value);
+    });
+
+    // Cargar datos iniciales
+    (async () => {
+      const mesActual = new Date().toISOString().slice(0, 7);
+      document.getElementById('mesNuevos').value = mesActual;
+      
+      await Promise.all([
+        cargarComportamiento(),
+        cargarAlertas(),
+        cargarNuevos(),
+        cargarMetas()
+      ]);
+    })();
+  </script>
+</body>
+</html>

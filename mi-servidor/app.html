@@ -21,6 +21,7 @@
         <button class="btn-menu" id="menuBtn"><span id="userLabel">Usuario</span> ▾</button>
         <div class="dropdown" id="menuDrop">
           <a id="adminLink" href="/admin.html" target="_blank" style="display:none">Administración</a>
+          <a id="analyticsLink" href="/analytics.html" target="_blank" style="display:none">📊 Analytics Clientes</a>
           <a id="historicoLink" href="/historico.html" target="_blank" style="display:none">Histórico de Envíos</a>
           <a id="clientesLink" href="/clientes.html" target="_blank" style="display:none">Gestión de Clientes</a>
           <hr/>
@@ -368,6 +369,7 @@
       
       if (user.role === 'master') {
         document.getElementById('adminLink').style.display = 'block';
+        document.getElementById('analyticsLink').style.display = 'block';
         document.getElementById('kpisSection').style.display = 'block'; 
         document.getElementById('operatorKpi').style.display = 'none'; 
       } else {

@@ -149,6 +149,9 @@ const runMigrations = async () => {
     await addColumn('compras', 'tasa_clp_ves REAL DEFAULT 0');
     
     await dbRun(`CREATE TABLE IF NOT EXISTS configuracion(clave TEXT PRIMARY KEY, valor TEXT)`);
+    
+    // ✅ NUEVA TABLA PARA METAS
+    await dbRun(`CREATE TABLE IF NOT EXISTS metas(id INTEGER PRIMARY KEY AUTOINCREMENT, mes TEXT NOT NULL UNIQUE, meta_clientes_activos INTEGER DEFAULT 0, meta_nuevos_clientes INTEGER DEFAULT 0, meta_volumen_clp REAL DEFAULT 0, meta_operaciones INTEGER DEFAULT 0)`);
 
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -214,6 +217,7 @@ app.get('/app.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, '
 app.get('/admin.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/historico.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'historico.html')));
 app.get('/clientes.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'clientes.html')));
+app.get('/analytics.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path.join(__dirname, 'analytics.html')));
 
 // -------------------- Auth --------------------
 app.post('/login', (req, res) => {
@@ -877,6 +881,352 @@ app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
         });
     });
 });
+
+// =================================================================
+// INICIO: ENDPOINTS DE ANALYTICS AVANZADO
+// =================================================================
+
+// 📊 ENDPOINT 1: Análisis de comportamiento de clientes
+app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const clientes = await dbAll(`
+            SELECT 
+                c.id,
+                c.nombre,
+                c.fecha_creacion,
+                COUNT(o.id) as total_operaciones,
+                SUM(o.monto_clp) as volumen_total_clp,
+                AVG(o.monto_clp) as ticket_promedio,
+                MAX(o.fecha) as ultima_operacion,
+                MIN(o.fecha) as primera_operacion
+            FROM clientes c
+            LEFT JOIN operaciones o ON c.id = o.cliente_id
+            GROUP BY c.id
+            ORDER BY volumen_total_clp DESC
+        `);
+
+        const hoy = new Date();
+        const analisis = clientes.map(c => {
+            const ultimaOp = c.ultima_operacion ? new Date(c.ultimaOp) : null;
+            const primeraOp = c.primera_operacion ? new Date(c.primera_operacion) : null;
+            const diasDesdeUltimo = ultimaOp ? Math.floor((hoy - ultimaOp) / (1000 * 60 * 60 * 24)) : null;
+            
+            let frecuencia = 'Sin actividad';
+            let tendencia = 'estable';
+            
+            if (c.total_operaciones > 0 && primeraOp && ultimaOp) {
+                const diasActivo = Math.max(1, Math.floor((ultimaOp - primeraOp) / (1000 * 60 * 60 * 24)));
+                const promedioDias = diasActivo / Math.max(1, c.total_operaciones - 1);
+                
+                if (promedioDias <= 1) frecuencia = 'Diario';
+                else if (promedioDias <= 7) frecuencia = 'Semanal';
+                else if (promedioDias <= 30) frecuencia = 'Mensual';
+                else frecuencia = 'Esporádico';
+                
+                // Análisis de tendencia: comparar últimos 30 días vs 30-60 días atrás
+                const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                const hace60 = new Date(hoy.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                
+                db.get(`SELECT COUNT(*) as recientes FROM operaciones WHERE cliente_id = ? AND fecha >= ?`, [c.id, hace30], (e1, r1) => {
+                    db.get(`SELECT COUNT(*) as anteriores FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [c.id, hace60, hace30], (e2, r2) => {
+                        if (r1 && r2) {
+                            if (r1.recientes > r2.anteriores * 1.2) tendencia = 'creciente';
+                            else if (r1.recientes < r2.anteriores * 0.8) tendencia = 'decreciente';
+                        }
+                    });
+                });
+            }
+            
+            return {
+                id: c.id,
+                nombre: c.nombre,
+                fecha_registro: c.fecha_creacion,
+                total_operaciones: c.total_operaciones || 0,
+                volumen_total_clp: c.volumen_total_clp || 0,
+                ticket_promedio: c.ticket_promedio || 0,
+                frecuencia,
+                tendencia,
+                dias_desde_ultimo: diasDesdeUltimo,
+                ultima_operacion: c.ultima_operacion
+            };
+        });
+
+        res.json(analisis);
+    } catch (error) {
+        console.error('Error en análisis de comportamiento:', error);
+        res.status(500).json({ message: 'Error al analizar comportamiento de clientes' });
+    }
+});
+
+// 🚨 ENDPOINT 2: Alertas y clientes en riesgo
+app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const alertas = [];
+        const hoy = new Date();
+        
+        // Clientes inactivos (30-60 días)
+        const inactivos = await dbAll(`
+            SELECT c.id, c.nombre, MAX(o.fecha) as ultima_operacion, COUNT(o.id) as total_ops
+            FROM clientes c
+            JOIN operaciones o ON c.id = o.cliente_id
+            GROUP BY c.id
+            HAVING julianday('now') - julianday(MAX(o.fecha)) BETWEEN 30 AND 60
+        `);
+        
+        inactivos.forEach(c => {
+            const dias = Math.floor((hoy - new Date(c.ultima_operacion)) / (1000 * 60 * 60 * 24));
+            alertas.push({
+                tipo: 'inactivo',
+                severidad: 'warning',
+                cliente_id: c.id,
+                cliente_nombre: c.nombre,
+                mensaje: `Cliente inactivo por ${dias} días`,
+                dias_inactivo: dias,
+                ultima_operacion: c.ultima_operacion
+            });
+        });
+        
+        // Clientes críticos (+60 días)
+        const criticos = await dbAll(`
+            SELECT c.id, c.nombre, MAX(o.fecha) as ultima_operacion
+            FROM clientes c
+            JOIN operaciones o ON c.id = o.cliente_id
+            GROUP BY c.id
+            HAVING julianday('now') - julianday(MAX(o.fecha)) > 60
+        `);
+        
+        criticos.forEach(c => {
+            const dias = Math.floor((hoy - new Date(c.ultima_operacion)) / (1000 * 60 * 60 * 24));
+            alertas.push({
+                tipo: 'critico',
+                severidad: 'danger',
+                cliente_id: c.id,
+                cliente_nombre: c.nombre,
+                mensaje: `Cliente sin actividad por ${dias} días - RIESGO ALTO`,
+                dias_inactivo: dias,
+                ultima_operacion: c.ultima_operacion
+            });
+        });
+        
+        // Disminución de frecuencia
+        const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const hace60 = new Date(hoy.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        
+        const clientesActivos = await dbAll(`
+            SELECT DISTINCT cliente_id FROM operaciones WHERE fecha >= ?
+        `, [hace60]);
+        
+        for (const c of clientesActivos) {
+            const recientes = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ?`, [c.cliente_id, hace30]);
+            const anteriores = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [c.cliente_id, hace60, hace30]);
+            
+            if (anteriores.cnt >= 3 && recientes.cnt < anteriores.cnt * 0.5) {
+                const cliente = await dbGet(`SELECT nombre FROM clientes WHERE id = ?`, [c.cliente_id]);
+                alertas.push({
+                    tipo: 'disminucion',
+                    severidad: 'warning',
+                    cliente_id: c.cliente_id,
+                    cliente_nombre: cliente.nombre,
+                    mensaje: `Reducción de actividad: ${anteriores.cnt} ops → ${recientes.cnt} ops`,
+                    ops_anterior: anteriores.cnt,
+                    ops_reciente: recientes.cnt
+                });
+            }
+        }
+        
+        res.json(alertas);
+    } catch (error) {
+        console.error('Error en alertas:', error);
+        res.status(500).json({ message: 'Error al generar alertas' });
+    }
+});
+
+// 👥 ENDPOINT 3: Análisis de clientes nuevos
+app.get('/api/analytics/clientes/nuevos', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { mes } = req.query; // formato: 2025-11
+        const mesActual = mes || new Date().toISOString().slice(0, 7);
+        
+        const nuevos = await dbAll(`
+            SELECT 
+                c.id,
+                c.nombre,
+                c.fecha_creacion,
+                COUNT(o.id) as total_operaciones,
+                SUM(o.monto_clp) as volumen_total
+            FROM clientes c
+            LEFT JOIN operaciones o ON c.id = o.cliente_id
+            WHERE substr(c.fecha_creacion, 1, 7) = ?
+            GROUP BY c.id
+            ORDER BY c.fecha_creacion DESC
+        `, [mesActual]);
+        
+        const hoy = new Date();
+        const analisis = nuevos.map(c => {
+            const diasDesdeRegistro = Math.floor((hoy - new Date(c.fecha_creacion)) / (1000 * 60 * 60 * 24));
+            const convirtio = c.total_operaciones > 1;
+            
+            return {
+                id: c.id,
+                nombre: c.nombre,
+                fecha_registro: c.fecha_creacion,
+                dias_desde_registro: diasDesdeRegistro,
+                total_operaciones: c.total_operaciones || 0,
+                volumen_total: c.volumen_total || 0,
+                convirtio,
+                estado: c.total_operaciones === 0 ? 'sin_actividad' : convirtio ? 'activo' : 'primera_compra'
+            };
+        });
+        
+        const resumen = {
+            mes: mesActual,
+            total_nuevos: nuevos.length,
+            con_operaciones: nuevos.filter(c => c.total_operaciones > 0).length,
+            tasa_conversion: nuevos.length > 0 ? (nuevos.filter(c => c.total_operaciones > 1).length / nuevos.length * 100).toFixed(1) : 0,
+            volumen_total: nuevos.reduce((sum, c) => sum + (c.volumen_total || 0), 0)
+        };
+        
+        res.json({ resumen, clientes: analisis });
+    } catch (error) {
+        console.error('Error en clientes nuevos:', error);
+        res.status(500).json({ message: 'Error al analizar clientes nuevos' });
+    }
+});
+
+// 🔍 ENDPOINT 4: Detalle profundo de un cliente
+app.get('/api/analytics/clientes/detalle/:id', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const clienteId = req.params.id;
+        
+        const cliente = await dbGet(`SELECT * FROM clientes WHERE id = ?`, [clienteId]);
+        if (!cliente) return res.status(404).json({ message: 'Cliente no encontrado' });
+        
+        const operaciones = await dbAll(`
+            SELECT fecha, monto_clp, monto_ves, tasa 
+            FROM operaciones 
+            WHERE cliente_id = ? 
+            ORDER BY fecha DESC
+        `, [clienteId]);
+        
+        const stats = await dbGet(`
+            SELECT 
+                COUNT(*) as total_ops,
+                SUM(monto_clp) as volumen_total,
+                AVG(monto_clp) as ticket_promedio,
+                MIN(fecha) as primera_op,
+                MAX(fecha) as ultima_op
+            FROM operaciones
+            WHERE cliente_id = ?
+        `, [clienteId]);
+        
+        // Historial por mes
+        const porMes = await dbAll(`
+            SELECT 
+                substr(fecha, 1, 7) as mes,
+                COUNT(*) as operaciones,
+                SUM(monto_clp) as volumen
+            FROM operaciones
+            WHERE cliente_id = ?
+            GROUP BY mes
+            ORDER BY mes DESC
+        `, [clienteId]);
+        
+        res.json({
+            cliente,
+            estadisticas: stats,
+            historial_mensual: porMes,
+            ultimas_operaciones: operaciones.slice(0, 10)
+        });
+    } catch (error) {
+        console.error('Error en detalle de cliente:', error);
+        res.status(500).json({ message: 'Error al obtener detalle del cliente' });
+    }
+});
+
+// 🎯 ENDPOINT 5: Dashboard de metas
+app.get('/api/analytics/metas/dashboard', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const mesActual = new Date().toISOString().slice(0, 7);
+        
+        // Obtener o crear meta del mes
+        let meta = await dbGet(`SELECT * FROM metas WHERE mes = ?`, [mesActual]);
+        if (!meta) {
+            await dbRun(`INSERT INTO metas (mes) VALUES (?)`, [mesActual]);
+            meta = { mes: mesActual, meta_clientes_activos: 0, meta_nuevos_clientes: 0, meta_volumen_clp: 0, meta_operaciones: 0 };
+        }
+        
+        // Calcular valores actuales
+        const stats = await dbGet(`
+            SELECT 
+                COUNT(DISTINCT cliente_id) as clientes_activos,
+                COUNT(*) as total_operaciones,
+                SUM(monto_clp) as volumen_total
+            FROM operaciones
+            WHERE substr(fecha, 1, 7) = ?
+        `, [mesActual]);
+        
+        const nuevosClientes = await dbGet(`
+            SELECT COUNT(*) as cnt FROM clientes WHERE substr(fecha_creacion, 1, 7) = ?
+        `, [mesActual]);
+        
+        // Calcular porcentajes
+        const calcularProgreso = (actual, meta) => meta > 0 ? Math.round((actual / meta) * 100) : 0;
+        
+        const dashboard = {
+            mes: mesActual,
+            metas: {
+                clientes_activos: meta.meta_clientes_activos,
+                nuevos_clientes: meta.meta_nuevos_clientes,
+                volumen_clp: meta.meta_volumen_clp,
+                operaciones: meta.meta_operaciones
+            },
+            actuales: {
+                clientes_activos: stats.clientes_activos || 0,
+                nuevos_clientes: nuevosClientes.cnt || 0,
+                volumen_clp: stats.volumen_total || 0,
+                operaciones: stats.total_operaciones || 0
+            },
+            progreso: {
+                clientes_activos: calcularProgreso(stats.clientes_activos, meta.meta_clientes_activos),
+                nuevos_clientes: calcularProgreso(nuevosClientes.cnt, meta.meta_nuevos_clientes),
+                volumen_clp: calcularProgreso(stats.volumen_total, meta.meta_volumen_clp),
+                operaciones: calcularProgreso(stats.total_operaciones, meta.meta_operaciones)
+            }
+        };
+        
+        res.json(dashboard);
+    } catch (error) {
+        console.error('Error en dashboard de metas:', error);
+        res.status(500).json({ message: 'Error al obtener dashboard de metas' });
+    }
+});
+
+// 🎯 ENDPOINT 6: Configurar metas
+app.post('/api/analytics/metas/configurar', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { mes, meta_clientes_activos, meta_nuevos_clientes, meta_volumen_clp, meta_operaciones } = req.body;
+        const mesConfig = mes || new Date().toISOString().slice(0, 7);
+        
+        await dbRun(`
+            INSERT INTO metas (mes, meta_clientes_activos, meta_nuevos_clientes, meta_volumen_clp, meta_operaciones)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(mes) DO UPDATE SET
+                meta_clientes_activos = excluded.meta_clientes_activos,
+                meta_nuevos_clientes = excluded.meta_nuevos_clientes,
+                meta_volumen_clp = excluded.meta_volumen_clp,
+                meta_operaciones = excluded.meta_operaciones
+        `, [mesConfig, meta_clientes_activos, meta_nuevos_clientes, meta_volumen_clp, meta_operaciones]);
+        
+        res.json({ message: 'Metas configuradas correctamente' });
+    } catch (error) {
+        console.error('Error al configurar metas:', error);
+        res.status(500).json({ message: 'Error al configurar metas' });
+    }
+});
+
+// =================================================================
+// FIN: ENDPOINTS DE ANALYTICS AVANZADO
+// =================================================================
 
 // Iniciar el servidor solo después de que las migraciones se hayan completado
 runMigrations()
