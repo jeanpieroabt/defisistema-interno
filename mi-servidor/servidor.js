@@ -1110,7 +1110,7 @@ app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (re
 
         const hoy = new Date();
         const analisis = clientes.map(c => {
-            const ultimaOp = c.ultima_operacion ? new Date(c.ultimaOp) : null;
+            const ultimaOp = c.ultima_operacion ? new Date(c.ultima_operacion) : null;
             const primeraOp = c.primera_operacion ? new Date(c.primera_operacion) : null;
             const diasDesdeUltimo = ultimaOp ? Math.floor((hoy - ultimaOp) / (1000 * 60 * 60 * 24)) : null;
             
