@@ -315,17 +315,54 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
     try {
         const clientes = await dbAll(`SELECT id, nombre FROM clientes ORDER BY LOWER(nombre)`);
         const duplicados = [];
-        const visto = new Set();
+        const procesados = new Set();
+        
+        // Función para normalizar texto (sin acentos, minúsculas, sin espacios múltiples)
+        const normalizar = (texto) => {
+            return texto
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+                .trim()
+                .replace(/\s+/g, ' '); // Normalizar espacios
+        };
+        
+        // Función para verificar similitud
+        const sonSimilares = (nombre1, nombre2) => {
+            const n1 = normalizar(nombre1);
+            const n2 = normalizar(nombre2);
+            
+            if (n1 === n2) return true; // Exactos
+            
+            // Verificar si uno contiene al otro (ej: "maria solano" vs "maria fernanda solano")
+            if (n1.includes(n2) || n2.includes(n1)) return true;
+            
+            // Verificar palabras en común (al menos 2 palabras coinciden)
+            const palabras1 = n1.split(' ').filter(p => p.length > 2);
+            const palabras2 = n2.split(' ').filter(p => p.length > 2);
+            
+            if (palabras1.length >= 2 && palabras2.length >= 2) {
+                const coincidencias = palabras1.filter(p => palabras2.includes(p)).length;
+                // Si coinciden 2 o más palabras significativas, son similares
+                if (coincidencias >= 2) return true;
+            }
+            
+            return false;
+        };
         
         for (let i = 0; i < clientes.length; i++) {
-            const nombreNorm = clientes[i].nombre.toLowerCase().trim();
+            if (procesados.has(clientes[i].id)) continue;
             
-            if (visto.has(nombreNorm)) continue;
+            const similares = [];
             
-            const similares = clientes.filter(c => {
-                const cNorm = c.nombre.toLowerCase().trim();
-                return cNorm === nombreNorm && c.id !== clientes[i].id;
-            });
+            for (let j = i + 1; j < clientes.length; j++) {
+                if (procesados.has(clientes[j].id)) continue;
+                
+                if (sonSimilares(clientes[i].nombre, clientes[j].nombre)) {
+                    similares.push(clientes[j]);
+                    procesados.add(clientes[j].id);
+                }
+            }
             
             if (similares.length > 0) {
                 const grupo = [clientes[i], ...similares];
@@ -343,8 +380,7 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
                     }))
                 });
                 
-                visto.add(nombreNorm);
-                similares.forEach(s => visto.add(s.nombre.toLowerCase().trim()));
+                procesados.add(clientes[i].id);
             }
         }
         
