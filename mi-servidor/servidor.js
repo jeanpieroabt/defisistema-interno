@@ -1118,13 +1118,18 @@ app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (re
             let tendencia = 'estable';
             
             if (c.total_operaciones > 0 && primeraOp && ultimaOp) {
-                const diasActivo = Math.max(1, Math.floor((ultimaOp - primeraOp) / (1000 * 60 * 60 * 24)));
-                const promedioDias = diasActivo / Math.max(1, c.total_operaciones - 1);
-                
-                if (promedioDias <= 1) frecuencia = 'Diario';
-                else if (promedioDias <= 7) frecuencia = 'Semanal';
-                else if (promedioDias <= 30) frecuencia = 'Mensual';
-                else frecuencia = 'Esporádico';
+                // Cliente con una sola operación
+                if (c.total_operaciones === 1) {
+                    frecuencia = 'Única operación';
+                } else {
+                    const diasActivo = Math.max(1, Math.floor((ultimaOp - primeraOp) / (1000 * 60 * 60 * 24)));
+                    const promedioDias = diasActivo / Math.max(1, c.total_operaciones - 1);
+                    
+                    if (promedioDias <= 1) frecuencia = 'Diario';
+                    else if (promedioDias <= 7) frecuencia = 'Semanal';
+                    else if (promedioDias <= 30) frecuencia = 'Mensual';
+                    else frecuencia = 'Esporádico';
+                }
                 
                 // Análisis de tendencia: comparar últimos 30 días vs 30-60 días atrás
                 const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
