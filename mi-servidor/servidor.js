@@ -674,15 +674,27 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
       if (vesTotalDescontar > saldoVes) {
         return res.status(400).json({ message: 'Saldo VES online insuficiente.' });
       }
-      // Normalizar nombre del cliente: Title Case
-      const nombreNormalizado = cliente_nombre.trim().split(/\s+/).map(palabra => 
-          palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
-      ).join(' ');
+      // Normalizar nombre del cliente: Title Case y sin acentos
+      const nombreNormalizado = cliente_nombre.trim()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+          .split(/\s+/)
+          .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase())
+          .join(' ');
       
       const findOrCreateCliente = new Promise((resolve, reject) => {
-          db.get(`SELECT id FROM clientes WHERE LOWER(nombre) = LOWER(?)`, [nombreNormalizado], (err, cliente) => {
+          // Buscar cliente existente comparando sin acentos
+          db.all(`SELECT id, nombre FROM clientes`, [], (err, clientes) => {
               if (err) return reject(new Error('Error al buscar cliente.'));
-              if (cliente) return resolve(cliente.id);
+              
+              // Buscar coincidencia sin acentos
+              const clienteExistente = clientes.find(c => {
+                  const nombreSinAcentos = c.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                  return nombreSinAcentos.toLowerCase() === nombreNormalizado.toLowerCase();
+              });
+              
+              if (clienteExistente) return resolve(clienteExistente.id);
+              
+              // Crear nuevo cliente si no existe
               db.run(`INSERT INTO clientes(nombre, fecha_creacion) VALUES (?,?)`, [nombreNormalizado, hoyLocalYYYYMMDD()], function(err) {
                   if (err) return reject(new Error('Error al crear nuevo cliente.'));
                   resolve(this.lastID);
