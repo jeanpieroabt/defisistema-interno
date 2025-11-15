@@ -53,21 +53,52 @@
       margin: 0;
       font-size: 2rem;
       font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
     }
     
-    .hdr h1::before {
-      content: '📦';
-      font-size: 2rem;
+    .hdr .btns {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    
+    .logo-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .logo-header img {
+      height: 60px;
+      width: auto;
+      filter: brightness(0) invert(1);
+      object-fit: contain;
+    }
+    
+    .content {
+      padding: 2rem;
     }
     
     .filters {
-      background: #f8f9fa;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
       padding: 1.5rem;
       border-radius: 12px;
       margin-bottom: 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .filters > div {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .filters label {
+      font-weight: 600;
+      color: #374151;
+      font-size: 0.9rem;
     }
     
     .filters input {
@@ -75,11 +106,94 @@
       border-radius: 8px;
       padding: 0.75rem;
       transition: all 0.3s;
+      font-size: 1rem;
     }
     
     .filters input:focus {
       border-color: #667eea;
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      outline: none;
+    }
+    
+    .btn, .btn-primary, .btn-light, .btn-info, .btn-edit, .btn-danger {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 0.95rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-light {
+      background: white;
+      color: #374151;
+      border: 2px solid #e5e7eb;
+    }
+    
+    .btn-light:hover {
+      background: #f9fafb;
+      border-color: #667eea;
+      color: #667eea;
+      transform: translateY(-2px);
+    }
+    
+    .btn-info {
+      background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+      color: white;
+    }
+    
+    .btn-info:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+    }
+    
+    .btn-info:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btns {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    
+    .btn-edit {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: white;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+    }
+    
+    .btn-edit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+    }
+    
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+    }
+    
+    .btn-danger:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
     }
     
     .table-container {
@@ -150,7 +264,13 @@
 
   <div class="card">
     <div class="hdr">
-      <h1>Histórico de Envíos</h1>
+      <div class="logo-header">
+        <img src="logo.png" alt="Defi Oracle Logo">
+        <div>
+          <h1>📦 Histórico de Envíos</h1>
+          <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; opacity: 0.9;">Defi Oracle - Sistema Interno</p>
+        </div>
+      </div>
       <div class="btns">
         <button class="btn btn-light" onclick="window.open('/clientes.html','_blank')">Gestión Clientes</button>
         <button id="btnRecalcular" class="btn-info" disabled>Recalcular Costos</button>
