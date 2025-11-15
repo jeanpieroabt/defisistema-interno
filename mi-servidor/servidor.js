@@ -310,6 +310,112 @@ app.get('/api/clientes', apiAuth, async (req, res) => {
     }
 });
 
+// 🔍 ENDPOINT PARA BUSCAR POSIBLES DUPLICADOS (debe ir ANTES de /api/clientes/:id)
+app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const clientes = await dbAll(`SELECT id, nombre FROM clientes ORDER BY LOWER(nombre)`);
+        const duplicados = [];
+        const visto = new Set();
+        
+        for (let i = 0; i < clientes.length; i++) {
+            const nombreNorm = clientes[i].nombre.toLowerCase().trim();
+            
+            if (visto.has(nombreNorm)) continue;
+            
+            const similares = clientes.filter(c => {
+                const cNorm = c.nombre.toLowerCase().trim();
+                return cNorm === nombreNorm && c.id !== clientes[i].id;
+            });
+            
+            if (similares.length > 0) {
+                const grupo = [clientes[i], ...similares];
+                const opsPromises = grupo.map(c => 
+                    dbGet(`SELECT COUNT(*) as total FROM operaciones WHERE cliente_id = ?`, [c.id])
+                );
+                const opsCounts = await Promise.all(opsPromises);
+                
+                duplicados.push({
+                    nombre_base: clientes[i].nombre,
+                    clientes: grupo.map((c, idx) => ({
+                        id: c.id,
+                        nombre: c.nombre,
+                        operaciones: opsCounts[idx].total
+                    }))
+                });
+                
+                visto.add(nombreNorm);
+                similares.forEach(s => visto.add(s.nombre.toLowerCase().trim()));
+            }
+        }
+        
+        res.json(duplicados);
+    } catch (error) {
+        console.error('Error buscando duplicados:', error);
+        res.status(500).json({ message: 'Error al buscar duplicados.' });
+    }
+});
+
+// 🔀 ENDPOINT PARA FUSIONAR CLIENTES DUPLICADOS (debe ir ANTES de /api/clientes/:id)
+app.post('/api/clientes/fusionar', apiAuth, onlyMaster, async (req, res) => {
+    const { cliente_principal_id, cliente_duplicado_id } = req.body;
+    
+    if (!cliente_principal_id || !cliente_duplicado_id) {
+        return res.status(400).json({ message: 'Se requieren ambos IDs de clientes.' });
+    }
+    
+    if (cliente_principal_id === cliente_duplicado_id) {
+        return res.status(400).json({ message: 'No se puede fusionar un cliente consigo mismo.' });
+    }
+    
+    try {
+        // Verificar que ambos clientes existen
+        const clientePrincipal = await dbGet(`SELECT * FROM clientes WHERE id = ?`, [cliente_principal_id]);
+        const clienteDuplicado = await dbGet(`SELECT * FROM clientes WHERE id = ?`, [cliente_duplicado_id]);
+        
+        if (!clientePrincipal || !clienteDuplicado) {
+            return res.status(404).json({ message: 'Uno o ambos clientes no existen.' });
+        }
+        
+        // Contar operaciones a transferir
+        const countOps = await dbGet(`SELECT COUNT(*) as total FROM operaciones WHERE cliente_id = ?`, [cliente_duplicado_id]);
+        
+        await dbRun('BEGIN TRANSACTION');
+        
+        // Transferir todas las operaciones del duplicado al principal
+        await dbRun(`UPDATE operaciones SET cliente_id = ? WHERE cliente_id = ?`, [cliente_principal_id, cliente_duplicado_id]);
+        
+        // Actualizar datos del cliente principal si el duplicado tiene información adicional
+        const updates = [];
+        const params = [];
+        
+        if (!clientePrincipal.rut && clienteDuplicado.rut) { updates.push('rut = ?'); params.push(clienteDuplicado.rut); }
+        if (!clientePrincipal.email && clienteDuplicado.email) { updates.push('email = ?'); params.push(clienteDuplicado.email); }
+        if (!clientePrincipal.telefono && clienteDuplicado.telefono) { updates.push('telefono = ?'); params.push(clienteDuplicado.telefono); }
+        if (!clientePrincipal.datos_bancarios && clienteDuplicado.datos_bancarios) { updates.push('datos_bancarios = ?'); params.push(clienteDuplicado.datos_bancarios); }
+        
+        if (updates.length > 0) {
+            params.push(cliente_principal_id);
+            await dbRun(`UPDATE clientes SET ${updates.join(', ')} WHERE id = ?`, params);
+        }
+        
+        // Eliminar el cliente duplicado
+        await dbRun(`DELETE FROM clientes WHERE id = ?`, [cliente_duplicado_id]);
+        
+        await dbRun('COMMIT');
+        
+        res.json({ 
+            message: 'Clientes fusionados con éxito.', 
+            operaciones_transferidas: countOps.total,
+            cliente_final: clientePrincipal.nombre
+        });
+        
+    } catch (error) {
+        await dbRun('ROLLBACK');
+        console.error('Error fusionando clientes:', error);
+        res.status(500).json({ message: 'Error al fusionar clientes.' });
+    }
+});
+
 app.get('/api/clientes/:id', apiAuth, (req, res) => {
     db.get('SELECT * FROM clientes WHERE id = ?', [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ message: 'Error al obtener el cliente.' });
@@ -372,112 +478,6 @@ app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
         if (this.changes === 0) return res.status(404).json({ message: 'Cliente no encontrado.' });
         res.json({ message: 'Cliente eliminado con éxito.' });
     });
-});
-
-// 🔀 ENDPOINT PARA FUSIONAR CLIENTES DUPLICADOS
-app.post('/api/clientes/fusionar', apiAuth, onlyMaster, async (req, res) => {
-    const { cliente_principal_id, cliente_duplicado_id } = req.body;
-    
-    if (!cliente_principal_id || !cliente_duplicado_id) {
-        return res.status(400).json({ message: 'Se requieren ambos IDs de clientes.' });
-    }
-    
-    if (cliente_principal_id === cliente_duplicado_id) {
-        return res.status(400).json({ message: 'No se puede fusionar un cliente consigo mismo.' });
-    }
-    
-    try {
-        // Verificar que ambos clientes existen
-        const clientePrincipal = await dbGet(`SELECT * FROM clientes WHERE id = ?`, [cliente_principal_id]);
-        const clienteDuplicado = await dbGet(`SELECT * FROM clientes WHERE id = ?`, [cliente_duplicado_id]);
-        
-        if (!clientePrincipal || !clienteDuplicado) {
-            return res.status(404).json({ message: 'Uno o ambos clientes no existen.' });
-        }
-        
-        // Contar operaciones a transferir
-        const countOps = await dbGet(`SELECT COUNT(*) as total FROM operaciones WHERE cliente_id = ?`, [cliente_duplicado_id]);
-        
-        await dbRun('BEGIN TRANSACTION');
-        
-        // Transferir todas las operaciones del duplicado al principal
-        await dbRun(`UPDATE operaciones SET cliente_id = ? WHERE cliente_id = ?`, [cliente_principal_id, cliente_duplicado_id]);
-        
-        // Actualizar datos del cliente principal si el duplicado tiene información adicional
-        const updates = [];
-        const params = [];
-        
-        if (!clientePrincipal.rut && clienteDuplicado.rut) { updates.push('rut = ?'); params.push(clienteDuplicado.rut); }
-        if (!clientePrincipal.email && clienteDuplicado.email) { updates.push('email = ?'); params.push(clienteDuplicado.email); }
-        if (!clientePrincipal.telefono && clienteDuplicado.telefono) { updates.push('telefono = ?'); params.push(clienteDuplicado.telefono); }
-        if (!clientePrincipal.datos_bancarios && clienteDuplicado.datos_bancarios) { updates.push('datos_bancarios = ?'); params.push(clienteDuplicado.datos_bancarios); }
-        
-        if (updates.length > 0) {
-            params.push(cliente_principal_id);
-            await dbRun(`UPDATE clientes SET ${updates.join(', ')} WHERE id = ?`, params);
-        }
-        
-        // Eliminar el cliente duplicado
-        await dbRun(`DELETE FROM clientes WHERE id = ?`, [cliente_duplicado_id]);
-        
-        await dbRun('COMMIT');
-        
-        res.json({ 
-            message: 'Clientes fusionados con éxito.', 
-            operaciones_transferidas: countOps.total,
-            cliente_final: clientePrincipal.nombre
-        });
-        
-    } catch (error) {
-        await dbRun('ROLLBACK');
-        console.error('Error fusionando clientes:', error);
-        res.status(500).json({ message: 'Error al fusionar clientes.' });
-    }
-});
-
-// 🔍 ENDPOINT PARA BUSCAR POSIBLES DUPLICADOS
-app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
-    try {
-        const clientes = await dbAll(`SELECT id, nombre FROM clientes ORDER BY LOWER(nombre)`);
-        const duplicados = [];
-        const visto = new Set();
-        
-        for (let i = 0; i < clientes.length; i++) {
-            const nombreNorm = clientes[i].nombre.toLowerCase().trim();
-            
-            if (visto.has(nombreNorm)) continue;
-            
-            const similares = clientes.filter(c => {
-                const cNorm = c.nombre.toLowerCase().trim();
-                return cNorm === nombreNorm && c.id !== clientes[i].id;
-            });
-            
-            if (similares.length > 0) {
-                const grupo = [clientes[i], ...similares];
-                const opsPromises = grupo.map(c => 
-                    dbGet(`SELECT COUNT(*) as total FROM operaciones WHERE cliente_id = ?`, [c.id])
-                );
-                const opsCounts = await Promise.all(opsPromises);
-                
-                duplicados.push({
-                    nombre_base: clientes[i].nombre,
-                    clientes: grupo.map((c, idx) => ({
-                        id: c.id,
-                        nombre: c.nombre,
-                        operaciones: opsCounts[idx].total
-                    }))
-                });
-                
-                visto.add(nombreNorm);
-                similares.forEach(s => visto.add(s.nombre.toLowerCase().trim()));
-            }
-        }
-        
-        res.json(duplicados);
-    } catch (error) {
-        console.error('Error buscando duplicados:', error);
-        res.status(500).json({ message: 'Error al buscar duplicados.' });
-    }
 });
 // =================================================================
 // FIN: ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
