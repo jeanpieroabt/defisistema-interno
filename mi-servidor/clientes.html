@@ -54,7 +54,10 @@
                 <div class="search-container">
                     <input type="text" id="searchCliente" placeholder="Buscar cliente por nombre...">
                 </div>
-                <button id="btnNuevoCliente" class="btn btn-primary">+ Agregar Cliente</button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="btnDetectarDuplicados" class="btn btn-warning">🔍 Detectar Duplicados</button>
+                    <button id="btnNuevoCliente" class="btn btn-primary">+ Agregar Cliente</button>
+                </div>
             </div>
             
             <div id="clientes-count"></div>
@@ -97,6 +100,19 @@
                     <button type="submit" class="btn btn-primary">Guardar</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal para Fusionar Duplicados -->
+    <div class="modal-overlay" id="duplicadosModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <h2>🔍 Clientes Duplicados Detectados</h2>
+            <div id="duplicadosContent" style="max-height: 500px; overflow-y: auto; margin: 1.5rem 0;">
+                <!-- Se llenará dinámicamente -->
+            </div>
+            <div class="modal-buttons">
+                <button type="button" id="btnCerrarDuplicados" class="btn btn-primary">Cerrar</button>
+            </div>
         </div>
     </div>
 
@@ -270,10 +286,129 @@
                     // Recargar desde el principio para ver el nuevo cliente
                     currentPage = 1;
                     cargarClientes(currentPage, currentSearch, false);
+                    alert(id ? 'Cliente actualizado con éxito.' : 'Cliente creado con éxito.');
                 } catch (error) {
                     alert(`Error: ${error.message}`);
                 }
             });
+
+            // FUNCIONALIDAD DE DETECCIÓN Y FUSIÓN DE DUPLICADOS
+            const duplicadosModal = document.getElementById('duplicadosModal');
+            const duplicadosContent = document.getElementById('duplicadosContent');
+            
+            document.getElementById('btnDetectarDuplicados').addEventListener('click', async () => {
+                duplicadosContent.innerHTML = '<p style="text-align:center">🔍 Buscando duplicados...</p>';
+                duplicadosModal.style.display = 'flex';
+                
+                try {
+                    const res = await fetch('/api/clientes/duplicados');
+                    if (!res.ok) throw new Error('Error al buscar duplicados');
+                    
+                    const duplicados = await res.json();
+                    
+                    if (duplicados.length === 0) {
+                        duplicadosContent.innerHTML = `
+                            <div style="text-align:center; padding:2rem; color:var(--success);">
+                                <h3>✅ No se encontraron duplicados</h3>
+                                <p>Todos los nombres de clientes son únicos.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    duplicadosContent.innerHTML = `
+                        <div style="background:#fff3cd; padding:1rem; border-radius:8px; margin-bottom:1rem;">
+                            <strong>⚠️ Se encontraron ${duplicados.length} grupos de clientes duplicados.</strong>
+                            <p style="margin:0.5rem 0 0 0; font-size:0.9rem;">Selecciona el cliente principal para cada grupo y fusiona los registros.</p>
+                        </div>
+                    `;
+                    
+                    duplicados.forEach((grupo, idx) => {
+                        const grupoDiv = document.createElement('div');
+                        grupoDiv.style.cssText = 'background:white; border:2px solid #dee2e6; border-radius:8px; padding:1rem; margin-bottom:1rem;';
+                        
+                        let clientesHTML = grupo.clientes.map(c => `
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:#f8f9fa; border-radius:4px; margin-bottom:0.5rem;">
+                                <div>
+                                    <strong>${c.nombre}</strong> <span style="color:#6c757d;">(ID: ${c.id})</span>
+                                    <br><small style="color:#6c757d;">${c.operaciones} operaciones registradas</small>
+                                </div>
+                                <input type="radio" name="principal_${idx}" value="${c.id}" style="transform:scale(1.5);">
+                            </div>
+                        `).join('');
+                        
+                        grupoDiv.innerHTML = `
+                            <h4 style="margin:0 0 1rem 0; color:#495057;">📋 Grupo: "${grupo.nombre_base}"</h4>
+                            ${clientesHTML}
+                            <button class="btn btn-primary" onclick="fusionarGrupo(${idx}, ${JSON.stringify(grupo.clientes).replace(/"/g, '&quot;')})" style="margin-top:0.5rem;">
+                                🔗 Fusionar Seleccionados
+                            </button>
+                        `;
+                        
+                        duplicadosContent.appendChild(grupoDiv);
+                    });
+                    
+                } catch (error) {
+                    console.error(error);
+                    duplicadosContent.innerHTML = `<p style="color:red; text-align:center;">Error: ${error.message}</p>`;
+                }
+            });
+            
+            document.getElementById('btnCerrarDuplicados').addEventListener('click', () => {
+                duplicadosModal.style.display = 'none';
+            });
+            
+            // Función global para fusionar
+            window.fusionarGrupo = async function(grupoIdx, clientes) {
+                const radioSeleccionado = document.querySelector(`input[name="principal_${grupoIdx}"]:checked`);
+                
+                if (!radioSeleccionado) {
+                    alert('⚠️ Por favor, selecciona el cliente principal (el que quieres mantener)');
+                    return;
+                }
+                
+                const clientePrincipalId = parseInt(radioSeleccionado.value);
+                const clientePrincipal = clientes.find(c => c.id === clientePrincipalId);
+                const duplicados = clientes.filter(c => c.id !== clientePrincipalId);
+                
+                const totalOps = duplicados.reduce((sum, c) => sum + c.operaciones, 0);
+                
+                const confirmMsg = `🔗 FUSIONAR CLIENTES\n\n` +
+                    `Cliente Principal (se mantendrá):\n` +
+                    `"${clientePrincipal.nombre}" (${clientePrincipal.operaciones} ops)\n\n` +
+                    `Se fusionarán ${duplicados.length} cliente(s) duplicado(s):\n` +
+                    duplicados.map(d => `• "${d.nombre}" (${d.operaciones} ops)`).join('\n') +
+                    `\n\nTotal de operaciones a transferir: ${totalOps}\n\n` +
+                    `⚠️ Esta acción NO se puede deshacer.\n¿Continuar?`;
+                
+                if (!confirm(confirmMsg)) return;
+                
+                try {
+                    for (const duplicado of duplicados) {
+                        const res = await fetch('/api/clientes/fusionar', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                cliente_principal_id: clientePrincipalId,
+                                cliente_duplicado_id: duplicado.id
+                            })
+                        });
+                        
+                        if (!res.ok) {
+                            const error = await res.json();
+                            throw new Error(error.message);
+                        }
+                    }
+                    
+                    alert(`✅ Fusión completada con éxito!\n\nSe transfirieron ${totalOps} operaciones al cliente "${clientePrincipal.nombre}"`);
+                    duplicadosModal.style.display = 'none';
+                    currentPage = 1;
+                    cargarClientes(currentPage, currentSearch, false);
+                    
+                } catch (error) {
+                    alert(`❌ Error al fusionar: ${error.message}`);
+                }
+            };
 
             // Carga inicial
             cargarClientes(currentPage, currentSearch, false);
