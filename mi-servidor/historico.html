@@ -3,8 +3,147 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Histórico de Envíos</title>
+  <title>Histórico de Envíos - Defi Oracle</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      position: relative;
+      overflow-x: hidden;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      background-image: url('logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.03;
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    .card {
+      position: relative;
+      z-index: 1;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+    
+    .hdr {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .hdr h1 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .hdr h1::before {
+      content: '📦';
+      font-size: 2rem;
+    }
+    
+    .filters {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+    }
+    
+    .filters input {
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 0.75rem;
+      transition: all 0.3s;
+    }
+    
+    .filters input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .table-container {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    table thead {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    table tbody tr:hover {
+      background: #f0f4ff;
+      transform: scale(1.001);
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+    }
+    
+    #resumenSection {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    #resumenTitle {
+      color: #667eea;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    #resumenTitle::before {
+      content: '📊';
+      font-size: 1.5rem;
+    }
+    
+    .resumen-filters {
+      background: #eff6ff;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    
+    .resumen-filters input {
+      flex: 1;
+      padding: 0.75rem;
+      border: 2px solid #dbeafe;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    
+    .resumen-filters input:focus {
+      border-color: #667eea;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+  </style>
 </head>
 <body>
   <div id="toast-container" class="toast-container"></div>
@@ -39,6 +178,9 @@
       
       <div id="resumenSection" style="margin-top: 20px; display: none;">
           <h2 id="resumenTitle">Resumen Consolidado</h2>
+          <div class="resumen-filters" id="resumenFiltersContainer" style="display: none;">
+            <input type="text" id="filtroNombreResumen" placeholder="🔍 Filtrar por nombre de cliente...">
+          </div>
           <div class="table-container">
             <table class="table">
                 <thead><tr id="tbodyResumenHeader"></tr></thead>
@@ -249,11 +391,14 @@
         }
     }
 
+    let resumenDataGlobal = [];
+    
     async function cargarResumen(){
         const fDesde = document.getElementById('fDesde').value;
         const fHasta = document.getElementById('fHasta').value;
         const tbResumen = document.getElementById('tbodyResumen');
         const resumenSection = document.getElementById('resumenSection');
+        const filtrosContainer = document.getElementById('resumenFiltersContainer');
         
         document.getElementById('resumenTitle').textContent = 'Resumen Consolidado por Cliente';
         document.getElementById('tbodyResumenHeader').innerHTML = `
@@ -263,6 +408,7 @@
             <th style="text-align:right">Ganancia Bruta</th>
         `;
         resumenSection.style.display = 'block';
+        filtrosContainer.style.display = 'flex';
         document.getElementById('tituloDetalle').style.display = 'none';
         document.querySelector('#tituloDetalle + .table-container').style.display = 'none';
         
@@ -271,7 +417,13 @@
         const params = new URLSearchParams({ startDate: fDesde || '', endDate: fHasta || '' });
         const r = await fetch('/api/historico/resumen?' + params.toString());
         const data = await r.json();
-
+        
+        resumenDataGlobal = data;
+        renderResumen(data);
+    }
+    
+    function renderResumen(data) {
+        const tbResumen = document.getElementById('tbodyResumen');
         tbResumen.innerHTML = '';
         const fmt = v => (v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP',minimumFractionDigits:2,maximumFractionDigits:2});
 
@@ -296,6 +448,7 @@
         const fDesde = document.getElementById('fDesde').value;
         const fHasta = document.getElementById('fHasta').value;
         const tbResumen = document.getElementById('tbodyResumen');
+        const filtrosContainer = document.getElementById('resumenFiltersContainer');
         
         document.getElementById('resumenTitle').textContent = 'Reporte de Rendimiento por Operador';
         document.getElementById('tbodyResumenHeader').innerHTML = `
@@ -307,6 +460,7 @@
         `;
 
         document.getElementById('resumenSection').style.display = 'block';
+        filtrosContainer.style.display = 'none';
         document.getElementById('tituloDetalle').style.display = 'none';
         document.querySelector('#tituloDetalle + .table-container').style.display = 'none';
         
@@ -428,6 +582,7 @@
       document.getElementById('btnRecalcular').onclick = recalcularCostos;
       document.getElementById('btnLimpiar').onclick = ()=>{ 
           ['fDesde','fHasta','fCliente','fOperador'].forEach(id=>document.getElementById(id).value=''); 
+          document.getElementById('filtroNombreResumen').value = '';
           document.getElementById('resumenSection').style.display = 'none';
           document.getElementById('tituloDetalle').style.display = 'block';
           document.querySelector('#tituloDetalle + .table-container').style.display = 'block';
@@ -436,6 +591,18 @@
       document.getElementById('btnExport').onclick = exportar;
       
       document.getElementById('editRecibo').addEventListener('input', () => checkRecibo(document.getElementById('editRecibo'), document.getElementById('editReciboStatus'), document.getElementById('btnGuardarCambios')));
+      
+      document.getElementById('filtroNombreResumen').addEventListener('input', (e) => {
+          const query = e.target.value.toLowerCase().trim();
+          if (query) {
+              const filtrados = resumenDataGlobal.filter(d => 
+                  d.cliente_nombre.toLowerCase().includes(query)
+              );
+              renderResumen(filtrados);
+          } else {
+              renderResumen(resumenDataGlobal);
+          }
+      });
       
       addClientAutocomplete(document.getElementById('fCliente'), document.getElementById('fClienteSuggestions'));
 
