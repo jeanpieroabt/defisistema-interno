@@ -313,7 +313,7 @@ app.get('/api/clientes', apiAuth, async (req, res) => {
 // 🔍 ENDPOINT PARA BUSCAR POSIBLES DUPLICADOS (debe ir ANTES de /api/clientes/:id)
 app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
     try {
-        const clientes = await dbAll(`SELECT id, nombre FROM clientes ORDER BY LOWER(nombre)`);
+        const clientes = await dbAll(`SELECT id, nombre, rut, email, telefono FROM clientes ORDER BY LOWER(nombre)`);
         const duplicados = [];
         const procesados = new Set();
         
@@ -408,6 +408,9 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
                     clientes: grupo.map((c, idx) => ({
                         id: c.id,
                         nombre: c.nombre,
+                        rut: c.rut || '',
+                        email: c.email || '',
+                        telefono: c.telefono || '',
                         operaciones: opsCounts[idx].total
                     }))
                 });

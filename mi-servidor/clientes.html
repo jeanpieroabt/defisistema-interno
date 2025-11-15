@@ -663,34 +663,69 @@
                     duplicadosContent.innerHTML = `
                         <div style="background:#fff3cd; padding:1rem; border-radius:8px; margin-bottom:1rem;">
                             <strong>⚠️ Se encontraron ${duplicados.length} grupos de clientes duplicados.</strong>
-                            <p style="margin:0.5rem 0 0 0; font-size:0.9rem;">Selecciona el cliente principal para cada grupo y fusiona los registros.</p>
+                            <p style="margin:0.5rem 0 0 0; font-size:0.9rem;">Selecciona el cliente principal (MANTENER) y marca los que deseas fusionar en cada grupo.</p>
+                        </div>
+                        <div style="text-align:right; margin-bottom:1rem;">
+                            <button id="btnFusionarTodos" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                🔗 Fusionar Todos los Grupos Seleccionados
+                            </button>
                         </div>
                     `;
                     
                     duplicados.forEach((grupo, idx) => {
                         const grupoDiv = document.createElement('div');
-                        grupoDiv.style.cssText = 'background:white; border:2px solid #dee2e6; border-radius:8px; padding:1rem; margin-bottom:1rem;';
+                        grupoDiv.style.cssText = 'background:white; border:2px solid #dee2e6; border-radius:12px; padding:1.5rem; margin-bottom:1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08);';
+                        grupoDiv.dataset.grupoId = idx;
                         
-                        let clientesHTML = grupo.clientes.map(c => `
-                            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:#f8f9fa; border-radius:4px; margin-bottom:0.5rem;">
-                                <div>
-                                    <strong>${c.nombre}</strong> <span style="color:#6c757d;">(ID: ${c.id})</span>
-                                    <br><small style="color:#6c757d;">${c.operaciones} operaciones registradas</small>
+                        let clientesHTML = grupo.clientes.map(c => {
+                            const tieneDatos = c.rut || c.email || c.telefono;
+                            const datosExtra = [];
+                            if (c.rut) datosExtra.push(`<span style="background:#e0f2fe; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.85rem;">📋 RUT: ${c.rut}</span>`);
+                            if (c.email) datosExtra.push(`<span style="background:#dbeafe; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.85rem;">📧 ${c.email}</span>`);
+                            if (c.telefono) datosExtra.push(`<span style="background:#e0e7ff; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.85rem;">📱 ${c.telefono}</span>`);
+                            
+                            return `
+                                <div style="padding:1rem; background:${tieneDatos ? '#f0fdf4' : '#f8f9fa'}; border-radius:8px; margin-bottom:0.75rem; border-left: 4px solid ${tieneDatos ? '#10b981' : '#d1d5db'};">
+                                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:0.5rem;">
+                                        <div style="flex:1;">
+                                            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                                                <strong style="font-size:1.1rem;">${c.nombre}</strong>
+                                                <span style="background:#e5e7eb; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.8rem; color:#6b7280;">ID: ${c.id}</span>
+                                                ${!tieneDatos ? '<span style="background:#fef3c7; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.8rem; color:#92400e;">⚠️ Solo nombre</span>' : ''}
+                                            </div>
+                                            <div style="font-size:0.9rem; color:#6b7280; margin-bottom:0.5rem;">
+                                                📊 ${c.operaciones} operaciones registradas
+                                            </div>
+                                            ${datosExtra.length > 0 ? `<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;">${datosExtra.join('')}</div>` : ''}
+                                        </div>
+                                        <div style="display:flex; flex-direction:column; gap:0.5rem; align-items:end;">
+                                            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; background:#3b82f6; color:white; padding:0.5rem 1rem; border-radius:6px; font-weight:600; font-size:0.9rem;">
+                                                <input type="radio" name="principal_${idx}" value="${c.id}" style="transform:scale(1.3);">
+                                                MANTENER
+                                            </label>
+                                            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; background:#f3f4f6; color:#374151; padding:0.5rem 1rem; border-radius:6px; font-weight:600; font-size:0.9rem;">
+                                                <input type="checkbox" class="fusionar_${idx}" value="${c.id}" style="transform:scale(1.3);">
+                                                Fusionar
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
-                                <input type="radio" name="principal_${idx}" value="${c.id}" style="transform:scale(1.5);">
-                            </div>
-                        `).join('');
+                            `;
+                        }).join('');
                         
                         grupoDiv.innerHTML = `
-                            <h4 style="margin:0 0 1rem 0; color:#495057;">📋 Grupo: "${grupo.nombre_base}"</h4>
+                            <h4 style="margin:0 0 1rem 0; color:#374151; font-size:1.2rem; display:flex; align-items:center; gap:0.5rem;">
+                                📋 Grupo: "${grupo.nombre_base}"
+                                <span style="background:#e5e7eb; padding:0.25rem 0.75rem; border-radius:6px; font-size:0.9rem; font-weight:normal;">${grupo.clientes.length} clientes</span>
+                            </h4>
                             ${clientesHTML}
-                            <button class="btn btn-primary" onclick="fusionarGrupo(${idx}, ${JSON.stringify(grupo.clientes).replace(/"/g, '&quot;')})" style="margin-top:0.5rem;">
-                                🔗 Fusionar Seleccionados
-                            </button>
                         `;
                         
                         duplicadosContent.appendChild(grupoDiv);
                     });
+                    
+                    // Event listener para el botón de fusión masiva
+                    document.getElementById('btnFusionarTodos').addEventListener('click', () => fusionarTodosLosGrupos(duplicados));
                     
                 } catch (error) {
                     console.error(error);
@@ -871,7 +906,90 @@
                 duplicadosModal.style.display = 'none';
             });
             
-            // Función global para fusionar
+            // Función para fusionar todos los grupos seleccionados
+            window.fusionarTodosLosGrupos = async function(grupos) {
+                const gruposAFusionar = [];
+                
+                // Recopilar todos los grupos con selecciones válidas
+                grupos.forEach((grupo, idx) => {
+                    const radioSeleccionado = document.querySelector(`input[name="principal_${idx}"]:checked`);
+                    const checkboxesMarcados = Array.from(document.querySelectorAll(`.fusionar_${idx}:checked`));
+                    
+                    if (radioSeleccionado && checkboxesMarcados.length > 0) {
+                        const clientePrincipalId = parseInt(radioSeleccionado.value);
+                        const duplicadosIds = checkboxesMarcados.map(cb => parseInt(cb.value)).filter(id => id !== clientePrincipalId);
+                        
+                        if (duplicadosIds.length > 0) {
+                            gruposAFusionar.push({
+                                idx,
+                                principal: grupo.clientes.find(c => c.id === clientePrincipalId),
+                                duplicados: grupo.clientes.filter(c => duplicadosIds.includes(c.id))
+                            });
+                        }
+                    }
+                });
+                
+                if (gruposAFusionar.length === 0) {
+                    alert('⚠️ No has seleccionado ningún grupo válido para fusionar.\n\nPara cada grupo debes:\n1. Marcar el cliente a MANTENER (radio button)\n2. Marcar al menos un cliente para Fusionar (checkbox)');
+                    return;
+                }
+                
+                // Preparar resumen
+                let resumen = `🔗 FUSIÓN MASIVA DE CLIENTES\n\n`;
+                resumen += `Se fusionarán ${gruposAFusionar.length} grupos:\n\n`;
+                
+                let totalOperaciones = 0;
+                gruposAFusionar.forEach((g, i) => {
+                    const ops = g.duplicados.reduce((sum, c) => sum + c.operaciones, 0);
+                    totalOperaciones += ops;
+                    resumen += `${i + 1}. "${g.principal.nombre}" ← ${g.duplicados.length} duplicado(s) (${ops} ops)\n`;
+                });
+                
+                resumen += `\n📊 Total: ${totalOperaciones} operaciones se transferirán\n`;
+                resumen += `\n⚠️ Esta acción NO se puede deshacer.\n¿Continuar?`;
+                
+                if (!confirm(resumen)) return;
+                
+                // Ejecutar fusiones
+                let exitosas = 0;
+                let fallidas = 0;
+                
+                for (const grupo of gruposAFusionar) {
+                    for (const duplicado of grupo.duplicados) {
+                        try {
+                            const res = await fetch('/api/clientes/fusionar', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    cliente_principal_id: grupo.principal.id,
+                                    cliente_duplicado_id: duplicado.id
+                                })
+                            });
+                            
+                            if (res.ok) {
+                                exitosas++;
+                            } else {
+                                fallidas++;
+                                console.error(`Error al fusionar ${duplicado.nombre}`)
+                            }
+                        } catch (error) {
+                            fallidas++;
+                            console.error(`Error al fusionar ${duplicado.nombre}:`, error);
+                        }
+                    }
+                }
+                
+                alert(`✅ Fusión masiva completada!\n\n` +
+                    `✔️ Exitosas: ${exitosas}\n` +
+                    `${fallidas > 0 ? `❌ Fallidas: ${fallidas}\n` : ''}` +
+                    `📊 Total de operaciones transferidas: ${totalOperaciones}`);
+                
+                duplicadosModal.style.display = 'none';
+                currentPage = 1;
+                cargarClientes(currentPage, currentSearch, false);
+            };
+            
+            // Función global para fusionar (mantener por compatibilidad, aunque ya no se usa en la UI)
             window.fusionarGrupo = async function(grupoIdx, clientes) {
                 const radioSeleccionado = document.querySelector(`input[name="principal_${grupoIdx}"]:checked`);
                 
