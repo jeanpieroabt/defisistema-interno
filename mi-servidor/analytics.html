@@ -71,6 +71,7 @@
       font-weight: 700;
       text-transform: uppercase;
     }
+    .badge.primary { background: #667eea; color: white; }
     .badge.success { background: #4caf50; color: white; }
     .badge.warning { background: #ff9800; color: white; }
     .badge.danger { background: #f44336; color: white; }
@@ -429,9 +430,11 @@
         tr.onclick = () => verDetalleCliente(c.id);
         
         let badgeFrecuencia = 'neutral';
-        if (c.frecuencia === 'Diario') badgeFrecuencia = 'success';
+        if (c.frecuencia === 'Única operación') badgeFrecuencia = 'primary';
+        else if (c.frecuencia === 'Diario') badgeFrecuencia = 'success';
         else if (c.frecuencia === 'Semanal') badgeFrecuencia = 'info';
         else if (c.frecuencia === 'Mensual') badgeFrecuencia = 'warning';
+        else if (c.frecuencia === 'Esporádico') badgeFrecuencia = 'neutral';
         
         let badgeTendencia = 'neutral';
         if (c.tendencia === 'creciente') badgeTendencia = 'success';

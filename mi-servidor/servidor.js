@@ -1125,7 +1125,8 @@ app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (re
                     const diasActivo = Math.max(1, Math.floor((ultimaOp - primeraOp) / (1000 * 60 * 60 * 24)));
                     const promedioDias = diasActivo / Math.max(1, c.total_operaciones - 1);
                     
-                    if (promedioDias <= 1) frecuencia = 'Diario';
+                    // Diario requiere al menos 5 operaciones y promedio muy bajo
+                    if (c.total_operaciones >= 5 && promedioDias <= 2) frecuencia = 'Diario';
                     else if (promedioDias <= 7) frecuencia = 'Semanal';
                     else if (promedioDias <= 30) frecuencia = 'Mensual';
                     else frecuencia = 'Esporádico';
