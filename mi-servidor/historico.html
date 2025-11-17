@@ -38,7 +38,7 @@
     }
     
     .hdr {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
       color: white;
       padding: 2rem;
       border-radius: 16px 16px 0 0;
@@ -110,8 +110,8 @@
     }
     
     .filters input:focus {
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      border-color: #2D8CDB;
+      box-shadow: 0 0 0 3px rgba(45, 140, 219, 0.1);
       outline: none;
     }
     
@@ -127,13 +127,13 @@
     }
     
     .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #2D8CDB 0%, #1E73C7 100%);
       color: white;
     }
     
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 4px 12px rgba(45, 140, 219, 0.4);
     }
     
     .btn-light {
@@ -144,8 +144,8 @@
     
     .btn-light:hover {
       background: #f9fafb;
-      border-color: #667eea;
-      color: #667eea;
+      border-color: #2D8CDB;
+      color: #2D8CDB;
       transform: translateY(-2px);
     }
     
@@ -203,14 +203,14 @@
     }
     
     table thead {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
       color: white;
     }
     
     table tbody tr:hover {
-      background: #f0f4ff;
+      background: #e6f7ff;
       transform: scale(1.001);
-      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+      box-shadow: 0 2px 8px rgba(45, 140, 219, 0.1);
     }
     
     #resumenSection {
@@ -221,7 +221,7 @@
     }
     
     #resumenTitle {
-      color: #667eea;
+      color: #2D8CDB;
       font-weight: 700;
       margin-bottom: 1rem;
       display: flex;
@@ -253,9 +253,108 @@
     }
     
     .resumen-filters input:focus {
-      border-color: #667eea;
+      border-color: #2D8CDB;
       outline: none;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      box-shadow: 0 0 0 3px rgba(45, 140, 219, 0.1);
+    }
+    
+    @media (max-width: 768px) {
+      body {
+        padding: 0;
+      }
+      
+      .card {
+        border-radius: 0;
+        margin: 0;
+      }
+      
+      .hdr {
+        flex-direction: column;
+        padding: 1rem;
+        border-radius: 0;
+      }
+      
+      .logo-header {
+        flex-direction: column;
+        text-align: center;
+        width: 100%;
+      }
+      
+      .logo-header img {
+        height: 50px;
+      }
+      
+      .logo-header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .logo-header p {
+        font-size: 0.85rem;
+      }
+      
+      .logo-header button {
+        width: 45px !important;
+        height: 45px !important;
+        font-size: 1.5rem !important;
+      }
+      
+      .hdr .btns {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      
+      .hdr .btns button {
+        width: 100%;
+      }
+      
+      .content {
+        padding: 1rem;
+      }
+      
+      .filters {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+      }
+      
+      .btns {
+        flex-direction: column;
+      }
+      
+      .btns button {
+        width: 100%;
+      }
+      
+      .table-container {
+        overflow-x: auto;
+      }
+      
+      table {
+        font-size: 0.8rem;
+      }
+      
+      table th, table td {
+        padding: 0.5rem;
+        white-space: nowrap;
+      }
+      
+      .modal-content {
+        width: 95%;
+        max-width: 95%;
+        padding: 1rem;
+      }
+      
+      .form-grid {
+        grid-template-columns: 1fr !important;
+      }
+      
+      #resumenSection {
+        padding: 1rem;
+      }
+      
+      .resumen-filters {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -265,6 +364,7 @@
   <div class="card">
     <div class="hdr">
       <div class="logo-header">
+        <button onclick="location.href='home.html'" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 2rem; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; transition: all 0.3s; backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; margin-right: 0.5rem;" onmouseover="this.style.background='rgba(255,255,255,0.3)'; this.style.transform='translateX(-5px)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='translateX(0)'">←</button>
         <img src="logo.png" alt="Defi Oracle Logo">
         <div>
           <h1>📦 Histórico de Envíos</h1>
@@ -272,10 +372,10 @@
         </div>
       </div>
       <div class="btns">
-        <button class="btn btn-light" onclick="window.open('/clientes.html','_blank')">Gestión Clientes</button>
+        <button class="btn btn-light" onclick="location.href='/clientes.html'">Gestión Clientes</button>
         <button id="btnRecalcular" class="btn-info" disabled>Recalcular Costos</button>
         <button id="btnExport" class="btn-light">Exportar CSV</button>
-        <button class="btn-primary" onclick="window.close()">Cerrar</button>
+        <button class="btn-primary" onclick="location.href='home.html'">Volver al Inicio</button>
       </div>
     </div>
     <div class="content">

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Defi Oracle - Inicio</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1000px;
+      height: 1000px;
+      background-image: url('logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.05;
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    .home-container {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .home-header {
+      text-align: center;
+      color: white;
+      margin-bottom: 3rem;
+      padding: 2rem 0;
+    }
+    
+    .home-header img {
+      height: 80px;
+      width: auto;
+      margin-bottom: 1rem;
+      filter: brightness(0) invert(1);
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .home-header h1 {
+      margin: 0;
+      font-size: 3rem;
+      font-weight: 800;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      letter-spacing: -1px;
+    }
+    
+    .home-header p {
+      margin: 0.5rem 0 0 0;
+      font-size: 1.2rem;
+      opacity: 0.95;
+      font-weight: 500;
+    }
+    
+    .user-info {
+      position: absolute;
+      top: 2rem;
+      right: 2rem;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      padding: 1rem 1.5rem;
+      border-radius: 50px;
+      color: white;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    
+    .user-info button {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    
+    .user-info button:hover {
+      background: rgba(255,255,255,0.3);
+      transform: scale(1.05);
+    }
+    
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    
+    .module-card {
+      background: white;
+      border-radius: 20px;
+      padding: 2.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .module-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      transform: scaleX(0);
+      transition: transform 0.3s;
+    }
+    
+    .module-card:hover::before {
+      transform: scaleX(1);
+    }
+    
+    .module-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 20px 60px rgba(45, 140, 219, 0.3);
+    }
+    
+    .module-icon {
+      font-size: 4rem;
+      margin-bottom: 0.5rem;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.1));
+    }
+    
+    .module-card h3 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1f2937;
+    }
+    
+    .module-card p {
+      margin: 0;
+      color: #6b7280;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    
+    .module-badge {
+      background: linear-gradient(135deg, #2D8CDB 0%, #1E73C7 100%);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .master-only {
+      border: 2px solid #fbbf24;
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    }
+    
+    .master-only .module-badge {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+    
+    @media (max-width: 768px) {
+      .home-container {
+        padding: 1rem;
+      }
+      
+      .user-info {
+        position: relative;
+        top: auto;
+        right: auto;
+        margin: 0 0 1rem 0;
+        justify-content: center;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+      }
+      
+      .home-header img {
+        height: 60px;
+      }
+      
+      .home-header h1 {
+        font-size: 2rem;
+      }
+      
+      .home-header p {
+        font-size: 1rem;
+      }
+      
+      .modules-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+      
+      .module-card {
+        padding: 2rem 1.5rem;
+      }
+      
+      .module-icon {
+        font-size: 3rem;
+      }
+      
+      .module-card h3 {
+        font-size: 1.3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="home-container">
+    <div class="user-info">
+      <span id="userDisplay">👤 Usuario</span>
+      <button onclick="logout()">Cerrar Sesión</button>
+    </div>
+    
+    <div class="home-header">
+      <img src="logo.png" alt="Defi Oracle Logo">
+      <h1>Defi Oracle</h1>
+      <p>Sistema de Gestión de Envíos y Control Financiero</p>
+    </div>
+    
+    <div class="modules-grid">
+      <!-- Registro de Envíos -->
+      <a href="app.html" class="module-card">
+        <div class="module-icon">📦</div>
+        <h3>Registro de Envíos</h3>
+        <p>Registra nuevas operaciones de envío y consulta el historial del día</p>
+      </a>
+      
+      <!-- Gestión de Clientes -->
+      <a href="clientes.html" class="module-card">
+        <div class="module-icon">👥</div>
+        <h3>Gestión de Clientes</h3>
+        <p>Administra tu base de clientes, detecta duplicados y fusiona registros</p>
+      </a>
+      
+      <!-- Histórico de Envíos -->
+      <a href="historico.html" class="module-card">
+        <div class="module-icon">📊</div>
+        <h3>Histórico de Envíos</h3>
+        <p>Consulta el historial completo de envíos con filtros avanzados</p>
+      </a>
+      
+      <!-- Analytics de Clientes (Master) -->
+      <a href="analytics.html" class="module-card master-only" id="analyticsCard" style="display:none">
+        <div class="module-icon">📈</div>
+        <span class="module-badge">Master</span>
+        <h3>Analytics de Clientes</h3>
+        <p>Análisis de comportamiento, alertas y métricas de rendimiento</p>
+      </a>
+      
+      <!-- Administración (Master) -->
+      <a href="admin.html" class="module-card master-only" id="adminCard" style="display:none">
+        <div class="module-icon">⚙️</div>
+        <span class="module-badge">Master</span>
+        <h3>Administración</h3>
+        <p>Gestión de operadores, compras, metas y configuración del sistema</p>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    let user = {};
+    
+    async function fetchUser() {
+      try {
+        const r = await fetch('/api/user-info');
+        if (!r.ok) {
+          location.href = '/login.html';
+          return null;
+        }
+        user = await r.json();
+        return user;
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        location.href = '/login.html';
+        return null;
+      }
+    }
+    
+    function logout() {
+      if (confirm('¿Cerrar sesión?')) {
+        location.href = '/logout';
+      }
+    }
+    
+    (async () => {
+      await fetchUser();
+      if (!user) return;
+      
+      document.getElementById('userDisplay').textContent = `👤 ${user.username} (${user.role === 'master' ? 'Master' : 'Operador'})`;
+      
+      // Mostrar módulos de Master
+      if (user.role === 'master') {
+        document.getElementById('analyticsCard').style.display = 'flex';
+        document.getElementById('adminCard').style.display = 'flex';
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -17,24 +17,19 @@
             padding: 2rem;
         }
         
-        .page-header {
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
-            margin-bottom: 2rem;
-        }
+                .page-header {
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
         
         .page-header h1 {
             margin: 0 0 0.5rem 0;
-            color: var(--primary-color);
+            color: white;
             font-size: 2rem;
             font-weight: 800;
         }
         
         .page-header p {
             margin: 0;
-            color: var(--medium-grey);
+            color: rgba(255,255,255,0.95);
             font-size: 1rem;
         }
         
@@ -48,13 +43,13 @@
         }
         
         .breadcrumb a {
-            color: var(--primary-color);
+            color: #2D8CDB;
             text-decoration: none;
             transition: color 0.2s;
         }
         
         .breadcrumb a:hover {
-            color: var(--secondary-color);
+            color: #1E73C7;
         }
         
         .stats-bar {
@@ -69,7 +64,7 @@
             border-radius: 12px;
             padding: 1.5rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.07);
-            border-left: 4px solid var(--primary-color);
+            border-left: 4px solid #2D8CDB;
             transition: transform 0.2s, box-shadow 0.2s;
         }
         
@@ -90,7 +85,7 @@
         .stat-card .value {
             font-size: 2rem;
             font-weight: 800;
-            color: var(--primary-color);
+            color: #2D8CDB;
             margin: 0;
         }
         
@@ -259,6 +254,80 @@
             transform: scale(1.05);
         }
         
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                text-align: center;
+                padding: 1.5rem;
+            }
+            
+            .page-header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .page-header p {
+                font-size: 0.9rem;
+            }
+            
+            .page-header button {
+                width: 45px !important;
+                height: 45px !important;
+                font-size: 1.5rem !important;
+            }
+            
+            .stats-bar {
+                grid-template-columns: 1fr;
+            }
+            
+            .toolbar {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .search-container {
+                width: 100%;
+            }
+            
+            .action-buttons {
+                width: 100%;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .action-buttons button {
+                flex: 1;
+                min-width: 140px;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            table {
+                font-size: 0.85rem;
+            }
+            
+            table th, table td {
+                padding: 0.5rem;
+                white-space: nowrap;
+            }
+            
+            .modal-content {
+                width: 95%;
+                max-width: 95%;
+                margin: 1rem;
+                padding: 1.5rem;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        
         .pagination-controls {
             text-align: center;
             margin-top: 2rem;
@@ -326,6 +395,7 @@
         </div>
         
         <div class="page-header" style="display: flex; align-items: center; gap: 1.5rem;">
+            <button onclick="location.href='home.html'" style="background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%); border: none; color: white; font-size: 2rem; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); display: flex; align-items: center; justify-content: center;" onmouseover="this.style.transform='translateX(-5px)'; this.style.boxShadow='0 6px 20px rgba(45, 140, 219, 0.4)'" onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 4px 12px rgba(45, 140, 219, 0.3)'">←</button>
             <img src="logo.png" alt="Defi Oracle Logo" style="height: 60px; width: auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
             <div style="flex: 1;">
                 <h1>👥 Gestión de Clientes</h1>

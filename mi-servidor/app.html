@@ -5,6 +5,54 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Defi Oracle - App</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    @media (max-width: 768px) {
+      .navbar {
+        flex-direction: column;
+        padding: 1rem;
+        gap: 1rem;
+      }
+      
+      .navbar .brand {
+        justify-content: center;
+        font-size: 1.2rem;
+      }
+      
+      .navbar .brand button {
+        font-size: 1.5rem !important;
+      }
+      
+      .user-menu {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .container {
+        padding: 1rem;
+      }
+      
+      .kpis-rates, .kpi-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .form-grid {
+        grid-template-columns: 1fr !important;
+      }
+      
+      .table-container {
+        overflow-x: auto;
+      }
+      
+      table {
+        font-size: 0.85rem;
+      }
+      
+      .modal-content {
+        width: 95%;
+        padding: 1rem;
+      }
+    }
+  </style>
   
   </head>
 <body>
@@ -14,17 +62,19 @@
   <div class="container">
     <nav class="navbar">
       <div class="brand">
+        <button onclick="location.href='home.html'" style="background:none; border:none; cursor:pointer; color:white; font-size:1.5rem; margin-right:1rem; transition:transform 0.3s;" onmouseover="this.style.transform='translateX(-5px)'" onmouseout="this.style.transform='translateX(0)'">←</button>
         <img src="logo.png" alt="logo" />
         <span>Registro de Envíos</span>
       </div>
       <div class="user-menu">
         <button class="btn-menu" id="menuBtn"><span id="userLabel">Usuario</span> ▾</button>
         <div class="dropdown" id="menuDrop">
-          <a id="adminLink" href="/admin.html" target="_blank" style="display:none">Administración</a>
-          <a id="analyticsLink" href="/analytics.html" target="_blank" style="display:none">📊 Analytics Clientes</a>
-          <a id="historicoLink" href="/historico.html" target="_blank" style="display:none">Histórico de Envíos</a>
-          <a id="clientesLink" href="/clientes.html" target="_blank" style="display:none">Gestión de Clientes</a>
+          <a id="adminLink" href="/admin.html" style="display:none">Administración</a>
+          <a id="analyticsLink" href="/analytics.html" style="display:none">📊 Analytics Clientes</a>
+          <a id="historicoLink" href="/historico.html" style="display:none">Histórico de Envíos</a>
+          <a id="clientesLink" href="/clientes.html" style="display:none">Gestión de Clientes</a>
           <hr/>
+          <a href="/home.html">🏠 Inicio</a>
           <a href="/logout">Cerrar Sesión</a>
         </div>
       </div>

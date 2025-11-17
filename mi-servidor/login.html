@@ -67,8 +67,8 @@
                     body: JSON.stringify({ username, password }),
                 });
                 const result = await response.json();
-                if (response.ok) {
-                    window.location.href = '/app.html';
+                if (r.ok) {
+                    window.location.href = '/home.html';
                 } else {
                     messageDiv.textContent = result.message;
                 }
