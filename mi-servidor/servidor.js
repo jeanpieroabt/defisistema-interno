@@ -615,9 +615,21 @@ app.get('/api/dashboard', async (req, res) => {
                 }),
                 new Promise(resolve => {
                     getAvgPurchaseRate(hoy, (err, rateHoy) => {
-                        if (err || rateHoy > 0) return resolve({ tasaCompraPromedio: rateHoy || 0 });
-                        const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
-                        getAvgPurchaseRate(ayer.toISOString().slice(0, 10), (errAyer, rateAyer) => resolve({ tasaCompraPromedio: rateAyer || 0 }));
+                        // Si hay tasa hoy, usarla
+                        if (!err && rateHoy > 0) return resolve({ tasaCompraPromedio: rateHoy });
+                        
+                        // Si no hay tasa hoy, buscar la última tasa histórica
+                        db.get(`SELECT tasa_clp_ves FROM compras WHERE date(fecha) <= date(?) ORDER BY fecha DESC, id DESC LIMIT 1`, 
+                            [hoy], 
+                            (errLast, lastPurchase) => {
+                                if (errLast || !lastPurchase || !lastPurchase.tasa_clp_ves) {
+                                    return resolve({ tasaCompraPromedio: 0 });
+                                }
+                                // Convertir de tasa_clp_ves (CLP/VES) a tasa_ves_clp (VES/CLP)
+                                const tasaCompra = 1 / lastPurchase.tasa_clp_ves;
+                                resolve({ tasaCompraPromedio: tasaCompra });
+                            }
+                        );
                     });
                 }),
                 new Promise(resolve => {
