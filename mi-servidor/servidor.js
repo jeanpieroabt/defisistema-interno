@@ -625,9 +625,8 @@ app.get('/api/dashboard', async (req, res) => {
                                 if (errLast || !lastPurchase || !lastPurchase.tasa_clp_ves) {
                                     return resolve({ tasaCompraPromedio: 0 });
                                 }
-                                // Convertir de tasa_clp_ves (CLP/VES) a tasa_ves_clp (VES/CLP)
-                                const tasaCompra = 1 / lastPurchase.tasa_clp_ves;
-                                resolve({ tasaCompraPromedio: tasaCompra });
+                                // tasa_clp_ves ya está en formato VES/CLP, usar directamente
+                                resolve({ tasaCompraPromedio: lastPurchase.tasa_clp_ves });
                             }
                         );
                     });
