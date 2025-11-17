@@ -8,6 +8,7 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const path = require('path');
+const axios = require('axios');
 
 // ✅ RUTA DE LA BASE DE DATOS AJUSTADA PARA DESPLIEGUE
 const DB_PATH = path.join(process.env.DATA_DIR || '.', 'database.db');
@@ -1501,6 +1502,190 @@ app.post('/api/analytics/metas/configurar', apiAuth, onlyMaster, async (req, res
 
 // =================================================================
 // FIN: ENDPOINTS DE ANALYTICS AVANZADO
+// =================================================================
+
+// =================================================================
+// SERVICIO P2P - BINANCE P2P API
+// =================================================================
+
+/**
+ * Consulta anuncios P2P de Binance
+ * @param {string} fiat - Moneda fiat (VES, CLP, etc)
+ * @param {string} tradeType - BUY (comprar USDT) o SELL (vender USDT)
+ * @param {string[]} payTypes - Métodos de pago específicos (ej: ["Bancamiga"])
+ * @param {number} transAmount - Monto mínimo de transacción
+ * @returns {Promise<Array>} - Lista de anuncios ordenados por precio
+ */
+async function consultarBinanceP2P(fiat, tradeType, payTypes = [], transAmount = null) {
+    try {
+        const payload = {
+            page: 1,
+            rows: 10,
+            fiat: fiat,
+            asset: 'USDT',
+            tradeType: tradeType,
+            publisherType: null
+        };
+
+        // Agregar filtro de métodos de pago si se especifican
+        if (payTypes && payTypes.length > 0) {
+            payload.payTypes = payTypes;
+        }
+
+        // Agregar filtro de monto si se especifica
+        if (transAmount) {
+            payload.transAmount = transAmount;
+        }
+
+        const response = await axios.post(
+            'https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search',
+            payload,
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0'
+                },
+                timeout: 10000
+            }
+        );
+
+        if (response.data && response.data.data) {
+            return response.data.data;
+        }
+
+        return [];
+    } catch (error) {
+        console.error(`Error consultando Binance P2P (${fiat} ${tradeType}):`, error.message);
+        throw new Error(`No se pudo consultar la API de Binance P2P: ${error.message}`);
+    }
+}
+
+/**
+ * Obtiene la mejor tasa de venta de USDT por VES (Bancamiga)
+ * @returns {Promise<number>} - Precio en VES por 1 USDT
+ */
+async function obtenerTasaVentaVES() {
+    try {
+        const anuncios = await consultarBinanceP2P('VES', 'SELL', ['Bancamiga'], 50000);
+        
+        if (!anuncios || anuncios.length === 0) {
+            throw new Error('No se encontraron ofertas de venta USDT por VES con Bancamiga');
+        }
+
+        // Filtrar por monto mínimo y ordenar por precio (más alto primero = mejor para vender)
+        const ofertasValidas = anuncios
+            .filter(ad => {
+                const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
+                return minLimit <= 50000;
+            })
+            .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
+
+        if (ofertasValidas.length === 0) {
+            throw new Error('No hay ofertas válidas con monto mínimo <= 50,000 VES');
+        }
+
+        const mejorOferta = ofertasValidas[0];
+        const precio = parseFloat(mejorOferta.adv?.price || 0);
+
+        console.log(`✅ Mejor oferta VES: ${precio} VES/USDT (Bancamiga)`);
+        return precio;
+    } catch (error) {
+        console.error('Error obteniendo tasa VES:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * Obtiene la mejor tasa de compra de USDT con CLP
+ * @returns {Promise<number>} - Precio en CLP por 1 USDT
+ */
+async function obtenerTasaCompraCLP() {
+    try {
+        const anuncios = await consultarBinanceP2P('CLP', 'BUY', [], null);
+        
+        if (!anuncios || anuncios.length === 0) {
+            throw new Error('No se encontraron ofertas de compra USDT con CLP');
+        }
+
+        // Filtrar por disponibilidad mínima de 500 USDT y ordenar por precio (más bajo primero = mejor para comprar)
+        const ofertasValidas = anuncios
+            .filter(ad => {
+                if (!ad.adv || !ad.adv.price) return false;
+                const disponible = parseFloat(ad.adv.surplusAmount || 0);
+                return disponible >= 500;
+            })
+            .sort((a, b) => parseFloat(a.adv.price) - parseFloat(b.adv.price));
+
+        if (ofertasValidas.length === 0) {
+            throw new Error('No hay ofertas válidas con disponibilidad >= 500 USDT');
+        }
+
+        const mejorOferta = ofertasValidas[0];
+        const precio = parseFloat(mejorOferta.adv.price);
+
+        console.log(`✅ Mejor oferta CLP: ${precio} CLP/USDT`);
+        return precio;
+    } catch (error) {
+        console.error('Error obteniendo tasa CLP:', error.message);
+        throw error;
+    }
+}
+
+// =================================================================
+// ENDPOINT: TASAS P2P VES/CLP
+// =================================================================
+
+app.get('/api/p2p/tasas-ves-clp', apiAuth, async (req, res) => {
+    try {
+        console.log('🔄 Consultando tasas P2P VES/CLP...');
+
+        // 1. Obtener tasas P2P
+        const [tasa_ves_p2p, tasa_clp_p2p] = await Promise.all([
+            obtenerTasaVentaVES(),
+            obtenerTasaCompraCLP()
+        ]);
+
+        // 2. Calcular tasa base CLP → VES
+        const tasa_base_clp_ves = tasa_ves_p2p / tasa_clp_p2p;
+
+        // 3. Calcular tasas ajustadas
+        const tasa_menos_5 = tasa_base_clp_ves * (1 - 0.05);
+        const tasa_menos_4_5 = tasa_base_clp_ves * (1 - 0.045);
+        const tasa_menos_4 = tasa_base_clp_ves * (1 - 0.04);
+
+        // 4. Redondear a 4 decimales
+        const redondear = (num) => Math.round(num * 10000) / 10000;
+
+        const response = {
+            tasa_ves_p2p: redondear(tasa_ves_p2p),
+            tasa_clp_p2p: redondear(tasa_clp_p2p),
+            tasa_base_clp_ves: redondear(tasa_base_clp_ves),
+            tasas_ajustadas: {
+                tasa_menos_5: redondear(tasa_menos_5),
+                tasa_menos_4_5: redondear(tasa_menos_4_5),
+                tasa_menos_4: redondear(tasa_menos_4)
+            },
+            metadata: {
+                fuente: 'Binance P2P',
+                banco_ves: 'Bancamiga',
+                min_ves: 50000,
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        console.log('✅ Tasas P2P calculadas exitosamente');
+        res.json(response);
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/p2p/tasas-ves-clp:', error.message);
+        res.status(500).json({ 
+            message: 'Error al consultar tasas P2P',
+            error: error.message 
+        });
+    }
+});
+
+// =================================================================
+// FIN: SERVICIO P2P
 // =================================================================
 
 // Iniciar el servidor solo después de que las migraciones se hayan completado

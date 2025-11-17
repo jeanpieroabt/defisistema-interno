@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>P2P - Tasas VES/CLP | Defi Oracle</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      padding: 1.5rem 2rem;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .header-left img {
+      height: 50px;
+      width: auto;
+      filter: brightness(0) invert(1);
+    }
+    
+    .header-left h1 {
+      margin: 0;
+      color: white;
+      font-size: 2rem;
+      font-weight: 800;
+    }
+    
+    .header-right {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    
+    .btn-back {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 12px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .btn-back:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+    
+    .btn-refresh {
+      background: linear-gradient(135deg, #2EC7A3 0%, #45D1B4 100%);
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 12px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 15px rgba(46, 199, 163, 0.3);
+    }
+    
+    .btn-refresh:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(46, 199, 163, 0.4);
+    }
+    
+    .btn-refresh:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .status-bar {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #374151;
+    }
+    
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s;
+    }
+    
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 50px rgba(45, 140, 219, 0.2);
+    }
+    
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f3f4f6;
+    }
+    
+    .card-icon {
+      font-size: 2.5rem;
+    }
+    
+    .card-title {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1f2937;
+    }
+    
+    .card-subtitle {
+      margin: 0;
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+    
+    .card-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #2D8CDB;
+      margin: 0;
+      line-height: 1.2;
+    }
+    
+    .card-label {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin-top: 0.5rem;
+    }
+    
+    .tasas-ajustadas {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    }
+    
+    .tasas-ajustadas h2 {
+      margin: 0 0 1.5rem 0;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .tasas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .tasa-item {
+      background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+      border-radius: 12px;
+      padding: 1.5rem;
+      border-left: 4px solid #2D8CDB;
+      transition: all 0.3s;
+    }
+    
+    .tasa-item:hover {
+      transform: translateX(5px);
+      border-left-color: #2EC7A3;
+      box-shadow: 0 4px 15px rgba(45, 140, 219, 0.2);
+    }
+    
+    .tasa-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+    
+    .tasa-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #1f2937;
+      margin: 0;
+    }
+    
+    .tasa-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #2D8CDB 0%, #1E73C7 100%);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-top: 0.5rem;
+    }
+    
+    .metadata {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 1.5rem 2rem;
+      border-radius: 12px;
+      margin-top: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .metadata-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .metadata-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .metadata-icon {
+      font-size: 1.5rem;
+    }
+    
+    .metadata-content strong {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: #6b7280;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.25rem;
+    }
+    
+    .metadata-content span {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1f2937;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: white;
+      font-size: 1.25rem;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .error {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin: 2rem 0;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 10px 40px rgba(239, 68, 68, 0.3);
+    }
+    
+    .error-icon {
+      font-size: 2rem;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+      }
+      
+      .header-left {
+        flex-direction: column;
+        text-align: center;
+      }
+      
+      .header-left h1 {
+        font-size: 1.5rem;
+      }
+      
+      .header-left img {
+        height: 40px;
+      }
+      
+      .header-right {
+        width: 100%;
+        flex-direction: column;
+      }
+      
+      .btn-back, .btn-refresh {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .status-bar {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+      }
+      
+      .cards-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .card {
+        padding: 1.5rem;
+      }
+      
+      .card-value {
+        font-size: 2rem;
+      }
+      
+      .tasas-ajustadas {
+        padding: 1.5rem;
+      }
+      
+      .tasas-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .tasa-value {
+        font-size: 1.75rem;
+      }
+      
+      .metadata {
+        padding: 1rem;
+      }
+      
+      .metadata-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-left">
+        <img src="logo.png" alt="Defi Oracle">
+        <div>
+          <h1>💱 Tasas P2P VES/CLP</h1>
+        </div>
+      </div>
+      <div class="header-right">
+        <a href="home.html" class="btn-back">← Volver al Inicio</a>
+        <button class="btn-refresh" onclick="cargarTasas()" id="btnRefresh">
+          🔄 Actualizar Tasas
+        </button>
+      </div>
+    </div>
+
+    <div class="status-bar" id="statusBar" style="display:none">
+      <div class="status-item">
+        <div class="status-dot"></div>
+        <span>Conectado a Binance P2P</span>
+      </div>
+      <div class="status-item">
+        <span id="lastUpdate">⏱️ Última actualización: --:--</span>
+      </div>
+      <div class="status-item">
+        <span id="autoRefresh">🔄 Auto-refresh: 30s</span>
+      </div>
+    </div>
+
+    <div id="content"></div>
+  </div>
+
+  <script>
+    let autoRefreshInterval = null;
+    let tasasData = null;
+
+    async function cargarTasas() {
+      const content = document.getElementById('content');
+      const btnRefresh = document.getElementById('btnRefresh');
+      btnRefresh.disabled = true;
+
+      // Mostrar loading solo si no hay datos previos
+      if (!tasasData) {
+        content.innerHTML = `
+          <div class="loading">
+            <div class="loading-spinner"></div>
+            <div>Consultando tasas P2P en tiempo real...</div>
+          </div>
+        `;
+      }
+
+      try {
+        const response = await fetch('/api/p2p/tasas-ves-clp');
+        
+        if (!response.ok) {
+          throw new Error('Error al consultar las tasas P2P');
+        }
+
+        tasasData = await response.json();
+        mostrarTasas(tasasData);
+        
+        // Actualizar última actualización
+        const now = new Date();
+        document.getElementById('lastUpdate').textContent = 
+          `⏱️ Última actualización: ${now.toLocaleTimeString('es-VE')}`;
+        
+        // Mostrar status bar
+        document.getElementById('statusBar').style.display = 'flex';
+
+      } catch (error) {
+        console.error('Error cargando tasas:', error);
+        content.innerHTML = `
+          <div class="error">
+            <div class="error-icon">⚠️</div>
+            <div>
+              <strong>Error al cargar las tasas</strong>
+              <p style="margin: 0.5rem 0 0 0">${error.message}</p>
+            </div>
+          </div>
+        `;
+      } finally {
+        btnRefresh.disabled = false;
+      }
+    }
+
+    function mostrarTasas(data) {
+      const content = document.getElementById('content');
+      
+      content.innerHTML = `
+        <div class="cards-grid">
+          <!-- Tasa VES/USDT -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">🇻🇪</div>
+              <div>
+                <h3 class="card-title">USDT → VES</h3>
+                <p class="card-subtitle">Venta en Bancamiga</p>
+              </div>
+            </div>
+            <p class="card-value">${data.tasa_ves_p2p.toFixed(4)}</p>
+            <p class="card-label">VES por 1 USDT</p>
+          </div>
+
+          <!-- Tasa CLP/USDT -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-icon">🇨🇱</div>
+              <div>
+                <h3 class="card-title">CLP → USDT</h3>
+                <p class="card-subtitle">Compra en P2P</p>
+              </div>
+            </div>
+            <p class="card-value">${data.tasa_clp_p2p.toFixed(4)}</p>
+            <p class="card-label">CLP por 1 USDT</p>
+          </div>
+
+          <!-- Tasa Base CLP → VES -->
+          <div class="card" style="grid-column: span 2">
+            <div class="card-header">
+              <div class="card-icon">💰</div>
+              <div>
+                <h3 class="card-title">Tasa Base CLP → VES</h3>
+                <p class="card-subtitle">Sin ajustes de margen</p>
+              </div>
+            </div>
+            <p class="card-value" style="color: #2EC7A3">${data.tasa_base_clp_ves.toFixed(4)}</p>
+            <p class="card-label">VES por 1 CLP</p>
+          </div>
+        </div>
+
+        <!-- Tasas Ajustadas -->
+        <div class="tasas-ajustadas">
+          <h2>📊 Tasas con Descuento (Margen de Operación)</h2>
+          <div class="tasas-grid">
+            <div class="tasa-item">
+              <div class="tasa-label">Desde 5.000 CLP</div>
+              <p class="tasa-value">${data.tasas_ajustadas.tasa_menos_5.toFixed(4)}</p>
+              <span class="tasa-badge">Descuento 5%</span>
+            </div>
+            
+            <div class="tasa-item">
+              <div class="tasa-label">Desde 100.000 CLP</div>
+              <p class="tasa-value">${data.tasas_ajustadas.tasa_menos_4_5.toFixed(4)}</p>
+              <span class="tasa-badge">Descuento 4.5%</span>
+            </div>
+            
+            <div class="tasa-item">
+              <div class="tasa-label">Desde 250.000 CLP</div>
+              <p class="tasa-value">${data.tasas_ajustadas.tasa_menos_4.toFixed(4)}</p>
+              <span class="tasa-badge">Descuento 4%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metadata -->
+        <div class="metadata">
+          <div class="metadata-grid">
+            <div class="metadata-item">
+              <div class="metadata-icon">🏦</div>
+              <div class="metadata-content">
+                <strong>Banco VES</strong>
+                <span>${data.metadata.banco_ves}</span>
+              </div>
+            </div>
+            
+            <div class="metadata-item">
+              <div class="metadata-icon">💵</div>
+              <div class="metadata-content">
+                <strong>Monto Mínimo</strong>
+                <span>${data.metadata.min_ves.toLocaleString('es-VE')} VES</span>
+              </div>
+            </div>
+            
+            <div class="metadata-item">
+              <div class="metadata-icon">🌐</div>
+              <div class="metadata-content">
+                <strong>Fuente</strong>
+                <span>${data.metadata.fuente}</span>
+              </div>
+            </div>
+            
+            <div class="metadata-item">
+              <div class="metadata-icon">🕐</div>
+              <div class="metadata-content">
+                <strong>Timestamp</strong>
+                <span>${new Date(data.metadata.timestamp).toLocaleString('es-VE')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Auto-refresh cada 30 segundos
+    function iniciarAutoRefresh() {
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+      }
+      
+      autoRefreshInterval = setInterval(() => {
+        cargarTasas();
+      }, 30000); // 30 segundos
+    }
+
+    // Cargar tasas al iniciar
+    (async () => {
+      // Verificar sesión
+      try {
+        const r = await fetch('/api/user-info');
+        if (!r.ok) {
+          location.href = '/login.html';
+          return;
+        }
+      } catch (error) {
+        location.href = '/login.html';
+        return;
+      }
+
+      // Cargar tasas iniciales
+      await cargarTasas();
+      
+      // Iniciar auto-refresh
+      iniciarAutoRefresh();
+    })();
+
+    // Limpiar interval al salir
+    window.addEventListener('beforeunload', () => {
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+      }
+    });
+  </script>
+</body>
+</html>
