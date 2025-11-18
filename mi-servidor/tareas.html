@@ -260,6 +260,90 @@
             overflow: hidden;
         }
 
+        .tarea-card.selected {
+            background: #e3f2fd;
+            box-shadow: 0 0 0 3px #2D8CDB;
+        }
+
+        .tarea-checkbox-container {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 10;
+        }
+
+        .tarea-checkbox {
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            accent-color: #2D8CDB;
+        }
+
+        .bulk-actions-bar {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            padding: 1rem 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(45, 140, 219, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            z-index: 1000;
+            transition: bottom 0.3s ease;
+        }
+
+        .bulk-actions-bar.visible {
+            bottom: 30px;
+        }
+
+        .bulk-actions-bar .selected-count {
+            color: white;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .bulk-actions-bar button {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid white;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .bulk-actions-bar .btn-delete-selected {
+            background: #dc3545;
+            color: white;
+            border-color: #dc3545;
+        }
+
+        .bulk-actions-bar .btn-delete-selected:hover {
+            background: #c82333;
+            transform: scale(1.05);
+        }
+
+        .bulk-actions-bar .btn-cancel-selection {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .bulk-actions-bar .btn-cancel-selection:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .bulk-actions-bar .btn-select-all {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .bulk-actions-bar .btn-select-all:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
         .tarea-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 15px 50px rgba(0,0,0,0.15);
@@ -648,11 +732,22 @@
                     <button class="btn-crear-tarea" id="btnCrearTarea" onclick="mostrarModalCrear()" style="display: none;">
                         ➕ Nueva Tarea
                     </button>
+                    <button class="btn-crear-tarea" id="btnModoSeleccion" onclick="toggleModoSeleccion()" style="display: none; background: linear-gradient(135deg, #6c757d 0%, #495057 100%);">
+                        ☑️ Modo Selección
+                    </button>
                 </div>
             </div>
 
             <div id="tareasGrid" class="tareas-grid">
                 <!-- Las tareas se cargarán aquí dinámicamente -->
+            </div>
+
+            <!-- Barra de acciones múltiples -->
+            <div id="bulkActionsBar" class="bulk-actions-bar">
+                <span class="selected-count"><span id="selectedCount">0</span> tareas seleccionadas</span>
+                <button class="btn-select-all" onclick="selectAllTareas()">Seleccionar todas</button>
+                <button class="btn-delete-selected" onclick="eliminarTareasSeleccionadas()">🗑️ Eliminar seleccionadas</button>
+                <button class="btn-cancel-selection" onclick="cancelarSeleccion()">Cancelar</button>
             </div>
 
             <div id="noTareas" class="no-tareas" style="display: none;">
@@ -775,6 +870,7 @@
                 if (usuarioActual.role === 'master') {
                     document.getElementById('filtroAsignado').style.display = 'block';
                     document.getElementById('btnCrearTarea').style.display = 'block';
+                    document.getElementById('btnModoSeleccion').style.display = 'block';
                     await cargarOperadores();
                 } else {
                     // Si es operador, cargar su rendimiento
@@ -847,6 +943,9 @@
             }
         }
 
+        let modoSeleccion = false;
+        let tareasSeleccionadas = new Set();
+
         async function cargarTareas() {
             try {
                 const estado = document.getElementById('filtroEstado').value;
@@ -870,8 +969,112 @@
                 
                 noTareas.style.display = 'none';
                 grid.innerHTML = tareas.map(tarea => crearTarjetaTarea(tarea)).join('');
+                
+                // Restaurar estado de checkboxes si está en modo selección
+                if (modoSeleccion) {
+                    tareasSeleccionadas.forEach(id => {
+                        const checkbox = document.querySelector(`input[data-tarea-id="${id}"]`);
+                        const card = document.querySelector(`.tarea-card[data-tarea-id="${id}"]`);
+                        if (checkbox) checkbox.checked = true;
+                        if (card) card.classList.add('selected');
+                    });
+                }
             } catch (error) {
                 console.error('Error cargando tareas:', error);
+            }
+        }
+
+        function toggleModoSeleccion() {
+            modoSeleccion = !modoSeleccion;
+            const btnModoSeleccion = document.getElementById('btnModoSeleccion');
+            
+            if (modoSeleccion) {
+                btnModoSeleccion.textContent = '❌ Salir de Selección';
+                btnModoSeleccion.style.background = 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)';
+            } else {
+                btnModoSeleccion.textContent = '☑️ Modo Selección';
+                btnModoSeleccion.style.background = 'linear-gradient(135deg, #6c757d 0%, #495057 100%)';
+                cancelarSeleccion();
+            }
+            
+            cargarTareas();
+        }
+
+        function toggleTareaSeleccion(tareaId, checkbox) {
+            const card = document.querySelector(`.tarea-card[data-tarea-id="${tareaId}"]`);
+            
+            if (checkbox.checked) {
+                tareasSeleccionadas.add(tareaId);
+                if (card) card.classList.add('selected');
+            } else {
+                tareasSeleccionadas.delete(tareaId);
+                if (card) card.classList.remove('selected');
+            }
+            
+            actualizarBarraAcciones();
+        }
+
+        function actualizarBarraAcciones() {
+            const bar = document.getElementById('bulkActionsBar');
+            const count = document.getElementById('selectedCount');
+            
+            count.textContent = tareasSeleccionadas.size;
+            
+            if (tareasSeleccionadas.size > 0) {
+                bar.classList.add('visible');
+            } else {
+                bar.classList.remove('visible');
+            }
+        }
+
+        function selectAllTareas() {
+            const checkboxes = document.querySelectorAll('.tarea-checkbox');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = !allChecked;
+                const tareaId = parseInt(checkbox.dataset.tareaId);
+                const card = document.querySelector(`.tarea-card[data-tarea-id="${tareaId}"]`);
+                
+                if (!allChecked) {
+                    tareasSeleccionadas.add(tareaId);
+                    if (card) card.classList.add('selected');
+                } else {
+                    tareasSeleccionadas.delete(tareaId);
+                    if (card) card.classList.remove('selected');
+                }
+            });
+            
+            actualizarBarraAcciones();
+        }
+
+        function cancelarSeleccion() {
+            tareasSeleccionadas.clear();
+            document.querySelectorAll('.tarea-checkbox').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.tarea-card.selected').forEach(card => card.classList.remove('selected'));
+            actualizarBarraAcciones();
+        }
+
+        async function eliminarTareasSeleccionadas() {
+            if (tareasSeleccionadas.size === 0) return;
+            
+            const confirmacion = confirm(`¿Estás seguro de eliminar ${tareasSeleccionadas.size} tarea(s)? Esta acción no se puede deshacer.`);
+            if (!confirmacion) return;
+            
+            try {
+                const promesas = Array.from(tareasSeleccionadas).map(id => 
+                    fetch(`/api/tareas/${id}`, { method: 'DELETE' })
+                );
+                
+                await Promise.all(promesas);
+                
+                alert(`Se eliminaron ${tareasSeleccionadas.size} tarea(s) correctamente`);
+                tareasSeleccionadas.clear();
+                actualizarBarraAcciones();
+                await cargarTareas();
+            } catch (error) {
+                console.error('Error eliminando tareas:', error);
+                alert('Error al eliminar las tareas');
             }
         }
 
@@ -926,9 +1129,15 @@
                     </button>
                 `;
             }
+
+            const checkboxHtml = (modoSeleccion && usuarioActual && usuarioActual.role === 'master' && (tarea.estado === 'completada' || tarea.estado === 'cancelada')) 
+                ? `<div class="tarea-checkbox-container">
+                    <input type="checkbox" class="tarea-checkbox" data-tarea-id="${tarea.id}" onchange="toggleTareaSeleccion(${tarea.id}, this)">
+                   </div>` 
+                : '';
             
             return `
-                <div class="tarea-card ${tarea.prioridad}">
+                <div class="tarea-card ${tarea.prioridad}" data-tarea-id="${tarea.id}">${checkboxHtml}
                     <div class="tarea-header-card">
                         <h3 class="tarea-titulo">${tarea.titulo}</h3>
                     </div>
