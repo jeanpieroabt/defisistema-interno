@@ -1030,6 +1030,46 @@ app.get('/api/rendimiento/operadores', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
+// Endpoint para operadores: ver su propio rendimiento del mes actual
+app.get('/api/mi-rendimiento', apiAuth, (req, res) => {
+    const userId = req.session.userId;
+    
+    // Obtener primer y último día del mes actual
+    const now = new Date();
+    const primerDia = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const ultimoDia = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    
+    const sql = `
+        SELECT 
+            COUNT(op.id) AS total_operaciones,
+            COUNT(DISTINCT op.cliente_id) AS clientes_unicos,
+            IFNULL(SUM(op.monto_clp), 0) AS total_clp_enviado
+        FROM operaciones op
+        WHERE op.usuario_id = ?
+        AND date(op.fecha) >= date(?)
+        AND date(op.fecha) <= date(?)
+    `;
+    
+    db.get(sql, [userId, primerDia, ultimoDia], (err, row) => {
+        if (err) {
+            console.error('Error al obtener rendimiento del operador:', err);
+            return res.status(500).json({ message: 'Error al procesar el reporte.' });
+        }
+        
+        const volumenMillones = row.total_clp_enviado / 1000000;
+        const bonificacionUsd = Math.floor(volumenMillones) * 2;
+        
+        res.json({
+            total_operaciones: row.total_operaciones,
+            clientes_unicos: row.clientes_unicos,
+            total_clp_enviado: row.total_clp_enviado,
+            millones_comisionables: Math.floor(volumenMillones),
+            bonificacion_usd: bonificacionUsd,
+            mes: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        });
+    });
+});
+
 const readConfig = (clave, cb) => db.get(`SELECT valor FROM configuracion WHERE clave=?`, [clave], (e, row) => cb(e, row ? row.valor : null));
 
 app.get('/api/tasas', apiAuth, (req, res) => {
@@ -1631,6 +1671,147 @@ async function obtenerTasaVentaVES() {
 }
 
 /**
+ * Obtiene la mejor tasa de venta de USDT por COP (Bancolombia/Nequi)
+ * @returns {Promise<number>} - Precio en COP por 1 USDT
+ */
+async function obtenerTasaVentaCOP() {
+    try {
+        const anuncios = await consultarBinanceP2P('COP', 'SELL', ['Bancolombia', 'Nequi'], 40000);
+        
+        if (!anuncios || anuncios.length === 0) {
+            throw new Error('No se encontraron ofertas de venta USDT por COP con Bancolombia/Nequi');
+        }
+
+        // Filtrar por monto mínimo y ordenar por precio (más alto primero = mejor para vender)
+        const ofertasValidas = anuncios
+            .filter(ad => {
+                const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
+                return minLimit <= 40000;
+            })
+            .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
+
+        if (ofertasValidas.length === 0) {
+            throw new Error('No hay ofertas válidas con monto mínimo <= 40,000 COP');
+        }
+
+        const mejorOferta = ofertasValidas[0];
+        const precio = parseFloat(mejorOferta.adv?.price || 0);
+
+        console.log(`✅ Mejor oferta COP: ${precio} COP/USDT (Bancolombia/Nequi)`);
+        return precio;
+    } catch (error) {
+        console.error('Error obteniendo tasa COP:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * Obtiene la mejor tasa de venta de USDT por PEN (BCP/Yape)
+ * @returns {Promise<number>} - Precio en PEN por 1 USDT
+ */
+async function obtenerTasaVentaPEN() {
+    try {
+        const anuncios = await consultarBinanceP2P('PEN', 'SELL', ['BCP', 'Yape'], 30);
+        
+        if (!anuncios || anuncios.length === 0) {
+            throw new Error('No se encontraron ofertas de venta USDT por PEN con BCP/Yape');
+        }
+
+        // Filtrar por monto mínimo y ordenar por precio (más alto primero = mejor para vender)
+        const ofertasValidas = anuncios
+            .filter(ad => {
+                const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
+                return minLimit <= 30;
+            })
+            .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
+
+        if (ofertasValidas.length === 0) {
+            throw new Error('No hay ofertas válidas con monto mínimo <= 30 PEN');
+        }
+
+        const mejorOferta = ofertasValidas[0];
+        const precio = parseFloat(mejorOferta.adv?.price || 0);
+
+        console.log(`✅ Mejor oferta PEN: ${precio} PEN/USDT (BCP/Yape)`);
+        return precio;
+    } catch (error) {
+        console.error('Error obteniendo tasa PEN:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * Obtiene la mejor tasa de venta de USDT por BOB (Banco Ganadero/Economico)
+ * @returns {Promise<number>} - Precio en BOB por 1 USDT
+ */
+async function obtenerTasaVentaBOB() {
+    try {
+        // Nombres exactos como aparecen en Binance P2P (sin espacios)
+        const anuncios = await consultarBinanceP2P('BOB', 'SELL', ['BancoGanadero', 'BancoEconomico'], 100);
+        
+        if (!anuncios || anuncios.length === 0) {
+            throw new Error('No se encontraron ofertas de venta USDT por BOB con Banco Ganadero/Economico');
+        }
+
+        // Filtrar por monto mínimo y ordenar por precio (más alto primero = mejor para vender)
+        const ofertasValidas = anuncios
+            .filter(ad => {
+                const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
+                return minLimit <= 100;
+            })
+            .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
+
+        if (ofertasValidas.length === 0) {
+            throw new Error('No hay ofertas válidas con monto mínimo <= 100 BOB');
+        }
+
+        const mejorOferta = ofertasValidas[0];
+        const precio = parseFloat(mejorOferta.adv?.price || 0);
+
+        console.log(`✅ Mejor oferta BOB: ${precio} BOB/USDT (BancoGanadero/BancoEconomico)`);
+        return precio;
+    } catch (error) {
+        console.error('Error obteniendo tasa BOB:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * Obtiene la mejor tasa de venta de USDT por ARS (MercadoPago/Brubank/LemonCash)
+ * @returns {Promise<number>} - Precio en ARS por 1 USDT
+ */
+async function obtenerTasaVentaARS() {
+    try {
+        const anuncios = await consultarBinanceP2P('ARS', 'SELL', ['MercadoPagoNew', 'BancoBrubankNew', 'LemonCash'], 15000);
+        
+        if (!anuncios || anuncios.length === 0) {
+            throw new Error('No se encontraron ofertas de venta USDT por ARS con MercadoPago/Brubank/LemonCash');
+        }
+
+        // Filtrar por monto mínimo y ordenar por precio (más alto primero = mejor para vender)
+        const ofertasValidas = anuncios
+            .filter(ad => {
+                const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
+                return minLimit <= 15000;
+            })
+            .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
+
+        if (ofertasValidas.length === 0) {
+            throw new Error('No hay ofertas válidas con monto mínimo <= 15000 ARS');
+        }
+
+        const mejorOferta = ofertasValidas[0];
+        const precio = parseFloat(mejorOferta.adv?.price || 0);
+
+        console.log(`✅ Mejor oferta ARS: ${precio} ARS/USDT (MercadoPago/Brubank/LemonCash)`);
+        return precio;
+    } catch (error) {
+        console.error('Error obteniendo tasa ARS:', error.message);
+        throw error;
+    }
+}
+
+/**
  * Obtiene la mejor tasa de compra de USDT con CLP
  * @returns {Promise<number>} - Precio en CLP por 1 USDT
  */
@@ -1712,6 +1893,218 @@ app.get('/api/p2p/tasas-ves-clp', apiAuth, async (req, res) => {
         res.json(response);
     } catch (error) {
         console.error('❌ Error en endpoint /api/p2p/tasas-ves-clp:', error.message);
+        res.status(500).json({ 
+            message: 'Error al consultar tasas P2P',
+            error: error.message 
+        });
+    }
+});
+
+// =================================================================
+// ENDPOINT: TASAS P2P COP/CLP
+// =================================================================
+
+app.get('/api/p2p/tasas-cop-clp', apiAuth, async (req, res) => {
+    try {
+        console.log('🔄 Consultando tasas P2P COP/CLP...');
+
+        // 1. Obtener tasas P2P
+        const [tasa_cop_p2p, tasa_clp_p2p] = await Promise.all([
+            obtenerTasaVentaCOP(),
+            obtenerTasaCompraCLP()
+        ]);
+
+        // 2. Calcular tasa base CLP → COP
+        const tasa_base_clp_cop = tasa_cop_p2p / tasa_clp_p2p;
+
+        // 3. Calcular tasas ajustadas
+        const tasa_menos_5 = tasa_base_clp_cop * (1 - 0.05);
+        const tasa_menos_4_5 = tasa_base_clp_cop * (1 - 0.045);
+        const tasa_menos_4 = tasa_base_clp_cop * (1 - 0.04);
+
+        // 4. Redondear a 4 decimales
+        const redondear = (num) => Math.round(num * 10000) / 10000;
+
+        const response = {
+            tasa_cop_p2p: redondear(tasa_cop_p2p),
+            tasa_clp_p2p: redondear(tasa_clp_p2p),
+            tasa_base_clp_cop: redondear(tasa_base_clp_cop),
+            tasas_ajustadas: {
+                tasa_menos_5: redondear(tasa_menos_5),
+                tasa_menos_4_5: redondear(tasa_menos_4_5),
+                tasa_menos_4: redondear(tasa_menos_4)
+            },
+            metadata: {
+                fuente: 'Binance P2P',
+                bancos_cop: 'Bancolombia, Nequi',
+                min_cop: 40000,
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        console.log('✅ Tasas P2P COP/CLP calculadas exitosamente');
+        res.json(response);
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/p2p/tasas-cop-clp:', error.message);
+        res.status(500).json({ 
+            message: 'Error al consultar tasas P2P',
+            error: error.message 
+        });
+    }
+});
+
+// =================================================================
+// ENDPOINT: TASAS P2P PEN/CLP
+// =================================================================
+
+app.get('/api/p2p/tasas-pen-clp', apiAuth, async (req, res) => {
+    try {
+        console.log('🔄 Consultando tasas P2P PEN/CLP...');
+
+        // 1. Obtener tasas P2P
+        const [tasa_pen_p2p, tasa_clp_p2p] = await Promise.all([
+            obtenerTasaVentaPEN(),
+            obtenerTasaCompraCLP()
+        ]);
+
+        // 2. Calcular tasa base CLP → PEN
+        const tasa_base_clp_pen = tasa_pen_p2p / tasa_clp_p2p;
+
+        // 3. Calcular tasas ajustadas
+        const tasa_menos_5 = tasa_base_clp_pen * (1 - 0.05);
+        const tasa_menos_4_5 = tasa_base_clp_pen * (1 - 0.045);
+        const tasa_menos_4 = tasa_base_clp_pen * (1 - 0.04);
+
+        // 4. Redondear a 6 decimales para PEN
+        const redondear = (num) => Math.round(num * 1000000) / 1000000;
+
+        const response = {
+            tasa_pen_p2p: redondear(tasa_pen_p2p),
+            tasa_clp_p2p: redondear(tasa_clp_p2p),
+            tasa_base_clp_pen: redondear(tasa_base_clp_pen),
+            tasas_ajustadas: {
+                tasa_menos_5: redondear(tasa_menos_5),
+                tasa_menos_4_5: redondear(tasa_menos_4_5),
+                tasa_menos_4: redondear(tasa_menos_4)
+            },
+            metadata: {
+                fuente: 'Binance P2P',
+                bancos_pen: 'BCP, Yape',
+                min_pen: 30,
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        console.log('✅ Tasas P2P PEN/CLP calculadas exitosamente');
+        res.json(response);
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/p2p/tasas-pen-clp:', error.message);
+        res.status(500).json({ 
+            message: 'Error al consultar tasas P2P',
+            error: error.message 
+        });
+    }
+});
+
+// =================================================================
+// ENDPOINT: TASAS P2P BOB/CLP
+// =================================================================
+
+app.get('/api/p2p/tasas-bob-clp', apiAuth, async (req, res) => {
+    try {
+        console.log('🔄 Consultando tasas P2P BOB/CLP...');
+
+        // 1. Obtener tasas P2P
+        const [tasa_bob_p2p, tasa_clp_p2p] = await Promise.all([
+            obtenerTasaVentaBOB(),
+            obtenerTasaCompraCLP()
+        ]);
+
+        // 2. Calcular tasa base CLP → BOB
+        const tasa_base_clp_bob = tasa_bob_p2p / tasa_clp_p2p;
+
+        // 3. Calcular tasas ajustadas
+        const tasa_menos_5 = tasa_base_clp_bob * (1 - 0.05);
+        const tasa_menos_4_5 = tasa_base_clp_bob * (1 - 0.045);
+        const tasa_menos_4 = tasa_base_clp_bob * (1 - 0.04);
+
+        // 4. Redondear a 4 decimales para BOB
+        const redondear = (num) => Math.round(num * 10000) / 10000;
+
+        const response = {
+            tasa_bob_p2p: redondear(tasa_bob_p2p),
+            tasa_clp_p2p: redondear(tasa_clp_p2p),
+            tasa_base_clp_bob: redondear(tasa_base_clp_bob),
+            tasas_ajustadas: {
+                tasa_menos_5: redondear(tasa_menos_5),
+                tasa_menos_4_5: redondear(tasa_menos_4_5),
+                tasa_menos_4: redondear(tasa_menos_4)
+            },
+            metadata: {
+                fuente: 'Binance P2P',
+                bancos_bob: 'Banco Ganadero, Banco Economico',
+                min_bob: 100,
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        console.log('✅ Tasas P2P BOB/CLP calculadas exitosamente');
+        res.json(response);
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/p2p/tasas-bob-clp:', error.message);
+        res.status(500).json({ 
+            message: 'Error al consultar tasas P2P',
+            error: error.message 
+        });
+    }
+});
+
+// =================================================================
+// ENDPOINT: TASAS P2P ARS/CLP
+// =================================================================
+
+app.get('/api/p2p/tasas-ars-clp', apiAuth, async (req, res) => {
+    try {
+        console.log('🔄 Consultando tasas P2P ARS/CLP...');
+
+        // 1. Obtener tasas P2P
+        const [tasa_ars_p2p, tasa_clp_p2p] = await Promise.all([
+            obtenerTasaVentaARS(),
+            obtenerTasaCompraCLP()
+        ]);
+
+        // 2. Calcular tasa base CLP → ARS
+        const tasa_base_clp_ars = tasa_ars_p2p / tasa_clp_p2p;
+
+        // 3. Calcular tasas ajustadas
+        const tasa_menos_5 = tasa_base_clp_ars * (1 - 0.05);
+        const tasa_menos_4_5 = tasa_base_clp_ars * (1 - 0.045);
+        const tasa_menos_4 = tasa_base_clp_ars * (1 - 0.04);
+
+        // 4. Redondear a 4 decimales para ARS
+        const redondear = (num) => Math.round(num * 10000) / 10000;
+
+        const response = {
+            tasa_ars_p2p: redondear(tasa_ars_p2p),
+            tasa_clp_p2p: redondear(tasa_clp_p2p),
+            tasa_base_clp_ars: redondear(tasa_base_clp_ars),
+            tasas_ajustadas: {
+                tasa_menos_5: redondear(tasa_menos_5),
+                tasa_menos_4_5: redondear(tasa_menos_4_5),
+                tasa_menos_4: redondear(tasa_menos_4)
+            },
+            metadata: {
+                fuente: 'Binance P2P',
+                bancos_ars: 'MercadoPago, Brubank, LemonCash',
+                min_ars: 15000,
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        console.log('✅ Tasas P2P ARS/CLP calculadas exitosamente');
+        res.json(response);
+    } catch (error) {
+        console.error('❌ Error en endpoint /api/p2p/tasas-ars-clp:', error.message);
         res.status(500).json({ 
             message: 'Error al consultar tasas P2P',
             error: error.message 

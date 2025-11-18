@@ -557,7 +557,26 @@
               <div class="country-name">Venezuela</div>
               <div class="country-code">VES (Bolívares)</div>
             </button>
-            <!-- Más países pueden agregarse aquí -->
+            <button class="country-btn" onclick="seleccionarPais('COP')" id="btnCOP">
+              <div class="country-flag">🇨🇴</div>
+              <div class="country-name">Colombia</div>
+              <div class="country-code">COP (Pesos)</div>
+            </button>
+            <button class="country-btn" onclick="seleccionarPais('PEN')" id="btnPEN">
+              <div class="country-flag">🇵🇪</div>
+              <div class="country-name">Perú</div>
+              <div class="country-code">PEN (Soles)</div>
+            </button>
+            <button class="country-btn" onclick="seleccionarPais('BOB')" id="btnBOB">
+              <div class="country-flag">🇧🇴</div>
+              <div class="country-name">Bolivia</div>
+              <div class="country-code">BOB (Bolivianos)</div>
+            </button>
+            <button class="country-btn" onclick="seleccionarPais('ARS')" id="btnARS">
+              <div class="country-flag">🇦🇷</div>
+              <div class="country-name">Argentina</div>
+              <div class="country-code">ARS (Pesos)</div>
+            </button>
           </div>
         </div>
 
@@ -570,6 +589,7 @@
     let autoRefreshInterval = null;
     let tasasData = null;
     let paisSeleccionado = 'VES'; // País por defecto
+    let userRole = null; // Rol del usuario
 
     function seleccionarPais(pais) {
       paisSeleccionado = pais;
@@ -582,7 +602,11 @@
       
       // Actualizar título
       const titulos = {
-        'VES': '💱 Tasas a Venezuela'
+        'VES': '💱 Tasas a Venezuela',
+        'COP': '💱 Tasas a Colombia',
+        'PEN': '💱 Tasas a Perú',
+        'BOB': '💱 Tasas a Bolivia',
+        'ARS': '💱 Tasas a Argentina'
       };
       document.querySelector('.logo-header h1').textContent = titulos[pais] || '💱 Tasas P2P';
       
@@ -606,7 +630,22 @@
       }
 
       try {
-        const response = await fetch('/api/p2p/tasas-ves-clp');
+        let endpoint;
+        if (paisSeleccionado === 'VES') {
+          endpoint = '/api/p2p/tasas-ves-clp';
+        } else if (paisSeleccionado === 'COP') {
+          endpoint = '/api/p2p/tasas-cop-clp';
+        } else if (paisSeleccionado === 'PEN') {
+          endpoint = '/api/p2p/tasas-pen-clp';
+        } else if (paisSeleccionado === 'BOB') {
+          endpoint = '/api/p2p/tasas-bob-clp';
+        } else if (paisSeleccionado === 'ARS') {
+          endpoint = '/api/p2p/tasas-ars-clp';
+        } else if (paisSeleccionado === 'BOB') {
+          endpoint = '/api/p2p/tasas-bob-clp';
+        }
+        
+        const response = await fetch(endpoint);
         
         if (!response.ok) {
           throw new Error('Error al consultar las tasas P2P');
@@ -642,19 +681,49 @@
     function mostrarTasas(data) {
       const content = document.getElementById('content');
       
+      // Determinar información del país
+      const info = {
+        'VES': { moneda: 'VES', bandera: '🇻🇪', banco: data.metadata.banco_ves, minimo: data.metadata.min_ves },
+        'COP': { moneda: 'COP', bandera: '🇨🇴', banco: data.metadata.bancos_cop, minimo: data.metadata.min_cop },
+        'PEN': { moneda: 'PEN', bandera: '🇵🇪', banco: data.metadata.bancos_pen, minimo: data.metadata.min_pen },
+        'BOB': { moneda: 'BOB', bandera: '🇧🇴', banco: data.metadata.bancos_bob, minimo: data.metadata.min_bob },
+        'ARS': { moneda: 'ARS', bandera: '🇦🇷', banco: data.metadata.bancos_ars, minimo: data.metadata.min_ars }
+      };
+      
+      const paisInfo = info[paisSeleccionado];
+      const monedaDestino = paisInfo.moneda;
+      const bandera = paisInfo.bandera;
+      const bancoInfo = paisInfo.banco;
+      const montoMin = paisInfo.minimo;
+      
+      // Tasas principales
+      const tasaDestino = paisSeleccionado === 'VES' ? data.tasa_ves_p2p : 
+                          paisSeleccionado === 'COP' ? data.tasa_cop_p2p : 
+                          paisSeleccionado === 'PEN' ? data.tasa_pen_p2p : 
+                          paisSeleccionado === 'BOB' ? data.tasa_bob_p2p :
+                          data.tasa_ars_p2p;
+      const tasaBase = paisSeleccionado === 'VES' ? data.tasa_base_clp_ves : 
+                       paisSeleccionado === 'COP' ? data.tasa_base_clp_cop : 
+                       paisSeleccionado === 'PEN' ? data.tasa_base_clp_pen : 
+                       paisSeleccionado === 'BOB' ? data.tasa_base_clp_bob :
+                       data.tasa_base_clp_ars;
+      
+      // Determinar decimales según país (PEN usa 6, otros 4)
+      const decimales = paisSeleccionado === 'PEN' ? 6 : 4;
+      
       content.innerHTML = `
-        <div class="cards-grid">
-          <!-- Tasa VES/USDT -->
+        <div class="cards-grid" id="tasasBaseSection">
+          <!-- Tasa Destino/USDT -->
           <div class="card-item">
             <div class="card-header">
-              <div class="card-icon">🇻🇪</div>
+              <div class="card-icon">${bandera}</div>
               <div>
-                <h3 class="card-title">USDT → VES</h3>
-                <p class="card-subtitle">Venta en Bancamiga</p>
+                <h3 class="card-title">USDT → ${monedaDestino}</h3>
+                <p class="card-subtitle">Venta en ${bancoInfo}</p>
               </div>
             </div>
-            <p class="card-value">${data.tasa_ves_p2p.toFixed(4)}</p>
-            <p class="card-label">VES por 1 USDT</p>
+            <p class="card-value">${tasaDestino.toFixed(decimales)}</p>
+            <p class="card-label">${monedaDestino} por 1 USDT</p>
           </div>
 
           <!-- Tasa CLP/USDT -->
@@ -670,40 +739,37 @@
             <p class="card-label">CLP por 1 USDT</p>
           </div>
 
-          <!-- Tasa Base CLP → VES -->
+          <!-- Tasa Base CLP → Destino -->
           <div class="card-item" style="grid-column: span 2">
             <div class="card-header">
               <div class="card-icon">💰</div>
               <div>
-                <h3 class="card-title">Tasa Base CLP → VES</h3>
+                <h3 class="card-title">Tasa Base CLP → ${monedaDestino}</h3>
                 <p class="card-subtitle">Sin ajustes de margen</p>
               </div>
             </div>
-            <p class="card-value" style="color: #2EC7A3">${data.tasa_base_clp_ves.toFixed(4)}</p>
-            <p class="card-label">VES por 1 CLP</p>
+            <p class="card-value" style="color: #2EC7A3">${tasaBase.toFixed(decimales)}</p>
+            <p class="card-label">${monedaDestino} por 1 CLP</p>
           </div>
         </div>
 
         <!-- Tasas Ajustadas -->
-        <div class="tasas-ajustadas">
-          <h2>📊 Tasas con Descuento (Margen de Operación)</h2>
+        <div class="tasas-ajustadas" id="tasasMargenesSection">
+          <h2>📊 Tasas de Márgenes</h2>
           <div class="tasas-grid">
             <div class="tasa-item">
               <div class="tasa-label">Desde 5.000 CLP</div>
-              <p class="tasa-value">${data.tasas_ajustadas.tasa_menos_5.toFixed(4)}</p>
-              <span class="tasa-badge">Descuento 5%</span>
+              <p class="tasa-value">${data.tasas_ajustadas.tasa_menos_5.toFixed(decimales)}</p>
             </div>
             
             <div class="tasa-item">
               <div class="tasa-label">Desde 100.000 CLP</div>
-              <p class="tasa-value">${data.tasas_ajustadas.tasa_menos_4_5.toFixed(4)}</p>
-              <span class="tasa-badge">Descuento 4.5%</span>
+              <p class="tasa-value">${data.tasas_ajustadas.tasa_menos_4_5.toFixed(decimales)}</p>
             </div>
             
             <div class="tasa-item">
               <div class="tasa-label">Desde 250.000 CLP</div>
-              <p class="tasa-value">${data.tasas_ajustadas.tasa_menos_4.toFixed(4)}</p>
-              <span class="tasa-badge">Descuento 4%</span>
+              <p class="tasa-value">${data.tasas_ajustadas.tasa_menos_4.toFixed(decimales)}</p>
             </div>
           </div>
         </div>
@@ -714,8 +780,8 @@
             <div class="metadata-item">
               <div class="metadata-icon">🏦</div>
               <div class="metadata-content">
-                <strong>Banco VES</strong>
-                <span>${data.metadata.banco_ves}</span>
+                <strong>Banco ${monedaDestino}</strong>
+                <span>${bancoInfo}</span>
               </div>
             </div>
             
@@ -723,7 +789,7 @@
               <div class="metadata-icon">💵</div>
               <div class="metadata-content">
                 <strong>Monto Mínimo</strong>
-                <span>${data.metadata.min_ves.toLocaleString('es-VE')} VES</span>
+                <span>${montoMin.toLocaleString('es-VE')} ${monedaDestino}</span>
               </div>
             </div>
             
@@ -745,6 +811,17 @@
           </div>
         </div>
       `;
+      
+      // Control de visibilidad según rol
+      if (userRole === 'master') {
+        // Master ve tanto tasas base como márgenes
+        document.getElementById('tasasBaseSection').style.display = 'grid';
+        document.getElementById('tasasMargenesSection').style.display = 'block';
+      } else {
+        // Usuarios normales solo ven tasas de márgenes
+        document.getElementById('tasasBaseSection').style.display = 'none';
+        document.getElementById('tasasMargenesSection').style.display = 'block';
+      }
     }
 
     // Auto-refresh cada 30 segundos
@@ -760,13 +837,15 @@
 
     // Cargar tasas al iniciar
     (async () => {
-      // Verificar sesión
+      // Verificar sesión y obtener rol del usuario
       try {
         const r = await fetch('/api/user-info');
         if (!r.ok) {
           location.href = '/login.html';
           return;
         }
+        const userData = await r.json();
+        userRole = userData.role;
       } catch (error) {
         location.href = '/login.html';
         return;

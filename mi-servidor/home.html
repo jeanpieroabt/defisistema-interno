@@ -75,6 +75,59 @@
       font-weight: 500;
     }
     
+    .rendimiento-card {
+      background: rgba(255,255,255,0.95);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      display: none;
+    }
+    
+    .rendimiento-card h2 {
+      margin: 0 0 1.5rem 0;
+      color: #2D8CDB;
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .rendimiento-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    
+    .rendimiento-item {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      padding: 1.5rem;
+      border-radius: 12px;
+      text-align: center;
+    }
+    
+    .rendimiento-item .label {
+      font-size: 0.85rem;
+      color: #6c757d;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .rendimiento-item .value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #2D8CDB;
+      margin: 0;
+    }
+    
+    .rendimiento-item.highlight .value {
+      color: #2EC7A3;
+      font-size: 2.2rem;
+    }
+    
     .user-info {
       position: absolute;
       top: 2rem;
@@ -252,6 +305,29 @@
       <p>Sistema de Gestión de Envíos y Control Financiero</p>
     </div>
     
+    <!-- Rendimiento del Operador -->
+    <div class="rendimiento-card" id="rendimientoOperador">
+      <h2>📈 Mi Rendimiento del Mes</h2>
+      <div class="rendimiento-grid">
+        <div class="rendimiento-item">
+          <div class="label">Operaciones</div>
+          <div class="value" id="miTotalOps">0</div>
+        </div>
+        <div class="rendimiento-item">
+          <div class="label">Millones CLP</div>
+          <div class="value" id="miMillones">0</div>
+        </div>
+        <div class="rendimiento-item highlight">
+          <div class="label">Comisión USD</div>
+          <div class="value" id="miComision">$0</div>
+        </div>
+        <div class="rendimiento-item">
+          <div class="label">Clientes Únicos</div>
+          <div class="value" id="miClientes">0</div>
+        </div>
+      </div>
+    </div>
+    
     <div class="modules-grid">
       <!-- Registro de Envíos -->
       <a href="app.html" class="module-card">
@@ -277,7 +353,7 @@
       <!-- P2P Tasas VES/CLP -->
       <a href="p2p.html" class="module-card">
         <div class="module-icon">💱</div>
-        <h3>P2P - Tasas VES/CLP</h3>
+        <h3>Tasas de Envío a los Países</h3>
         <p>Consulta tasas en tiempo real de Binance P2P con ajustes automáticos</p>
       </a>
       
@@ -326,6 +402,26 @@
       }
     }
     
+    async function cargarMiRendimiento() {
+      try {
+        const r = await fetch('/api/mi-rendimiento');
+        if (!r.ok) return;
+        
+        const data = await r.json();
+        
+        // Actualizar valores
+        document.getElementById('miTotalOps').textContent = data.total_operaciones;
+        document.getElementById('miMillones').textContent = data.millones_comisionables;
+        document.getElementById('miComision').textContent = `$${data.bonificacion_usd} USD`;
+        document.getElementById('miClientes').textContent = data.clientes_unicos;
+        
+        // Mostrar la tarjeta
+        document.getElementById('rendimientoOperador').style.display = 'block';
+      } catch (error) {
+        console.error('Error cargando rendimiento:', error);
+      }
+    }
+    
     function logout() {
       if (confirm('¿Cerrar sesión?')) {
         location.href = '/logout';
@@ -343,6 +439,11 @@
         document.getElementById('dashboardCard').style.display = 'flex';
         document.getElementById('analyticsCard').style.display = 'flex';
         document.getElementById('adminCard').style.display = 'flex';
+      }
+      
+      // Cargar rendimiento para operadores (no master)
+      if (user.role !== 'master') {
+        await cargarMiRendimiento();
       }
     })();
   </script>
