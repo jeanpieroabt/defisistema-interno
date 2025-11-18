@@ -708,7 +708,7 @@
                     }
                 }
 
-                if (e.target.classList.contains('btn-delete')) {
+                if (e.target.classList.contains('btn-danger')) {
                     if (confirm('¿Estás seguro de que quieres eliminar este cliente? Esta acción no se puede deshacer y podría afectar registros históricos.')) {
                         try {
                             const response = await fetch(`/api/clientes/${clienteId}`, { method: 'DELETE' });
