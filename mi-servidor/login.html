@@ -13,32 +13,111 @@
             align-items: center; 
             height: 100vh; 
             padding: 0;
-            background-image: none; /* Quitamos la imagen de fondo para la página de login */
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            position: relative;
         }
         body::before {
-            background-color: var(--background-color); /* Usamos un color sólido */
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 900px;
+            height: 900px;
+            background-image: url('logo.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.04;
+            z-index: 0;
+            pointer-events: none;
         }
         .login-container { 
             width: 100%; 
-            max-width: 400px; 
-            padding: 40px; 
-            text-align: center; 
+            max-width: 420px; 
+            padding: 3rem; 
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(45, 140, 219, 0.15);
+        }
+        .login-container h1 {
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 1.5rem 0 2rem 0;
         }
         .logo { 
-            max-width: 180px; 
-            margin-bottom: 20px; 
+            max-width: 160px; 
+            margin-bottom: 0;
+            filter: drop-shadow(0 4px 8px rgba(45, 140, 219, 0.2));
+        }
+        .input-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            box-sizing: border-box;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #2D8CDB;
+            box-shadow: 0 0 0 3px rgba(45, 140, 219, 0.1);
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 1rem;
+            box-shadow: 0 4px 12px rgba(45, 140, 219, 0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(45, 140, 219, 0.4);
         }
         #message { 
-            margin-top: 15px; 
-            color: var(--danger); 
-            font-weight: 500; 
-            height: 20px; 
+            margin-top: 1rem; 
+            color: #ef4444; 
+            font-weight: 600; 
+            min-height: 24px;
+            padding: 0.5rem;
+            border-radius: 8px;
+            background: #fee2e2;
+            display: none;
+        }
+        #message:not(:empty) {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div class="login-container card">
-        <img src="logo.png" alt="Logo de la Empresa" class="logo">
+    <div class="login-container">
+        <img src="logo.png" alt="Defi Oracle Logo" class="logo">
         <h1>Iniciar Sesión</h1>
         <form id="loginForm">
             <div class="input-group">

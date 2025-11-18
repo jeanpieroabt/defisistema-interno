@@ -3,9 +3,150 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Defi Oracle - App</title>
   <link rel="stylesheet" href="style.css">
   <style>
+    /* v2.0 - Saldo VES Grande */
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      position: relative;
+      overflow-x: hidden;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      background-image: url('logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.03;
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    
+    .card {
+      position: relative;
+      z-index: 1;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+    
+    .hdr {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .logo-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .logo-header img {
+      height: 60px;
+      width: auto;
+      filter: brightness(0) invert(1);
+      object-fit: contain;
+    }
+    
+    .hdr h1 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    
+    .hdr .btns {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    
+    .btn-back {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .btn-back:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+    
+    .content {
+      padding: 2rem;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        margin: 1rem auto;
+        padding: 0 0.5rem;
+      }
+      
+      .hdr {
+        padding: 1.5rem;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .logo-header {
+        flex-direction: row;
+        width: 100%;
+      }
+      
+      .logo-header img {
+        height: 40px;
+      }
+      
+      .hdr h1 {
+        font-size: 1.5rem;
+      }
+      
+      .hdr .btns {
+        width: 100%;
+      }
+      
+      .btn-back {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .content {
+        padding: 1rem;
+      }
+    
     @media (max-width: 768px) {
       .navbar {
         flex-direction: column;
@@ -52,6 +193,82 @@
         padding: 1rem;
       }
     }
+
+    .saldo-ves-banner {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 1.75rem 2.25rem;
+      border-radius: 14px;
+      margin-bottom: 2rem;
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.35);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+    }
+
+    .saldo-ves-banner .label {
+      color: rgba(255, 255, 255, 0.95) !important;
+      font-size: 1.8rem !important;
+      font-weight: 800 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 3px !important;
+      margin-bottom: 1rem !important;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .saldo-ves-banner .valor {
+      color: white !important;
+      font-size: 6rem !important;
+      font-weight: 900 !important;
+      line-height: 1 !important;
+      text-shadow: 0 6px 16px rgba(0, 0, 0, 0.5) !important;
+      letter-spacing: 3px !important;
+    }
+
+    .saldo-ves-banner .refresh-btn {
+      background: rgba(255, 255, 255, 0.25);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      padding: 1.25rem 2rem;
+      border-radius: 10px;
+      color: white;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 1.1rem;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .saldo-ves-banner .refresh-btn:hover {
+      background: rgba(255, 255, 255, 0.35);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    @media (max-width: 768px) {
+      .saldo-ves-banner {
+        padding: 2rem 1.5rem;
+        text-align: center;
+        justify-content: center;
+      }
+
+      .saldo-ves-banner .label {
+        font-size: 1.3rem;
+      }
+
+      .saldo-ves-banner .valor {
+        font-size: 3.5rem;
+      }
+
+      .saldo-ves-banner .refresh-btn {
+        width: 100%;
+        justify-content: center;
+        font-size: 1rem;
+      }
+    }
   </style>
   
   </head>
@@ -60,69 +277,28 @@
   <div id="toast-container" class="toast-container"></div>
 
   <div class="container">
-    <nav class="navbar">
-      <div class="brand">
-        <button onclick="location.href='home.html'" style="background:none; border:none; cursor:pointer; color:white; font-size:1.5rem; margin-right:1rem; transition:transform 0.3s;" onmouseover="this.style.transform='translateX(-5px)'" onmouseout="this.style.transform='translateX(0)'">←</button>
-        <img src="logo.png" alt="logo" />
-        <span>Registro de Envíos</span>
-      </div>
-      <div class="user-menu">
-        <button class="btn-menu" id="menuBtn"><span id="userLabel">Usuario</span> ▾</button>
-        <div class="dropdown" id="menuDrop">
-          <a id="adminLink" href="/admin.html" style="display:none">Administración</a>
-          <a id="analyticsLink" href="/analytics.html" style="display:none">📊 Analytics Clientes</a>
-          <a id="historicoLink" href="/historico.html" style="display:none">Histórico de Envíos</a>
-          <a id="clientesLink" href="/clientes.html" style="display:none">Gestión de Clientes</a>
-          <hr/>
-          <a href="/home.html">🏠 Inicio</a>
-          <a href="/logout">Cerrar Sesión</a>
+    <div class="card">
+      <div class="hdr">
+        <div class="logo-header">
+          <img src="logo.png" alt="Defi Oracle">
+          <h1>📦 Registro de Envíos</h1>
+        </div>
+        <div class="btns">
+          <a href="home.html" class="btn-back">🏠 Inicio</a>
         </div>
       </div>
-    </nav>
 
-    <div class="content">
-      
-      <div id="kpiSaldoVes" class="kpi-ves" style="display: none; text-align: center; margin-bottom: 2rem; padding: 1rem; background: #f0f8ff; border-radius: var(--border-radius);">
-          <h3 style="margin-bottom: 0.5rem; color: var(--muted); font-size: 1rem;">SALDO VES ONLINE DISPONIBLE</h3>
-          <strong id="kpiVesOnline" style="font-size: 2rem; font-weight: 800; color: var(--primary-color);">0,00 VES</strong>
+      <div class="content">
+
+      <div class="saldo-ves-banner">
+        <div>
+          <div class="label" style="font-size: 1.1rem !important; font-weight: 700 !important;">💰 Saldo VES Disponible</div>
+          <div class="valor" id="saldoVesDisplay" style="font-size: 3.2rem !important; font-weight: 800 !important;">-</div>
+        </div>
+        <button class="refresh-btn" onclick="cargarSaldoVes()" style="font-size: 0.85rem !important; padding: 0.65rem 1.1rem !important;">
+          🔄 Actualizar
+        </button>
       </div>
-
-      <section id="kpisSection" style="display:none">
-        <h2>Dashboard en Tiempo Real</h2>
-        <div class="kpis-rates">
-            <div class="kpi" style="background: #f0f8ff;">
-                <div style="color:var(--muted)">Tasa Compra Promedio (VES/CLP)</div>
-                <div id="kpiTasaCompra" style="font-weight:800; color:var(--primary)">—</div>
-            </div>
-            <div class="kpi" style="background: #f0f8ff;">
-                <div style="color:var(--muted)">Tasa Venta Promedio HOY (VES/CLP)</div>
-                <div id="kpiTasaVenta" style="font-weight:800; color:var(--primary)">—</div>
-            </div>
-        </div>
-        <div class="kpis-grid">
-          <div class="kpi"><div style="color:var(--muted)">Ganancia Bruta HOY (CLP)</div><div id="kpiG" style="font-weight:800">—</div></div>
-          <div class="kpi"><div style="color:var(--muted)">Total Enviado HOY (CLP)</div><div id="kpiT" style="font-weight:800">—</div></div>
-          <div class="kpi"><div style="color:var(--muted)">Margen Bruto HOY</div><div id="kpiM" style="font-weight:800">—</div></div>
-        </div>
-        <h3 style="margin-top: 15px;">Capital e Inventario</h3>
-        <div class="kpis-grid">
-          <div class="kpi" style="background: #eaf4ff;"><div class="kpi-h4">Capital Total (CLP)</div><div id="kpiCapitalTotal" style="font-weight:800">—</div></div>
-          <div class="kpi"><div class="kpi-h4">Ganancia Acumulada (CLP)</div><div id="kpiGananciaAcumulada" style="font-weight:800">—</div></div>
-          
-          <div class="kpi">
-            <div class="kpi-h4">Inventario VES (Valor en CLP)</div>
-            <div id="kpiSaldoClpDisponible" style="font-weight:800">—</div>
-          </div>
-          </div>
-      </section>
-
-      <section id="operatorKpi" style="margin-bottom: 24px; display:none;">
-          <h2 style="margin-bottom: 12px;">Tu Total Enviado (Este Mes)</h2>
-          <div class="kpi" style="max-width:300px; margin: 0 auto; background:var(--secondary); color:var(--dark);">
-              <div style="color:var(--dark); font-weight:700;">CLP Enviado Total Registrado</div>
-              <div id="kpiOperatorClp" style="font-size:1.5rem; font-weight:900">0,00</div>
-          </div>
-      </section>
 
       <h2>Registrar Nuevo Envío</h2>
       <form id="frm">
@@ -150,46 +326,7 @@
         <button id="btnGuardar" class="btn btn-primary" type="submit" disabled>Guardar Envío</button>
       </form>
 
-      <h2 id="tituloTabla">Envíos Registrados</h2>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr><th>Fecha</th><th>Recibo</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acciones</th></tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
       </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="editModal">
-    <div class="modal-content">
-      <h2>Editar Envío</h2>
-      <form id="editForm" class="modal-form">
-        <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
-          <div><label>Fecha</label><input type="date" id="editFecha" required></div>
-          
-          <div>
-            <label>Número de Recibo</label>
-            <input type="text" id="editRecibo" required autocomplete="off">
-            <div id="editReciboStatus" style="font-size: 0.8rem; font-weight: 700; margin-top: 4px; height: 1em;"></div>
-          </div>
-
-          <div class="autocomplete-container" style="grid-column: 1 / -1;">
-            <label>Cliente</label>
-            <input type="text" id="editCliente" required autocomplete="off">
-            <div class="autocomplete-suggestions" id="editClientSuggestions"></div>
-          </div>
-
-          <div><label>Monto CLP</label><input type="number" id="editMontoClp" required></div>
-          <div><label>Tasa</label><input type="number" id="editTasa" step="0.0001" required></div>
-          <div class="form-full" style="grid-column: 1 / -1;"><label>Observaciones</label><input type="text" id="editObs"></div>
-        </div>
-        <div class="modal-buttons">
-          <button type="button" class="btn-light" id="cancelEdit">Cancelar</button>
-          <button type="submit" id="btnGuardarCambios" class="btn-primary">Guardar Cambios</button>
-        </div>
-      </form>
     </div>
   </div>
 
@@ -209,7 +346,6 @@
     }
 
     let user = {};
-    let operacionesData = [];
     let debounceTimeout;
 
     // ----------- VALIDACIÓN EN TIEMPO REAL DE RECIBO (NUEVO Y EDICIÓN) -----------
@@ -250,137 +386,20 @@
         return new Date(now.getTime() - offset).toISOString().slice(0, 10);
     };
 
-    async function cargarOperatorKpi(){
-      const k = await (await fetch('/api/monthly-sales')).json();
-      const fmt = v => (v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
-      document.getElementById('kpiOperatorClp').textContent = fmt(k.totalClpMensual);
-    }
-    
-    async function cargarSaldoVes(){
-        const r = await fetch('/api/dashboard');
-        if (r.ok) {
-            const d = await r.json();
-            const fmtVES = v => (v||0).toLocaleString('es-VE', {minimumFractionDigits: 2});
-            document.getElementById('kpiVesOnline').textContent = `${fmtVES(d.saldoVesOnline)} VES`;
-        } else {
-             document.getElementById('kpiVesOnline').textContent = `0,00 VES`;
-        }
-        document.getElementById('kpiSaldoVes').style.display = 'block';
-    }
-
-    async function cargarMasterMetrics(){
-        if (user.role !== 'master') return;
-        const r = await fetch('/api/dashboard');
-        if (!r.ok) return; 
-
-        const d = await r.json();
-        const fmtCLP = v => (v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
-        const fmtRate = v => (v||0).toFixed(6);
-
-        document.getElementById('kpiG').textContent = fmtCLP(d.gananciaBruta);
-        document.getElementById('kpiT').textContent = fmtCLP(d.totalClpEnviado);
-        document.getElementById('kpiM').textContent = ((d.margenBruto||0).toFixed(1)) + '%';
-        document.getElementById('kpiTasaCompra').textContent = fmtRate(d.tasaCompraPromedio);
-        document.getElementById('kpiTasaVenta').textContent = fmtRate(d.tasaVentaPromedio);
-        document.getElementById('kpiCapitalTotal').textContent = fmtCLP(d.capitalTotalClp);
-        document.getElementById('kpiGananciaAcumulada').textContent = fmtCLP(d.totalGananciaAcumuladaClp);
-        document.getElementById('kpiSaldoClpDisponible').textContent = fmtCLP(d.saldoDisponibleClp);
-    }
-
-    const fila = (op) => {
-      const tr = document.createElement('tr');
-      const fecha = new Date(op.fecha + 'T00:00:00'); 
-      const fechaFormateada = fecha.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-'); 
-      const fmtCLP = v => Number(v).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
-      const fmtVES = v => Number(v).toLocaleString('es-VE');
-
-      let actions = '';
-      const puedeEditar = (user.role === 'master') || (user.id === op.usuario_id && op.fecha === getLocalYYYYMMDD());
-      if (puedeEditar) {
-        actions += `<button class="btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>`;
-      }
-      if (user.role === 'master') {
-        actions += ` <button class="btn btn-danger" onclick="deleteOperacion(${op.id})">Borrar</button>`;
-      }
-
-      tr.innerHTML = `
-        <td>${fechaFormateada}</td>
-        <td>${op.numero_recibo || ''}</td>
-        <td>${op.operador}</td>
-        <td>${op.cliente_nombre}</td>
-        <td>${fmtCLP(op.monto_clp)}</td>
-        <td>${Number(op.tasa).toFixed(4)}</td>
-        <td>${fmtVES(op.monto_ves)}</td>
-        <td>${op.observaciones || ''}</td>
-        <td>${actions}</td>`;
-      return tr;
-    };
-
-    async function cargarTabla() {
-      const r = await fetch('/api/operaciones');
-      operacionesData = await r.json();
-      const tbody = document.getElementById('tbody');
-      tbody.innerHTML = '';
-      operacionesData.forEach(d => tbody.appendChild(fila(d)));
-    }
-
-    async function reloadAllKpis() {
-        await cargarSaldoVes(); 
-        if (user.role === 'master') await cargarMasterMetrics();
-        else await cargarOperatorKpi(); 
-    }
-
-    const modal = document.getElementById('editModal');
-    const editForm = document.getElementById('editForm');
-    
-    function abrirModalEdicion(id) {
-        const op = operacionesData.find(d => d.id === id);
-        if (!op) return;
-        modal.dataset.id = op.id;
-        document.getElementById('editFecha').value = op.fecha;
-        document.getElementById('editRecibo').value = op.numero_recibo || '';
-        document.getElementById('editCliente').value = op.cliente_nombre;
-        document.getElementById('editMontoClp').value = op.monto_clp;
-        document.getElementById('editTasa').value = op.tasa;
-        document.getElementById('editObs').value = op.observaciones || '';
-        document.getElementById('editFecha').disabled = (user.role !== 'master');
-        checkRecibo(document.getElementById('editRecibo'), document.getElementById('editReciboStatus'), document.getElementById('btnGuardarCambios'), op.id);
-        modal.style.display = 'flex';
-    }
-
-    function cerrarModalEdicion() {
-        modal.style.display = 'none';
-    }
-
-    editForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const id = modal.dataset.id;
-        const body = { 
-            fecha: document.getElementById('editFecha').value, 
-            numero_recibo: document.getElementById('editRecibo').value.trim(),
-            cliente_nombre: document.getElementById('editCliente').value.trim(), 
-            monto_clp: document.getElementById('editMontoClp').value, 
-            tasa: document.getElementById('editTasa').value, 
-            observaciones: document.getElementById('editObs').value.trim() 
-        };
-        const r = await fetch(`/api/operaciones/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        const res = await r.json();
-        showToast(res.message || 'Error', r.ok ? 'success' : 'error');
-        if (r.ok) {
-            cerrarModalEdicion();
-            await cargarTabla();
-            await reloadAllKpis();
-        }
-    });
-
-    async function deleteOperacion(id) {
-        if (!confirm('¿Estás seguro de que quieres borrar esta operación?\nEsta acción es irreversible y afectará los saldos globales.')) return;
-        const r = await fetch(`/api/operaciones/${id}`, { method: 'DELETE' });
-        const res = await r.json();
-        showToast(res.message || 'Error', r.ok ? 'success' : 'error');
-        if (r.ok) {
-            await cargarTabla();
-            await reloadAllKpis();
+    async function cargarSaldoVes() {
+        try {
+            const r = await fetch('/api/dashboard');
+            if (!r.ok) {
+                console.error('Error al cargar saldo VES');
+                return;
+            }
+            const data = await r.json();
+            const saldoVes = data.saldoVesOnline || 0;
+            document.getElementById('saldoVesDisplay').textContent = 
+                saldoVes.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Bs.';
+        } catch (error) {
+            console.error('Error cargando saldo VES:', error);
+            document.getElementById('saldoVesDisplay').textContent = 'Error al cargar';
         }
     }
 
@@ -412,25 +431,9 @@
       const info = await fetch('/api/user-info');
       if (!info.ok) return (location.href = '/login.html');
       user = await info.json();
-      document.getElementById('userLabel').textContent = user.username;
-      
-      document.getElementById('historicoLink').style.display = 'block';
-      document.getElementById('clientesLink').style.display = 'block';
-      
-      if (user.role === 'master') {
-        document.getElementById('adminLink').style.display = 'block';
-        document.getElementById('analyticsLink').style.display = 'block';
-        document.getElementById('kpisSection').style.display = 'block'; 
-        document.getElementById('operatorKpi').style.display = 'none'; 
-      } else {
-        document.getElementById('tituloTabla').textContent = 'Envíos Registrados (Hoy)';
-        document.getElementById('operatorKpi').style.display = 'block';
-      }
 
-      const btn = document.getElementById('menuBtn');
-      const drop = document.getElementById('menuDrop');
-      btn.addEventListener('click', () => drop.classList.toggle('show'));
-      window.addEventListener('click', (e) => { if (!btn.contains(e.target)) drop.classList.remove('show'); });
+      // Cargar saldo VES
+      await cargarSaldoVes();
 
       const fch = document.getElementById('fch');
       fch.value = getLocalYYYYMMDD();
@@ -449,11 +452,8 @@
       mclp.addEventListener('input', () => { aplicarTasaAutomatica(); actualizarPreview(); });
       tasa.addEventListener('input', actualizarPreview);
       
-      document.getElementById('cancelEdit').addEventListener('click', cerrarModalEdicion);
-      
       // VALIDACIÓN AJAX DE RECIBO EN TIEMPO REAL
       document.getElementById('recibo').addEventListener('input', () => checkRecibo(document.getElementById('recibo'), document.getElementById('reciboStatus'), document.getElementById('btnGuardar')));
-      document.getElementById('editRecibo').addEventListener('input', () => checkRecibo(document.getElementById('editRecibo'), document.getElementById('editReciboStatus'), document.getElementById('btnGuardarCambios'), modal.dataset.id));
       
       document.getElementById('frm').addEventListener('submit', async (e) => {
         // Bloquea el submit si el recibo no está libre
@@ -481,18 +481,17 @@
             document.getElementById('reciboStatus').textContent = '';
             document.getElementById('btnGuardar').disabled = true;
             vesPreview.textContent = '0,00';
-            await cargarTabla();
-            await reloadAllKpis();
+            // Actualizar saldo VES después de registrar el envío
+            await cargarSaldoVes();
         }
       });
 
       addClientAutocomplete(document.getElementById('cli'), document.getElementById('clientSuggestions'));
-      addClientAutocomplete(document.getElementById('editCliente'), document.getElementById('editClientSuggestions'));
-      
-      await cargarTabla();
-      await reloadAllKpis();
+
       actualizarPreview();
     })();
   </script>
 </body>
 </html>
+
+```

@@ -3,65 +3,89 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>P2P - Tasas VES/CLP | Defi Oracle</title>
+  <title>Tasas P2P | Defi Oracle</title>
   <link rel="stylesheet" href="style.css">
   <style>
     body {
-      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
-      min-height: 100vh;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      position: relative;
+      overflow-x: hidden;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      background-image: url('logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.03;
+      z-index: 0;
+      pointer-events: none;
     }
     
     .container {
       max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem;
+      margin: 2rem auto;
+      padding: 0 1rem;
     }
     
-    .header {
+    .card {
+      position: relative;
+      z-index: 1;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+    
+    .hdr {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 16px 16px 0 0;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 2rem;
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(10px);
-      padding: 1.5rem 2rem;
-      border-radius: 20px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      flex-wrap: wrap;
+      gap: 1rem;
     }
     
-    .header-left {
+    .logo-header {
       display: flex;
       align-items: center;
       gap: 1rem;
     }
     
-    .header-left img {
-      height: 50px;
+    .logo-header img {
+      height: 60px;
       width: auto;
       filter: brightness(0) invert(1);
+      object-fit: contain;
     }
     
-    .header-left h1 {
+    .hdr h1 {
       margin: 0;
-      color: white;
       font-size: 2rem;
-      font-weight: 800;
+      font-weight: 700;
     }
     
-    .header-right {
+    .hdr .btns {
       display: flex;
-      gap: 1rem;
-      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
     }
     
     .btn-back {
       background: rgba(255, 255, 255, 0.2);
-      border: none;
+      border: 1px solid rgba(255, 255, 255, 0.3);
       padding: 0.75rem 1.5rem;
-      border-radius: 12px;
+      border-radius: 8px;
       color: white;
       cursor: pointer;
       font-weight: 600;
@@ -78,23 +102,22 @@
     }
     
     .btn-refresh {
-      background: linear-gradient(135deg, #2EC7A3 0%, #45D1B4 100%);
+      background: rgba(255, 255, 255, 0.95);
       border: none;
       padding: 0.75rem 1.5rem;
-      border-radius: 12px;
-      color: white;
+      border-radius: 8px;
+      color: #2D8CDB;
       cursor: pointer;
       font-weight: 600;
       transition: all 0.3s;
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      box-shadow: 0 4px 15px rgba(46, 199, 163, 0.3);
     }
     
     .btn-refresh:hover {
+      background: white;
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(46, 199, 163, 0.4);
     }
     
     .btn-refresh:disabled {
@@ -102,16 +125,19 @@
       cursor: not-allowed;
     }
     
+    .content {
+      padding: 2rem;
+    }
+    
     .status-bar {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 1rem 2rem;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      padding: 1rem 1.5rem;
       border-radius: 12px;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     
     .status-item {
@@ -137,22 +163,22 @@
     
     .cards-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 2rem;
-      margin-bottom: 2rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
     }
     
-    .card {
+    .card-item {
       background: white;
-      border-radius: 20px;
-      padding: 2rem;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       transition: all 0.3s;
     }
     
-    .card:hover {
+    .card-item:hover {
       transform: translateY(-5px);
-      box-shadow: 0 15px 50px rgba(45, 140, 219, 0.2);
+      box-shadow: 0 8px 20px rgba(45, 140, 219, 0.15);
     }
     
     .card-header {
@@ -197,19 +223,19 @@
     
     .tasas-ajustadas {
       background: white;
-      border-radius: 20px;
-      padding: 2rem;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     
     .tasas-ajustadas h2 {
-      margin: 0 0 1.5rem 0;
-      font-size: 1.5rem;
-      font-weight: 800;
+      margin: 0 0 1rem 0;
+      font-size: 1.25rem;
+      font-weight: 700;
       color: #1f2937;
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
     
     .tasas-grid {
@@ -260,12 +286,11 @@
     }
     
     .metadata {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 1.5rem 2rem;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      padding: 1.5rem;
       border-radius: 12px;
-      margin-top: 2rem;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      margin-top: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     
     .metadata-grid {
@@ -336,31 +361,99 @@
       font-size: 2rem;
     }
     
+    .country-selector {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      margin-bottom: 1.5rem;
+    }
+    
+    .country-selector h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .country-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    
+    .country-btn {
+      background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 600;
+      color: #374151;
+    }
+    
+    .country-btn:hover {
+      border-color: #2D8CDB;
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(45, 140, 219, 0.2);
+    }
+    
+    .country-btn.active {
+      background: linear-gradient(135deg, #2D8CDB 0%, #1E73C7 100%);
+      border-color: #2D8CDB;
+      color: white;
+    }
+    
+    .country-flag {
+      font-size: 3rem;
+    }
+    
+    .country-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    
+    .country-code {
+      font-size: 0.875rem;
+      opacity: 0.8;
+    }
+    
     @media (max-width: 768px) {
       .container {
-        padding: 1rem;
+        margin: 1rem auto;
+        padding: 0 0.5rem;
       }
       
-      .header {
+      .hdr {
+        padding: 1.5rem;
         flex-direction: column;
-        gap: 1rem;
-        padding: 1rem;
+        align-items: flex-start;
       }
       
-      .header-left {
+      .logo-header {
         flex-direction: column;
-        text-align: center;
+        align-items: flex-start;
+        gap: 0.5rem;
       }
       
-      .header-left h1 {
-        font-size: 1.5rem;
-      }
-      
-      .header-left img {
+      .logo-header img {
         height: 40px;
       }
       
-      .header-right {
+      .hdr h1 {
+        font-size: 1.5rem;
+      }
+      
+      .hdr .btns {
         width: 100%;
         flex-direction: column;
       }
@@ -370,9 +463,13 @@
         justify-content: center;
       }
       
+      .content {
+        padding: 1rem;
+      }
+      
       .status-bar {
         flex-direction: column;
-        gap: 1rem;
+        gap: 0.75rem;
         padding: 1rem;
       }
       
@@ -381,8 +478,8 @@
         gap: 1rem;
       }
       
-      .card {
-        padding: 1.5rem;
+      .card-item {
+        padding: 1.25rem;
       }
       
       .card-value {
@@ -390,7 +487,7 @@
       }
       
       .tasas-ajustadas {
-        padding: 1.5rem;
+        padding: 1.25rem;
       }
       
       .tasas-grid {
@@ -410,45 +507,88 @@
         grid-template-columns: 1fr;
         gap: 1rem;
       }
+      
+      .country-buttons {
+        grid-template-columns: 1fr;
+      }
+      
+      .country-selector {
+        padding: 1.25rem;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">
-      <div class="header-left">
-        <img src="logo.png" alt="Defi Oracle">
-        <div>
-          <h1>💱 Tasas P2P VES/CLP</h1>
+    <div class="card">
+      <div class="hdr">
+        <div class="logo-header">
+          <img src="logo.png" alt="Defi Oracle">
+          <h1>💱 Tasas a Venezuela</h1>
+        </div>
+        <div class="btns">
+          <a href="home.html" class="btn-back">🏠 Inicio</a>
+          <button class="btn-refresh" onclick="cargarTasas()" id="btnRefresh">
+            🔄 Actualizar
+          </button>
         </div>
       </div>
-      <div class="header-right">
-        <a href="home.html" class="btn-back">← Volver al Inicio</a>
-        <button class="btn-refresh" onclick="cargarTasas()" id="btnRefresh">
-          🔄 Actualizar Tasas
-        </button>
+
+      <div class="content">
+        <div class="status-bar" id="statusBar" style="display:none">
+          <div class="status-item">
+            <div class="status-dot"></div>
+            <span>Conectado a Binance P2P</span>
+          </div>
+          <div class="status-item">
+            <span id="lastUpdate">⏱️ Última actualización: --:--</span>
+          </div>
+          <div class="status-item">
+            <span id="autoRefresh">🔄 Auto-refresh: 30s</span>
+          </div>
+        </div>
+
+        <!-- Selector de País -->
+        <div class="country-selector">
+          <h2>🌎 Selecciona el país destino</h2>
+          <div class="country-buttons">
+            <button class="country-btn active" onclick="seleccionarPais('VES')" id="btnVES">
+              <div class="country-flag">🇻🇪</div>
+              <div class="country-name">Venezuela</div>
+              <div class="country-code">VES (Bolívares)</div>
+            </button>
+            <!-- Más países pueden agregarse aquí -->
+          </div>
+        </div>
+
+        <div id="content"></div>
       </div>
     </div>
-
-    <div class="status-bar" id="statusBar" style="display:none">
-      <div class="status-item">
-        <div class="status-dot"></div>
-        <span>Conectado a Binance P2P</span>
-      </div>
-      <div class="status-item">
-        <span id="lastUpdate">⏱️ Última actualización: --:--</span>
-      </div>
-      <div class="status-item">
-        <span id="autoRefresh">🔄 Auto-refresh: 30s</span>
-      </div>
-    </div>
-
-    <div id="content"></div>
   </div>
 
   <script>
     let autoRefreshInterval = null;
     let tasasData = null;
+    let paisSeleccionado = 'VES'; // País por defecto
+
+    function seleccionarPais(pais) {
+      paisSeleccionado = pais;
+      
+      // Actualizar botones activos
+      document.querySelectorAll('.country-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.getElementById(`btn${pais}`).classList.add('active');
+      
+      // Actualizar título
+      const titulos = {
+        'VES': '💱 Tasas a Venezuela'
+      };
+      document.querySelector('.logo-header h1').textContent = titulos[pais] || '💱 Tasas P2P';
+      
+      // Recargar tasas
+      cargarTasas();
+    }
 
     async function cargarTasas() {
       const content = document.getElementById('content');
@@ -505,7 +645,7 @@
       content.innerHTML = `
         <div class="cards-grid">
           <!-- Tasa VES/USDT -->
-          <div class="card">
+          <div class="card-item">
             <div class="card-header">
               <div class="card-icon">🇻🇪</div>
               <div>
@@ -518,7 +658,7 @@
           </div>
 
           <!-- Tasa CLP/USDT -->
-          <div class="card">
+          <div class="card-item">
             <div class="card-header">
               <div class="card-icon">🇨🇱</div>
               <div>
@@ -531,7 +671,7 @@
           </div>
 
           <!-- Tasa Base CLP → VES -->
-          <div class="card" style="grid-column: span 2">
+          <div class="card-item" style="grid-column: span 2">
             <div class="card-header">
               <div class="card-icon">💰</div>
               <div>

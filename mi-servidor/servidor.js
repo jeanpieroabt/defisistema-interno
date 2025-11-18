@@ -151,6 +151,11 @@ const runMigrations = async () => {
     
     await dbRun(`CREATE TABLE IF NOT EXISTS configuracion(clave TEXT PRIMARY KEY, valor TEXT)`);
     
+    // Inicializar valores por defecto en configuracion si no existen
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoVesOnline', '0')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('totalGananciaAcumuladaClp', '0')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('capitalInicialClp', '0')`);
+    
     // ✅ NUEVA TABLA PARA METAS
     await dbRun(`CREATE TABLE IF NOT EXISTS metas(id INTEGER PRIMARY KEY AUTOINCREMENT, mes TEXT NOT NULL UNIQUE, meta_clientes_activos INTEGER DEFAULT 0, meta_nuevos_clientes INTEGER DEFAULT 0, meta_volumen_clp REAL DEFAULT 0, meta_operaciones INTEGER DEFAULT 0)`);
 
@@ -598,7 +603,7 @@ app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
 
 // -------------------- APIs de Costos y KPIs --------------------
 
-app.get('/api/dashboard', async (req, res) => {
+app.get('/api/dashboard', apiAuth, async (req, res) => {
     try {
         const userRole = req.session.user?.role;
         const hoy = hoyLocalYYYYMMDD();
@@ -670,6 +675,36 @@ app.get('/api/dashboard', async (req, res) => {
         console.error("Error en GET /api/dashboard:", e);
         res.status(500).json({ message: 'Error al obtener datos del dashboard.' });
     }
+});
+
+app.get('/api/ganancia-mensual', apiAuth, onlyMaster, (req, res) => {
+    const { mes } = req.query; // Formato: YYYY-MM
+    
+    if (!mes || !/^\d{4}-\d{2}$/.test(mes)) {
+        return res.status(400).json({ message: 'Formato de mes inválido. Use YYYY-MM' });
+    }
+    
+    const inicioMes = `${mes}-01`;
+    const [year, month] = mes.split('-');
+    const siguienteMes = month === '12' ? `${parseInt(year) + 1}-01-01` : `${year}-${String(parseInt(month) + 1).padStart(2, '0')}-01`;
+    
+    db.get(
+        `SELECT 
+            IFNULL(SUM(monto_clp - costo_clp - (monto_clp * 0.003)), 0) as gananciaNeta
+        FROM operaciones 
+        WHERE date(fecha) >= date(?) AND date(fecha) < date(?)`,
+        [inicioMes, siguienteMes],
+        (err, row) => {
+            if (err) {
+                console.error('Error al calcular ganancia mensual:', err);
+                return res.status(500).json({ message: 'Error al calcular ganancia mensual' });
+            }
+            res.json({ 
+                mes,
+                gananciaMensual: row.gananciaNeta || 0 
+            });
+        }
+    );
 });
 
 app.get('/api/monthly-sales', apiAuth, (req, res) => {

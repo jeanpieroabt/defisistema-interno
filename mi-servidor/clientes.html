@@ -9,16 +9,54 @@
         body {
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             min-height: 100vh;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background-image: url('logo.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.03;
+            z-index: 0;
+            pointer-events: none;
         }
         
         .main-container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
+            position: relative;
+            z-index: 1;
         }
         
-                .page-header {
+        .page-header {
             background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(45, 140, 219, 0.2);
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        
+        .page-header .logo {
+            height: 60px;
+            width: auto;
+            filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        
+        .page-header .header-content {
+            flex: 1;
+        }
         
         .page-header h1 {
             margin: 0 0 0.5rem 0;
@@ -50,6 +88,28 @@
         
         .breadcrumb a:hover {
             color: #1E73C7;
+        }
+        
+        .btn-back {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
         
         .stats-bar {
@@ -388,19 +448,13 @@
 </head>
 <body>
     <div class="main-container">
-        <div class="breadcrumb">
-            <a href="/app.html">🏠 Inicio</a>
-            <span>›</span>
-            <span>Gestión de Clientes</span>
-        </div>
-        
-        <div class="page-header" style="display: flex; align-items: center; gap: 1.5rem;">
-            <button onclick="location.href='home.html'" style="background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%); border: none; color: white; font-size: 2rem; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); display: flex; align-items: center; justify-content: center;" onmouseover="this.style.transform='translateX(-5px)'; this.style.boxShadow='0 6px 20px rgba(45, 140, 219, 0.4)'" onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 4px 12px rgba(45, 140, 219, 0.3)'">←</button>
-            <img src="logo.png" alt="Defi Oracle Logo" style="height: 60px; width: auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
-            <div style="flex: 1;">
+        <div class="page-header">
+            <img src="logo.png" alt="Defi Oracle Logo" class="logo">
+            <div class="header-content">
                 <h1>👥 Gestión de Clientes</h1>
-                <p>Defi Oracle - Administra tu base de clientes, detecta duplicados y mantén tu información organizada</p>
+                <p>Administra tu cartera de clientes y mantén actualizada toda la información</p>
             </div>
+            <a href="home.html" class="btn-back">🏠 Inicio</a>
         </div>
 
         <div class="content-card">

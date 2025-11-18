@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Dashboard - Defi Oracle</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      position: relative;
+      overflow-x: hidden;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      background-image: url('logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.03;
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    
+    .card {
+      position: relative;
+      z-index: 1;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+    
+    .hdr {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .logo-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .logo-header img {
+      height: 60px;
+      width: auto;
+      filter: brightness(0) invert(1);
+      object-fit: contain;
+    }
+    
+    .hdr h1 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    
+    .hdr .btns {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    
+    .btn-back {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .btn-back:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+    
+    .content {
+      padding: 2rem;
+    }
+    
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .kpi-card {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      transition: all 0.3s;
+    }
+    
+    .kpi-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 15px rgba(45, 140, 219, 0.15);
+    }
+    
+    .kpi-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #6b7280;
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #1f2937;
+      line-height: 1.2;
+    }
+    
+    .kpi-card.highlight {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border-left: 4px solid #2D8CDB;
+    }
+    
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin: 2rem 0 1rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        margin: 1rem auto;
+        padding: 0 0.5rem;
+      }
+      
+      .hdr {
+        padding: 1.5rem;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .logo-header img {
+        height: 40px;
+      }
+      
+      .hdr h1 {
+        font-size: 1.5rem;
+      }
+      
+      .hdr .btns {
+        width: 100%;
+      }
+      
+      .btn-back {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .content {
+        padding: 1rem;
+      }
+      
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .kpi-value {
+        font-size: 1.75rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="hdr">
+        <div class="logo-header">
+          <img src="logo.png" alt="Defi Oracle">
+          <h1>📊 Dashboard en Tiempo Real</h1>
+        </div>
+        <div class="btns">
+          <a href="home.html" class="btn-back">🏠 Inicio</a>
+        </div>
+      </div>
+
+      <div class="content">
+        <!-- Saldo VES -->
+        <div class="kpi-card highlight" style="margin-bottom: 2rem;">
+          <div class="kpi-label">Saldo VES Online Disponible</div>
+          <div class="kpi-value" id="kpiVesOnline" style="color: #2D8CDB;">0,00 VES</div>
+        </div>
+
+        <!-- Tasas Promedio -->
+        <h3 class="section-title">📈 Tasas del Día</h3>
+        <div class="dashboard-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Tasa Compra Promedio (VES/CLP)</div>
+            <div class="kpi-value" id="kpiTasaCompra">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Tasa Venta Promedio HOY (VES/CLP)</div>
+            <div class="kpi-value" id="kpiTasaVenta">—</div>
+          </div>
+        </div>
+
+        <!-- Métricas del Día -->
+        <h3 class="section-title">💰 Operaciones de Hoy</h3>
+        <div class="dashboard-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Ganancia Bruta HOY (CLP)</div>
+            <div class="kpi-value" id="kpiG">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Total Enviado HOY (CLP)</div>
+            <div class="kpi-value" id="kpiT">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Margen Bruto HOY</div>
+            <div class="kpi-value" id="kpiM">—</div>
+          </div>
+        </div>
+
+        <!-- Capital e Inventario -->
+        <h3 class="section-title">🏦 Capital e Inventario</h3>
+        <div class="dashboard-grid">
+          <div class="kpi-card highlight">
+            <div class="kpi-label">Capital Total (CLP)</div>
+            <div class="kpi-value" id="kpiCapitalTotal">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">
+              Ganancia Mensual (CLP)
+              <input type="month" id="filtroMes" style="margin-left: 10px; padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.85rem;">
+            </div>
+            <div class="kpi-value" id="kpiGananciaAcumulada">—</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Inventario VES (Valor en CLP)</div>
+            <div class="kpi-value" id="kpiSaldoClpDisponible">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let user = {};
+
+    async function cargarGananciaMensual(mes) {
+      try {
+        const r = await fetch(`/api/ganancia-mensual?mes=${mes}`);
+        if (!r.ok) {
+          console.error('Error al cargar ganancia mensual');
+          return;
+        }
+        const data = await r.json();
+        const fmtCLP = v => (v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
+        document.getElementById('kpiGananciaAcumulada').textContent = fmtCLP(data.gananciaMensual);
+      } catch (error) {
+        console.error('Error cargando ganancia mensual:', error);
+      }
+    }
+
+    async function cargarDashboard() {
+      try {
+        const r = await fetch('/api/dashboard');
+        if (!r.ok) {
+          console.error('Error al cargar dashboard');
+          return;
+        }
+
+        const d = await r.json();
+        console.log('Datos del dashboard:', d);
+        const fmtCLP = v => (v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
+        const fmtVES = v => (v||0).toLocaleString('es-VE', {minimumFractionDigits: 2});
+        const fmtRate = v => (v||0).toFixed(6);
+
+        // Saldo VES
+        document.getElementById('kpiVesOnline').textContent = `${fmtVES(d.saldoVesOnline)} VES`;
+
+        // Tasas
+        document.getElementById('kpiTasaCompra').textContent = fmtRate(d.tasaCompraPromedio);
+        document.getElementById('kpiTasaVenta').textContent = fmtRate(d.tasaVentaPromedio);
+
+        // Métricas del día
+        document.getElementById('kpiG').textContent = fmtCLP(d.gananciaBruta);
+        document.getElementById('kpiT').textContent = fmtCLP(d.totalClpEnviado);
+        document.getElementById('kpiM').textContent = ((d.margenBruto||0).toFixed(1)) + '%';
+
+        // Capital e inventario
+        document.getElementById('kpiCapitalTotal').textContent = fmtCLP(d.capitalTotalClp);
+        document.getElementById('kpiSaldoClpDisponible').textContent = fmtCLP(d.saldoDisponibleClp);
+        
+        // Cargar ganancia del mes seleccionado
+        const mesSeleccionado = document.getElementById('filtroMes').value;
+        await cargarGananciaMensual(mesSeleccionado);
+      } catch (error) {
+        console.error('Error cargando dashboard:', error);
+      }
+    }
+
+    function obtenerMesActual() {
+      const ahora = new Date();
+      const year = ahora.getFullYear();
+      const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+      return `${year}-${mes}`;
+    }
+
+    (async () => {
+      // Verificar sesión y rol
+      const info = await fetch('/api/user-info');
+      if (!info.ok) return (location.href = '/login.html');
+      user = await info.json();
+      
+      // Solo master puede ver el dashboard
+      if (user.role !== 'master') {
+        alert('No tienes permisos para acceder a esta página');
+        location.href = '/home.html';
+        return;
+      }
+
+      // Establecer mes actual por defecto
+      document.getElementById('filtroMes').value = obtenerMesActual();
+      
+      // Event listener para cambio de mes
+      document.getElementById('filtroMes').addEventListener('change', async (e) => {
+        await cargarGananciaMensual(e.target.value);
+      });
+
+      // Cargar datos
+      await cargarDashboard();
+      
+      // Auto-refresh cada 30 segundos
+      setInterval(cargarDashboard, 30000);
+    })();
+  </script>
+</body>
+</html>

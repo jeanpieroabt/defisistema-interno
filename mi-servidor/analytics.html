@@ -3,9 +3,108 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Analytics de Clientes</title>
+  <title>Analytics de Clientes - Defi Oracle</title>
   <link rel="stylesheet" href="style.css">
   <style>
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      position: relative;
+      overflow-x: hidden;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      background-image: url('logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.03;
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    
+    .card {
+      position: relative;
+      z-index: 1;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+    
+    .hdr {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .logo-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .logo-header img {
+      height: 60px;
+      width: auto;
+      filter: brightness(0) invert(1);
+      object-fit: contain;
+    }
+    
+    .hdr h1 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    
+    .hdr .btns {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    
+    .btn-back {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .btn-back:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+    
+    .content {
+      padding: 2rem;
+    }
+
     .analytics-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -85,23 +184,36 @@
     }
     .tab-container {
       display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-      border-bottom: 2px solid var(--light-grey);
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      padding: 0.5rem;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     .tab {
-      padding: 0.75rem 1.5rem;
-      background: none;
+      padding: 0.85rem 1.75rem;
+      background: transparent;
       border: none;
       cursor: pointer;
       font-weight: 600;
       color: var(--medium-grey);
-      border-bottom: 3px solid transparent;
-      transition: all 0.3s;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      font-size: 0.95rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .tab:hover {
+      color: #2D8CDB;
+      background: linear-gradient(135deg, rgba(45, 140, 219, 0.08), rgba(46, 199, 163, 0.08));
+      transform: translateY(-1px);
     }
     .tab.active {
-      color: var(--primary-color);
-      border-bottom-color: var(--primary-color);
+      color: white;
+      background: linear-gradient(135deg, #2D8CDB, #2EC7A3);
+      box-shadow: 0 4px 12px rgba(45, 140, 219, 0.3);
+      transform: scale(1.02);
     }
     .tab-content {
       display: none;
@@ -157,16 +269,19 @@
 <body>
   <div id="toast-container" class="toast-container"></div>
   
-  <div class="card">
-    <div class="hdr">
-      <h1>📊 Analytics de Clientes</h1>
-      <div class="btns">
-        <button class="btn btn-light" onclick="recargarDatos()">🔄 Actualizar</button>
-        <button class="btn btn-primary" onclick="window.close()">Cerrar</button>
+  <div class="container">
+    <div class="card">
+      <div class="hdr">
+        <div class="logo-header">
+          <img src="logo.png" alt="Defi Oracle">
+          <h1>📊 Analytics de Clientes</h1>
+        </div>
+        <div class="btns">
+          <a href="home.html" class="btn-back">🏠 Inicio</a>
+        </div>
       </div>
-    </div>
-
-    <div class="content">
+      
+      <div class="content">
       
       <!-- TABS DE NAVEGACIÓN -->
       <div class="tab-container">
