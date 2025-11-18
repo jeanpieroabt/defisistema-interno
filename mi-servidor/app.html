@@ -99,6 +99,8 @@
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
+      border: none;
+      font-size: 1rem;
       font-size: 1.2rem;
     }
     
@@ -114,13 +116,219 @@
       background: #dc3545;
       color: white;
       border-radius: 50%;
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
-      font-weight: bold;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    
+    .modal-notif-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 9999;
+      animation: fadeIn 0.3s;
+    }
+    
+    .modal-notif-content {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 700px;
+      width: 90%;
+      max-height: 80vh;
+      overflow: hidden;
+      animation: slideIn 0.3s;
+    }
+    
+    .modal-notif-header {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+      padding: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-notif-header h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    
+    .modal-notif-close {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s;
+    }
+    
+    .modal-notif-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .modal-notif-body {
+      padding: 1.5rem;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    
+    .modal-notif-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      gap: 1rem;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    
+    .notif-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 12px;
+      margin-bottom: 0.75rem;
+      transition: background 0.2s;
+      border-left: 4px solid #2D8CDB;
+    }
+    
+    .notif-item.leida {
+      opacity: 0.6;
+      border-left-color: #ccc;
+    }
+    
+    .notif-item:hover {
+      background: #e9ecef;
+    }
+    
+    .notif-checkbox {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: #2D8CDB;
+    }
+    
+    .notif-content {
+      flex: 1;
+    }
+    
+    .notif-title {
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 0.25rem;
+    }
+    
+    .notif-message {
+      color: #6c757d;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .notif-fecha {
+      font-size: 0.8rem;
+      color: #95a5a6;
+    }
+    
+    .notif-tipo-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+    
+    .notif-tipo-badge.tarea {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    
+    .notif-tipo-badge.alerta {
+      background: #fff3e0;
+      color: #f57c00;
+    }
+    
+    .notif-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .btn-notif {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+    
+    .btn-notif-primary {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+    }
+    
+    .btn-notif-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(45, 140, 219, 0.3);
+    }
+    
+    .btn-notif-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-notif-secondary:hover {
+      background: #5a6268;
+    }
+    
+    .notif-empty {
+      text-align: center;
+      padding: 3rem;
+      color: #6c757d;
+    }
+    
+    .notif-empty svg {
+      width: 80px;
+      height: 80px;
+      opacity: 0.3;
+      margin-bottom: 1rem;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translate(-50%, -60%);
+        opacity: 0;
+      }
+      to {
+        transform: translate(-50%, -50%);
+        opacity: 1;
+      }
     }
     
     .btn-back {
@@ -322,10 +530,11 @@
           <h1>📦 Registro de Envíos</h1>
         </div>
         <div class="btns">
-          <a href="tareas.html" class="notif-bell-btn" title="Ver notificaciones y tareas">
+          <button class="notif-bell-btn" onclick="abrirModalNotificaciones()" title="Ver notificaciones">
             🔔
             <span class="notif-badge-app" id="notifCount" style="display: none;">0</span>
-          </a>
+          </button>
+          <a href="tareas.html" class="btn-back" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); color: white; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 600; text-decoration: none;">✓ Tareas</a>
           <a href="home.html" class="btn-back">🏠 Inicio</a>
         </div>
       </div>
@@ -372,6 +581,36 @@
     </div>
   </div>
 
+  <!-- Modal de Notificaciones -->
+  <div id="modalNotificaciones" class="modal-notif-overlay" onclick="cerrarModalSiFueraClick(event)">
+    <div class="modal-notif-content" onclick="event.stopPropagation()">
+      <div class="modal-notif-header">
+        <h2>🔔 Notificaciones</h2>
+        <button class="modal-notif-close" onclick="cerrarModalNotificaciones()">×</button>
+      </div>
+      <div class="modal-notif-body" id="notificacionesLista">
+        <div class="notif-empty">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+          </svg>
+          <p>Cargando notificaciones...</p>
+        </div>
+      </div>
+      <div class="modal-notif-footer">
+        <div class="notif-actions">
+          <button class="btn-notif btn-notif-primary" onclick="marcarSeleccionadasComoLeidas()">
+            ✓ Marcar seleccionadas como leídas
+          </button>
+          <button class="btn-notif btn-notif-secondary" onclick="seleccionarTodas()">
+            Seleccionar todas
+          </button>
+        </div>
+        <button class="btn-notif btn-notif-primary" onclick="window.location.href='tareas.html'">
+          → Ir a Tareas
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script>
     function showToast(message, type = 'info') {
@@ -535,6 +774,13 @@
       // Cargar notificaciones
       cargarNotificaciones();
       setInterval(cargarNotificaciones, 30000);
+      
+      // Actualizar notificaciones cuando la página se vuelve visible
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          cargarNotificaciones();
+        }
+      });
     })();
     
     async function cargarNotificaciones() {
@@ -543,14 +789,99 @@
         const data = await response.json();
         const badge = document.getElementById('notifCount');
         
-        if (data.count > 0) {
-          badge.textContent = data.count > 9 ? '9+' : data.count;
+        if (data.noLeidas > 0) {
+          badge.textContent = data.noLeidas > 9 ? '9+' : data.noLeidas;
           badge.style.display = 'flex';
         } else {
           badge.style.display = 'none';
         }
       } catch (error) {
         console.error('Error cargando notificaciones:', error);
+      }
+    }
+    
+    async function abrirModalNotificaciones() {
+      document.getElementById('modalNotificaciones').style.display = 'block';
+      await cargarListaNotificaciones();
+    }
+    
+    function cerrarModalNotificaciones() {
+      document.getElementById('modalNotificaciones').style.display = 'none';
+    }
+    
+    function cerrarModalSiFueraClick(event) {
+      if (event.target.id === 'modalNotificaciones') {
+        cerrarModalNotificaciones();
+      }
+    }
+    
+    async function cargarListaNotificaciones() {
+      try {
+        const response = await fetch('/api/notificaciones');
+        const notificaciones = await response.json();
+        
+        const lista = document.getElementById('notificacionesLista');
+        
+        if (notificaciones.length === 0) {
+          lista.innerHTML = `
+            <div class="notif-empty">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+              </svg>
+              <h3>No hay notificaciones</h3>
+              <p>Todas tus notificaciones están al día</p>
+            </div>
+          `;
+          return;
+        }
+        
+        lista.innerHTML = notificaciones.map(notif => `
+          <div class="notif-item ${notif.leida ? 'leida' : ''}">
+            <input type="checkbox" class="notif-checkbox" data-id="${notif.id}" ${notif.leida ? 'disabled' : ''}>
+            <div class="notif-content">
+              <div class="notif-title">
+                ${notif.titulo}
+                <span class="notif-tipo-badge ${notif.tipo}">${notif.tipo.toUpperCase()}</span>
+              </div>
+              <div class="notif-message">${notif.mensaje}</div>
+              <div class="notif-fecha">${new Date(notif.fecha_creacion).toLocaleString('es-CL')}</div>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error cargando lista de notificaciones:', error);
+      }
+    }
+    
+    function seleccionarTodas() {
+      const checkboxes = document.querySelectorAll('.notif-checkbox:not([disabled])');
+      const algunaMarcada = Array.from(checkboxes).some(cb => cb.checked);
+      checkboxes.forEach(cb => cb.checked = !algunaMarcada);
+    }
+    
+    async function marcarSeleccionadasComoLeidas() {
+      const checkboxes = document.querySelectorAll('.notif-checkbox:checked');
+      const ids = Array.from(checkboxes).map(cb => parseInt(cb.dataset.id));
+      
+      if (ids.length === 0) {
+        showToast('⚠️ Selecciona al menos una notificación', 'error');
+        return;
+      }
+      
+      try {
+        const promises = ids.map(id => 
+          fetch(`/api/notificaciones/${id}/leer`, { method: 'PUT' })
+        );
+        
+        await Promise.all(promises);
+        
+        await cargarListaNotificaciones();
+        await cargarNotificaciones();
+        
+        showToast(`✅ ${ids.length} notificación(es) marcada(s) como leída(s)`, 'success');
+      } catch (error) {
+        console.error('Error marcando notificaciones:', error);
+        showToast('❌ Error al marcar notificaciones', 'error');
       }
     }
   </script>

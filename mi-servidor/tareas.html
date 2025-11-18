@@ -6,19 +6,119 @@
     <title>Tareas - Sistema Interno</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .tareas-container {
-            padding: 20px;
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            position: relative;
+            overflow-x: hidden;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background-image: url('logo.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.03;
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .main-container {
             max-width: 1400px;
             margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .page-header {
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(45, 140, 219, 0.2);
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        
+        .page-header .logo {
+            height: 60px;
+            width: auto;
+            filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        
+        .page-header .header-content {
+            flex: 1;
+        }
+        
+        .page-header h1 {
+            margin: 0 0 0.5rem 0;
+            color: white;
+            font-size: 2rem;
+            font-weight: 800;
+        }
+        
+        .page-header p {
+            margin: 0;
+            color: rgba(255,255,255,0.95);
+            font-size: 1rem;
+        }
+        
+        .btn-back {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .tareas-container {
+            padding: 0;
+            max-width: 100%;
+            margin: 0;
+            position: relative;
+            z-index: 1;
         }
         
         .rendimiento-banner {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
             color: white;
             padding: 20px 30px;
-            border-radius: 12px;
+            border-radius: 16px;
             margin-bottom: 25px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         }
         
         .rendimiento-banner h3 {
@@ -89,11 +189,18 @@
 
         .tareas-header {
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: center;
             margin-bottom: 30px;
             flex-wrap: wrap;
             gap: 15px;
+        }
+        
+        .tareas-header h1 {
+            color: #2D8CDB;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
         }
 
         .filtros {
@@ -104,26 +211,35 @@
         }
 
         .filtros select, .filtros input {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 14px;
+            background: white;
+            transition: border-color 0.3s;
+        }
+        
+        .filtros select:focus, .filtros input:focus {
+            outline: none;
+            border-color: #2D8CDB;
         }
 
         .btn-crear-tarea {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 12px 24px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(45, 140, 219, 0.3);
         }
 
         .btn-crear-tarea:hover {
             transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 140, 219, 0.4);
         }
 
         .tareas-grid {
@@ -135,16 +251,18 @@
 
         .tarea-card {
             background: white;
-            border-radius: 10px;
+            border-radius: 16px;
             padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
             transition: transform 0.2s, box-shadow 0.2s;
             border-left: 4px solid #ccc;
+            position: relative;
+            overflow: hidden;
         }
 
         .tarea-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.15);
         }
 
         .tarea-card.urgente {
@@ -269,37 +387,57 @@
 
         .btn-accion {
             flex: 1;
-            padding: 8px;
+            padding: 10px 16px;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 13px;
             font-weight: 600;
-            transition: opacity 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .btn-accion:hover {
-            opacity: 0.8;
+            transform: translateY(-2px);
         }
 
         .btn-iniciar {
-            background-color: #17a2b8;
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
             color: white;
+            box-shadow: 0 4px 15px rgba(45, 140, 219, 0.3);
+        }
+        
+        .btn-iniciar:hover {
+            box-shadow: 0 6px 20px rgba(45, 140, 219, 0.4);
         }
 
         .btn-completar {
             background-color: #28a745;
             color: white;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn-completar:hover {
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
         }
 
         .btn-cancelar {
             background-color: #dc3545;
             color: white;
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        }
+        
+        .btn-cancelar:hover {
+            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
         }
 
         .btn-eliminar {
             background-color: #6c757d;
             color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+        
+        .btn-eliminar:hover {
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
         }
 
         .modal {
@@ -365,11 +503,19 @@
         .form-group select,
         .form-group textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 14px;
             box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #2D8CDB;
         }
 
         .form-group textarea {
@@ -385,14 +531,21 @@
         }
 
         .btn-submit {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
             color: white;
             border: none;
             padding: 12px 30px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(45, 140, 219, 0.3);
+        }
+        
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 140, 219, 0.4);
         }
 
         .btn-cancel {
@@ -400,10 +553,17 @@
             color: white;
             border: none;
             padding: 12px 30px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+        
+        .btn-cancel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
         }
 
         .no-tareas {
@@ -442,33 +602,20 @@
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <h1 class="logo">DefíSistema</h1>
-        <div class="menu-section">
-            <a href="app.html" class="menu-item">
-                <span class="icon">📊</span>
-                <span>Dashboard</span>
-            </a>
-            <a href="clientes.html" class="menu-item">
-                <span class="icon">👥</span>
-                <span>Clientes</span>
-            </a>
-            <a href="historico.html" class="menu-item">
-                <span class="icon">📋</span>
-                <span>Histórico</span>
-            </a>
-            <a href="tareas.html" class="menu-item active">
-                <span class="icon">✓</span>
-                <span>Tareas</span>
-            </a>
-            <a href="#" class="menu-item" onclick="logout()">
-                <span class="icon">🚪</span>
-                <span>Cerrar Sesión</span>
+    <div class="main-container">
+        <div class="page-header">
+            <div class="header-left">
+                <img src="logo.png" alt="Defi Oracle" class="logo">
+                <div class="header-content">
+                    <h1>✓ Gestión de Tareas</h1>
+                    <p>Administra tus tareas y mantén actualizada tu información</p>
+                </div>
+            </div>
+            <a href="app.html" class="btn-back">
+                ← Inicio
             </a>
         </div>
-    </div>
 
-    <div class="main-content">
         <div class="tareas-container">
             <!-- Banner de Rendimiento -->
             <div class="rendimiento-banner" id="rendimientoBanner" style="display: none;">
@@ -487,7 +634,6 @@
             </div>
         
             <div class="tareas-header">
-                <h1>Gestión de Tareas</h1>
                 <div class="filtros">
                     <select id="filtroEstado" onchange="cargarTareas()">
                         <option value="">Todos los estados</option>
@@ -563,8 +709,8 @@
     </div>
 
     <!-- Modal para actualizar tarea -->
-    <div id="modalActualizarTarea" class="modal">
-        <div class="modal-content">
+    <div id="modalActualizarTarea" class="modal" style="display: none;">
+        <div class="modal-content" style="background: white; position: relative; z-index: 1000000;">
             <div class="modal-header">
                 <h2>Actualizar Tarea</h2>
                 <span class="close" onclick="cerrarModalActualizar()">&times;</span>
@@ -759,7 +905,7 @@
                 `;
             } else if (tarea.estado === 'en_progreso') {
                 botonesAccion = `
-                    <button class="btn-accion btn-completar" onclick="mostrarModalActualizar(${tarea.id}, 'completada')">
+                    <button class="btn-accion btn-completar" onclick="abrirModalCompletar(${tarea.id})">
                         Completar
                     </button>
                 `;
@@ -805,12 +951,202 @@
         }
 
         function mostrarModalCrear() {
-            document.getElementById('modalCrearTarea').style.display = 'block';
-            document.getElementById('formCrearTarea').reset();
+            abrirModalNuevaTarea();
+        }
+        
+        function abrirModalNuevaTarea() {
+            // Crear overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'modalOverlayNuevaTarea';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 999999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: fadeIn 0.2s;
+                overflow-y: auto;
+                padding: 20px 0;
+            `;
             
-            // Establecer fecha mínima como hoy
+            // Crear modal
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                padding: 30px;
+                width: 90%;
+                max-width: 500px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                animation: slideIn 0.3s;
+                position: relative;
+                margin: auto;
+            `;
+            
             const hoy = new Date().toISOString().split('T')[0];
-            document.getElementById('tarea_vencimiento').min = hoy;
+            
+            modal.innerHTML = `
+                <style>
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes slideIn {
+                        from { transform: translateY(-50px); opacity: 0; }
+                        to { transform: translateY(0); opacity: 1; }
+                    }
+                    .input-custom {
+                        width: 100%;
+                        padding: 12px;
+                        border: 2px solid #ddd;
+                        border-radius: 8px;
+                        font-family: inherit;
+                        font-size: 14px;
+                    }
+                    .input-custom:focus {
+                        outline: none;
+                        border-color: #667eea;
+                    }
+                    .select-custom {
+                        width: 100%;
+                        padding: 12px;
+                        border: 2px solid #ddd;
+                        border-radius: 8px;
+                        font-family: inherit;
+                        font-size: 14px;
+                        background: white;
+                    }
+                    .select-custom:focus {
+                        outline: none;
+                        border-color: #667eea;
+                    }
+                </style>
+                
+                <h2 class="modal-title-custom">Crear Nueva Tarea</h2>
+                
+                <div class="form-group-custom">
+                    <label>Título *</label>
+                    <input type="text" class="input-custom" id="nuevaTareaTitulo" required placeholder="Título de la tarea">
+                </div>
+                
+                <div class="form-group-custom">
+                    <label>Descripción</label>
+                    <textarea class="textarea-custom" id="nuevaTareaDescripcion" placeholder="Describe la tarea..."></textarea>
+                </div>
+                
+                <div class="form-group-custom">
+                    <label>Prioridad</label>
+                    <select class="select-custom" id="nuevaTareaPrioridad">
+                        <option value="baja">Baja</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="alta">Alta</option>
+                        <option value="urgente">Urgente</option>
+                    </select>
+                </div>
+                
+                <div class="form-group-custom">
+                    <label>Asignar a *</label>
+                    <select class="select-custom" id="nuevaTareaAsignado" required>
+                        <option value="">Seleccionar operador...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group-custom">
+                    <label>Fecha de vencimiento</label>
+                    <input type="date" class="input-custom" id="nuevaTareaVencimiento" min="${hoy}">
+                </div>
+                
+                <div class="buttons-custom">
+                    <button class="btn-custom btn-cancel-custom" onclick="cerrarModalNuevaTarea()">Cancelar</button>
+                    <button class="btn-custom btn-submit-custom" onclick="guardarNuevaTarea()">Crear Tarea</button>
+                </div>
+            `;
+            
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            // Cargar operadores
+            cargarOperadoresEnSelect();
+            
+            // Cerrar al hacer clic en el overlay
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    cerrarModalNuevaTarea();
+                }
+            });
+        }
+        
+        async function cargarOperadoresEnSelect() {
+            try {
+                const response = await fetch('/api/usuarios');
+                const usuarios = await response.json();
+                const operadores = usuarios.filter(u => u.role === 'operador');
+                
+                const select = document.getElementById('nuevaTareaAsignado');
+                if (select) {
+                    operadores.forEach(op => {
+                        const option = document.createElement('option');
+                        option.value = op.id;
+                        option.textContent = op.username;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando operadores:', error);
+            }
+        }
+        
+        function cerrarModalNuevaTarea() {
+            const overlay = document.getElementById('modalOverlayNuevaTarea');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+        
+        async function guardarNuevaTarea() {
+            const titulo = document.getElementById('nuevaTareaTitulo').value;
+            const asignado = document.getElementById('nuevaTareaAsignado').value;
+            
+            if (!titulo || !asignado) {
+                alert('Por favor completa los campos obligatorios (Título y Asignar a)');
+                return;
+            }
+            
+            const datos = {
+                titulo: titulo,
+                descripcion: document.getElementById('nuevaTareaDescripcion').value,
+                prioridad: document.getElementById('nuevaTareaPrioridad').value,
+                asignado_a: asignado,
+                fecha_vencimiento: document.getElementById('nuevaTareaVencimiento').value,
+                tipo: 'manual'
+            };
+            
+            try {
+                const response = await fetch('/api/tareas', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(datos)
+                });
+                
+                if (response.ok) {
+                    cerrarModalNuevaTarea();
+                    await cargarTareas();
+                    alert('✅ Tarea creada exitosamente');
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + error.message);
+                }
+            } catch (error) {
+                console.error('Error creando tarea:', error);
+                alert('Error al crear la tarea');
+            }
         }
 
         function cerrarModal() {
@@ -979,6 +1315,245 @@
             } catch (error) {
                 console.error('Error actualizando estado:', error);
                 alert('Error al actualizar el estado');
+            }
+        }
+        
+        // Modal dinámico creado con JavaScript puro
+        function abrirModalCompletar(tareaId) {
+            // Crear overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'modalOverlayDinamico';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 999999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: fadeIn 0.2s;
+            `;
+            
+            // Crear modal
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                padding: 30px;
+                width: 90%;
+                max-width: 500px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                animation: slideIn 0.3s;
+                position: relative;
+            `;
+            
+            modal.innerHTML = `
+                <style>
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes slideIn {
+                        from { transform: translateY(-50px); opacity: 0; }
+                        to { transform: translateY(0); opacity: 1; }
+                    }
+                    .modal-title-custom {
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: #2c3e50;
+                        margin: 0 0 20px 0;
+                        padding-bottom: 15px;
+                        border-bottom: 2px solid #f0f0f0;
+                    }
+                    .form-group-custom {
+                        margin-bottom: 20px;
+                    }
+                    .form-group-custom label {
+                        display: block;
+                        font-weight: 600;
+                        color: #2c3e50;
+                        margin-bottom: 8px;
+                        font-size: 14px;
+                    }
+                    .radio-options-custom {
+                        display: flex;
+                        gap: 15px;
+                        margin-top: 10px;
+                    }
+                    .radio-option-custom {
+                        flex: 1;
+                        padding: 15px;
+                        border: 2px solid #ddd;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                        text-align: center;
+                        font-size: 15px;
+                    }
+                    .radio-option-custom:hover {
+                        border-color: #667eea;
+                        background: #f8f9ff;
+                    }
+                    .radio-option-custom.selected {
+                        border-color: #667eea;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        font-weight: 600;
+                    }
+                    .textarea-custom {
+                        width: 100%;
+                        padding: 12px;
+                        border: 2px solid #ddd;
+                        border-radius: 8px;
+                        font-family: inherit;
+                        font-size: 14px;
+                        resize: vertical;
+                        min-height: 80px;
+                    }
+                    .textarea-custom:focus {
+                        outline: none;
+                        border-color: #667eea;
+                    }
+                    .buttons-custom {
+                        display: flex;
+                        gap: 15px;
+                        margin-top: 25px;
+                        padding-top: 20px;
+                        border-top: 2px solid #f0f0f0;
+                    }
+                    .btn-custom {
+                        flex: 1;
+                        padding: 12px 20px;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 15px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                    }
+                    .btn-cancel-custom {
+                        background: #6c757d;
+                        color: white;
+                    }
+                    .btn-cancel-custom:hover {
+                        background: #5a6268;
+                        transform: translateY(-2px);
+                    }
+                    .btn-submit-custom {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                    }
+                    .btn-submit-custom:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+                    }
+                </style>
+                
+                <h2 class="modal-title-custom">Completar Tarea</h2>
+                
+                <div class="form-group-custom">
+                    <label>Acción realizada *</label>
+                    <div class="radio-options-custom">
+                        <div class="radio-option-custom" id="opcionMensaje" onclick="seleccionarAccion('mensaje')">
+                            ✉️<br>Enviar Mensaje
+                        </div>
+                        <div class="radio-option-custom" id="opcionPromocion" onclick="seleccionarAccion('promocion')">
+                            🎁<br>Enviar Promoción
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group-custom">
+                    <label>Observaciones</label>
+                    <textarea class="textarea-custom" id="observacionesInput" placeholder="Escribe aquí tus observaciones..."></textarea>
+                </div>
+                
+                <div class="buttons-custom">
+                    <button class="btn-custom btn-cancel-custom" onclick="cerrarModalDinamico()">Cancelar</button>
+                    <button class="btn-custom btn-submit-custom" onclick="guardarTareaCompletada(${tareaId})">Completar Tarea</button>
+                </div>
+            `;
+            
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            // Cerrar al hacer clic en el overlay
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    cerrarModalDinamico();
+                }
+            });
+        }
+        
+        let accionSeleccionada = null;
+        
+        function seleccionarAccion(tipo) {
+            // Quitar selección previa
+            document.querySelectorAll('.radio-option-custom').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Agregar selección nueva
+            if (tipo === 'mensaje') {
+                document.getElementById('opcionMensaje').classList.add('selected');
+                accionSeleccionada = 'mensaje_enviado';
+            } else {
+                document.getElementById('opcionPromocion').classList.add('selected');
+                accionSeleccionada = 'promocion_enviada';
+            }
+        }
+        
+        function cerrarModalDinamico() {
+            const overlay = document.getElementById('modalOverlayDinamico');
+            if (overlay) {
+                overlay.remove();
+            }
+            accionSeleccionada = null;
+        }
+        
+        async function guardarTareaCompletada(tareaId) {
+            if (!accionSeleccionada) {
+                alert('Por favor selecciona una acción (Enviar Mensaje o Enviar Promoción)');
+                return;
+            }
+            
+            const observaciones = document.getElementById('observacionesInput').value;
+            const accionTexto = accionSeleccionada === 'mensaje_enviado' ? 'Mensaje' : 'Promoción';
+            
+            try {
+                const datos = {
+                    estado: 'completada',
+                    accion: accionSeleccionada,
+                    observaciones: observaciones || '',
+                    resultado: `${accionTexto} enviado`
+                };
+                
+                const response = await fetch(`/api/tareas/${tareaId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(datos)
+                });
+                
+                if (response.ok) {
+                    cerrarModalDinamico();
+                    await cargarTareas();
+                    // Recargar rendimiento si no es master
+                    if (usuarioActual && usuarioActual.role !== 'master') {
+                        await cargarMiRendimiento();
+                    }
+                    alert(`✅ Tarea completada exitosamente!\nAcción: ${accionTexto} enviado`);
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + error.message);
+                }
+            } catch (error) {
+                console.error('Error completando tarea:', error);
+                alert('Error al completar la tarea');
             }
         }
 

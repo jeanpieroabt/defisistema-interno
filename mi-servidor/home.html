@@ -488,6 +488,13 @@
       // Cargar notificaciones
       cargarNotificaciones();
       setInterval(cargarNotificaciones, 30000);
+      
+      // Actualizar notificaciones cuando la página se vuelve visible
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          cargarNotificaciones();
+        }
+      });
     })();
     
     async function cargarNotificaciones() {

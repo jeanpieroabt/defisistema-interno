@@ -2357,6 +2357,14 @@ app.put('/api/tareas/:id', apiAuth, async (req, res) => {
         
         await dbRun(sql, params);
         
+        // Marcar como leída la notificación de esta tarea para el usuario actual (operador)
+        // Esto sucede cuando el operador toma acción (en_progreso, completada, etc.)
+        await dbRun(`
+            UPDATE notificaciones 
+            SET leida = 1 
+            WHERE tarea_id = ? AND usuario_id = ? AND leida = 0
+        `, [tareaId, userId]);
+        
         // Si la tarea se completó con una acción, actualizar la alerta relacionada
         if (estado === 'completada' && accion) {
             const fechaHoy = hoyLocalYYYYMMDD();
@@ -2460,9 +2468,9 @@ app.get('/api/notificaciones/contador', apiAuth, (req, res) => {
     db.get(`SELECT COUNT(*) as count FROM notificaciones WHERE usuario_id = ? AND leida = 0`, [userId], (err, row) => {
         if (err) {
             console.error('Error contando notificaciones:', err);
-            return res.status(500).json({ count: 0 });
+            return res.status(500).json({ count: 0, noLeidas: 0 });
         }
-        res.json({ count: row.count });
+        res.json({ count: row.count, noLeidas: row.count });
     });
 });
 
@@ -2471,14 +2479,25 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
     try {
         const fechaHoy = hoyLocalYYYYMMDD();
         
-        // Obtener alertas activas sin tarea asignada
-        const alertasSinTarea = await dbAll(`
-            SELECT * FROM alertas 
-            WHERE tarea_id IS NULL AND activa = 1
-        `);
+        // Obtener alertas activas SIN acción realizada (sin mensaje_enviado ni promocion_enviada)
+        // Permitir reasignar si la última tarea fue cancelada o es de días anteriores
+        const alertasSinResolver = await dbAll(`
+            SELECT a.* 
+            FROM alertas a
+            WHERE a.activa = 1 
+            AND (a.accion_realizada IS NULL OR a.accion_realizada = '')
+            AND (
+                a.tarea_id IS NULL 
+                OR EXISTS (
+                    SELECT 1 FROM tareas t 
+                    WHERE t.id = a.tarea_id 
+                    AND (t.estado = 'cancelada' OR t.fecha_creacion < ?)
+                )
+            )
+        `, [fechaHoy]);
         
-        if (alertasSinTarea.length === 0) {
-            return res.json({ message: 'No hay alertas pendientes', tareas_creadas: 0 });
+        if (alertasSinResolver.length === 0) {
+            return res.json({ message: 'No hay alertas pendientes sin resolver', tareas_creadas: 0 });
         }
         
         // Obtener todos los operadores (excluir master)
@@ -2494,7 +2513,7 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
         let tareasCreadas = 0;
         
         // Distribuir alertas equitativamente
-        for (const alerta of alertasSinTarea) {
+        for (const alerta of alertasSinResolver) {
             // Seleccionar operador por rotación
             const operador = operadores[indiceOperador];
             indiceOperador = (indiceOperador + 1) % operadores.length;
@@ -2508,7 +2527,7 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             else if (alerta.dias_inactivo >= 45) prioridad = 'alta';
             
             // Crear tarea
-            const titulo = `Reactivar cliente: ${cliente.nombre}`;
+            const titulo = `Reactivar cliente: ${cliente ? cliente.nombre : 'Desconocido'}`;
             const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crítico' : 'Disminución de frecuencia'} - ${alerta.dias_inactivo ? `${alerta.dias_inactivo} días sin actividad` : 'Reducción de operaciones'}. Última operación: ${alerta.ultima_operacion || 'N/A'}`;
             
             const resultTarea = await dbRun(`
@@ -2516,7 +2535,7 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
                 VALUES (?, ?, 'automatica', ?, ?, 1, ?)
             `, [titulo, descripcion, prioridad, operador.id, fechaHoy]);
             
-            // Vincular tarea con alerta
+            // Vincular tarea con alerta (actualizar el tarea_id)
             await dbRun(`
                 UPDATE alertas SET tarea_id = ? WHERE id = ?
             `, [resultTarea.lastID, alerta.id]);
