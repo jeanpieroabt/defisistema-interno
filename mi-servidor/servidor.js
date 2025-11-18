@@ -1032,12 +1032,14 @@ app.get('/api/rendimiento/operadores', apiAuth, onlyMaster, (req, res) => {
 
 // Endpoint para operadores: ver su propio rendimiento del mes actual
 app.get('/api/mi-rendimiento', apiAuth, (req, res) => {
-    const userId = req.session.userId;
+    const userId = req.session.user.id;
     
-    // Obtener primer y último día del mes actual
+    // Obtener primer y último día del mes actual en formato correcto
     const now = new Date();
-    const primerDia = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const ultimoDia = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const primerDia = `${year}-${String(month).padStart(2, '0')}-01`;
+    const ultimoDia = `${year}-${String(month).padStart(2, '0')}-31`;
     
     const sql = `
         SELECT 
@@ -1046,11 +1048,12 @@ app.get('/api/mi-rendimiento', apiAuth, (req, res) => {
             IFNULL(SUM(op.monto_clp), 0) AS total_clp_enviado
         FROM operaciones op
         WHERE op.usuario_id = ?
-        AND date(op.fecha) >= date(?)
-        AND date(op.fecha) <= date(?)
+        AND substr(op.fecha, 1, 7) = ?
     `;
     
-    db.get(sql, [userId, primerDia, ultimoDia], (err, row) => {
+    const mesActual = `${year}-${String(month).padStart(2, '0')}`;
+    
+    db.get(sql, [userId, mesActual], (err, row) => {
         if (err) {
             console.error('Error al obtener rendimiento del operador:', err);
             return res.status(500).json({ message: 'Error al procesar el reporte.' });
@@ -1065,7 +1068,7 @@ app.get('/api/mi-rendimiento', apiAuth, (req, res) => {
             total_clp_enviado: row.total_clp_enviado,
             millones_comisionables: Math.floor(volumenMillones),
             bonificacion_usd: bonificacionUsd,
-            mes: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+            mes: mesActual
         });
     });
 });
