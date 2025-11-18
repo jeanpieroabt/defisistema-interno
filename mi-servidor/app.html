@@ -85,6 +85,44 @@
       flex-wrap: wrap;
     }
     
+    .notif-bell-btn {
+      position: relative;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.2rem;
+    }
+    
+    .notif-bell-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+    
+    .notif-badge-app {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #dc3545;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    
     .btn-back {
       background: rgba(255, 255, 255, 0.2);
       border: 1px solid rgba(255, 255, 255, 0.3);
@@ -284,6 +322,10 @@
           <h1>📦 Registro de Envíos</h1>
         </div>
         <div class="btns">
+          <a href="tareas.html" class="notif-bell-btn" title="Ver notificaciones y tareas">
+            🔔
+            <span class="notif-badge-app" id="notifCount" style="display: none;">0</span>
+          </a>
           <a href="home.html" class="btn-back">🏠 Inicio</a>
         </div>
       </div>
@@ -489,7 +531,28 @@
       addClientAutocomplete(document.getElementById('cli'), document.getElementById('clientSuggestions'));
 
       actualizarPreview();
+      
+      // Cargar notificaciones
+      cargarNotificaciones();
+      setInterval(cargarNotificaciones, 30000);
     })();
+    
+    async function cargarNotificaciones() {
+      try {
+        const response = await fetch('/api/notificaciones/contador');
+        const data = await response.json();
+        const badge = document.getElementById('notifCount');
+        
+        if (data.count > 0) {
+          badge.textContent = data.count > 9 ? '9+' : data.count;
+          badge.style.display = 'flex';
+        } else {
+          badge.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Error cargando notificaciones:', error);
+      }
+    }
   </script>
 </body>
 </html>

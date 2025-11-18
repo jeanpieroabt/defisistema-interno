@@ -159,6 +159,56 @@ const runMigrations = async () => {
     // ✅ NUEVA TABLA PARA METAS
     await dbRun(`CREATE TABLE IF NOT EXISTS metas(id INTEGER PRIMARY KEY AUTOINCREMENT, mes TEXT NOT NULL UNIQUE, meta_clientes_activos INTEGER DEFAULT 0, meta_nuevos_clientes INTEGER DEFAULT 0, meta_volumen_clp REAL DEFAULT 0, meta_operaciones INTEGER DEFAULT 0)`);
 
+    // ✅ TABLA PARA TAREAS
+    await dbRun(`CREATE TABLE IF NOT EXISTS tareas(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        titulo TEXT NOT NULL,
+        descripcion TEXT,
+        tipo TEXT NOT NULL CHECK(tipo IN ('manual','automatica')),
+        prioridad TEXT DEFAULT 'normal' CHECK(prioridad IN ('baja','normal','alta','urgente')),
+        estado TEXT DEFAULT 'pendiente' CHECK(estado IN ('pendiente','en_progreso','completada','cancelada')),
+        asignado_a INTEGER,
+        creado_por INTEGER NOT NULL,
+        fecha_creacion TEXT NOT NULL,
+        fecha_vencimiento TEXT,
+        fecha_completada TEXT,
+        resultado TEXT,
+        observaciones TEXT,
+        FOREIGN KEY(asignado_a) REFERENCES usuarios(id),
+        FOREIGN KEY(creado_por) REFERENCES usuarios(id)
+    )`);
+
+    // ✅ TABLA PARA NOTIFICACIONES
+    await dbRun(`CREATE TABLE IF NOT EXISTS notificaciones(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario_id INTEGER NOT NULL,
+        tipo TEXT NOT NULL CHECK(tipo IN ('tarea','alerta','info','sistema')),
+        titulo TEXT NOT NULL,
+        mensaje TEXT NOT NULL,
+        leida INTEGER DEFAULT 0,
+        fecha_creacion TEXT NOT NULL,
+        tarea_id INTEGER,
+        FOREIGN KEY(usuario_id) REFERENCES usuarios(id),
+        FOREIGN KEY(tarea_id) REFERENCES tareas(id)
+    )`);
+
+    // ✅ TABLA PARA ALERTAS DE CLIENTES
+    await dbRun(`CREATE TABLE IF NOT EXISTS alertas(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente_id INTEGER NOT NULL,
+        tipo TEXT NOT NULL CHECK(tipo IN ('inactivo','critico','disminucion')),
+        severidad TEXT NOT NULL CHECK(severidad IN ('warning','danger')),
+        dias_inactivo INTEGER,
+        ultima_operacion TEXT,
+        tarea_id INTEGER,
+        accion_realizada TEXT CHECK(accion_realizada IN ('mensaje_enviado','promocion_enviada',NULL)),
+        fecha_accion TEXT,
+        fecha_creacion TEXT NOT NULL,
+        activa INTEGER DEFAULT 1,
+        FOREIGN KEY(cliente_id) REFERENCES clientes(id),
+        FOREIGN KEY(tarea_id) REFERENCES tareas(id)
+    )`);
+
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
             if (err) return console.error('Error al verificar usuarios semilla:', err.message);
@@ -1317,6 +1367,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
     try {
         const alertas = [];
         const hoy = new Date();
+        const fechaHoy = hoyLocalYYYYMMDD();
         
         // Clientes inactivos (30-60 días)
         const inactivos = await dbAll(`
@@ -1327,18 +1378,49 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
             HAVING julianday('now') - julianday(MAX(o.fecha)) BETWEEN 30 AND 60
         `);
         
-        inactivos.forEach(c => {
+        for (const c of inactivos) {
             const dias = Math.floor((hoy - new Date(c.ultima_operacion)) / (1000 * 60 * 60 * 24));
-            alertas.push({
-                tipo: 'inactivo',
-                severidad: 'warning',
-                cliente_id: c.id,
-                cliente_nombre: c.nombre,
-                mensaje: `Cliente inactivo por ${dias} días`,
-                dias_inactivo: dias,
-                ultima_operacion: c.ultima_operacion
-            });
-        });
+            
+            // Verificar si ya existe alerta activa
+            const alertaExistente = await dbGet(`
+                SELECT * FROM alertas 
+                WHERE cliente_id = ? AND tipo = 'inactivo' AND activa = 1
+            `, [c.id]);
+            
+            if (!alertaExistente) {
+                // Crear nueva alerta
+                const result = await dbRun(`
+                    INSERT INTO alertas(cliente_id, tipo, severidad, dias_inactivo, ultima_operacion, fecha_creacion)
+                    VALUES (?, 'inactivo', 'warning', ?, ?, ?)
+                `, [c.id, dias, c.ultima_operacion, fechaHoy]);
+                
+                alertas.push({
+                    id: result.lastID,
+                    tipo: 'inactivo',
+                    severidad: 'warning',
+                    cliente_id: c.id,
+                    cliente_nombre: c.nombre,
+                    mensaje: `Cliente inactivo por ${dias} días`,
+                    dias_inactivo: dias,
+                    ultima_operacion: c.ultima_operacion,
+                    accion_realizada: null
+                });
+            } else {
+                // Retornar alerta existente con acción si existe
+                alertas.push({
+                    id: alertaExistente.id,
+                    tipo: alertaExistente.tipo,
+                    severidad: alertaExistente.severidad,
+                    cliente_id: c.id,
+                    cliente_nombre: c.nombre,
+                    mensaje: `Cliente inactivo por ${dias} días`,
+                    dias_inactivo: dias,
+                    ultima_operacion: c.ultima_operacion,
+                    accion_realizada: alertaExistente.accion_realizada,
+                    fecha_accion: alertaExistente.fecha_accion
+                });
+            }
+        }
         
         // Clientes críticos (+60 días)
         const criticos = await dbAll(`
@@ -1349,18 +1431,46 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
             HAVING julianday('now') - julianday(MAX(o.fecha)) > 60
         `);
         
-        criticos.forEach(c => {
+        for (const c of criticos) {
             const dias = Math.floor((hoy - new Date(c.ultima_operacion)) / (1000 * 60 * 60 * 24));
-            alertas.push({
-                tipo: 'critico',
-                severidad: 'danger',
-                cliente_id: c.id,
-                cliente_nombre: c.nombre,
-                mensaje: `Cliente sin actividad por ${dias} días - RIESGO ALTO`,
-                dias_inactivo: dias,
-                ultima_operacion: c.ultima_operacion
-            });
-        });
+            
+            const alertaExistente = await dbGet(`
+                SELECT * FROM alertas 
+                WHERE cliente_id = ? AND tipo = 'critico' AND activa = 1
+            `, [c.id]);
+            
+            if (!alertaExistente) {
+                const result = await dbRun(`
+                    INSERT INTO alertas(cliente_id, tipo, severidad, dias_inactivo, ultima_operacion, fecha_creacion)
+                    VALUES (?, 'critico', 'danger', ?, ?, ?)
+                `, [c.id, dias, c.ultima_operacion, fechaHoy]);
+                
+                alertas.push({
+                    id: result.lastID,
+                    tipo: 'critico',
+                    severidad: 'danger',
+                    cliente_id: c.id,
+                    cliente_nombre: c.nombre,
+                    mensaje: `Cliente sin actividad por ${dias} días - RIESGO ALTO`,
+                    dias_inactivo: dias,
+                    ultima_operacion: c.ultima_operacion,
+                    accion_realizada: null
+                });
+            } else {
+                alertas.push({
+                    id: alertaExistente.id,
+                    tipo: alertaExistente.tipo,
+                    severidad: alertaExistente.severidad,
+                    cliente_id: c.id,
+                    cliente_nombre: c.nombre,
+                    mensaje: `Cliente sin actividad por ${dias} días - RIESGO ALTO`,
+                    dias_inactivo: dias,
+                    ultima_operacion: c.ultima_operacion,
+                    accion_realizada: alertaExistente.accion_realizada,
+                    fecha_accion: alertaExistente.fecha_accion
+                });
+            }
+        }
         
         // Disminución de frecuencia
         const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -1375,16 +1485,45 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
             const anteriores = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [c.cliente_id, hace60, hace30]);
             
             if (anteriores.cnt >= 3 && recientes.cnt < anteriores.cnt * 0.5) {
-                const cliente = await dbGet(`SELECT nombre FROM clientes WHERE id = ?`, [c.cliente_id]);
-                alertas.push({
-                    tipo: 'disminucion',
-                    severidad: 'warning',
-                    cliente_id: c.cliente_id,
-                    cliente_nombre: cliente.nombre,
-                    mensaje: `Reducción de actividad: ${anteriores.cnt} ops → ${recientes.cnt} ops`,
-                    ops_anterior: anteriores.cnt,
-                    ops_reciente: recientes.cnt
-                });
+                const cliente = await dbGet(`SELECT nombre, id FROM clientes WHERE id = ?`, [c.cliente_id]);
+                const ultimaOp = await dbGet(`SELECT MAX(fecha) as fecha FROM operaciones WHERE cliente_id = ?`, [c.cliente_id]);
+                
+                const alertaExistente = await dbGet(`
+                    SELECT * FROM alertas 
+                    WHERE cliente_id = ? AND tipo = 'disminucion' AND activa = 1
+                `, [c.cliente_id]);
+                
+                if (!alertaExistente) {
+                    const result = await dbRun(`
+                        INSERT INTO alertas(cliente_id, tipo, severidad, ultima_operacion, fecha_creacion)
+                        VALUES (?, 'disminucion', 'warning', ?, ?)
+                    `, [c.cliente_id, ultimaOp.fecha, fechaHoy]);
+                    
+                    alertas.push({
+                        id: result.lastID,
+                        tipo: 'disminucion',
+                        severidad: 'warning',
+                        cliente_id: c.cliente_id,
+                        cliente_nombre: cliente.nombre,
+                        mensaje: `Reducción de actividad: ${anteriores.cnt} ops → ${recientes.cnt} ops`,
+                        ops_anterior: anteriores.cnt,
+                        ops_reciente: recientes.cnt,
+                        accion_realizada: null
+                    });
+                } else {
+                    alertas.push({
+                        id: alertaExistente.id,
+                        tipo: alertaExistente.tipo,
+                        severidad: alertaExistente.severidad,
+                        cliente_id: c.cliente_id,
+                        cliente_nombre: cliente.nombre,
+                        mensaje: `Reducción de actividad: ${anteriores.cnt} ops → ${recientes.cnt} ops`,
+                        ops_anterior: anteriores.cnt,
+                        ops_reciente: recientes.cnt,
+                        accion_realizada: alertaExistente.accion_realizada,
+                        fecha_accion: alertaExistente.fecha_accion
+                    });
+                }
             }
         }
         
@@ -2117,6 +2256,379 @@ app.get('/api/p2p/tasas-ars-clp', apiAuth, async (req, res) => {
 
 // =================================================================
 // FIN: SERVICIO P2P
+// =================================================================
+
+// =================================================================
+// SISTEMA DE TAREAS Y NOTIFICACIONES
+// =================================================================
+
+// Crear tarea
+app.post('/api/tareas', apiAuth, (req, res) => {
+    const { titulo, descripcion, tipo, prioridad, asignado_a, fecha_vencimiento } = req.body;
+    const creado_por = req.session.user.id;
+    const fecha_creacion = hoyLocalYYYYMMDD();
+    
+    if (!titulo) return res.status(400).json({ message: 'El título es obligatorio' });
+    
+    const sql = `INSERT INTO tareas(titulo, descripcion, tipo, prioridad, asignado_a, creado_por, fecha_creacion, fecha_vencimiento) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    
+    db.run(sql, [titulo, descripcion || '', tipo || 'manual', prioridad || 'normal', asignado_a, creado_por, fecha_creacion, fecha_vencimiento], function(err) {
+        if (err) {
+            console.error('Error creando tarea:', err);
+            return res.status(500).json({ message: 'Error al crear tarea' });
+        }
+        
+        // Crear notificación para el asignado
+        if (asignado_a) {
+            const sqlNot = `INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, tarea_id) 
+                           VALUES (?, 'tarea', ?, ?, ?, ?)`;
+            db.run(sqlNot, [asignado_a, 'Nueva tarea asignada', titulo, fecha_creacion, this.lastID]);
+        }
+        
+        res.json({ message: 'Tarea creada exitosamente', id: this.lastID });
+    });
+});
+
+// Listar tareas
+app.get('/api/tareas', apiAuth, (req, res) => {
+    const userId = req.session.user.id;
+    const userRole = req.session.user.role;
+    const { estado, asignado_a } = req.query;
+    
+    let sql = `SELECT t.*, 
+               u1.username as asignado_nombre,
+               u2.username as creado_por_nombre
+               FROM tareas t
+               LEFT JOIN usuarios u1 ON t.asignado_a = u1.id
+               LEFT JOIN usuarios u2 ON t.creado_por = u2.id
+               WHERE 1=1`;
+    const params = [];
+    
+    // Si es operador, solo ve sus tareas
+    if (userRole !== 'master') {
+        sql += ` AND t.asignado_a = ?`;
+        params.push(userId);
+    } else if (asignado_a) {
+        sql += ` AND t.asignado_a = ?`;
+        params.push(asignado_a);
+    }
+    
+    if (estado) {
+        sql += ` AND t.estado = ?`;
+        params.push(estado);
+    }
+    
+    sql += ` ORDER BY 
+             CASE t.prioridad 
+                WHEN 'urgente' THEN 1 
+                WHEN 'alta' THEN 2 
+                WHEN 'normal' THEN 3 
+                WHEN 'baja' THEN 4 
+             END,
+             t.fecha_creacion DESC`;
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo tareas:', err);
+            return res.status(500).json({ message: 'Error al obtener tareas' });
+        }
+        res.json(rows);
+    });
+});
+
+// Actualizar estado de tarea
+app.put('/api/tareas/:id', apiAuth, async (req, res) => {
+    const tareaId = req.params.id;
+    const { estado, resultado, observaciones, accion } = req.body;
+    const userId = req.session.user.id;
+    
+    try {
+        let sql = `UPDATE tareas SET estado = ?, resultado = ?, observaciones = ?`;
+        const params = [estado, resultado, observaciones];
+        
+        if (estado === 'completada') {
+            sql += `, fecha_completada = ?`;
+            params.push(hoyLocalYYYYMMDD());
+        }
+        
+        sql += ` WHERE id = ?`;
+        params.push(tareaId);
+        
+        await dbRun(sql, params);
+        
+        // Si la tarea se completó con una acción, actualizar la alerta relacionada
+        if (estado === 'completada' && accion) {
+            const fechaHoy = hoyLocalYYYYMMDD();
+            await dbRun(`
+                UPDATE alertas 
+                SET accion_realizada = ?, fecha_accion = ? 
+                WHERE tarea_id = ?
+            `, [accion, fechaHoy, tareaId]);
+        }
+        
+        // Notificar al creador si la tarea fue completada
+        if (estado === 'completada') {
+            const tarea = await dbGet(`SELECT creado_por, titulo FROM tareas WHERE id = ?`, [tareaId]);
+            if (tarea) {
+                await dbRun(`
+                    INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, tarea_id) 
+                    VALUES (?, 'info', ?, ?, ?, ?)
+                `, [tarea.creado_por, 'Tarea completada', `La tarea "${tarea.titulo}" ha sido completada`, hoyLocalYYYYMMDD(), tareaId]);
+            }
+        }
+        
+        res.json({ message: 'Tarea actualizada exitosamente' });
+    } catch (error) {
+        console.error('Error actualizando tarea:', error);
+        res.status(500).json({ message: 'Error al actualizar tarea' });
+    }
+});
+
+// Eliminar tarea
+app.delete('/api/tareas/:id', apiAuth, onlyMaster, (req, res) => {
+    const tareaId = req.params.id;
+    
+    db.run(`DELETE FROM tareas WHERE id = ?`, [tareaId], function(err) {
+        if (err) {
+            console.error('Error eliminando tarea:', err);
+            return res.status(500).json({ message: 'Error al eliminar tarea' });
+        }
+        
+        // Eliminar notificaciones relacionadas
+        db.run(`DELETE FROM notificaciones WHERE tarea_id = ?`, [tareaId]);
+        
+        res.json({ message: 'Tarea eliminada exitosamente' });
+    });
+});
+
+// Listar notificaciones
+app.get('/api/notificaciones', apiAuth, (req, res) => {
+    const userId = req.session.user.id;
+    const { leida } = req.query;
+    
+    let sql = `SELECT * FROM notificaciones WHERE usuario_id = ?`;
+    const params = [userId];
+    
+    if (leida !== undefined) {
+        sql += ` AND leida = ?`;
+        params.push(leida === 'true' ? 1 : 0);
+    }
+    
+    sql += ` ORDER BY fecha_creacion DESC LIMIT 50`;
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo notificaciones:', err);
+            return res.status(500).json({ message: 'Error al obtener notificaciones' });
+        }
+        res.json(rows);
+    });
+});
+
+// Marcar notificación como leída
+app.put('/api/notificaciones/:id/leer', apiAuth, (req, res) => {
+    const notifId = req.params.id;
+    const userId = req.session.user.id;
+    
+    db.run(`UPDATE notificaciones SET leida = 1 WHERE id = ? AND usuario_id = ?`, [notifId, userId], function(err) {
+        if (err) {
+            console.error('Error marcando notificación:', err);
+            return res.status(500).json({ message: 'Error al marcar notificación' });
+        }
+        res.json({ message: 'Notificación marcada como leída' });
+    });
+});
+
+// Marcar todas las notificaciones como leídas
+app.put('/api/notificaciones/leer-todas', apiAuth, (req, res) => {
+    const userId = req.session.user.id;
+    
+    db.run(`UPDATE notificaciones SET leida = 1 WHERE usuario_id = ?`, [userId], function(err) {
+        if (err) {
+            console.error('Error marcando todas las notificaciones:', err);
+            return res.status(500).json({ message: 'Error al marcar notificaciones' });
+        }
+        res.json({ message: 'Todas las notificaciones marcadas como leídas' });
+    });
+});
+
+// Contador de notificaciones no leídas
+app.get('/api/notificaciones/contador', apiAuth, (req, res) => {
+    const userId = req.session.user.id;
+    
+    db.get(`SELECT COUNT(*) as count FROM notificaciones WHERE usuario_id = ? AND leida = 0`, [userId], (err, row) => {
+        if (err) {
+            console.error('Error contando notificaciones:', err);
+            return res.status(500).json({ count: 0 });
+        }
+        res.json({ count: row.count });
+    });
+});
+
+// Generar tareas automáticas desde alertas
+app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const fechaHoy = hoyLocalYYYYMMDD();
+        
+        // Obtener alertas activas sin tarea asignada
+        const alertasSinTarea = await dbAll(`
+            SELECT * FROM alertas 
+            WHERE tarea_id IS NULL AND activa = 1
+        `);
+        
+        if (alertasSinTarea.length === 0) {
+            return res.json({ message: 'No hay alertas pendientes', tareas_creadas: 0 });
+        }
+        
+        // Obtener todos los operadores (excluir master)
+        const operadores = await dbAll(`
+            SELECT id, username FROM usuarios WHERE role != 'master' ORDER BY id
+        `);
+        
+        if (operadores.length === 0) {
+            return res.status(400).json({ message: 'No hay operadores disponibles' });
+        }
+        
+        let indiceOperador = 0;
+        let tareasCreadas = 0;
+        
+        // Distribuir alertas equitativamente
+        for (const alerta of alertasSinTarea) {
+            // Seleccionar operador por rotación
+            const operador = operadores[indiceOperador];
+            indiceOperador = (indiceOperador + 1) % operadores.length;
+            
+            // Obtener datos del cliente
+            const cliente = await dbGet(`SELECT nombre FROM clientes WHERE id = ?`, [alerta.cliente_id]);
+            
+            // Determinar prioridad según días de inactividad
+            let prioridad = 'normal';
+            if (alerta.dias_inactivo > 60) prioridad = 'urgente';
+            else if (alerta.dias_inactivo >= 45) prioridad = 'alta';
+            
+            // Crear tarea
+            const titulo = `Reactivar cliente: ${cliente.nombre}`;
+            const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crítico' : 'Disminución de frecuencia'} - ${alerta.dias_inactivo ? `${alerta.dias_inactivo} días sin actividad` : 'Reducción de operaciones'}. Última operación: ${alerta.ultima_operacion || 'N/A'}`;
+            
+            const resultTarea = await dbRun(`
+                INSERT INTO tareas(titulo, descripcion, tipo, prioridad, asignado_a, creado_por, fecha_creacion)
+                VALUES (?, ?, 'automatica', ?, ?, 1, ?)
+            `, [titulo, descripcion, prioridad, operador.id, fechaHoy]);
+            
+            // Vincular tarea con alerta
+            await dbRun(`
+                UPDATE alertas SET tarea_id = ? WHERE id = ?
+            `, [resultTarea.lastID, alerta.id]);
+            
+            // Crear notificación para el operador
+            await dbRun(`
+                INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, tarea_id)
+                VALUES (?, 'tarea', 'Nueva tarea asignada', ?, ?, ?)
+            `, [operador.id, titulo, fechaHoy, resultTarea.lastID]);
+            
+            tareasCreadas++;
+        }
+        
+        res.json({ 
+            message: `${tareasCreadas} tareas creadas exitosamente`,
+            tareas_creadas: tareasCreadas,
+            operadores_asignados: operadores.length
+        });
+    } catch (error) {
+        console.error('Error generando tareas desde alertas:', error);
+        res.status(500).json({ message: 'Error al generar tareas' });
+    }
+});
+
+// Rendimiento de operadores (Master)
+app.get('/api/operadores/rendimiento', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const operadores = await dbAll(`
+            SELECT id, username FROM usuarios WHERE role != 'master'
+        `);
+        
+        const rendimientos = [];
+        
+        for (const operador of operadores) {
+            const tareas = await dbGet(`
+                SELECT 
+                    COUNT(*) as total_asignadas,
+                    SUM(CASE WHEN estado = 'completada' THEN 1 ELSE 0 END) as completadas,
+                    SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+                    SUM(CASE WHEN estado = 'en_progreso' THEN 1 ELSE 0 END) as en_progreso
+                FROM tareas 
+                WHERE asignado_a = ?
+            `, [operador.id]);
+            
+            const porcentaje = tareas.total_asignadas > 0 
+                ? Math.round((tareas.completadas / tareas.total_asignadas) * 100) 
+                : 0;
+            
+            let clasificacion = 'bajo';
+            if (porcentaje >= 90) clasificacion = 'excelente';
+            else if (porcentaje >= 60) clasificacion = 'bueno';
+            else if (porcentaje >= 40) clasificacion = 'regular';
+            
+            rendimientos.push({
+                operador_id: operador.id,
+                operador_nombre: operador.username,
+                total_asignadas: tareas.total_asignadas,
+                completadas: tareas.completadas,
+                pendientes: tareas.pendientes,
+                en_progreso: tareas.en_progreso,
+                porcentaje: porcentaje,
+                clasificacion: clasificacion
+            });
+        }
+        
+        res.json(rendimientos);
+    } catch (error) {
+        console.error('Error obteniendo rendimiento:', error);
+        res.status(500).json({ message: 'Error al obtener rendimiento' });
+    }
+});
+
+// Rendimiento propio (Operador)
+app.get('/api/operadores/mi-rendimiento', apiAuth, async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        
+        const tareas = await dbGet(`
+            SELECT 
+                COUNT(*) as total_asignadas,
+                SUM(CASE WHEN estado = 'completada' THEN 1 ELSE 0 END) as completadas,
+                SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+                SUM(CASE WHEN estado = 'en_progreso' THEN 1 ELSE 0 END) as en_progreso
+            FROM tareas 
+            WHERE asignado_a = ?
+        `, [userId]);
+        
+        const porcentaje = tareas.total_asignadas > 0 
+            ? Math.round((tareas.completadas / tareas.total_asignadas) * 100) 
+            : 0;
+        
+        let clasificacion = 'bajo';
+        if (porcentaje >= 90) clasificacion = 'excelente';
+        else if (porcentaje >= 60) clasificacion = 'bueno';
+        else if (porcentaje >= 40) clasificacion = 'regular';
+        
+        res.json({
+            total_asignadas: tareas.total_asignadas,
+            completadas: tareas.completadas,
+            pendientes: tareas.pendientes,
+            en_progreso: tareas.en_progreso,
+            porcentaje: porcentaje,
+            clasificacion: clasificacion
+        });
+    } catch (error) {
+        console.error('Error obteniendo mi rendimiento:', error);
+        res.status(500).json({ message: 'Error al obtener rendimiento' });
+    }
+});
+
+// =================================================================
+// FIN: SISTEMA DE TAREAS Y NOTIFICACIONES
 // =================================================================
 
 // Iniciar el servidor solo después de que las migraciones se hayan completado

@@ -144,6 +144,34 @@
       box-shadow: 0 4px 20px rgba(0,0,0,0.2);
     }
     
+    .notif-bell {
+      position: relative;
+      cursor: pointer;
+      font-size: 1.5rem;
+      padding: 0.3rem;
+      transition: transform 0.2s;
+    }
+    
+    .notif-bell:hover {
+      transform: scale(1.1);
+    }
+    
+    .notif-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #dc3545;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    
     .user-info button {
       background: rgba(255,255,255,0.2);
       border: none;
@@ -295,6 +323,10 @@
 <body>
   <div class="home-container">
     <div class="user-info">
+      <div class="notif-bell" onclick="window.location.href='tareas.html'" title="Ver notificaciones y tareas">
+        🔔
+        <span class="notif-badge" id="notifCount" style="display: none;">0</span>
+      </div>
       <span id="userDisplay">👤 Usuario</span>
       <button onclick="logout()">Cerrar Sesión</button>
     </div>
@@ -348,6 +380,13 @@
         <div class="module-icon">📊</div>
         <h3>Histórico de Envíos</h3>
         <p>Consulta el historial completo de envíos con filtros avanzados</p>
+      </a>
+      
+      <!-- Tareas y Notificaciones -->
+      <a href="tareas.html" class="module-card">
+        <div class="module-icon">✓</div>
+        <h3>Gestión de Tareas</h3>
+        <p>Administra tareas asignadas, actualiza estados y recibe notificaciones</p>
       </a>
       
       <!-- P2P Tasas VES/CLP -->
@@ -445,7 +484,28 @@
       if (user.role !== 'master') {
         await cargarMiRendimiento();
       }
+      
+      // Cargar notificaciones
+      cargarNotificaciones();
+      setInterval(cargarNotificaciones, 30000);
     })();
+    
+    async function cargarNotificaciones() {
+      try {
+        const response = await fetch('/api/notificaciones/contador');
+        const data = await response.json();
+        const badge = document.getElementById('notifCount');
+        
+        if (data.count > 0) {
+          badge.textContent = data.count > 9 ? '9+' : data.count;
+          badge.style.display = 'flex';
+        } else {
+          badge.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Error cargando notificaciones:', error);
+      }
+    }
   </script>
 </body>
 </html>

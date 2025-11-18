@@ -321,7 +321,10 @@
       <div id="tab-alertas" class="tab-content">
         <div class="section-header">
           <h2>🚨 Sistema de Alertas</h2>
-          <span id="contadorAlertas" class="badge danger">0 alertas</span>
+          <div>
+            <span id="contadorAlertas" class="badge danger">0 alertas</span>
+            <button class="btn btn-primary" onclick="generarTareasAutomaticas()" id="btnGenerarTareas" style="margin-left: 10px;">⚙️ Generar Tareas Automáticas</button>
+          </div>
         </div>
         
         <div id="listaAlertas"></div>
@@ -511,6 +514,7 @@
     let datosAlertas = [];
     let datosNuevos = {};
     let datosMetas = {};
+    let usuarioActual = {};
 
     function cambiarTab(tab) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -611,12 +615,22 @@
         if (alerta.tipo === 'critico') icono = '🔴';
         else if (alerta.tipo === 'disminucion') icono = '📉';
         
+        // Mostrar badge de acción realizada si existe
+        let badgeAccion = '';
+        if (alerta.accion_realizada) {
+          let iconoAccion = alerta.accion_realizada === 'mensaje_enviado' ? '✉️' : '🎁';
+          let textoAccion = alerta.accion_realizada === 'mensaje_enviado' ? 'Mensaje enviado' : 'Promoción enviada';
+          let fechaAccion = alerta.fecha_accion ? new Date(alerta.fecha_accion).toLocaleDateString() : '';
+          badgeAccion = `<div style="margin-top: 8px;"><span class="badge success" style="font-size: 0.85em;">${iconoAccion} ${textoAccion}${fechaAccion ? ' - ' + fechaAccion : ''}</span></div>`;
+        }
+        
         card.innerHTML = `
           <div class="alert-icon">${icono}</div>
           <div class="alert-content">
             <strong>${alerta.cliente_nombre}</strong>
             <div>${alerta.mensaje}</div>
             ${alerta.ultima_operacion ? `<small>Última operación: ${alerta.ultima_operacion}</small>` : ''}
+            ${badgeAccion}
           </div>
           <button class="btn btn-light" onclick="verDetalleCliente(${alerta.cliente_id})">Ver</button>
         `;
@@ -804,6 +818,37 @@
     function cerrarModalDetalle() {
       document.getElementById('modalDetalle').style.display = 'none';
     }
+    
+    // ========== GENERAR TAREAS AUTOMÁTICAS ==========
+    async function generarTareasAutomaticas() {
+      const btn = document.getElementById('btnGenerarTareas');
+      if (btn.disabled) return;
+      
+      btn.disabled = true;
+      btn.textContent = '⏳ Generando...';
+      
+      try {
+        const response = await fetch('/api/tareas/generar-desde-alertas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const resultado = await response.json();
+        
+        if (response.ok) {
+          showToast(`✅ ${resultado.tareas_creadas} tareas creadas y distribuidas equitativamente`, 'success');
+          await cargarAlertas(); // Recargar alertas para reflejar cambios
+        } else {
+          showToast(resultado.error || 'Error al generar tareas', 'error');
+        }
+      } catch (error) {
+        console.error('Error generando tareas:', error);
+        showToast('Error al generar tareas automáticas', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚙️ Generar Tareas Automáticas';
+      }
+    }
 
     // ========== INICIALIZACIÓN ==========
     async function recargarDatos() {
@@ -824,6 +869,20 @@
 
     // Cargar datos iniciales
     (async () => {
+      // Cargar información del usuario actual
+      try {
+        const userResponse = await fetch('/api/user-info');
+        usuarioActual = await userResponse.json();
+        
+        // Ocultar botón de generar tareas si no es master
+        if (usuarioActual.role !== 'master') {
+          const btnGenerar = document.getElementById('btnGenerarTareas');
+          if (btnGenerar) btnGenerar.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Error cargando usuario:', error);
+      }
+      
       const mesActual = new Date().toISOString().slice(0, 7);
       document.getElementById('mesNuevos').value = mesActual;
       
