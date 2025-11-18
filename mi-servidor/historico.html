@@ -660,14 +660,23 @@
     let resumenDataGlobal = [];
     
     async function cargarResumen(){
-        const fDesde = document.getElementById('fDesde').value;
-        const fHasta = document.getElementById('fHasta').value;
+        const fDesde = document.getElementById('fDesde');
+        const fHasta = document.getElementById('fHasta');
         const tbResumen = document.getElementById('tbodyResumen');
         const resumenSection = document.getElementById('resumenSection');
         const filtrosContainer = document.getElementById('resumenFiltersContainer');
+        const resumenTitle = document.getElementById('resumenTitle');
+        const tbodyResumenHeader = document.getElementById('tbodyResumenHeader');
+        const tituloDetalle = document.getElementById('tituloDetalle');
+        const tableContainer = document.querySelector('#tituloDetalle + .table-container');
         
-        document.getElementById('resumenTitle').textContent = 'Resumen Consolidado por Cliente';
-        document.getElementById('tbodyResumenHeader').innerHTML = `
+        if (!fDesde || !fHasta || !tbResumen || !resumenSection || !filtrosContainer || !resumenTitle || !tbodyResumenHeader) {
+            console.error('Elementos requeridos no encontrados para cargarResumen');
+            return;
+        }
+        
+        resumenTitle.textContent = 'Resumen Consolidado por Cliente';
+        tbodyResumenHeader.innerHTML = `
             <th>Cliente</th>
             <th style="text-align:right">CLP Recibido Total</th>
             <th style="text-align:right">Costo Total</th>
@@ -675,12 +684,12 @@
         `;
         resumenSection.style.display = 'block';
         filtrosContainer.style.display = 'flex';
-        document.getElementById('tituloDetalle').style.display = 'none';
-        document.querySelector('#tituloDetalle + .table-container').style.display = 'none';
+        if (tituloDetalle) tituloDetalle.style.display = 'none';
+        if (tableContainer) tableContainer.style.display = 'none';
         
         tbResumen.innerHTML = '<tr><td colspan="4" style="text-align:center">Cargando...</td></tr>';
         
-        const params = new URLSearchParams({ startDate: fDesde || '', endDate: fHasta || '' });
+        const params = new URLSearchParams({ startDate: fDesde.value || '', endDate: fHasta.value || '' });
         const r = await fetch('/api/historico/resumen?' + params.toString());
         const data = await r.json();
         
@@ -711,13 +720,23 @@
     }
 
     async function cargarRendimiento(){
-        const fDesde = document.getElementById('fDesde').value;
-        const fHasta = document.getElementById('fHasta').value;
+        const fDesde = document.getElementById('fDesde');
+        const fHasta = document.getElementById('fHasta');
         const tbResumen = document.getElementById('tbodyResumen');
         const filtrosContainer = document.getElementById('resumenFiltersContainer');
+        const resumenTitle = document.getElementById('resumenTitle');
+        const tbodyResumenHeader = document.getElementById('tbodyResumenHeader');
+        const resumenSection = document.getElementById('resumenSection');
+        const tituloDetalle = document.getElementById('tituloDetalle');
+        const tableContainer = document.querySelector('#tituloDetalle + .table-container');
         
-        document.getElementById('resumenTitle').textContent = 'Reporte de Rendimiento por Operador';
-        document.getElementById('tbodyResumenHeader').innerHTML = `
+        if (!fDesde || !fHasta || !tbResumen || !filtrosContainer || !resumenTitle || !tbodyResumenHeader || !resumenSection) {
+            console.error('Elementos requeridos no encontrados para cargarRendimiento');
+            return;
+        }
+        
+        resumenTitle.textContent = 'Reporte de Rendimiento por Operador';
+        tbodyResumenHeader.innerHTML = `
             <th>Operador</th>
             <th style="text-align:right">Millones Comisionables</th>
             <th style="text-align:right">CLP Enviado Total</th>
@@ -725,14 +744,14 @@
             <th style="text-align:right">Bonificación Total (USD)</th>
         `;
 
-        document.getElementById('resumenSection').style.display = 'block';
+        resumenSection.style.display = 'block';
         filtrosContainer.style.display = 'none';
-        document.getElementById('tituloDetalle').style.display = 'none';
-        document.querySelector('#tituloDetalle + .table-container').style.display = 'none';
+        if (tituloDetalle) tituloDetalle.style.display = 'none';
+        if (tableContainer) tableContainer.style.display = 'none';
         
         tbResumen.innerHTML = '<tr><td colspan="5" style="text-align:center">Cargando...</td></tr>';
         
-        const params = new URLSearchParams({ startDate: fDesde || '', endDate: fHasta || '' });
+        const params = new URLSearchParams({ startDate: fDesde.value || '', endDate: fHasta.value || '' });
         const r = await fetch('/api/rendimiento/operadores?' + params.toString());
         const data = await r.json();
 
@@ -831,49 +850,91 @@
     document.getElementById('cancelEdit').addEventListener('click', cerrarModalEdicion);
     
     (async () => {
-      await fetchUser();
-      if(!user) return;
+      try {
+        await fetchUser();
+        if(!user) return;
 
-      if(user.role !== 'master'){
-        document.getElementById('fOperador').disabled = true;
-        document.getElementById('fOperador').placeholder = 'No disponible';
-        document.getElementById('btnResumen').style.display = 'none';
-        document.getElementById('btnRendimiento').style.display = 'none';
-        document.getElementById('btnRecalcular').style.display = 'none';
-      }
-      
-      document.getElementById('btnFiltrar').onclick = cargar;
-      document.getElementById('btnResumen').onclick = cargarResumen;
-      document.getElementById('btnRendimiento').onclick = cargarRendimiento;
-      document.getElementById('btnRecalcular').onclick = recalcularCostos;
-      document.getElementById('btnCargarMasOperaciones').onclick = cargarMasOperaciones;
-      document.getElementById('btnLimpiar').onclick = ()=>{ 
-          ['fDesde','fHasta','fCliente','fOperador'].forEach(id=>document.getElementById(id).value=''); 
-          document.getElementById('filtroNombreResumen').value = '';
-          document.getElementById('resumenSection').style.display = 'none';
-          document.getElementById('tituloDetalle').style.display = 'block';
-          document.querySelector('#tituloDetalle + .table-container').style.display = 'block';
-          cargar(); 
-      };
-      document.getElementById('btnExport').onclick = exportar;
-      
-      document.getElementById('editRecibo').addEventListener('input', () => checkRecibo(document.getElementById('editRecibo'), document.getElementById('editReciboStatus'), document.getElementById('btnGuardarCambios')));
-      
-      document.getElementById('filtroNombreResumen').addEventListener('input', (e) => {
-          const query = e.target.value.toLowerCase().trim();
-          if (query) {
+        if(user.role !== 'master'){
+          document.getElementById('fOperador').disabled = true;
+          document.getElementById('fOperador').placeholder = 'No disponible';
+          const btnResumen = document.getElementById('btnResumen');
+          const btnRendimiento = document.getElementById('btnRendimiento');
+          const btnRecalcular = document.getElementById('btnRecalcular');
+          if (btnResumen) btnResumen.style.display = 'none';
+          if (btnRendimiento) btnRendimiento.style.display = 'none';
+          if (btnRecalcular) btnRecalcular.style.display = 'none';
+        }
+        
+        const btnFiltrar = document.getElementById('btnFiltrar');
+        const btnResumen = document.getElementById('btnResumen');
+        const btnRendimiento = document.getElementById('btnRendimiento');
+        const btnRecalcular = document.getElementById('btnRecalcular');
+        const btnCargarMas = document.getElementById('btnCargarMasOperaciones');
+        const btnLimpiar = document.getElementById('btnLimpiar');
+        const btnExport = document.getElementById('btnExport');
+        
+        if (btnFiltrar) btnFiltrar.onclick = cargar;
+        if (btnResumen) btnResumen.onclick = cargarResumen;
+        if (btnRendimiento) btnRendimiento.onclick = cargarRendimiento;
+        if (btnRecalcular) btnRecalcular.onclick = recalcularCostos;
+        if (btnCargarMas) btnCargarMas.onclick = cargarMasOperaciones;
+        if (btnLimpiar) {
+          btnLimpiar.onclick = ()=>{ 
+            ['fDesde','fHasta','fCliente','fOperador'].forEach(id => {
+              const el = document.getElementById(id);
+              if (el) el.value = '';
+            });
+            const filtroResumen = document.getElementById('filtroNombreResumen');
+            const resumenSection = document.getElementById('resumenSection');
+            const tituloDetalle = document.getElementById('tituloDetalle');
+            const tableContainer = document.querySelector('#tituloDetalle + .table-container');
+            
+            if (filtroResumen) filtroResumen.value = '';
+            if (resumenSection) resumenSection.style.display = 'none';
+            if (tituloDetalle) tituloDetalle.style.display = 'block';
+            if (tableContainer) tableContainer.style.display = 'block';
+            cargar(); 
+          };
+        }
+        if (btnExport) btnExport.onclick = exportar;
+        
+        const editRecibo = document.getElementById('editRecibo');
+        if (editRecibo) {
+          editRecibo.addEventListener('input', () => {
+            const reciboEl = document.getElementById('editRecibo');
+            const statusEl = document.getElementById('editReciboStatus');
+            const btnGuardar = document.getElementById('btnGuardarCambios');
+            if (reciboEl && statusEl && btnGuardar) {
+              checkRecibo(reciboEl, statusEl, btnGuardar);
+            }
+          });
+        }
+        
+        const filtroNombreResumen = document.getElementById('filtroNombreResumen');
+        if (filtroNombreResumen) {
+          filtroNombreResumen.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            if (query) {
               const filtrados = resumenDataGlobal.filter(d => 
-                  d.cliente_nombre.toLowerCase().includes(query)
+                d.cliente_nombre.toLowerCase().includes(query)
               );
               renderResumen(filtrados);
-          } else {
+            } else {
               renderResumen(resumenDataGlobal);
-          }
-      });
-      
-      addClientAutocomplete(document.getElementById('fCliente'), document.getElementById('fClienteSuggestions'));
+            }
+          });
+        }
+        
+        const fCliente = document.getElementById('fCliente');
+        const fClienteSuggestions = document.getElementById('fClienteSuggestions');
+        if (fCliente && fClienteSuggestions) {
+          addClientAutocomplete(fCliente, fClienteSuggestions);
+        }
 
-      await cargar();
+        await cargar();
+      } catch (error) {
+        console.error('Error inicializando página:', error);
+      }
     })();
   </script>
 </body>
