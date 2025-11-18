@@ -834,11 +834,8 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
               
               if (clienteExistente) return resolve(clienteExistente.id);
               
-              // Crear nuevo cliente si no existe
-              db.run(`INSERT INTO clientes(nombre, fecha_creacion) VALUES (?,?)`, [nombreNormalizado, hoyLocalYYYYMMDD()], function(err) {
-                  if (err) return reject(new Error('Error al crear nuevo cliente.'));
-                  resolve(this.lastID);
-              });
+              // NO crear cliente nuevo - retornar error
+              return reject(new Error('El cliente no existe. Debe registrarlo primero en la sección de Gestión de Clientes.'));
           });
       });
       
