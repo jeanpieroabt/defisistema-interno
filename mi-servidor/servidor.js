@@ -664,9 +664,9 @@ app.get('/api/dashboard', apiAuth, async (req, res) => {
             const [costo, ventas, tasas, saldos] = await Promise.all([
                 new Promise(resolve => calcularCostoClpPorVes(hoy, (e, costo) => resolve({ costoClpPorVes: costo || 0 }))),
                 new Promise(resolve => {
-                    db.get(`SELECT IFNULL(SUM(monto_clp),0) as totalClpEnviado, IFNULL(SUM(monto_ves),0) as totalVesEnviado FROM operaciones WHERE date(fecha)=date(?)`, [hoy], (e, rowOps) => {
-                        if (e) { console.error(e); return resolve({totalClpEnviadoDia: 0, totalVesEnviadoDia: 0}); }
-                        resolve({ totalClpEnviadoDia: rowOps.totalClpEnviado, totalVesEnviadoDia: rowOps.totalVesEnviado });
+                    db.get(`SELECT IFNULL(SUM(monto_clp),0) as totalClpEnviado, IFNULL(SUM(monto_ves),0) as totalVesEnviado, IFNULL(SUM(costo_clp),0) as costoTotalClp FROM operaciones WHERE date(fecha)=date(?)`, [hoy], (e, rowOps) => {
+                        if (e) { console.error(e); return resolve({totalClpEnviadoDia: 0, totalVesEnviadoDia: 0, costoTotalClp: 0}); }
+                        resolve({ totalClpEnviadoDia: rowOps.totalClpEnviado, totalVesEnviadoDia: rowOps.totalVesEnviado, costoTotalClp: rowOps.costoTotalClp });
                     });
                 }),
                 new Promise(resolve => {
@@ -697,12 +697,11 @@ app.get('/api/dashboard', apiAuth, async (req, res) => {
             ]);
 
             const { costoClpPorVes } = costo;
-            const { totalClpEnviadoDia, totalVesEnviadoDia } = ventas;
+            const { totalClpEnviadoDia, totalVesEnviadoDia, costoTotalClp } = ventas;
             const { tasaCompraPromedio } = tasas;
             const { capitalInicialClp = 0, totalGananciaAcumuladaClp = 0 } = saldos;
             const tasaVentaPromedio = totalVesEnviadoDia > 0 ? totalVesEnviadoDia / totalClpEnviadoDia : 0;
-            const costoTotalVesEnviadoClpDia = totalVesEnviadoDia * costoClpPorVes;
-            const gananciaBrutaDia = totalClpEnviadoDia - costoTotalVesEnviadoClpDia;
+            const gananciaBrutaDia = totalClpEnviadoDia - costoTotalClp;
             const comisionDelDia = totalClpEnviadoDia * 0.003;
             const gananciaNetaDelDia = gananciaBrutaDia - comisionDelDia;
             const capitalTotalClp = capitalInicialClp + totalGananciaAcumuladaClp;
@@ -789,7 +788,8 @@ app.get('/api/analisis/crecimiento', apiAuth, (req, res) => {
                     IFNULL(SUM(costo_clp), 0) as costo_total,
                     IFNULL(SUM(comision_ves), 0) as comision_ves,
                     IFNULL(AVG(tasa), 0) as tasa_promedio,
-                    IFNULL(SUM(monto_clp - costo_clp), 0) as ganancia_bruta
+                    IFNULL(SUM(monto_clp - costo_clp), 0) as ganancia_bruta,
+                    IFNULL(SUM(monto_clp) * 0.003, 0) as comision_total
                 FROM operaciones 
                 WHERE date(fecha) = date(?)
             `, [fechaTarget], (err, row) => {
@@ -808,6 +808,10 @@ app.get('/api/analisis/crecimiento', apiAuth, (req, res) => {
                 `, [fechaTarget, fechaTarget], (err2, recRow) => {
                     if (err2) return reject(err2);
                     
+                    const gananciaBruta = row.ganancia_bruta || 0;
+                    const comisionTotal = row.comision_total || 0;
+                    const gananciaNeta = gananciaBruta - comisionTotal;
+                    
                     const metricas = {
                         num_operaciones: row.num_operaciones || 0,
                         clientes_unicos: row.clientes_unicos || 0,
@@ -817,8 +821,8 @@ app.get('/api/analisis/crecimiento', apiAuth, (req, res) => {
                         costo_total: row.costo_total || 0,
                         comision_ves: row.comision_ves || 0,
                         tasa_promedio: row.tasa_promedio || 0,
-                        ganancia_bruta: row.ganancia_bruta || 0,
-                        margen_ganancia: row.ventas_clp > 0 ? (row.ganancia_bruta / row.ventas_clp) * 100 : 0,
+                        ganancia_bruta: gananciaNeta,
+                        margen_ganancia: row.ventas_clp > 0 ? (gananciaNeta / row.ventas_clp) * 100 : 0,
                         clientes_recurrentes: recRow.clientes_recurrentes || 0
                     };
                     
