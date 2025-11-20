@@ -109,6 +109,7 @@
             gap: 1rem;
             align-items: center;
             flex-wrap: wrap;
+            justify-content: center;
         }
 
         .date-selector label {
@@ -143,6 +144,34 @@
         .date-selector button:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(45, 140, 219, 0.3);
+        }
+
+        .date-navigation {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .btn-nav {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 120px;
+        }
+
+        .btn-nav:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-nav:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .metrics-grid {
@@ -324,12 +353,18 @@
         </div>
 
         <div class="date-selector">
+            <div class="date-navigation">
+                <button class="btn-nav" onclick="cambiarDia(-1)">← Día Anterior</button>
+            </div>
             <label for="fechaActual">Fecha a analizar:</label>
-            <input type="date" id="fechaActual">
+            <input type="date" id="fechaActual" onchange="cargarAnalisis()">
             <button onclick="cargarAnalisis()">🔍 Analizar</button>
             <button onclick="cargarHoy()" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%);">
                 📅 Hoy
             </button>
+            <div class="date-navigation">
+                <button class="btn-nav" id="btnSiguiente" onclick="cambiarDia(1)">Día Siguiente →</button>
+            </div>
         </div>
 
         <div id="insightCard" class="insight-card" style="display: none;">
@@ -473,6 +508,33 @@
             cargarAnalisis();
         }
 
+        function cambiarDia(dias) {
+            const inputFecha = document.getElementById('fechaActual');
+            const fechaActual = inputFecha.value;
+            
+            if (!fechaActual) {
+                alert('Por favor selecciona una fecha primero');
+                return;
+            }
+
+            const fecha = new Date(fechaActual + 'T00:00:00');
+            fecha.setDate(fecha.getDate() + dias);
+            
+            const nuevaFecha = fecha.toISOString().slice(0, 10);
+            inputFecha.value = nuevaFecha;
+            cargarAnalisis();
+        }
+
+        function actualizarBotonSiguiente() {
+            const fechaActual = document.getElementById('fechaActual').value;
+            const btnSiguiente = document.getElementById('btnSiguiente');
+            
+            if (fechaActual) {
+                const hoy = getLocalYYYYMMDD();
+                btnSiguiente.disabled = fechaActual >= hoy;
+            }
+        }
+
         async function cargarAnalisis() {
             const fechaActual = document.getElementById('fechaActual').value;
             if (!fechaActual) {
@@ -490,6 +552,7 @@
                 
                 const data = await response.json();
                 mostrarAnalisis(data);
+                actualizarBotonSiguiente();
             } catch (error) {
                 console.error('Error:', error);
                 alert('Error al cargar el análisis: ' + error.message);
@@ -521,8 +584,8 @@
                 document.getElementById(`${prefijo}Actual`).textContent = formatearMoneda(actual);
                 document.getElementById(`${prefijo}Previo`).textContent = formatearMoneda(previo);
             } else if (esPorcentaje) {
-                document.getElementById(`${prefijo}Actual`).textContent = actual.toFixed(2) + '%';
-                document.getElementById(`${prefijo}Previo`).textContent = previo.toFixed(2) + '%';
+                document.getElementById(`${prefijo}Actual`).textContent = actual.toFixed(1) + '%';
+                document.getElementById(`${prefijo}Previo`).textContent = previo.toFixed(1) + '%';
             } else {
                 document.getElementById(`${prefijo}Actual`).textContent = actual.toLocaleString('es-CL');
                 document.getElementById(`${prefijo}Previo`).textContent = previo.toLocaleString('es-CL');
@@ -554,7 +617,7 @@
             actualizarMetrica('operaciones', data.actual.num_operaciones, data.previo.num_operaciones);
             actualizarMetrica('ticket', data.actual.ticket_promedio, data.previo.ticket_promedio, true);
             actualizarMetrica('ganancia', data.actual.ganancia_bruta, data.previo.ganancia_bruta, true);
-            actualizarMetrica('margen', data.actual.margen_ganancia, data.previo.margen_ganancia, true, true);
+            actualizarMetrica('margen', data.actual.margen_ganancia, data.previo.margen_ganancia, false, true);
 
             // Métricas adicionales
             const tbody = document.getElementById('additionalMetricsBody');
