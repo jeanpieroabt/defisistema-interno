@@ -316,21 +316,25 @@
         
         @media (max-width: 768px) {
             .main-container {
-                padding: 1rem;
+                padding: 1rem 0.5rem;
             }
             
             .page-header {
                 flex-direction: column;
                 text-align: center;
-                padding: 1.5rem;
+                padding: 1rem;
+            }
+
+            .page-header .logo {
+                height: 40px;
             }
             
             .page-header h1 {
-                font-size: 1.5rem;
+                font-size: 1.3rem;
             }
             
             .page-header p {
-                font-size: 0.9rem;
+                font-size: 0.85rem;
             }
             
             .page-header button {
@@ -341,6 +345,7 @@
             
             .stats-bar {
                 grid-template-columns: 1fr;
+                gap: 0.75rem;
             }
             
             .toolbar {
@@ -361,18 +366,22 @@
             .action-buttons button {
                 flex: 1;
                 min-width: 140px;
+                padding: 0.6rem 1rem;
+                font-size: 0.85rem;
             }
             
             .table-container {
                 overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
             }
             
             table {
-                font-size: 0.85rem;
+                font-size: 0.8rem;
+                min-width: 600px;
             }
             
             table th, table td {
-                padding: 0.5rem;
+                padding: 0.5rem 0.3rem;
                 white-space: nowrap;
             }
             
@@ -380,11 +389,38 @@
                 width: 95%;
                 max-width: 95%;
                 margin: 1rem;
-                padding: 1.5rem;
+                padding: 1rem;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+
+            .modal-content h2 {
+                font-size: 1.3rem;
             }
             
             .form-grid {
                 grid-template-columns: 1fr !important;
+            }
+
+            .btn-edit,
+            .btn-danger {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-header h1 {
+                font-size: 1.1rem;
+            }
+
+            .action-buttons button {
+                width: 100%;
+                min-width: auto;
+            }
+
+            table {
+                font-size: 0.7rem;
             }
         }
         

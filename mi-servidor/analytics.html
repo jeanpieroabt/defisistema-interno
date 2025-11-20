@@ -264,6 +264,125 @@
       padding: 0.5rem;
       border-radius: 4px;
     }
+
+    /* RESPONSIVE DESIGN */
+    @media (max-width: 768px) {
+      .container {
+        margin: 1rem auto;
+        padding: 0 0.5rem;
+      }
+
+      .hdr {
+        padding: 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hdr h1 {
+        font-size: 1.5rem;
+      }
+
+      .logo-header img {
+        height: 40px;
+      }
+
+      .hdr .btns {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .btn-back {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+      }
+
+      .tabs {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .tab {
+        text-align: center;
+        padding: 0.75rem;
+      }
+
+      .analytics-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+
+      .grid2 {
+        grid-template-columns: 1fr;
+      }
+
+      .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      table {
+        min-width: 600px;
+        font-size: 0.85rem;
+      }
+
+      th, td {
+        padding: 0.5rem;
+      }
+
+      .modal-content {
+        width: 95% !important;
+        max-width: 95% !important;
+        margin: 1rem;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+
+      .modal-content h2 {
+        font-size: 1.3rem;
+      }
+
+      .stats-mini {
+        grid-template-columns: 1fr;
+      }
+
+      .form-inline {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+
+      .section-header button {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hdr h1 {
+        font-size: 1.2rem;
+      }
+
+      .metric-card h3 {
+        font-size: 0.9rem;
+      }
+
+      .metric-card .value {
+        font-size: 1.5rem;
+      }
+
+      .btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+      }
+
+      table {
+        font-size: 0.75rem;
+      }
+    }
   </style>
 </head>
 <body>

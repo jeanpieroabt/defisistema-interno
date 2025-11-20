@@ -335,6 +335,150 @@
             gap: 0.25rem;
             font-weight: 700;
         }
+
+        /* RESPONSIVE DESIGN */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem 0.5rem;
+            }
+
+            .page-header {
+                padding: 1rem;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .page-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .page-header p {
+                font-size: 0.9rem;
+            }
+
+            .page-header .logo {
+                height: 40px;
+            }
+
+            .btn-back {
+                padding: 0.5rem 1rem;
+                font-size: 0.85rem;
+            }
+
+            .date-selector {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            .date-selector label {
+                width: 100%;
+            }
+
+            .date-selector input {
+                width: 100%;
+                padding: 0.6rem;
+            }
+
+            .date-selector button {
+                width: 100%;
+                padding: 0.6rem 1rem;
+            }
+
+            .date-navigation {
+                width: 100%;
+            }
+
+            .btn-nav {
+                width: 100%;
+                min-width: auto;
+                padding: 0.6rem;
+                font-size: 0.9rem;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .metric-card {
+                padding: 1rem;
+            }
+
+            .metric-icon {
+                font-size: 1.5rem;
+            }
+
+            .metric-title {
+                font-size: 0.8rem;
+            }
+
+            .current-value {
+                font-size: 1.5rem;
+            }
+
+            .previous-value {
+                font-size: 0.85rem;
+            }
+
+            .metric-comparison {
+                padding: 0.6rem;
+                font-size: 0.9rem;
+            }
+
+            .additional-metrics {
+                padding: 1rem;
+                overflow-x: auto;
+            }
+
+            .additional-metrics h2 {
+                font-size: 1.2rem;
+            }
+
+            .metrics-table {
+                font-size: 0.85rem;
+                min-width: 600px;
+            }
+
+            .metrics-table th,
+            .metrics-table td {
+                padding: 0.75rem 0.5rem;
+            }
+
+            .insight-card {
+                padding: 1.5rem;
+            }
+
+            .insight-card h3 {
+                font-size: 1.1rem;
+            }
+
+            .insight-card p {
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-header h1 {
+                font-size: 1.2rem;
+            }
+
+            .current-value {
+                font-size: 1.3rem;
+            }
+
+            .metric-title {
+                font-size: 0.75rem;
+            }
+
+            .metrics-table {
+                font-size: 0.75rem;
+            }
+
+            .metric-comparison {
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 <body>
