@@ -411,6 +411,14 @@
         <h3>Analytics de Clientes</h3>
         <p>Análisis de comportamiento, alertas y métricas de rendimiento</p>
       </a>
+
+      <!-- Análisis de Crecimiento (Master) -->
+      <a href="crecimiento.html" class="module-card master-only" id="crecimientoCard" style="display:none">
+        <div class="module-icon">📊</div>
+        <span class="module-badge">Master</span>
+        <h3>Análisis de Crecimiento</h3>
+        <p>Compara métricas día a día vs. mes anterior</p>
+      </a>
       
       <!-- Administración (Master) -->
       <a href="admin.html" class="module-card master-only" id="adminCard" style="display:none">
@@ -477,6 +485,7 @@
       if (user.role === 'master') {
         document.getElementById('dashboardCard').style.display = 'flex';
         document.getElementById('analyticsCard').style.display = 'flex';
+        document.getElementById('crecimientoCard').style.display = 'flex';
         document.getElementById('adminCard').style.display = 'flex';
       }
       

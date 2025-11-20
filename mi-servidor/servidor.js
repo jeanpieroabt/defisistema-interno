@@ -757,6 +757,95 @@ app.get('/api/ganancia-mensual', apiAuth, onlyMaster, (req, res) => {
     );
 });
 
+// Endpoint de análisis de crecimiento día a día
+app.get('/api/analisis/crecimiento', apiAuth, (req, res) => {
+    const { fecha } = req.query;
+    
+    if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        return res.status(400).json({ message: 'Formato de fecha inválido. Use YYYY-MM-DD' });
+    }
+
+    // Calcular la fecha del mes anterior (mismo día)
+    const fechaObj = new Date(fecha + 'T00:00:00');
+    const fechaPreviaObj = new Date(fechaObj);
+    fechaPreviaObj.setMonth(fechaPreviaObj.getMonth() - 1);
+    
+    // Si el día no existe en el mes anterior (ej: 31 de marzo -> 28/29 feb), ajustar
+    if (fechaPreviaObj.getDate() !== fechaObj.getDate()) {
+        fechaPreviaObj.setDate(0); // Último día del mes anterior
+    }
+    
+    const fechaPrevia = fechaPreviaObj.toISOString().slice(0, 10);
+
+    const obtenerMetricas = (fechaTarget) => {
+        return new Promise((resolve, reject) => {
+            db.get(`
+                SELECT 
+                    COUNT(*) as num_operaciones,
+                    COUNT(DISTINCT cliente_id) as clientes_unicos,
+                    IFNULL(SUM(monto_clp), 0) as ventas_clp,
+                    IFNULL(SUM(monto_ves), 0) as ves_enviados,
+                    IFNULL(AVG(monto_clp), 0) as ticket_promedio,
+                    IFNULL(SUM(costo_clp), 0) as costo_total,
+                    IFNULL(SUM(comision_ves), 0) as comision_ves,
+                    IFNULL(AVG(tasa), 0) as tasa_promedio,
+                    IFNULL(SUM(monto_clp - costo_clp), 0) as ganancia_bruta
+                FROM operaciones 
+                WHERE date(fecha) = date(?)
+            `, [fechaTarget], (err, row) => {
+                if (err) return reject(err);
+                
+                // Calcular clientes recurrentes (que ya habían operado antes de esta fecha)
+                db.get(`
+                    SELECT COUNT(DISTINCT o1.cliente_id) as clientes_recurrentes
+                    FROM operaciones o1
+                    WHERE date(o1.fecha) = date(?)
+                    AND EXISTS (
+                        SELECT 1 FROM operaciones o2 
+                        WHERE o2.cliente_id = o1.cliente_id 
+                        AND date(o2.fecha) < date(?)
+                    )
+                `, [fechaTarget, fechaTarget], (err2, recRow) => {
+                    if (err2) return reject(err2);
+                    
+                    const metricas = {
+                        num_operaciones: row.num_operaciones || 0,
+                        clientes_unicos: row.clientes_unicos || 0,
+                        ventas_clp: row.ventas_clp || 0,
+                        ves_enviados: row.ves_enviados || 0,
+                        ticket_promedio: row.ticket_promedio || 0,
+                        costo_total: row.costo_total || 0,
+                        comision_ves: row.comision_ves || 0,
+                        tasa_promedio: row.tasa_promedio || 0,
+                        ganancia_bruta: row.ganancia_bruta || 0,
+                        margen_ganancia: row.ventas_clp > 0 ? (row.ganancia_bruta / row.ventas_clp) * 100 : 0,
+                        clientes_recurrentes: recRow.clientes_recurrentes || 0
+                    };
+                    
+                    resolve(metricas);
+                });
+            });
+        });
+    };
+
+    Promise.all([
+        obtenerMetricas(fecha),
+        obtenerMetricas(fechaPrevia)
+    ])
+    .then(([actual, previo]) => {
+        res.json({
+            fecha_actual: fecha,
+            fecha_previa: fechaPrevia,
+            actual,
+            previo
+        });
+    })
+    .catch(error => {
+        console.error('Error en análisis de crecimiento:', error);
+        res.status(500).json({ message: 'Error al generar análisis de crecimiento' });
+    });
+});
+
 app.get('/api/monthly-sales', apiAuth, (req, res) => {
   const user = req.session.user;
   const inicioMes = inicioMesLocalYYYYMMDD();

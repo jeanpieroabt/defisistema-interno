@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis de Crecimiento - Sistema Interno</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            position: relative;
+            overflow-x: hidden;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background-image: url('logo.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.03;
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .page-header {
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(45, 140, 219, 0.2);
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        
+        .page-header .logo {
+            height: 60px;
+            width: auto;
+            filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        
+        .page-header h1 {
+            margin: 0 0 0.5rem 0;
+            color: white;
+            font-size: 2rem;
+            font-weight: 800;
+        }
+        
+        .page-header p {
+            margin: 0;
+            color: rgba(255,255,255,0.95);
+            font-size: 1rem;
+        }
+        
+        .btn-back {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .date-selector {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .date-selector label {
+            font-weight: 600;
+            color: var(--dark-grey);
+        }
+
+        .date-selector input {
+            padding: 0.75rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .date-selector input:focus {
+            outline: none;
+            border-color: #2D8CDB;
+        }
+
+        .date-selector button {
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .date-selector button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(45, 140, 219, 0.3);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .metric-icon {
+            font-size: 2rem;
+        }
+
+        .metric-title {
+            font-size: 0.9rem;
+            color: var(--medium-grey);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-values {
+            margin-bottom: 1rem;
+        }
+
+        .current-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--dark-grey);
+            margin-bottom: 0.5rem;
+        }
+
+        .previous-value {
+            font-size: 1rem;
+            color: var(--medium-grey);
+        }
+
+        .metric-comparison {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-weight: 700;
+        }
+
+        .metric-comparison.positive {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
+        }
+
+        .metric-comparison.negative {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+        }
+
+        .metric-comparison.neutral {
+            background: rgba(108, 117, 125, 0.1);
+            color: #6c757d;
+        }
+
+        .comparison-arrow {
+            font-size: 1.5rem;
+        }
+
+        .additional-metrics {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .additional-metrics h2 {
+            margin: 0 0 1.5rem 0;
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .metrics-table th {
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .metrics-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .metrics-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .metrics-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--medium-grey);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: var(--medium-grey);
+        }
+
+        .insight-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        }
+
+        .insight-card h3 {
+            margin: 0 0 1rem 0;
+            font-size: 1.3rem;
+        }
+
+        .insight-card p {
+            margin: 0;
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+
+        .trend-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="page-header">
+            <div class="header-left">
+                <img src="logo.png" alt="Logo" class="logo">
+                <div>
+                    <h1>📈 Análisis de Crecimiento</h1>
+                    <p>Compara el rendimiento día a día vs. mes anterior</p>
+                </div>
+            </div>
+            <a href="home.html" class="btn-back">
+                ← Inicio
+            </a>
+        </div>
+
+        <div class="date-selector">
+            <label for="fechaActual">Fecha a analizar:</label>
+            <input type="date" id="fechaActual">
+            <button onclick="cargarAnalisis()">🔍 Analizar</button>
+            <button onclick="cargarHoy()" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%);">
+                📅 Hoy
+            </button>
+        </div>
+
+        <div id="insightCard" class="insight-card" style="display: none;">
+            <h3>💡 Resumen Ejecutivo</h3>
+            <p id="insightText"></p>
+        </div>
+
+        <div id="loadingIndicator" class="loading">
+            <h3>⏳ Cargando análisis...</h3>
+        </div>
+
+        <div id="metricsContainer" style="display: none;">
+            <div class="metrics-grid">
+                <!-- Ventas CLP -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">💰</span>
+                        <span class="metric-title">Ventas CLP</span>
+                    </div>
+                    <div class="metric-values">
+                        <div class="current-value" id="ventasActual">-</div>
+                        <div class="previous-value">Mes anterior: <span id="ventasPrevio">-</span></div>
+                    </div>
+                    <div class="metric-comparison" id="ventasComparison">
+                        <span class="comparison-arrow">-</span>
+                        <span id="ventasPorcentaje">-</span>
+                    </div>
+                </div>
+
+                <!-- Clientes Únicos -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">👥</span>
+                        <span class="metric-title">Clientes Únicos</span>
+                    </div>
+                    <div class="metric-values">
+                        <div class="current-value" id="clientesActual">-</div>
+                        <div class="previous-value">Mes anterior: <span id="clientesPrevio">-</span></div>
+                    </div>
+                    <div class="metric-comparison" id="clientesComparison">
+                        <span class="comparison-arrow">-</span>
+                        <span id="clientesPorcentaje">-</span>
+                    </div>
+                </div>
+
+                <!-- Operaciones -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">📊</span>
+                        <span class="metric-title">Operaciones</span>
+                    </div>
+                    <div class="metric-values">
+                        <div class="current-value" id="operacionesActual">-</div>
+                        <div class="previous-value">Mes anterior: <span id="operacionesPrevio">-</span></div>
+                    </div>
+                    <div class="metric-comparison" id="operacionesComparison">
+                        <span class="comparison-arrow">-</span>
+                        <span id="operacionesPorcentaje">-</span>
+                    </div>
+                </div>
+
+                <!-- Ticket Promedio -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">💵</span>
+                        <span class="metric-title">Ticket Promedio</span>
+                    </div>
+                    <div class="metric-values">
+                        <div class="current-value" id="ticketActual">-</div>
+                        <div class="previous-value">Mes anterior: <span id="ticketPrevio">-</span></div>
+                    </div>
+                    <div class="metric-comparison" id="ticketComparison">
+                        <span class="comparison-arrow">-</span>
+                        <span id="ticketPorcentaje">-</span>
+                    </div>
+                </div>
+
+                <!-- Ganancia Bruta -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">💎</span>
+                        <span class="metric-title">Ganancia Bruta</span>
+                    </div>
+                    <div class="metric-values">
+                        <div class="current-value" id="gananciaActual">-</div>
+                        <div class="previous-value">Mes anterior: <span id="gananciaPrevio">-</span></div>
+                    </div>
+                    <div class="metric-comparison" id="gananciaComparison">
+                        <span class="comparison-arrow">-</span>
+                        <span id="gananciaPorcentaje">-</span>
+                    </div>
+                </div>
+
+                <!-- Margen de Ganancia -->
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">📈</span>
+                        <span class="metric-title">Margen de Ganancia</span>
+                    </div>
+                    <div class="metric-values">
+                        <div class="current-value" id="margenActual">-</div>
+                        <div class="previous-value">Mes anterior: <span id="margenPrevio">-</span></div>
+                    </div>
+                    <div class="metric-comparison" id="margenComparison">
+                        <span class="comparison-arrow">-</span>
+                        <span id="margenPorcentaje">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="additional-metrics">
+                <h2>📋 Métricas Adicionales</h2>
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Métrica</th>
+                            <th>Fecha Actual</th>
+                            <th>Mes Anterior</th>
+                            <th>Cambio</th>
+                        </tr>
+                    </thead>
+                    <tbody id="additionalMetricsBody">
+                        <!-- Se llenará dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let usuarioActual = null;
+
+        const getLocalYYYYMMDD = () => {
+            const now = new Date();
+            const offset = now.getTimezoneOffset() * 60000;
+            return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+        };
+
+        function cargarHoy() {
+            document.getElementById('fechaActual').value = getLocalYYYYMMDD();
+            cargarAnalisis();
+        }
+
+        async function cargarAnalisis() {
+            const fechaActual = document.getElementById('fechaActual').value;
+            if (!fechaActual) {
+                alert('Por favor selecciona una fecha');
+                return;
+            }
+
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('metricsContainer').style.display = 'none';
+            document.getElementById('insightCard').style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/analisis/crecimiento?fecha=${fechaActual}`);
+                if (!response.ok) throw new Error('Error al cargar análisis');
+                
+                const data = await response.json();
+                mostrarAnalisis(data);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al cargar el análisis: ' + error.message);
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
+        }
+
+        function calcularPorcentajeCambio(actual, previo) {
+            if (previo === 0) {
+                return actual > 0 ? 100 : 0;
+            }
+            return ((actual - previo) / previo) * 100;
+        }
+
+        function formatearMoneda(valor) {
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(valor);
+        }
+
+        function actualizarMetrica(prefijo, actual, previo, esMoneda = false, esPorcentaje = false) {
+            const cambio = calcularPorcentajeCambio(actual, previo);
+            
+            if (esMoneda) {
+                document.getElementById(`${prefijo}Actual`).textContent = formatearMoneda(actual);
+                document.getElementById(`${prefijo}Previo`).textContent = formatearMoneda(previo);
+            } else if (esPorcentaje) {
+                document.getElementById(`${prefijo}Actual`).textContent = actual.toFixed(2) + '%';
+                document.getElementById(`${prefijo}Previo`).textContent = previo.toFixed(2) + '%';
+            } else {
+                document.getElementById(`${prefijo}Actual`).textContent = actual.toLocaleString('es-CL');
+                document.getElementById(`${prefijo}Previo`).textContent = previo.toLocaleString('es-CL');
+            }
+
+            const comparisonEl = document.getElementById(`${prefijo}Comparison`);
+            const porcentajeEl = document.getElementById(`${prefijo}Porcentaje`);
+            const arrowEl = comparisonEl.querySelector('.comparison-arrow');
+
+            if (cambio > 0) {
+                comparisonEl.className = 'metric-comparison positive';
+                arrowEl.textContent = '↑';
+                porcentajeEl.textContent = `+${cambio.toFixed(2)}%`;
+            } else if (cambio < 0) {
+                comparisonEl.className = 'metric-comparison negative';
+                arrowEl.textContent = '↓';
+                porcentajeEl.textContent = `${cambio.toFixed(2)}%`;
+            } else {
+                comparisonEl.className = 'metric-comparison neutral';
+                arrowEl.textContent = '→';
+                porcentajeEl.textContent = 'Sin cambio';
+            }
+        }
+
+        function mostrarAnalisis(data) {
+            // Actualizar métricas principales
+            actualizarMetrica('ventas', data.actual.ventas_clp, data.previo.ventas_clp, true);
+            actualizarMetrica('clientes', data.actual.clientes_unicos, data.previo.clientes_unicos);
+            actualizarMetrica('operaciones', data.actual.num_operaciones, data.previo.num_operaciones);
+            actualizarMetrica('ticket', data.actual.ticket_promedio, data.previo.ticket_promedio, true);
+            actualizarMetrica('ganancia', data.actual.ganancia_bruta, data.previo.ganancia_bruta, true);
+            actualizarMetrica('margen', data.actual.margen_ganancia, data.previo.margen_ganancia, true, true);
+
+            // Métricas adicionales
+            const tbody = document.getElementById('additionalMetricsBody');
+            tbody.innerHTML = '';
+
+            const metricas = [
+                { 
+                    nombre: 'VES Enviados Total', 
+                    actual: data.actual.ves_enviados?.toLocaleString('es-VE', {minimumFractionDigits: 2}) + ' Bs.',
+                    previo: data.previo.ves_enviados?.toLocaleString('es-VE', {minimumFractionDigits: 2}) + ' Bs.',
+                    cambio: calcularPorcentajeCambio(data.actual.ves_enviados, data.previo.ves_enviados)
+                },
+                {
+                    nombre: 'Costo Total CLP',
+                    actual: formatearMoneda(data.actual.costo_total),
+                    previo: formatearMoneda(data.previo.costo_total),
+                    cambio: calcularPorcentajeCambio(data.actual.costo_total, data.previo.costo_total)
+                },
+                {
+                    nombre: 'Comisión VES',
+                    actual: data.actual.comision_ves?.toLocaleString('es-VE', {minimumFractionDigits: 2}) + ' Bs.',
+                    previo: data.previo.comision_ves?.toLocaleString('es-VE', {minimumFractionDigits: 2}) + ' Bs.',
+                    cambio: calcularPorcentajeCambio(data.actual.comision_ves, data.previo.comision_ves)
+                },
+                {
+                    nombre: 'Tasa Promedio',
+                    actual: data.actual.tasa_promedio?.toFixed(4),
+                    previo: data.previo.tasa_promedio?.toFixed(4),
+                    cambio: calcularPorcentajeCambio(data.actual.tasa_promedio, data.previo.tasa_promedio)
+                },
+                {
+                    nombre: 'Recurrencia de Clientes',
+                    actual: data.actual.clientes_recurrentes + ' clientes',
+                    previo: data.previo.clientes_recurrentes + ' clientes',
+                    cambio: calcularPorcentajeCambio(data.actual.clientes_recurrentes, data.previo.clientes_recurrentes)
+                }
+            ];
+
+            metricas.forEach(metrica => {
+                const tr = document.createElement('tr');
+                const cambioClass = metrica.cambio > 0 ? 'positive' : metrica.cambio < 0 ? 'negative' : 'neutral';
+                const cambioSymbol = metrica.cambio > 0 ? '↑' : metrica.cambio < 0 ? '↓' : '→';
+                
+                tr.innerHTML = `
+                    <td><strong>${metrica.nombre}</strong></td>
+                    <td>${metrica.actual}</td>
+                    <td>${metrica.previo}</td>
+                    <td>
+                        <span class="trend-indicator" style="color: ${cambioClass === 'positive' ? '#28a745' : cambioClass === 'negative' ? '#dc3545' : '#6c757d'}">
+                            ${cambioSymbol} ${metrica.cambio > 0 ? '+' : ''}${metrica.cambio.toFixed(2)}%
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Generar insight
+            generarInsight(data);
+
+            document.getElementById('metricsContainer').style.display = 'block';
+        }
+
+        function generarInsight(data) {
+            const cambioVentas = calcularPorcentajeCambio(data.actual.ventas_clp, data.previo.ventas_clp);
+            const cambioClientes = calcularPorcentajeCambio(data.actual.clientes_unicos, data.previo.clientes_unicos);
+            const cambioTicket = calcularPorcentajeCambio(data.actual.ticket_promedio, data.previo.ticket_promedio);
+
+            let insight = '';
+
+            if (cambioVentas > 10) {
+                insight = `🎉 ¡Excelente desempeño! Las ventas crecieron ${cambioVentas.toFixed(1)}% comparado con el mes anterior. `;
+            } else if (cambioVentas > 0) {
+                insight = `✅ Crecimiento positivo: Las ventas aumentaron ${cambioVentas.toFixed(1)}% vs. mes anterior. `;
+            } else if (cambioVentas < -10) {
+                insight = `⚠️ Alerta: Las ventas disminuyeron ${Math.abs(cambioVentas).toFixed(1)}% vs. mes anterior. `;
+            } else if (cambioVentas < 0) {
+                insight = `📉 Las ventas bajaron ${Math.abs(cambioVentas).toFixed(1)}% comparado con el mes anterior. `;
+            } else {
+                insight = `➡️ Las ventas se mantienen estables comparado con el mes anterior. `;
+            }
+
+            if (cambioClientes > 0) {
+                insight += `Se atendieron ${data.actual.clientes_unicos} clientes únicos (${cambioClientes > 0 ? '+' : ''}${cambioClientes.toFixed(1)}%), `;
+            } else {
+                insight += `Se atendieron ${data.actual.clientes_unicos} clientes únicos (${cambioClientes.toFixed(1)}%), `;
+            }
+
+            if (cambioTicket > 0) {
+                insight += `y el ticket promedio subió a ${formatearMoneda(data.actual.ticket_promedio)} (+${cambioTicket.toFixed(1)}%).`;
+            } else if (cambioTicket < 0) {
+                insight += `aunque el ticket promedio bajó a ${formatearMoneda(data.actual.ticket_promedio)} (${cambioTicket.toFixed(1)}%).`;
+            } else {
+                insight += `con un ticket promedio de ${formatearMoneda(data.actual.ticket_promedio)}.`;
+            }
+
+            document.getElementById('insightText').textContent = insight;
+            document.getElementById('insightCard').style.display = 'block';
+        }
+
+        // Inicialización
+        (async () => {
+            try {
+                const response = await fetch('/api/user-info');
+                if (!response.ok) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                usuarioActual = await response.json();
+
+                // Cargar análisis de hoy automáticamente
+                cargarHoy();
+            } catch (error) {
+                console.error('Error inicializando:', error);
+                window.location.href = 'login.html';
+            }
+        })();
+    </script>
+</body>
+</html>
