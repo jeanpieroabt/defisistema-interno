@@ -235,6 +235,34 @@ const runMigrations = async () => {
         FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
     )`);
 
+    // ✅ TABLA PARA HISTORIAL DE MONITOREO DE TASAS
+    await dbRun(`CREATE TABLE IF NOT EXISTS tasas_monitoreo(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tasa_p2p_250k REAL NOT NULL,
+        tasa_nivel1 REAL,
+        tasa_nivel2 REAL,
+        tasa_nivel3 REAL,
+        diferencia_porcentaje REAL,
+        alerta_generada INTEGER DEFAULT 0,
+        fecha_verificacion TEXT NOT NULL
+    )`);
+
+    // ✅ TABLA PARA ALERTAS DE TASAS (notificaciones al master)
+    await dbRun(`CREATE TABLE IF NOT EXISTS tasas_alertas(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tasa_p2p_250k REAL NOT NULL,
+        tasa_nivel3_actual REAL NOT NULL,
+        diferencia_porcentaje REAL NOT NULL,
+        estado TEXT DEFAULT 'pendiente' CHECK(estado IN ('pendiente','respondida','auto_ajustada')),
+        notificacion_id INTEGER,
+        respuesta_master TEXT,
+        fecha_creacion TEXT NOT NULL,
+        fecha_respuesta TEXT,
+        fecha_auto_ajuste TEXT,
+        tasa_ajustada REAL,
+        FOREIGN KEY(notificacion_id) REFERENCES notificaciones(id)
+    )`);
+
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
             if (err) return console.error('Error al verificar usuarios semilla:', err.message);
@@ -1631,7 +1659,11 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
         const hace60 = new Date(hoy.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         
         const clientesActivos = await dbAll(`
-            SELECT DISTINCT cliente_id FROM operaciones WHERE fecha >= ?
+            SELECT DISTINCT o.cliente_id 
+            FROM operaciones o
+            JOIN clientes c ON o.cliente_id = c.id
+            WHERE o.fecha >= ?
+            AND julianday('now') - julianday(c.fecha_creacion) > 7
         `, [hace60]);
         
         for (const c of clientesActivos) {
@@ -2413,6 +2445,282 @@ app.get('/api/p2p/tasas-ars-clp', apiAuth, async (req, res) => {
 // =================================================================
 
 // =================================================================
+// SISTEMA DE MONITOREO AUTOMÁTICO DE TASAS
+// =================================================================
+
+/**
+ * Función de monitoreo automático de tasas
+ * - Compara tasa P2P (250k) con tasaNivel3
+ * - Si P2P es más baja, genera alerta
+ * - Espera 15 minutos por respuesta del master
+ * - Si no hay respuesta, ajusta automáticamente
+ */
+const monitorearTasas = async () => {
+    try {
+        console.log('🔍 [MONITOREO] Iniciando verificación de tasas...');
+
+        // 1. Obtener tasa P2P para 250,000 CLP
+        const [tasa_ves_p2p, tasa_clp_p2p] = await Promise.all([
+            obtenerTasaVentaVES(),
+            obtenerTasaCompraCLP()
+        ]);
+
+        const tasa_base_clp_ves = tasa_ves_p2p / tasa_clp_p2p;
+        const tasa_p2p_250k = tasa_base_clp_ves * (1 - 0.04); // Con margen -4% para 250k
+
+        // 2. Obtener tasas guardadas (niveles)
+        const tasas = await new Promise((resolve) => {
+            readConfig('tasaNivel1', (e1, v1) => {
+                readConfig('tasaNivel2', (e2, v2) => {
+                    readConfig('tasaNivel3', (e3, v3) => {
+                        resolve({
+                            nivel1: v1 ? Number(v1) : null,
+                            nivel2: v2 ? Number(v2) : null,
+                            nivel3: v3 ? Number(v3) : null
+                        });
+                    });
+                });
+            });
+        });
+
+        const { nivel1, nivel2, nivel3 } = tasas;
+
+        // 3. Guardar registro de monitoreo
+        const diferencia = nivel3 ? ((nivel3 - tasa_p2p_250k) / tasa_p2p_250k) * 100 : 0;
+        const alertaGenerada = nivel3 && tasa_p2p_250k < nivel3 ? 1 : 0;
+
+        await dbRun(
+            `INSERT INTO tasas_monitoreo(tasa_p2p_250k, tasa_nivel1, tasa_nivel2, tasa_nivel3, diferencia_porcentaje, alerta_generada, fecha_verificacion) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [tasa_p2p_250k, nivel1, nivel2, nivel3, diferencia, alertaGenerada, new Date().toISOString()]
+        );
+
+        console.log(`📊 [MONITOREO] Tasa P2P 250k: ${tasa_p2p_250k.toFixed(4)} | Nivel3: ${nivel3 || 'N/A'} | Diferencia: ${diferencia.toFixed(2)}%`);
+
+        // 4. Generar alerta si la tasa P2P es más baja (mejor para nosotros)
+        if (alertaGenerada) {
+            console.log('⚠️ [MONITOREO] ¡Alerta! La tasa P2P es más baja que nuestras tasas guardadas');
+            
+            // Verificar si ya existe una alerta pendiente reciente (últimos 30 minutos)
+            const alertaReciente = await new Promise((resolve) => {
+                db.get(
+                    `SELECT id FROM tasas_alertas 
+                     WHERE estado = 'pendiente' 
+                     AND datetime(fecha_creacion) > datetime('now', '-30 minutes')
+                     ORDER BY fecha_creacion DESC LIMIT 1`,
+                    [],
+                    (err, row) => resolve(row)
+                );
+            });
+
+            if (!alertaReciente) {
+                await generarAlertaTasas(tasa_p2p_250k, nivel3, diferencia);
+            } else {
+                console.log('⏳ [MONITOREO] Ya existe una alerta pendiente reciente, esperando respuesta...');
+            }
+        } else {
+            console.log('✅ [MONITOREO] Tasas normales, no se requiere alerta');
+        }
+
+    } catch (error) {
+        console.error('❌ [MONITOREO] Error en monitoreo de tasas:', error.message);
+    }
+};
+
+/**
+ * Generar alerta al master sobre tasas altas
+ */
+const generarAlertaTasas = async (tasaP2P, tasaNivel3, diferencia) => {
+    try {
+        // 1. Obtener usuario master
+        const master = await new Promise((resolve) => {
+            db.get(`SELECT id FROM usuarios WHERE role = 'master' LIMIT 1`, [], (err, row) => {
+                resolve(row);
+            });
+        });
+
+        if (!master) {
+            console.error('❌ [ALERTA] No se encontró usuario master');
+            return;
+        }
+
+        // 2. Crear notificación al master
+        const mensaje = `🚨 ALERTA DE TASAS VENEZUELA\n\n` +
+            `La tasa P2P (250k CLP) está en ${tasaP2P.toFixed(4)} VES/CLP, ` +
+            `que es ${diferencia.toFixed(2)}% más BAJA que nuestra tasa actual (${tasaNivel3.toFixed(4)} VES/CLP).\n\n` +
+            `Esto significa que NUESTRAS TASAS ESTÁN MUY ALTAS para Venezuela.\n\n` +
+            `Si no respondes en 15 minutos, el sistema ajustará automáticamente la tasa a ${tasaP2P.toFixed(4)} VES/CLP.`;
+
+        const notificacionId = await new Promise((resolve) => {
+            db.run(
+                `INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion) 
+                 VALUES (?, ?, ?, ?, ?)`,
+                [master.id, 'alerta', '🚨 Tasas Venezuela muy altas', mensaje, new Date().toISOString()],
+                function() {
+                    resolve(this.lastID);
+                }
+            );
+        });
+
+        // 3. Crear registro de alerta de tasas
+        const alertaId = await new Promise((resolve) => {
+            db.run(
+                `INSERT INTO tasas_alertas(tasa_p2p_250k, tasa_nivel3_actual, diferencia_porcentaje, notificacion_id, fecha_creacion) 
+                 VALUES (?, ?, ?, ?, ?)`,
+                [tasaP2P, tasaNivel3, diferencia, notificacionId, new Date().toISOString()],
+                function() {
+                    resolve(this.lastID);
+                }
+            );
+        });
+
+        console.log(`📬 [ALERTA] Notificación creada para master (ID: ${notificacionId})`);
+        console.log(`⏰ [ALERTA] Esperando 15 minutos para auto-ajuste...`);
+
+        // 4. Programar auto-ajuste después de 15 minutos
+        setTimeout(() => verificarYAjustarTasa(alertaId, tasaP2P), 15 * 60 * 1000);
+
+    } catch (error) {
+        console.error('❌ [ALERTA] Error generando alerta:', error.message);
+    }
+};
+
+/**
+ * Verificar si el master respondió, si no, ajustar automáticamente
+ */
+const verificarYAjustarTasa = async (alertaId, nuevaTasa) => {
+    try {
+        // 1. Verificar estado de la alerta
+        const alerta = await new Promise((resolve) => {
+            db.get(
+                `SELECT estado, respuesta_master FROM tasas_alertas WHERE id = ?`,
+                [alertaId],
+                (err, row) => resolve(row)
+            );
+        });
+
+        if (!alerta) {
+            console.error('❌ [AUTO-AJUSTE] Alerta no encontrada');
+            return;
+        }
+
+        if (alerta.estado === 'respondida') {
+            console.log('✅ [AUTO-AJUSTE] Master ya respondió, cancelando auto-ajuste');
+            return;
+        }
+
+        // 2. Master no respondió, ajustar automáticamente
+        console.log(`🤖 [AUTO-AJUSTE] Master no respondió, ajustando tasaNivel3 a ${nuevaTasa.toFixed(4)}`);
+
+        // Actualizar configuración
+        await new Promise((resolve) => {
+            upsertConfig('tasaNivel3', String(nuevaTasa), () => resolve());
+        });
+
+        // Actualizar estado de alerta
+        await dbRun(
+            `UPDATE tasas_alertas 
+             SET estado = 'auto_ajustada', fecha_auto_ajuste = ?, tasa_ajustada = ? 
+             WHERE id = ?`,
+            [new Date().toISOString(), nuevaTasa, alertaId]
+        );
+
+        console.log(`✅ [AUTO-AJUSTE] Tasa ajustada exitosamente a ${nuevaTasa.toFixed(4)} VES/CLP`);
+
+        // 3. Crear mensaje proactivo para el chatbot
+        const master = await new Promise((resolve) => {
+            db.get(`SELECT id FROM usuarios WHERE role = 'master' LIMIT 1`, [], (err, row) => {
+                resolve(row);
+            });
+        });
+
+        if (master) {
+            await dbRun(
+                `INSERT INTO chatbot_mensajes_proactivos(usuario_id, tipo, mensaje, prioridad, fecha_creacion) 
+                 VALUES (?, ?, ?, ?, ?)`,
+                [
+                    master.id,
+                    'alerta',
+                    `🤖 Auto-ajuste de tasa Venezuela: Se ajustó automáticamente tasaNivel3 de a ${nuevaTasa.toFixed(4)} VES/CLP basado en el monitoreo P2P. La tasa anterior estaba muy alta.`,
+                    'alta',
+                    new Date().toISOString()
+                ]
+            );
+        }
+
+    } catch (error) {
+        console.error('❌ [AUTO-AJUSTE] Error en auto-ajuste:', error.message);
+    }
+};
+
+// Endpoint para que el master responda a una alerta de tasas
+app.post('/api/tasas/responder-alerta', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { alerta_id, accion, respuesta } = req.body;
+        
+        if (!alerta_id || !accion) {
+            return res.status(400).json({ message: 'Faltan parámetros requeridos' });
+        }
+
+        // Actualizar alerta
+        await dbRun(
+            `UPDATE tasas_alertas 
+             SET estado = 'respondida', respuesta_master = ?, fecha_respuesta = ? 
+             WHERE id = ?`,
+            [respuesta || accion, new Date().toISOString(), alerta_id]
+        );
+
+        console.log(`✅ [RESPUESTA] Master respondió alerta ${alerta_id}: ${accion}`);
+        res.json({ ok: true, message: 'Respuesta registrada' });
+
+    } catch (error) {
+        console.error('❌ Error respondiendo alerta:', error.message);
+        res.status(500).json({ message: 'Error al responder alerta' });
+    }
+});
+
+// Endpoint para obtener alertas de tasas activas
+app.get('/api/tasas/alertas', apiAuth, (req, res) => {
+    db.all(
+        `SELECT ta.*, n.mensaje as mensaje_notificacion 
+         FROM tasas_alertas ta
+         LEFT JOIN notificaciones n ON ta.notificacion_id = n.id
+         WHERE ta.estado = 'pendiente'
+         ORDER BY ta.fecha_creacion DESC`,
+        [],
+        (err, rows) => {
+            if (err) {
+                console.error('Error obteniendo alertas de tasas:', err);
+                return res.status(500).json({ message: 'Error al obtener alertas' });
+            }
+            res.json(rows);
+        }
+    );
+});
+
+// Endpoint para obtener historial de monitoreo
+app.get('/api/tasas/historial-monitoreo', apiAuth, (req, res) => {
+    const limit = req.query.limit || 50;
+    db.all(
+        `SELECT * FROM tasas_monitoreo 
+         ORDER BY fecha_verificacion DESC 
+         LIMIT ?`,
+        [limit],
+        (err, rows) => {
+            if (err) {
+                console.error('Error obteniendo historial de monitoreo:', err);
+                return res.status(500).json({ message: 'Error al obtener historial' });
+            }
+            res.json(rows);
+        }
+    );
+});
+
+// =================================================================
+// FIN: SISTEMA DE MONITOREO AUTOMÁTICO DE TASAS
+// =================================================================
+
+// =================================================================
 // SISTEMA DE TAREAS Y NOTIFICACIONES
 // =================================================================
 
@@ -2846,6 +3154,41 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             });
         });
 
+        // Obtener mensajes proactivos no mostrados (IMPORTANTE: Estos contienen contexto específico de alertas)
+        const mensajesProactivosPromise = new Promise((resolve) => {
+            db.all(`
+                SELECT id, tipo, mensaje, prioridad, fecha_creacion
+                FROM chatbot_mensajes_proactivos
+                WHERE usuario_id = ? AND mostrado = 0
+                ORDER BY prioridad DESC, fecha_creacion DESC
+                LIMIT 3
+            `, [userId], (err, rows) => {
+                if (err || !rows) return resolve([]);
+                resolve(rows);
+            });
+        });
+
+        // Obtener tareas pendientes del usuario
+        const tareasPendientesPromise = new Promise((resolve) => {
+            db.all(`
+                SELECT id, titulo, descripcion, prioridad, estado, fecha_vencimiento, fecha_creacion
+                FROM tareas
+                WHERE asignado_a = ? AND estado NOT IN ('completada', 'cancelada')
+                ORDER BY 
+                    CASE prioridad 
+                        WHEN 'alta' THEN 1 
+                        WHEN 'media' THEN 2 
+                        WHEN 'baja' THEN 3 
+                        ELSE 4 
+                    END,
+                    fecha_vencimiento ASC
+                LIMIT 10
+            `, [userId], (err, rows) => {
+                if (err || !rows) return resolve([]);
+                resolve(rows);
+            });
+        });
+
         // Obtener historial reciente de conversación (últimos 10 mensajes, últimas 24 horas)
         const historialPromise = new Promise((resolve) => {
             const hace24h = new Date();
@@ -2865,7 +3208,12 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             });
         });
 
-        const [historial, notificaciones] = await Promise.all([historialPromise, notificacionesNoLeidasPromise]);
+        const [historial, notificaciones, mensajesProactivos, tareasPendientes] = await Promise.all([
+            historialPromise, 
+            notificacionesNoLeidasPromise, 
+            mensajesProactivosPromise,
+            tareasPendientesPromise
+        ]);
         
         // Si hay notificaciones sin leer, validarlas antes de incluirlas
         if (notificaciones.length > 0) {
@@ -2913,6 +3261,40 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             if (notificacionesValidas.length > 0) {
                 contextData.notificaciones_pendientes = notificacionesValidas;
             }
+        }
+        
+        // Agregar mensajes proactivos al contexto (IMPORTANTE: contienen detalles específicos de alertas)
+        if (mensajesProactivos.length > 0) {
+            contextData.mensajes_proactivos = mensajesProactivos.map(mp => ({
+                tipo: mp.tipo,
+                mensaje: mp.mensaje,
+                prioridad: mp.prioridad
+            }));
+        }
+        
+        // Agregar tareas pendientes al contexto (IMPORTANTE: el usuario puede preguntar sobre sus tareas)
+        if (tareasPendientes.length > 0) {
+            const hoy = new Date();
+            contextData.tareas_pendientes = tareasPendientes.map(t => {
+                const fechaVenc = t.fecha_vencimiento ? new Date(t.fecha_vencimiento) : null;
+                const diasRestantes = fechaVenc ? Math.ceil((fechaVenc - hoy) / (1000 * 60 * 60 * 24)) : null;
+                const vencida = fechaVenc ? fechaVenc < hoy : false;
+                
+                return {
+                    id: t.id,
+                    titulo: t.titulo,
+                    descripcion: t.descripcion,
+                    prioridad: t.prioridad,
+                    estado: t.estado,
+                    fecha_vencimiento: t.fecha_vencimiento,
+                    vencida: vencida,
+                    dias_restantes: diasRestantes
+                };
+            });
+            contextData.total_tareas_pendientes = tareasPendientes.length;
+        } else {
+            contextData.tareas_pendientes = [];
+            contextData.total_tareas_pendientes = 0;
         }
         
         // Las consultas de clientes ahora se manejan automáticamente por OpenAI Function Calling
@@ -3063,8 +3445,58 @@ FUNCIONES DISPONIBLES (llamadas automáticamente por ti):
      * "cuántos dólares son 500.000 pesos chilenos?"
      * "equivalencia entre pesos chilenos y colombianos"
      * "cuál es la tasa CLP a COP"
+
+7️⃣ **consultar_tareas(incluir_completadas)**
+   - Cuándo usarla: Cuando pregunten sobre tareas pendientes, trabajo asignado, qué hacer
+   - Ejemplos:
+     * "¿tengo tareas pendientes?"
+     * "qué tareas tengo hoy?"
+     * "mis asignaciones"
+     * "qué debo hacer?"
+     * "tareas"
+   - Retorna: {total, tareas: [{titulo, descripcion, prioridad, estado, fecha_vencimiento, vencida, dias_restantes}]}
+   - IMPORTANTE: Si el mensaje proactivo mencionó tareas, SIEMPRE llama esta función
+
+8️⃣ **obtener_estadisticas_clientes()**
+   - Cuándo usarla: Cuando pregunten por el total de clientes, estadísticas generales
+   - Ejemplos:
+     * "¿cuántos clientes tenemos?"
+     * "total de clientes registrados"
+     * "estadísticas de clientes"
+   - Retorna: {total_clientes, clientes_completos, clientes_incompletos, porcentaje_completos}
+
+9️⃣ **analizar_tarea_cliente_inactivo(nombre_cliente, descripcion_tarea)**
+   - Cuándo usarla: Cuando el operador pida ayuda con una tarea de cliente inactivo o reducción de actividad
+   - Ejemplos:
+     * "¿qué hago con esta tarea de [cliente]?"
+     * "ayúdame con el cliente inactivo [nombre]"
+     * "¿qué mensaje envío a [cliente]?"
+     * Operador menciona tarea de: "cliente inactivo por X días", "reducción de actividad", "riesgo alto"
+   - Función INTELIGENTE que:
+     ✅ Analiza los días de inactividad
+     ✅ Determina si debe enviar recordatorio (30-44 días) o promoción (45+ días)
+     ✅ Calcula tasa promocional automáticamente (0.33% descuento sobre última tasa VES)
+     ✅ Genera mensaje personalizado listo para copiar y enviar
+   - Aplica a: "Cliente inactivo", "Reducción de actividad", "Riesgo alto"
+   - Retorna: {tipo_accion, dias_inactivo, tasa_original, tasa_promocional, mensaje_sugerido}
+
+🔟 **consultar_monitoreo_tasas()**
+   - Cuándo usarla: Para verificar el estado del monitoreo automático de tasas VES
+   - Ejemplos:
+     * "¿cómo están las tasas?"
+     * "¿hay alertas de tasas?"
+     * "muestra el monitoreo de tasas"
+     * "¿están altas las tasas de Venezuela?"
+   - Función de MONITOREO AUTOMÁTICO que:
+     ✅ Consulta última verificación de tasas P2P vs tasas guardadas
+     ✅ Muestra alertas activas de tasas muy altas
+     ✅ Indica si hubo auto-ajuste automático
+     ✅ Compara tasa P2P (250k) con tasaNivel3
+   - Retorna: {ultima_verificacion, tasa_p2p_actual, tasa_nivel3_actual, diferencia, alerta_activa, estado_alerta, historial_reciente}
+
    - Monedas soportadas: CLP (Chile), COP (Colombia), VES (Venezuela), USD (Dólares), ARS (Argentina), PEN (Perú), BRL (Brasil), MXN (México), EUR (Euro), UYU (Uruguay)
    - Retorna: {monto_origen, moneda_origen, nombre_moneda_origen, monto_convertido, moneda_destino, nombre_moneda_destino, tasa_cambio, formula}
+
    
    📐 FÓRMULAS DE CONVERSIÓN (IMPORTANTE):
    
@@ -3206,6 +3638,52 @@ CUANDO MUESTRES DATOS DE UN CLIENTE:
 - NO inventes información que no tienes
 
 TU ROL: Eres como un supervisor amigable que ayuda - explicas, corriges, sugieres y acompañas. Nunca atacas ni regañas.
+
+⚠️ IMPORTANTE - LEE SIEMPRE ESTOS CONTEXTOS PRIMERO:
+
+📋 **1. MENSAJES PROACTIVOS** (contextData.mensajes_proactivos):
+- Estos mensajes contienen información ESPECÍFICA ya detectada por el sistema
+- Nombres exactos de clientes, detalles precisos de alertas
+- Cuando el usuario responda a un mensaje proactivo, USA LA INFORMACIÓN DEL MENSAJE
+- NO llames funciones genéricas si el mensaje proactivo ya tiene los detalles
+- Ejemplo: Si dice "Cristia Jose, Craus y 1 más", menciona ESOS nombres exactos
+
+🔔 **2. NOTIFICACIONES PENDIENTES** (contextData.notificaciones_pendientes):
+- Alertas del sistema de notificaciones normales
+- Menciónalas cuando existan, especialmente al saludar
+- Palabra clave para mencionar: "pendiente", "falta", "incompleto"
+
+✅ **3. TAREAS PENDIENTES** (contextData.tareas_pendientes):
+- Lista de tareas asignadas al usuario
+- Total disponible en: contextData.total_tareas_pendientes
+- Cuando pregunten por tareas, VERIFICA PRIMERO si ya están en el contexto
+- Si contextData.tareas_pendientes tiene datos, úsalos directamente
+- Solo llama a consultar_tareas() si necesitas actualizar o filtrar
+
+🎯 **AYUDA CON TAREAS - FUNCIÓN INTELIGENTE**:
+
+Cuando el operador tenga tareas y pida ayuda:
+- **Detecta tipo de tarea**: "Cliente inactivo por X días", "Reducción de actividad", etc.
+- **Ofrece ayuda automáticamente**: "¿Quieres que te ayude a resolver esta tarea?"
+- **Usa analizar_tarea_cliente_inactivo()** para generar mensajes automáticos
+
+Ejemplo de flujo:
+Operador: "Tengo una tarea de andrez hernandez, cliente inactivo por 71 días"
+Tú: "¡Claro! Voy a analizar esta tarea y generar un mensaje para andrez..."
+→ Llamas: analizar_tarea_cliente_inactivo("andrez hernandez", "Cliente inactivo por 71 días")
+→ Recibes: tasa promocional calculada + mensaje listo
+→ Respondes: "Aquí está el mensaje para andrez: [mensaje generado]. La tasa promocional es [X] VES. ¿Lo envío?"
+
+Tipos de tareas que puedes resolver:
+1. **Cliente inactivo 30-44 días**: Mensaje de recordatorio/cercanía (sin promoción)
+2. **Cliente inactivo 45+ días**: Mensaje con promoción (tasa + 0.33% descuento)
+3. **Reducción de actividad**: Mensaje con promoción (tasa + 0.33% descuento)
+
+📊 **PRIORIDAD DE LECTURA**:
+1. PRIMERO: Lee mensajes_proactivos (información más específica)
+2. SEGUNDO: Lee notificaciones_pendientes
+3. TERCERO: Lee tareas_pendientes
+4. ÚLTIMO: Llama funciones solo si necesitas datos adicionales
 
 DATOS DEL SISTEMA ACTUAL:
 ${JSON.stringify(contextData, null, 2)}
@@ -3453,6 +3931,14 @@ const agentFunctions = [
         }
     },
     {
+        name: "obtener_estadisticas_clientes",
+        description: "Obtiene estadísticas generales sobre clientes: total de clientes registrados, cuántos tienen datos completos, cuántos incompletos, distribución, etc. Usa esto cuando pregunten '¿cuántos clientes tenemos?', 'total de clientes', 'estadísticas de clientes', 'clientes registrados', etc.",
+        parameters: {
+            type: "object",
+            properties: {}
+        }
+    },
+    {
         name: "buscar_cliente",
         description: "Busca un cliente en la base de datos por nombre. Usa esto cuando el usuario pregunte sobre datos de un cliente específico, si ya actualizaron un cliente, verificar información, etc.",
         parameters: {
@@ -3513,6 +3999,46 @@ const agentFunctions = [
             },
             required: ["nombre_cliente"]
         }
+    },
+    {
+        name: "consultar_tareas",
+        description: "Consulta las tareas asignadas al operador. ÚSALO SIEMPRE cuando pregunten: '¿tengo tareas?', 'mis tareas pendientes', 'qué debo hacer hoy', 'tareas', 'pendientes', 'asignaciones', 'trabajo pendiente', etc. Esta función muestra tareas activas, su prioridad, estado y fecha de vencimiento.",
+        parameters: {
+            type: "object",
+            properties: {
+                incluir_completadas: {
+                    type: "boolean",
+                    description: "Si debe incluir las tareas ya completadas (por defecto false)"
+                }
+            }
+        }
+    },
+    {
+        name: "analizar_tarea_cliente_inactivo",
+        description: "Analiza una tarea de cliente inactivo y genera una sugerencia de mensaje personalizado. Úsala cuando el operador pida ayuda con una tarea de: 'cliente inactivo', 'reducción de actividad', 'riesgo alto', o cuando pregunten '¿qué hago con esta tarea?', 'ayúdame con este cliente', '¿qué mensaje envío?'",
+        parameters: {
+            type: "object",
+            properties: {
+                nombre_cliente: {
+                    type: "string",
+                    description: "Nombre del cliente de la tarea"
+                },
+                descripcion_tarea: {
+                    type: "string",
+                    description: "Descripción completa de la tarea (ej: 'Cliente inactivo por 30 días')"
+                }
+            },
+            required: ["nombre_cliente", "descripcion_tarea"]
+        }
+    },
+    {
+        name: "consultar_monitoreo_tasas",
+        description: "Consulta el estado del monitoreo automático de tasas VES P2P vs tasas guardadas. Úsala cuando pregunten: '¿cómo están las tasas?', '¿hay alertas?', 'monitoreo de tasas', '¿están altas las tasas de Venezuela?', 'estado de tasas'",
+        parameters: {
+            type: "object",
+            properties: {},
+            required: []
+        }
     }
 ];
 
@@ -3528,7 +4054,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
     // Para todo lo demás, usar OpenAI con Function Calling
     try {
         // Usar variable de entorno OPENAI_API_KEY, o fallback a la key hardcodeada
-        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
+        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
         
         // Validar que hay API key
         if (!OPENAI_API_KEY || OPENAI_API_KEY === '' || OPENAI_API_KEY.includes('your-api-key-here')) {
@@ -3738,6 +4264,39 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                     });
                     break;
                     
+                case 'obtener_estadisticas_clientes':
+                    functionResult = await new Promise((resolve) => {
+                        // Obtener total de clientes con nombre
+                        db.get(
+                            `SELECT COUNT(*) as total FROM clientes WHERE nombre IS NOT NULL AND nombre != ''`,
+                            [],
+                            (err, totalRow) => {
+                                const totalClientes = totalRow?.total || 0;
+                                
+                                // Obtener total de clientes incompletos
+                                db.get(
+                                    `SELECT COUNT(*) as total FROM clientes 
+                                     WHERE (nombre IS NOT NULL AND nombre != '') 
+                                     AND (rut IS NULL OR rut = '' OR email IS NULL OR email = '' OR telefono IS NULL OR telefono = '')`,
+                                    [],
+                                    (err, incompletosRow) => {
+                                        const totalIncompletos = incompletosRow?.total || 0;
+                                        const totalCompletos = totalClientes - totalIncompletos;
+                                        
+                                        resolve({
+                                            total_clientes: totalClientes,
+                                            clientes_completos: totalCompletos,
+                                            clientes_incompletos: totalIncompletos,
+                                            porcentaje_completos: totalClientes > 0 ? ((totalCompletos / totalClientes) * 100).toFixed(1) : 0,
+                                            mensaje: `Total: ${totalClientes} clientes | Completos: ${totalCompletos} | Incompletos: ${totalIncompletos}`
+                                        });
+                                    }
+                                );
+                            }
+                        );
+                    });
+                    break;
+                    
                 case 'listar_clientes_incompletos':
                     functionResult = await new Promise((resolve) => {
                         const limite = functionArgs.limite || 10;
@@ -3814,6 +4373,192 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 } else {
                                     resolve({ total: 0, mensaje: `No se encontraron operaciones para cliente "${functionArgs.nombre_cliente}"` });
                                 }
+                            }
+                        );
+                    });
+                    break;
+                    
+                case 'consultar_tareas':
+                    functionResult = await new Promise((resolve) => {
+                        const incluirCompletadas = functionArgs.incluir_completadas || false;
+                        const condicionEstado = incluirCompletadas ? '' : `AND estado != 'completada' AND estado != 'cancelada'`;
+                        
+                        db.all(
+                            `SELECT id, titulo, descripcion, prioridad, estado, fecha_vencimiento, fecha_creacion
+                             FROM tareas
+                             WHERE asignado_a = ? ${condicionEstado}
+                             ORDER BY 
+                                CASE prioridad 
+                                    WHEN 'urgente' THEN 1
+                                    WHEN 'alta' THEN 2
+                                    WHEN 'normal' THEN 3
+                                    WHEN 'baja' THEN 4
+                                END,
+                                fecha_vencimiento ASC
+                             LIMIT 20`,
+                            [userId],
+                            (err, tareas) => {
+                                if (!err && tareas && tareas.length > 0) {
+                                    const ahora = new Date();
+                                    resolve({
+                                        total: tareas.length,
+                                        tareas: tareas.map(t => {
+                                            const vencimiento = t.fecha_vencimiento ? new Date(t.fecha_vencimiento) : null;
+                                            const vencida = vencimiento && vencimiento < ahora;
+                                            return {
+                                                titulo: t.titulo,
+                                                descripcion: t.descripcion || '',
+                                                prioridad: t.prioridad,
+                                                estado: t.estado,
+                                                fecha_vencimiento: vencimiento ? vencimiento.toLocaleDateString('es-CL') : 'Sin fecha límite',
+                                                vencida: vencida,
+                                                dias_restantes: vencimiento ? Math.ceil((vencimiento - ahora) / (1000 * 60 * 60 * 24)) : null
+                                            };
+                                        })
+                                    });
+                                } else {
+                                    resolve({ total: 0, mensaje: "No tienes tareas pendientes asignadas" });
+                                }
+                            }
+                        );
+                    });
+                    break;
+
+                case 'analizar_tarea_cliente_inactivo':
+                    functionResult = await new Promise((resolve) => {
+                        const nombreCliente = functionArgs.nombre_cliente;
+                        const descripcionTarea = functionArgs.descripcion_tarea || '';
+                        
+                        // Extraer días de inactividad de la descripción
+                        const matchDias = descripcionTarea.match(/(\d+)\s*d[ií]as?/i);
+                        const diasInactivo = matchDias ? parseInt(matchDias[1]) : 0;
+                        
+                        // Determinar tipo de acción según días
+                        let tipoAccion = '';
+                        let requierePromocion = false;
+                        
+                        if (descripcionTarea.toLowerCase().includes('reducción de actividad')) {
+                            tipoAccion = 'reduccion_actividad';
+                            requierePromocion = true;
+                        } else if (diasInactivo >= 45 || descripcionTarea.toLowerCase().includes('riesgo alto')) {
+                            tipoAccion = 'inactivo_promocion';
+                            requierePromocion = true;
+                        } else if (diasInactivo >= 30) {
+                            tipoAccion = 'inactivo_recordatorio';
+                            requierePromocion = false;
+                        } else {
+                            tipoAccion = 'otro';
+                            requierePromocion = false;
+                        }
+                        
+                        // Buscar última tasa de compra en el historial de compras (tabla compras)
+                        db.get(
+                            `SELECT tasa_clp_ves, fecha
+                             FROM compras
+                             ORDER BY fecha DESC
+                             LIMIT 1`,
+                            [],
+                            (err, ultimaCompra) => {
+                                let tasaOriginal = null;
+                                let tasaPromocional = null;
+                                let mensajeSugerido = '';
+                                let fechaCompra = null;
+                                
+                                // Calcular tasa promocional si hay compra registrada
+                                if (!err && ultimaCompra && ultimaCompra.tasa_clp_ves > 0) {
+                                    tasaOriginal = ultimaCompra.tasa_clp_ves;
+                                    fechaCompra = ultimaCompra.fecha;
+                                    // Aplicar 0.33% de DESCUENTO
+                                    const descuento = tasaOriginal * 0.0033;
+                                    tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
+                                }
+                                
+                                // Generar mensaje según tipo de acción
+                                if (tipoAccion === 'inactivo_recordatorio') {
+                                    mensajeSugerido = `Hola ${nombreCliente}! 👋\n\nHemos notado que hace ${diasInactivo} días no realizas una operación con nosotros. 😊\n\nTe esperamos pronto, siempre estamos atentos a tus operaciones. ¡Gracias por ser un cliente constante de DefiOracle! 🇻🇪🇨🇱`;
+                                    
+                                } else if (requierePromocion && tasaPromocional) {
+                                    if (tipoAccion === 'reduccion_actividad') {
+                                        mensajeSugerido = `Hola ${nombreCliente}! 👋\n\nHemos notado que últimamente has reducido tu actividad con nosotros. 😢\n\nNo queremos que te vayas, así que tenemos una tasa especial solo para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP 💰\n\n¡Aprovecha esta oferta! Estamos disponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                    } else {
+                                        mensajeSugerido = `Hola ${nombreCliente}! 👋\n\nTe extrañamos! Hace tiempo que no haces una operación con nosotros. 😢\n\nPorque nos importa tu regreso, tenemos una tasa de regalo especial para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP 💰\n\n¡Esperamos verte pronto! Disponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                    }
+                                } else if (requierePromocion && !tasaPromocional) {
+                                    mensajeSugerido = `⚠️ No se pudo calcular la tasa promocional porque no hay historial de compras de USDT registrado.\n\nSugerencia: Revisa el historial de compras en /admin.html y registra al menos una compra de USDT para poder calcular tasas promocionales automáticamente.`;
+                                }
+                                
+                                resolve({
+                                    cliente: nombreCliente,
+                                    tipo_accion: tipoAccion,
+                                    dias_inactivo: diasInactivo,
+                                    requiere_promocion: requierePromocion,
+                                    tasa_original: tasaOriginal ? tasaOriginal.toFixed(4) : null,
+                                    tasa_promocional: tasaPromocional ? tasaPromocional.toFixed(4) : null,
+                                    descuento_aplicado: requierePromocion ? '+0.33%' : 'No aplica',
+                                    fecha_ultima_compra: fechaCompra,
+                                    mensaje_sugerido: mensajeSugerido
+                                });
+                            }
+                        );
+                    });
+                    break;
+
+                case 'consultar_monitoreo_tasas':
+                    functionResult = await new Promise((resolve) => {
+                        // 1. Obtener última verificación de monitoreo
+                        db.get(
+                            `SELECT * FROM tasas_monitoreo 
+                             ORDER BY fecha_verificacion DESC 
+                             LIMIT 1`,
+                            [],
+                            (err, ultimoMonitoreo) => {
+                                if (err || !ultimoMonitoreo) {
+                                    return resolve({
+                                        error: 'No se encontró información de monitoreo',
+                                        mensaje: 'El sistema de monitoreo automático aún no ha realizado ninguna verificación.'
+                                    });
+                                }
+
+                                // 2. Obtener alertas activas
+                                db.all(
+                                    `SELECT * FROM tasas_alertas 
+                                     WHERE estado = 'pendiente' 
+                                     ORDER BY fecha_creacion DESC 
+                                     LIMIT 5`,
+                                    [],
+                                    (errAlertas, alertas) => {
+                                        // 3. Obtener historial reciente (últimas 10 verificaciones)
+                                        db.all(
+                                            `SELECT fecha_verificacion, tasa_p2p_250k, tasa_nivel3, diferencia_porcentaje, alerta_generada 
+                                             FROM tasas_monitoreo 
+                                             ORDER BY fecha_verificacion DESC 
+                                             LIMIT 10`,
+                                            [],
+                                            (errHist, historial) => {
+                                                const tiempoTranscurrido = new Date() - new Date(ultimoMonitoreo.fecha_verificacion);
+                                                const minutosTranscurridos = Math.floor(tiempoTranscurrido / 60000);
+
+                                                resolve({
+                                                    ultima_verificacion: ultimoMonitoreo.fecha_verificacion,
+                                                    minutos_desde_ultima_verificacion: minutosTranscurridos,
+                                                    tasa_p2p_250k: ultimoMonitoreo.tasa_p2p_250k ? ultimoMonitoreo.tasa_p2p_250k.toFixed(4) : null,
+                                                    tasa_nivel3_guardada: ultimoMonitoreo.tasa_nivel3 ? ultimoMonitoreo.tasa_nivel3.toFixed(4) : null,
+                                                    diferencia_porcentaje: ultimoMonitoreo.diferencia_porcentaje ? ultimoMonitoreo.diferencia_porcentaje.toFixed(2) : null,
+                                                    alerta_generada: ultimoMonitoreo.alerta_generada === 1,
+                                                    alertas_activas: alertas ? alertas.length : 0,
+                                                    detalles_alertas: alertas || [],
+                                                    historial_reciente: historial || [],
+                                                    estado: ultimoMonitoreo.alerta_generada === 1 
+                                                        ? '⚠️ ALERTA: Tasas muy altas detectadas' 
+                                                        : '✅ Tasas normales',
+                                                    recomendacion: ultimoMonitoreo.alerta_generada === 1
+                                                        ? `La tasa P2P (${ultimoMonitoreo.tasa_p2p_250k?.toFixed(4)}) es más baja que nuestra tasa guardada (${ultimoMonitoreo.tasa_nivel3?.toFixed(4)}), lo que significa que nuestras tasas están muy altas. Se recomienda ajustar.`
+                                                        : 'Las tasas están en un rango normal, no se requiere acción.'
+                                                });
+                                            }
+                                        );
+                                    }
+                                );
                             }
                         );
                     });
@@ -4237,6 +4982,12 @@ runMigrations()
         app.listen(PORT, () => {
             console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
             iniciarMonitoreoProactivo(); // ✅ Iniciar monitoreo proactivo
+            
+            // ✅ Iniciar monitoreo automático de tasas P2P
+            console.log('🔍 Iniciando monitoreo automático de tasas P2P...');
+            monitorearTasas(); // Ejecutar primera vez inmediatamente
+            setInterval(monitorearTasas, 10 * 60 * 1000); // Cada 10 minutos
+            console.log('⏰ Monitoreo de tasas configurado: cada 10 minutos');
         });
     })
     .catch(err => {
