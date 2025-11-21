@@ -3741,31 +3741,50 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                 case 'listar_clientes_incompletos':
                     functionResult = await new Promise((resolve) => {
                         const limite = functionArgs.limite || 10;
-                        db.all(
-                            `SELECT id, nombre, rut, email, telefono, fecha_creacion
+                        
+                        // Primero obtener el total de clientes incompletos
+                        db.get(
+                            `SELECT COUNT(*) as total
                              FROM clientes
-                             WHERE (rut IS NULL OR rut = '' OR email IS NULL OR email = '' OR telefono IS NULL OR telefono = '')
-                             ORDER BY fecha_creacion DESC
-                             LIMIT ?`,
-                            [limite],
-                            (err, clientes) => {
-                                if (!err && clientes && clientes.length > 0) {
-                                    resolve({
-                                        total: clientes.length,
-                                        clientes: clientes.map(c => {
-                                            const faltan = [];
-                                            if (!c.rut || c.rut === '') faltan.push('RUT');
-                                            if (!c.email || c.email === '') faltan.push('Email');
-                                            if (!c.telefono || c.telefono === '') faltan.push('Teléfono');
-                                            return {
-                                                nombre: c.nombre,
-                                                faltan: faltan
-                                            };
-                                        })
-                                    });
-                                } else {
+                             WHERE (rut IS NULL OR rut = '' OR email IS NULL OR email = '' OR telefono IS NULL OR telefono = '')`,
+                            [],
+                            (err, countRow) => {
+                                const totalIncompletos = countRow?.total || 0;
+                                
+                                if (totalIncompletos === 0) {
                                     resolve({ total: 0, mensaje: "Todos los clientes tienen datos completos" });
+                                    return;
                                 }
+                                
+                                // Luego obtener los ejemplos limitados
+                                db.all(
+                                    `SELECT id, nombre, rut, email, telefono, fecha_creacion
+                                     FROM clientes
+                                     WHERE (rut IS NULL OR rut = '' OR email IS NULL OR email = '' OR telefono IS NULL OR telefono = '')
+                                     ORDER BY fecha_creacion DESC
+                                     LIMIT ?`,
+                                    [limite],
+                                    (err, clientes) => {
+                                        if (!err && clientes && clientes.length > 0) {
+                                            resolve({
+                                                total: totalIncompletos,
+                                                mostrando: clientes.length,
+                                                clientes: clientes.map(c => {
+                                                    const faltan = [];
+                                                    if (!c.rut || c.rut === '') faltan.push('RUT');
+                                                    if (!c.email || c.email === '') faltan.push('Email');
+                                                    if (!c.telefono || c.telefono === '') faltan.push('Teléfono');
+                                                    return {
+                                                        nombre: c.nombre,
+                                                        faltan: faltan
+                                                    };
+                                                })
+                                            });
+                                        } else {
+                                            resolve({ total: totalIncompletos, mensaje: "Error al obtener ejemplos" });
+                                        }
+                                    }
+                                );
                             }
                         );
                     });
