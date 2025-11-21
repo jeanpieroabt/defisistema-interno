@@ -663,6 +663,168 @@
             opacity: 0.3;
         }
 
+        /* Tabs */
+        .tabs-container {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 1rem 2rem;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn:hover {
+            border-color: #2D8CDB;
+            background: #f8f9fa;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .tab-badge {
+            background: rgba(255,255,255,0.3);
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .tab-btn.active .tab-badge {
+            background: rgba(255,255,255,0.4);
+        }
+
+        /* Notificaciones */
+        .notificaciones-container {
+            display: none;
+        }
+
+        .notificaciones-container.active {
+            display: block;
+        }
+
+        .notificacion-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border-left: 5px solid #2D8CDB;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .notificacion-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
+
+        .notificacion-card.leida {
+            opacity: 0.6;
+            border-left-color: #6c757d;
+        }
+
+        .notificacion-card.tipo-alerta {
+            border-left-color: #dc3545;
+            background: linear-gradient(to right, #fff5f5 0%, white 20%);
+        }
+
+        .notificacion-card.tipo-sistema {
+            border-left-color: #17a2b8;
+            background: linear-gradient(to right, #f0f9ff 0%, white 20%);
+        }
+
+        .notificacion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .notificacion-titulo {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .notificacion-fecha {
+            font-size: 0.85rem;
+            color: #6c757d;
+            white-space: nowrap;
+        }
+
+        .notificacion-mensaje {
+            color: #495057;
+            line-height: 1.6;
+            margin: 0.5rem 0;
+            white-space: pre-wrap;
+        }
+
+        .notificacion-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn-marcar-leida {
+            padding: 0.4rem 1rem;
+            border: none;
+            border-radius: 6px;
+            background: #28a745;
+            color: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-marcar-leida:hover {
+            background: #218838;
+        }
+
+        .btn-leer-todas {
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-leer-todas:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(45, 140, 219, 0.3);
+        }
+
+        .no-notificaciones {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
         @media (max-width: 768px) {
             .main-container {
                 padding: 1rem 0.5rem;
@@ -780,8 +942,8 @@
             <div class="header-left">
                 <img src="logo.png" alt="Defi Oracle" class="logo">
                 <div class="header-content">
-                    <h1>✓ Gestión de Tareas</h1>
-                    <p>Administra tus tareas y mantén actualizada tu información</p>
+                    <h1>✓ Tareas y Notificaciones</h1>
+                    <p>Administra tus tareas y mantente informado</p>
                 </div>
             </div>
             <a href="home.html" class="btn-back">
@@ -789,7 +951,18 @@
             </a>
         </div>
 
-        <div class="tareas-container">
+        <!-- Tabs de navegación -->
+        <div class="tabs-container">
+            <button class="tab-btn active" onclick="switchTab('tareas')">
+                📋 Tareas <span id="tareasCount" class="tab-badge">0</span>
+            </button>
+            <button class="tab-btn" onclick="switchTab('notificaciones')">
+                🔔 Notificaciones <span id="notifsCount" class="tab-badge">0</span>
+            </button>
+        </div>
+
+        <!-- Contenedor de Tareas -->
+        <div class="tareas-container" id="tareasTab">
             <!-- Banner de Rendimiento -->
             <div class="rendimiento-banner" id="rendimientoBanner" style="display: none;">
                 <h3>📊 Mi Rendimiento</h3>
@@ -845,6 +1018,23 @@
                 </svg>
                 <h3>No hay tareas</h3>
                 <p>No se encontraron tareas con los filtros seleccionados</p>
+            </div>
+        </div>
+
+        <!-- Contenedor de Notificaciones -->
+        <div class="notificaciones-container" id="notificacionesTab">
+            <button class="btn-leer-todas" onclick="marcarTodasLeidas()">✓ Marcar todas como leídas</button>
+            
+            <div id="notificacionesGrid">
+                <!-- Las notificaciones se cargarán aquí dinámicamente -->
+            </div>
+
+            <div id="noNotificaciones" class="no-notificaciones" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 100px; height: 100px; margin-bottom: 20px; opacity: 0.3;">
+                    <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+                </svg>
+                <h3>No hay notificaciones</h3>
+                <p>¡Todo al día! No tienes notificaciones pendientes</p>
             </div>
         </div>
     </div>
