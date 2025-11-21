@@ -3,398 +3,46 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Histórico de Envíos - Defi Oracle</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Histórico de Envíos</title>
   <style>
-    body {
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      position: relative;
-      overflow-x: hidden;
-    }
+    :root{--primary:#007bff;--dark:#343a40;--muted:#6c757d;--light:#f8f9fa;--border:#dee2e6; --danger: #dc3545; --warning: #ffc107;}
+    body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--light);color:var(--dark);margin:0;padding:24px}
+    .card{max-width:1100px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.08);overflow:hidden}
+    .hdr{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--border)}
+    .hdr h1{margin:0;font-size:1.25rem}
+    .content{padding:20px 24px}
+    .filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px; align-items: start;}
+    label{font-weight:700;color:var(--muted);font-size:.9rem;margin-bottom:6px;display:block}
+    input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px}
+    .btns{display:flex;gap:10px;margin-bottom:8px}
+    button{padding:12px 16px;border:none;border-radius:8px;cursor:pointer;font-weight:800}
+    .btn-primary{background:var(--primary);color:#fff}
+    .btn-light{background:#e9ecef}
+    .btn-edit, .btn-danger { padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; }
+    .btn-edit{background:var(--warning); color:var(--dark);}
+    .btn-danger{background:var(--danger); color: white;}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    th,td{padding:12px;text-align:left}
+    thead th{background:var(--light);border-bottom:1px solid var(--border);color:var(--muted)}
+    tbody tr:nth-child(even){background:var(--light)}
     
-    body::before {
-      content: '';
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 800px;
-      height: 800px;
-      background-image: url('logo.png');
-      background-size: contain;
-      background-repeat: no-repeat;
-      background-position: center;
-      opacity: 0.03;
-      z-index: 0;
-      pointer-events: none;
-    }
-    
-    .card {
-      position: relative;
-      z-index: 1;
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-    }
-    
-    .hdr {
-      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
-      color: white;
-      padding: 2rem;
-      border-radius: 16px 16px 0 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-    
-    .hdr h1 {
-      margin: 0;
-      font-size: 2rem;
-      font-weight: 700;
-    }
-    
-    .hdr .btns {
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-    
-    .logo-header {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    
-    .logo-header img {
-      height: 60px;
-      width: auto;
-      filter: brightness(0) invert(1);
-      object-fit: contain;
-    }
-    
-    .content {
-      padding: 2rem;
-    }
-    
-    .filters {
-      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-      padding: 1.5rem;
-      border-radius: 12px;
-      margin-bottom: 1.5rem;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    
-    .filters > div {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-    
-    .filters label {
-      font-weight: 600;
-      color: #374151;
-      font-size: 0.9rem;
-    }
-    
-    .filters input {
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 0.75rem;
-      transition: all 0.3s;
-      font-size: 1rem;
-    }
-    
-    .filters input:focus {
-      border-color: #2D8CDB;
-      box-shadow: 0 0 0 3px rgba(45, 140, 219, 0.1);
-      outline: none;
-    }
-    
-    .btn, .btn-primary, .btn-light, .btn-info, .btn-edit, .btn-danger {
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      border: none;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-      font-size: 0.95rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, #2D8CDB 0%, #1E73C7 100%);
-      color: white;
-    }
-    
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(45, 140, 219, 0.4);
-    }
-    
-    .btn-light {
-      background: white;
-      color: #374151;
-      border: 2px solid #e5e7eb;
-    }
-    
-    .btn-light:hover {
-      background: #f9fafb;
-      border-color: #2D8CDB;
-      color: #2D8CDB;
-      transform: translateY(-2px);
-    }
-    
-    .btn-info {
-      background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-      color: white;
-    }
-    
-    .btn-info:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
-    }
-    
-    .btn-info:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-    
-    .btns {
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      margin-top: 1rem;
-    }
-    
-    .btn-edit {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-      color: white;
-      padding: 0.5rem 1rem;
-      font-size: 0.85rem;
-    }
-    
-    .btn-edit:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-    }
-    
-    .btn-danger {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      color: white;
-      padding: 0.5rem 1rem;
-      font-size: 0.85rem;
-    }
-    
-    .btn-danger:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-    }
-    
-    .table-container {
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    
-    table thead {
-      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
-      color: white;
-    }
-    
-    table tbody tr:hover {
-      background: #e6f7ff;
-      transform: scale(1.001);
-      box-shadow: 0 2px 8px rgba(45, 140, 219, 0.1);
-    }
-    
-    #resumenSection {
-      background: white;
-      padding: 1.5rem;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    
-    #resumenTitle {
-      color: #2D8CDB;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    
-    #resumenTitle::before {
-      content: '📊';
-      font-size: 1.5rem;
-    }
-    
-    .resumen-filters {
-      background: #eff6ff;
-      padding: 1rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-    }
-    
-    .resumen-filters input {
-      flex: 1;
-      padding: 0.75rem;
-      border: 2px solid #dbeafe;
-      border-radius: 8px;
-      font-size: 1rem;
-    }
-    
-    .resumen-filters input:focus {
-      border-color: #2D8CDB;
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(45, 140, 219, 0.1);
-    }
-    
-    @media (max-width: 768px) {
-      body {
-        padding: 0;
-      }
-      
-      .card {
-        border-radius: 0;
-        margin: 0;
-      }
-      
-      .hdr {
-        flex-direction: column;
-        padding: 1rem;
-        border-radius: 0;
-      }
-      
-      .logo-header {
-        flex-direction: column;
-        text-align: center;
-        width: 100%;
-      }
-      
-      .logo-header img {
-        height: 40px;
-      }
-      
-      .logo-header h1 {
-        font-size: 1.3rem;
-        margin-top: 0.5rem;
-      }
-      
-      .logo-header p {
-        font-size: 0.8rem;
-      }
-      
-      .logo-header button {
-        width: 45px !important;
-        height: 45px !important;
-        font-size: 1.5rem !important;
-        margin-bottom: 0.5rem;
-      }
-      
-      .hdr .btns {
-        width: 100%;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      
-      .hdr .btns button {
-        width: 100%;
-        padding: 0.6rem 1rem;
-        font-size: 0.85rem;
-      }
-      
-      .content {
-        padding: 1rem 0.5rem;
-      }
-      
-      .filters {
-        grid-template-columns: 1fr;
-        padding: 1rem 0.5rem;
-        gap: 0.75rem;
-      }
-      
-      .btns {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      
-      .btns button {
-        width: 100%;
-      }
-      
-      .table-container {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-      }
-      
-      table {
-        font-size: 0.75rem;
-        min-width: 800px;
-      }
-      
-      table th, table td {
-        padding: 0.4rem 0.3rem;
-        white-space: nowrap;
-      }
-      
-      .modal-content {
-        width: 95%;
-        max-width: 95%;
-        padding: 1rem;
-        margin: 1rem;
-        max-height: 90vh;
-        overflow-y: auto;
-      }
+    /* Estilos para el Modal de Edición */
+    .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;justify-content:center;align-items:center;z-index:1000}
+    .modal-content{background:#fff;padding:25px;border-radius:12px;width:100%;max-width:500px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+    .modal-content h2{margin-top:0}.modal-form .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+    .modal-form .form-full{grid-column:1/-1}
+    .modal-buttons{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+    #toast-container{position:fixed;top:20px;right:20px;z-index:1050;display:flex;flex-direction:column;gap:10px}
+    .toast{min-width:250px;padding:1rem 1.5rem;border-radius:0.5rem;color:#fff;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.1);opacity:0;transform:translateX(100%);transition:all .5s cubic-bezier(.68,-.55,.27,1.55)}
+    .toast.show{opacity:1;transform:translateX(0)}
+    .toast-success{background-color:#198754}
+    .toast-error{background-color:#dc3545}
 
-      .modal-content h2 {
-        font-size: 1.2rem;
-      }
-      
-      .form-grid {
-        grid-template-columns: 1fr !important;
-      }
-      
-      #resumenSection {
-        padding: 1rem 0.5rem;
-      }
-
-      #resumenSection h2 {
-        font-size: 1.2rem;
-      }
-      
-      .resumen-filters {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .resumen-filters input {
-        width: 100%;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .logo-header h1 {
-        font-size: 1.1rem;
-      }
-
-      table {
-        font-size: 0.65rem;
-      }
-
-      .btn {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.8rem;
-      }
-    }
+    /* ANOTACIÓN: Estilos para el autocompletado */
+    .autocomplete-container{ position:relative; }
+    .autocomplete-suggestions{ position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border-color); z-index:1000; display:none; border-radius: 8px; max-height: 200px; overflow-y: auto; }
+    .suggestion-item{ padding:10px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,0.04) }
+    .suggestion-item:hover{ background-color:var(--light-grey); }
   </style>
 </head>
 <body>
@@ -402,25 +50,17 @@
 
   <div class="card">
     <div class="hdr">
-      <div class="logo-header">
-        <button onclick="location.href='home.html'" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 2rem; width: 50px; height: 50px; border-radius: 50%; cursor: pointer; transition: all 0.3s; backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; margin-right: 0.5rem;" onmouseover="this.style.background='rgba(255,255,255,0.3)'; this.style.transform='translateX(-5px)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='translateX(0)'">←</button>
-        <img src="logo.png" alt="Defi Oracle Logo">
-        <div>
-          <h1>📦 Histórico de Envíos</h1>
-          <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; opacity: 0.9;">Defi Oracle - Sistema Interno</p>
-        </div>
-      </div>
+      <h1>Histórico de Envíos</h1>
       <div class="btns">
-        <button class="btn btn-light" onclick="location.href='/clientes.html'">Gestión Clientes</button>
-        <button id="btnRecalcular" class="btn-info" disabled>Recalcular Costos</button>
         <button id="btnExport" class="btn-light">Exportar CSV</button>
-        <button class="btn-primary" onclick="location.href='home.html'">Volver al Inicio</button>
+        <button class="btn-primary" onclick="window.close()">Cerrar</button>
       </div>
     </div>
     <div class="content">
       <div class="filters">
         <div><label>Desde</label><input type="date" id="fDesde"></div>
         <div><label>Hasta</label><input type="date" id="fHasta"></div>
+        <!-- ANOTACIÓN: Estructura HTML para el autocompletado -->
         <div class="autocomplete-container">
           <label>Cliente</label>
           <input type="text" id="fCliente" placeholder="Nombre del cliente" autocomplete="off">
@@ -437,31 +77,18 @@
       
       <div id="resumenSection" style="margin-top: 20px; display: none;">
           <h2 id="resumenTitle">Resumen Consolidado</h2>
-          <div class="resumen-filters" id="resumenFiltersContainer" style="display: none;">
-            <input type="text" id="filtroNombreResumen" placeholder="🔍 Filtrar por nombre de cliente...">
-          </div>
-          <div class="table-container">
-            <table class="table">
-                <thead><tr id="tbodyResumenHeader"></tr></thead>
-                <tbody id="tbodyResumen"></tbody>
-            </table>
-          </div>
+          <table class="table">
+              <thead><tr id="tbodyResumenHeader"></tr></thead>
+              <tbody id="tbodyResumen"></tbody>
+          </table>
       </div>
       <h2 id="tituloDetalle" style="margin-top: 20px;">Detalle de Envíos</h2>
-      <div id="operacionesInfo" style="margin-bottom: 1rem; color: var(--medium-grey); font-weight: 600; display: none;">
-        Mostrando <span id="operacionesVisibles">0</span> de <span id="totalOperaciones">0</span> operaciones
-      </div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr><th>Fecha</th><th>Recibo</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Costo CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acción</th></tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-      <div style="text-align: center; margin-top: 1.5rem;">
-        <button id="btnCargarMasOperaciones" class="btn-primary" style="display: none; padding: 0.75rem 2rem;">Cargar 50 más</button>
-      </div>
+      <table>
+        <thead>
+          <tr><th>Fecha</th><th>Recibo</th><th>Operador</th><th>Cliente</th><th>Monto CLP</th><th>Tasa</th><th>Monto VES</th><th>Obs.</th><th>Acción</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
     </div>
   </div>
 
@@ -492,7 +119,6 @@
 
   <script>
     let operacionesData = [];
-    let operacionesVisibles = 50;
     let user = {};
 
     function showToast(message, type = 'info') {
@@ -539,6 +165,7 @@
         }, 400);
     }
 
+    // ANOTACIÓN: Función de autocompletado añadida.
     function addClientAutocomplete(inputEl, suggestionsEl) {
       let lastQuery = '';
       inputEl.addEventListener('input', async () => {
@@ -581,14 +208,9 @@
       const fmtCLP = v => Number(v).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
       const fmtVES = v => Number(v).toLocaleString('es-VE');
 
-      console.log('DEBUG row() - user object:', user, 'role:', user?.role, 'type:', typeof user?.role, 'comparison:', user?.role === 'master');
-      
       let actions = `<button class="btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>`;
-      if (user && user.role === 'master') {
-        console.log('✅ AÑADIENDO BOTÓN BORRAR para operación', op.id);
+      if (user.role === 'master') {
         actions += ` <button class="btn-danger" onclick="deleteOperacion(${op.id})">Borrar</button>`;
-      } else {
-        console.log('❌ NO se añade botón borrar. user:', user, 'user.role:', user?.role);
       }
 
       tr.innerHTML = `
@@ -597,7 +219,6 @@
         <td>${op.operador}</td>
         <td>${op.cliente_nombre}</td>
         <td>${fmtCLP(op.monto_clp)}</td>
-        <td style="color: ${op.costo_clp > 0 ? 'inherit' : 'red'}; font-weight: ${op.costo_clp > 0 ? 'normal' : 'bold'};">${fmtCLP(op.costo_clp)}</td>
         <td>${Number(op.tasa).toFixed(4)}</td>
         <td>${fmtVES(op.monto_ves)}</td>
         <td>${op.observaciones || ''}</td>
@@ -605,34 +226,9 @@
       return tr;
     }
     
-    function renderOperaciones() {
-      const tb = document.getElementById('tbody');
-      tb.innerHTML = '';
-      const operacionesMostrar = operacionesData.slice(0, operacionesVisibles);
-      operacionesMostrar.forEach(d => tb.appendChild(row(d)));
-    }
-    
-    function cargarMasOperaciones() {
-      operacionesVisibles += 50;
-      renderOperaciones();
-      
-      document.getElementById('operacionesVisibles').textContent = Math.min(operacionesVisibles, operacionesData.length);
-      
-      if (operacionesVisibles >= operacionesData.length) {
-        document.getElementById('btnCargarMasOperaciones').style.display = 'none';
-      }
-    }
-    
     async function cargar(){
-      const resumenSection = document.getElementById('resumenSection');
-      const tituloDetalle = document.getElementById('tituloDetalle');
-      const tableContainer = document.querySelector('#tituloDetalle + .table-container');
-      const btnRecalcular = document.getElementById('btnRecalcular');
-      
-      if (resumenSection) resumenSection.style.display = 'none';
-      if (tituloDetalle) tituloDetalle.style.display = 'block';
-      if (tableContainer) tableContainer.style.display = 'block';
-      if (btnRecalcular) btnRecalcular.disabled = true;
+      document.getElementById('resumenSection').style.display = 'none';
+      document.getElementById('tituloDetalle').textContent = 'Detalle de Envíos';
       
       const params = new URLSearchParams({
         startDate: document.getElementById('fDesde').value || '',
@@ -643,106 +239,33 @@
       });
       const r = await fetch('/api/operaciones?' + params.toString());
       operacionesData = await r.json();
-      operacionesVisibles = 50;
-      renderOperaciones();
-      
-      if (operacionesData.length > 0 && user.role === 'master') {
-          if (btnRecalcular) btnRecalcular.disabled = false;
-      }
-      
-      // Mostrar/ocultar info y botón de paginación
-      const infoDiv = document.getElementById('operacionesInfo');
-      const btnCargarMas = document.getElementById('btnCargarMasOperaciones');
-      if (operacionesData.length > 0) {
-        if (infoDiv) {
-          infoDiv.style.display = 'block';
-          const visiblesEl = document.getElementById('operacionesVisibles');
-          const totalEl = document.getElementById('totalOperaciones');
-          if (visiblesEl) visiblesEl.textContent = Math.min(operacionesVisibles, operacionesData.length);
-          if (totalEl) totalEl.textContent = operacionesData.length;
-        }
-        if (btnCargarMas) btnCargarMas.style.display = operacionesData.length > operacionesVisibles ? 'inline-block' : 'none';
-      } else {
-        if (infoDiv) infoDiv.style.display = 'none';
-        if (btnCargarMas) btnCargarMas.style.display = 'none';
-      }
+      const tb = document.getElementById('tbody');
+      tb.innerHTML = '';
+      operacionesData.forEach(d => tb.appendChild(row(d)));
     }
-    
-    async function recalcularCostos() {
-        if (operacionesData.length === 0) {
-            showToast('No hay operaciones cargadas para recalcular.', 'error');
-            return;
-        }
-        if (!confirm(`¿Desea recalcular el costo para las ${operacionesData.length} operaciones mostradas? Esta acción actualizará los costos y la ganancia acumulada.`)) {
-            return;
-        }
-
-        const btn = document.getElementById('btnRecalcular');
-        btn.disabled = true;
-        btn.textContent = 'Recalculando...';
-
-        try {
-            const ids = operacionesData.map(op => op.id);
-            const r = await fetch('/api/operaciones/recalculate-costs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids })
-            });
-            const res = await r.json();
-            showToast(res.message, r.ok ? 'success' : 'error');
-            if (r.ok) {
-                await cargar(); // Recargar la tabla para ver los cambios
-            }
-        } catch (e) {
-            showToast('Error de red al recalcular.', 'error');
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Recalcular Costos';
-        }
-    }
-
-    let resumenDataGlobal = [];
     
     async function cargarResumen(){
-        const fDesde = document.getElementById('fDesde');
-        const fHasta = document.getElementById('fHasta');
+        const fDesde = document.getElementById('fDesde').value;
+        const fHasta = document.getElementById('fHasta').value;
         const tbResumen = document.getElementById('tbodyResumen');
         const resumenSection = document.getElementById('resumenSection');
-        const filtrosContainer = document.getElementById('resumenFiltersContainer');
-        const resumenTitle = document.getElementById('resumenTitle');
-        const tbodyResumenHeader = document.getElementById('tbodyResumenHeader');
-        const tituloDetalle = document.getElementById('tituloDetalle');
-        const tableContainer = document.querySelector('#tituloDetalle + .table-container');
         
-        if (!fDesde || !fHasta || !tbResumen || !resumenSection || !filtrosContainer || !resumenTitle || !tbodyResumenHeader) {
-            console.error('Elementos requeridos no encontrados para cargarResumen');
-            return;
-        }
-        
-        resumenTitle.textContent = 'Resumen Consolidado por Cliente';
-        tbodyResumenHeader.innerHTML = `
+        document.getElementById('resumenTitle').textContent = 'Resumen Consolidado por Cliente';
+        document.getElementById('tbodyResumenHeader').innerHTML = `
             <th>Cliente</th>
             <th style="text-align:right">CLP Recibido Total</th>
             <th style="text-align:right">Costo Total</th>
             <th style="text-align:right">Ganancia Bruta</th>
         `;
         resumenSection.style.display = 'block';
-        filtrosContainer.style.display = 'flex';
-        if (tituloDetalle) tituloDetalle.style.display = 'none';
-        if (tableContainer) tableContainer.style.display = 'none';
-        
+        document.getElementById('tituloDetalle').textContent = 'Detalle de Envíos (Oculto)';
+        document.getElementById('tbody').innerHTML = '';
         tbResumen.innerHTML = '<tr><td colspan="4" style="text-align:center">Cargando...</td></tr>';
         
-        const params = new URLSearchParams({ startDate: fDesde.value || '', endDate: fHasta.value || '' });
+        const params = new URLSearchParams({ startDate: fDesde || '', endDate: fHasta || '' });
         const r = await fetch('/api/historico/resumen?' + params.toString());
         const data = await r.json();
-        
-        resumenDataGlobal = data;
-        renderResumen(data);
-    }
-    
-    function renderResumen(data) {
-        const tbResumen = document.getElementById('tbodyResumen');
+
         tbResumen.innerHTML = '';
         const fmt = v => (v||0).toLocaleString('es-CL',{style:'currency',currency:'CLP',minimumFractionDigits:2,maximumFractionDigits:2});
 
@@ -764,23 +287,12 @@
     }
 
     async function cargarRendimiento(){
-        const fDesde = document.getElementById('fDesde');
-        const fHasta = document.getElementById('fHasta');
+        const fDesde = document.getElementById('fDesde').value;
+        const fHasta = document.getElementById('fHasta').value;
         const tbResumen = document.getElementById('tbodyResumen');
-        const filtrosContainer = document.getElementById('resumenFiltersContainer');
-        const resumenTitle = document.getElementById('resumenTitle');
-        const tbodyResumenHeader = document.getElementById('tbodyResumenHeader');
-        const resumenSection = document.getElementById('resumenSection');
-        const tituloDetalle = document.getElementById('tituloDetalle');
-        const tableContainer = document.querySelector('#tituloDetalle + .table-container');
         
-        if (!fDesde || !fHasta || !tbResumen || !filtrosContainer || !resumenTitle || !tbodyResumenHeader || !resumenSection) {
-            console.error('Elementos requeridos no encontrados para cargarRendimiento');
-            return;
-        }
-        
-        resumenTitle.textContent = 'Reporte de Rendimiento por Operador';
-        tbodyResumenHeader.innerHTML = `
+        document.getElementById('resumenTitle').textContent = 'Reporte de Rendimiento por Operador';
+        document.getElementById('tbodyResumenHeader').innerHTML = `
             <th>Operador</th>
             <th style="text-align:right">Millones Comisionables</th>
             <th style="text-align:right">CLP Enviado Total</th>
@@ -788,14 +300,12 @@
             <th style="text-align:right">Bonificación Total (USD)</th>
         `;
 
-        resumenSection.style.display = 'block';
-        filtrosContainer.style.display = 'none';
-        if (tituloDetalle) tituloDetalle.style.display = 'none';
-        if (tableContainer) tableContainer.style.display = 'none';
-        
+        document.getElementById('resumenSection').style.display = 'block';
+        document.getElementById('tituloDetalle').textContent = 'Detalle de Envíos (Oculto)';
+        document.getElementById('tbody').innerHTML = ''; 
         tbResumen.innerHTML = '<tr><td colspan="5" style="text-align:center">Cargando...</td></tr>';
         
-        const params = new URLSearchParams({ startDate: fDesde.value || '', endDate: fHasta.value || '' });
+        const params = new URLSearchParams({ startDate: fDesde || '', endDate: fHasta || '' });
         const r = await fetch('/api/rendimiento/operadores?' + params.toString());
         const data = await r.json();
 
@@ -894,91 +404,33 @@
     document.getElementById('cancelEdit').addEventListener('click', cerrarModalEdicion);
     
     (async () => {
-      try {
-        await fetchUser();
-        if(!user) return;
+      await fetchUser();
+      if(!user) return;
 
-        if(user.role !== 'master'){
-          document.getElementById('fOperador').disabled = true;
-          document.getElementById('fOperador').placeholder = 'No disponible';
-          const btnResumen = document.getElementById('btnResumen');
-          const btnRendimiento = document.getElementById('btnRendimiento');
-          const btnRecalcular = document.getElementById('btnRecalcular');
-          if (btnResumen) btnResumen.style.display = 'none';
-          if (btnRendimiento) btnRendimiento.style.display = 'none';
-          if (btnRecalcular) btnRecalcular.style.display = 'none';
-        }
-        
-        const btnFiltrar = document.getElementById('btnFiltrar');
-        const btnResumen = document.getElementById('btnResumen');
-        const btnRendimiento = document.getElementById('btnRendimiento');
-        const btnRecalcular = document.getElementById('btnRecalcular');
-        const btnCargarMas = document.getElementById('btnCargarMasOperaciones');
-        const btnLimpiar = document.getElementById('btnLimpiar');
-        const btnExport = document.getElementById('btnExport');
-        
-        if (btnFiltrar) btnFiltrar.onclick = cargar;
-        if (btnResumen) btnResumen.onclick = cargarResumen;
-        if (btnRendimiento) btnRendimiento.onclick = cargarRendimiento;
-        if (btnRecalcular) btnRecalcular.onclick = recalcularCostos;
-        if (btnCargarMas) btnCargarMas.onclick = cargarMasOperaciones;
-        if (btnLimpiar) {
-          btnLimpiar.onclick = ()=>{ 
-            ['fDesde','fHasta','fCliente','fOperador'].forEach(id => {
-              const el = document.getElementById(id);
-              if (el) el.value = '';
-            });
-            const filtroResumen = document.getElementById('filtroNombreResumen');
-            const resumenSection = document.getElementById('resumenSection');
-            const tituloDetalle = document.getElementById('tituloDetalle');
-            const tableContainer = document.querySelector('#tituloDetalle + .table-container');
-            
-            if (filtroResumen) filtroResumen.value = '';
-            if (resumenSection) resumenSection.style.display = 'none';
-            if (tituloDetalle) tituloDetalle.style.display = 'block';
-            if (tableContainer) tableContainer.style.display = 'block';
-            cargar(); 
-          };
-        }
-        if (btnExport) btnExport.onclick = exportar;
-        
-        const editRecibo = document.getElementById('editRecibo');
-        if (editRecibo) {
-          editRecibo.addEventListener('input', () => {
-            const reciboEl = document.getElementById('editRecibo');
-            const statusEl = document.getElementById('editReciboStatus');
-            const btnGuardar = document.getElementById('btnGuardarCambios');
-            if (reciboEl && statusEl && btnGuardar) {
-              checkRecibo(reciboEl, statusEl, btnGuardar);
-            }
-          });
-        }
-        
-        const filtroNombreResumen = document.getElementById('filtroNombreResumen');
-        if (filtroNombreResumen) {
-          filtroNombreResumen.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            if (query) {
-              const filtrados = resumenDataGlobal.filter(d => 
-                d.cliente_nombre.toLowerCase().includes(query)
-              );
-              renderResumen(filtrados);
-            } else {
-              renderResumen(resumenDataGlobal);
-            }
-          });
-        }
-        
-        const fCliente = document.getElementById('fCliente');
-        const fClienteSuggestions = document.getElementById('fClienteSuggestions');
-        if (fCliente && fClienteSuggestions) {
-          addClientAutocomplete(fCliente, fClienteSuggestions);
-        }
-
-        await cargar();
-      } catch (error) {
-        console.error('Error inicializando página:', error);
+      if(user.role !== 'master'){
+        document.getElementById('fOperador').disabled = true;
+        document.getElementById('fOperador').placeholder = 'No disponible';
+        document.getElementById('btnResumen').style.display = 'none';
+        document.getElementById('btnRendimiento').style.display = 'none';
       }
+      
+      document.getElementById('btnFiltrar').onclick = cargar;
+      document.getElementById('btnResumen').onclick = cargarResumen;
+      document.getElementById('btnRendimiento').onclick = cargarRendimiento;
+      document.getElementById('btnLimpiar').onclick = ()=>{ 
+          ['fDesde','fHasta','fCliente','fOperador'].forEach(id=>document.getElementById(id).value=''); 
+          document.getElementById('resumenSection').style.display = 'none';
+          document.getElementById('tituloDetalle').textContent = 'Detalle de Envíos';
+          cargar(); 
+      };
+      document.getElementById('btnExport').onclick = exportar;
+      
+      document.getElementById('editRecibo').addEventListener('input', () => checkRecibo(document.getElementById('editRecibo'), document.getElementById('editReciboStatus'), document.getElementById('btnGuardarCambios'), modal.dataset.id));
+      
+      // ANOTACIÓN: Llamada a la función de autocompletado para el filtro de clientes.
+      addClientAutocomplete(document.getElementById('fCliente'), document.getElementById('fClienteSuggestions'));
+
+      await cargar();
     })();
   </script>
 </body>
