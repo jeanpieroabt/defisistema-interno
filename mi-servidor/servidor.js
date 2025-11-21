@@ -4830,10 +4830,6 @@ async function actualizarTasasAutomaticamente(tasa_base_clp_ves) {
 
 // Función generarMensajeWhatsApp eliminada - el sistema NO envía WhatsApp automáticamente
 // Los operadores pueden comunicar cambios de tasas manualmente cuando lo consideren necesario
-    
-    console.log('📲 Mensaje de WhatsApp generado para que operadores lo envíen:');
-    console.log(mensaje);
-
 
 /**
  * Endpoint manual para forzar verificación de tasas (solo Master)
