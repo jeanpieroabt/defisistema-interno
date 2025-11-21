@@ -1305,8 +1305,6 @@ app.post('/api/tasas', apiAuth, onlyMaster, (req, res) => {
       });
     });
   });
-    });
-  });
 });
 
 app.post('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
