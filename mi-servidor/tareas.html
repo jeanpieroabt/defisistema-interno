@@ -707,10 +707,16 @@
             border-radius: 12px;
             font-size: 0.85rem;
             font-weight: 700;
+            display: none;
+        }
+
+        .tab-badge[style*="display: inline-block"] {
+            display: inline-block !important;
         }
 
         .tab-btn.active .tab-badge {
             background: rgba(255,255,255,0.4);
+            display: inline-block;
         }
 
         /* Notificaciones */
@@ -1157,9 +1163,13 @@
                 }
                 
                 await cargarTareas();
+                await actualizarContadores();
                 
                 // Recargar cada 30 segundos
-                setInterval(cargarTareas, 30000);
+                setInterval(() => {
+                    cargarTareas();
+                    actualizarContadores();
+                }, 30000);
             } catch (error) {
                 console.error('Error inicializando:', error);
                 window.location.href = 'login.html';
@@ -2071,6 +2081,148 @@
         function logout() {
             fetch('/logout', { method: 'POST' })
                 .then(() => window.location.href = 'login.html');
+        }
+
+        // ============================================
+        // SISTEMA DE TABS
+        // ============================================
+        function switchTab(tab) {
+            // Actualizar botones de tabs
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Mostrar/ocultar contenedores
+            const tareasTab = document.getElementById('tareasTab');
+            const notificacionesTab = document.getElementById('notificacionesTab');
+
+            if (tab === 'tareas') {
+                tareasTab.style.display = 'block';
+                notificacionesTab.classList.remove('active');
+                cargarTareas();
+            } else {
+                tareasTab.style.display = 'none';
+                notificacionesTab.classList.add('active');
+                cargarNotificaciones();
+            }
+        }
+
+        // ============================================
+        // SISTEMA DE NOTIFICACIONES
+        // ============================================
+        async function cargarNotificaciones() {
+            try {
+                const response = await fetch('/api/notificaciones');
+                const notificaciones = await response.json();
+
+                const grid = document.getElementById('notificacionesGrid');
+                const noNotifs = document.getElementById('noNotificaciones');
+                const badge = document.getElementById('notifsCount');
+
+                // Contar no leídas
+                const noLeidas = notificaciones.filter(n => !n.leida).length;
+                badge.textContent = noLeidas;
+                badge.style.display = noLeidas > 0 ? 'inline-block' : 'none';
+
+                if (notificaciones.length === 0) {
+                    grid.innerHTML = '';
+                    noNotifs.style.display = 'block';
+                    return;
+                }
+
+                noNotifs.style.display = 'none';
+                
+                grid.innerHTML = notificaciones.map(notif => {
+                    const fecha = new Date(notif.fecha_creacion);
+                    const fechaStr = fecha.toLocaleString('es-CL', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    const tipoClass = notif.tipo === 'alerta' ? 'tipo-alerta' : 
+                                     notif.tipo === 'sistema' ? 'tipo-sistema' : '';
+                    
+                    const leidaClass = notif.leida ? 'leida' : '';
+
+                    return `
+                        <div class="notificacion-card ${tipoClass} ${leidaClass}" onclick="verNotificacion(${notif.id})">
+                            <div class="notificacion-header">
+                                <h3 class="notificacion-titulo">${notif.titulo}</h3>
+                                <span class="notificacion-fecha">${fechaStr}</span>
+                            </div>
+                            <div class="notificacion-mensaje">${notif.mensaje}</div>
+                            ${!notif.leida ? `
+                                <div class="notificacion-actions">
+                                    <button class="btn-marcar-leida" onclick="event.stopPropagation(); marcarLeida(${notif.id})">
+                                        ✓ Marcar como leída
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error cargando notificaciones:', error);
+            }
+        }
+
+        async function verNotificacion(id) {
+            await marcarLeida(id);
+        }
+
+        async function marcarLeida(id) {
+            try {
+                const response = await fetch(`/api/notificaciones/${id}/leer`, {
+                    method: 'PUT'
+                });
+
+                if (response.ok) {
+                    await cargarNotificaciones();
+                    actualizarContadores();
+                }
+            } catch (error) {
+                console.error('Error marcando notificación como leída:', error);
+            }
+        }
+
+        async function marcarTodasLeidas() {
+            try {
+                const response = await fetch('/api/notificaciones/leer-todas', {
+                    method: 'PUT'
+                });
+
+                if (response.ok) {
+                    await cargarNotificaciones();
+                    actualizarContadores();
+                    alert('Todas las notificaciones han sido marcadas como leídas');
+                }
+            } catch (error) {
+                console.error('Error marcando todas como leídas:', error);
+            }
+        }
+
+        async function actualizarContadores() {
+            try {
+                // Contador de notificaciones
+                const notifResponse = await fetch('/api/notificaciones/contador');
+                const notifData = await notifResponse.json();
+                const notifsCount = document.getElementById('notifsCount');
+                notifsCount.textContent = notifData.count;
+                notifsCount.style.display = notifData.count > 0 ? 'inline-block' : 'none';
+
+                // Contador de tareas (pendientes)
+                const tareasResponse = await fetch('/api/tareas?estado=pendiente');
+                const tareas = await tareasResponse.json();
+                const tareasCount = document.getElementById('tareasCount');
+                tareasCount.textContent = tareas.length;
+                tareasCount.style.display = tareas.length > 0 ? 'inline-block' : 'none';
+            } catch (error) {
+                console.error('Error actualizando contadores:', error);
+            }
         }
 
         // Cerrar modal al hacer clic fuera

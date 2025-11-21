@@ -3171,7 +3171,7 @@ FUNCIONES DISPONIBLES (llamadas automáticamente por ti):
    - Función INTELIGENTE que:
      ✅ Analiza los días de inactividad
      ✅ Determina si debe enviar recordatorio (30-44 días) o promoción (45+ días)
-     ✅ Calcula tasa promocional automáticamente (0.33% descuento sobre última tasa VES)
+     ✅ Calcula tasa promocional automáticamente (3.3% descuento sobre última tasa VES)
      ✅ Genera mensaje personalizado listo para copiar y enviar
    - Aplica a: "Cliente inactivo", "Reducción de actividad", "Riesgo alto"
    - Retorna: {tipo_accion, dias_inactivo, tasa_original, tasa_promocional, mensaje_sugerido}
@@ -3358,8 +3358,8 @@ Tú: "¡Claro! Voy a analizar esta tarea y generar un mensaje para andrez..."
 
 Tipos de tareas que puedes resolver:
 1. **Cliente inactivo 30-44 días**: Mensaje de recordatorio/cercanía (sin promoción)
-2. **Cliente inactivo 45+ días**: Mensaje con promoción (tasa + 0.33% descuento)
-3. **Reducción de actividad**: Mensaje con promoción (tasa + 0.33% descuento)
+2. **Cliente inactivo 45+ días**: Mensaje con promoción (tasa + 3.3% descuento)
+3. **Reducción de actividad**: Mensaje con promoción (tasa + 3.3% descuento)
 
 📊 **PRIORIDAD DE LECTURA**:
 1. PRIMERO: Lee mensajes_proactivos (información más específica)
@@ -4141,8 +4141,8 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 if (!err && ultimaCompra && ultimaCompra.tasa_clp_ves > 0) {
                                     tasaOriginal = ultimaCompra.tasa_clp_ves;
                                     fechaCompra = ultimaCompra.fecha;
-                                    // Aplicar 0.33% de DESCUENTO
-                                    const descuento = tasaOriginal * 0.0033;
+                                    // Aplicar 3.3% de DESCUENTO
+                                    const descuento = tasaOriginal * 0.033;
                                     tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
                                 }
                                 
@@ -4167,7 +4167,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                     requiere_promocion: requierePromocion,
                                     tasa_original: tasaOriginal ? tasaOriginal.toFixed(4) : null,
                                     tasa_promocional: tasaPromocional ? tasaPromocional.toFixed(4) : null,
-                                    descuento_aplicado: requierePromocion ? '+0.33%' : 'No aplica',
+                                    descuento_aplicado: requierePromocion ? '+3.3%' : 'No aplica',
                                     fecha_ultima_compra: fechaCompra,
                                     mensaje_sugerido: mensajeSugerido
                                 });
@@ -4701,6 +4701,8 @@ async function generarAlertaTasas(tasaManual, tasaP2P, diferencia, porcentaje) {
         
         // Obtener TODOS los usuarios (Master y operadores)
         const usuarios = await dbAll('SELECT id, username, role FROM usuarios');
+        
+        console.log(`📢 Generando alertas de tasas para ${usuarios.length} usuario(s)...`);
         
         for (const usuario of usuarios) {
             let mensaje = '';
