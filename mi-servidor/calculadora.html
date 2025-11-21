@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Conversión - Defi Oracle</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 1000px;
+            height: 1000px;
+            background-image: url('logo.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.05;
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .calc-container {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .calc-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 16px 16px 0 0;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .calc-header h1 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 1.8rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-back {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-back:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .calc-body {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 0 0 16px 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        
+        .country-info {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .country-info h2 {
+            margin: 0 0 0.5rem 0;
+            color: #2c3e50;
+            font-size: 1.3rem;
+        }
+        
+        .country-info .currency-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        
+        .mode-selector {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: #f8f9fa;
+            padding: 0.5rem;
+            border-radius: 12px;
+        }
+        
+        .mode-btn {
+            flex: 1;
+            padding: 1rem;
+            border: 2px solid transparent;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .mode-btn:hover {
+            border-color: #667eea;
+        }
+        
+        .mode-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1rem;
+        }
+        
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group input[readonly] {
+            background: #f8f9fa;
+            cursor: not-allowed;
+        }
+        
+        .btn-calculate {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(135deg, #2EC7A3 0%, #28a745 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+        
+        .btn-calculate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(46, 199, 163, 0.4);
+        }
+        
+        .result-box {
+            display: none;
+            margin-top: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-radius: 12px;
+            border-left: 5px solid #28a745;
+        }
+        
+        .result-box.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .result-box h3 {
+            margin: 0 0 1rem 0;
+            color: #2c3e50;
+            font-size: 1.2rem;
+        }
+        
+        .result-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #28a745;
+            margin: 1rem 0;
+        }
+        
+        .result-details {
+            font-size: 1.1rem;
+            color: #495057;
+            line-height: 1.6;
+        }
+        
+        .error-box {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem 1.5rem;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 8px;
+            color: #856404;
+        }
+        
+        .error-box.show {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .calc-container {
+                padding: 1rem;
+            }
+            
+            .calc-header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 1.5rem;
+            }
+            
+            .calc-header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .calc-body {
+                padding: 1.5rem;
+            }
+            
+            .mode-selector {
+                flex-direction: column;
+            }
+            
+            .result-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="calc-container">
+        <div class="calc-header">
+            <h1>💱 Calculadora de Conversión</h1>
+            <a href="home.html" class="btn-back">← Volver al Inicio</a>
+        </div>
+        
+        <div class="calc-body">
+            <!-- Información del país/moneda -->
+            <div class="country-info">
+                <h2>País: <span id="paisNombre">Seleccione un país</span></h2>
+                <div class="currency-badge" id="monedaBadge">---</div>
+            </div>
+            
+            <!-- Selector de modo -->
+            <div class="mode-selector">
+                <button class="mode-btn active" onclick="cambiarModo('CLP_A_DESTINO')">
+                    📤 De CLP a Moneda Destino<br>
+                    <small>(Envío normal)</small>
+                </button>
+                <button class="mode-btn" onclick="cambiarModo('DESTINO_A_CLP')">
+                    📥 De Moneda Destino a CLP<br>
+                    <small>(Cálculo inverso)</small>
+                </button>
+            </div>
+            
+            <!-- Formulario -->
+            <div class="form-group">
+                <label for="pais">País de Destino *</label>
+                <select id="pais" onchange="seleccionarPais()">
+                    <option value="">-- Seleccione un país --</option>
+                    <option value="VES|Venezuela">🇻🇪 Venezuela</option>
+                    <option value="COP|Colombia">🇨🇴 Colombia</option>
+                    <option value="USD|Estados Unidos">🇺🇸 Estados Unidos</option>
+                    <option value="ARS|Argentina">🇦🇷 Argentina</option>
+                    <option value="PEN|Perú">🇵🇪 Perú</option>
+                    <option value="BOB|Bolivia">🇧🇴 Bolivia</option>
+                    <option value="BRL|Brasil">🇧🇷 Brasil</option>
+                    <option value="MXN|México">🇲🇽 México</option>
+                    <option value="EUR|Europa">🇪🇺 Europa</option>
+                    <option value="UYU|Uruguay">🇺🇾 Uruguay</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="tasa">Tasa de Conversión (manual) *</label>
+                <input type="number" id="tasa" step="0.000001" placeholder="Ej: 0.3400 o 0.0034">
+            </div>
+            
+            <div class="form-group">
+                <label for="monto" id="labelMonto">Monto en CLP *</label>
+                <input type="number" id="monto" step="0.01" placeholder="Ej: 10000">
+            </div>
+            
+            <div class="error-box" id="errorBox"></div>
+            
+            <button class="btn-calculate" onclick="calcular()">🧮 Calcular</button>
+            
+            <!-- Resultado -->
+            <div class="result-box" id="resultBox">
+                <h3>📊 Resultado:</h3>
+                <div class="result-value" id="resultValue">0</div>
+                <div class="result-details" id="resultDetails"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let modoActual = 'CLP_A_DESTINO';
+        let monedaActual = '';
+        let paisActual = '';
+        
+        async function init() {
+            try {
+                const response = await fetch('/api/user-info');
+                if (!response.ok) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+            } catch (error) {
+                console.error('Error verificando sesión:', error);
+                window.location.href = 'login.html';
+            }
+        }
+        
+        function cambiarModo(modo) {
+            modoActual = modo;
+            
+            // Actualizar botones
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.closest('.mode-btn').classList.add('active');
+            
+            // Actualizar label del monto
+            const labelMonto = document.getElementById('labelMonto');
+            if (modo === 'CLP_A_DESTINO') {
+                labelMonto.textContent = 'Monto en CLP *';
+                document.getElementById('monto').placeholder = 'Ej: 10000';
+            } else {
+                labelMonto.textContent = `Monto en ${monedaActual || 'Moneda Destino'} *`;
+                document.getElementById('monto').placeholder = 'Ej: 3400';
+            }
+            
+            // Limpiar resultado
+            ocultarResultado();
+        }
+        
+        function seleccionarPais() {
+            const select = document.getElementById('pais');
+            const valor = select.value;
+            
+            if (!valor) {
+                document.getElementById('paisNombre').textContent = 'Seleccione un país';
+                document.getElementById('monedaBadge').textContent = '---';
+                monedaActual = '';
+                paisActual = '';
+                return;
+            }
+            
+            const [moneda, pais] = valor.split('|');
+            monedaActual = moneda;
+            paisActual = pais;
+            
+            document.getElementById('paisNombre').textContent = pais;
+            document.getElementById('monedaBadge').textContent = moneda;
+            
+            // Actualizar label si está en modo inverso
+            if (modoActual === 'DESTINO_A_CLP') {
+                document.getElementById('labelMonto').textContent = `Monto en ${moneda} *`;
+            }
+            
+            ocultarResultado();
+        }
+        
+        function calcular() {
+            // Validaciones
+            const errorBox = document.getElementById('errorBox');
+            const pais = document.getElementById('pais').value;
+            const tasa = parseFloat(document.getElementById('tasa').value);
+            const monto = parseFloat(document.getElementById('monto').value);
+            
+            // Limpiar errores previos
+            errorBox.textContent = '';
+            errorBox.classList.remove('show');
+            
+            if (!pais) {
+                mostrarError('❌ Por favor seleccione un país de destino');
+                return;
+            }
+            
+            if (!tasa || tasa <= 0 || isNaN(tasa)) {
+                mostrarError('❌ Por favor ingrese una tasa válida (mayor a 0)');
+                return;
+            }
+            
+            if (!monto || monto <= 0 || isNaN(monto)) {
+                mostrarError('❌ Por favor ingrese un monto válido (mayor a 0)');
+                return;
+            }
+            
+            // Realizar cálculo
+            let resultado, montoCLP, montoDestino;
+            
+            if (modoActual === 'CLP_A_DESTINO') {
+                // Fórmula: montoDestino = montoCLP * tasa
+                montoCLP = Math.round(monto);
+                montoDestino = (montoCLP * tasa).toFixed(2);
+                resultado = `${formatNumber(montoDestino)} ${monedaActual}`;
+                
+                mostrarResultado(
+                    resultado,
+                    `💰 El cliente envía <strong>${formatNumber(montoCLP)} CLP</strong> y el beneficiario recibe <strong>${formatNumber(montoDestino)} ${monedaActual}</strong>.`
+                );
+            } else {
+                // Fórmula: montoCLP = montoDestino / tasa
+                montoDestino = monto.toFixed(2);
+                montoCLP = Math.round(monto / tasa);
+                resultado = `${formatNumber(montoCLP)} CLP`;
+                
+                mostrarResultado(
+                    resultado,
+                    `💰 Para que el beneficiario reciba <strong>${formatNumber(montoDestino)} ${monedaActual}</strong>, el cliente debe enviar <strong>${formatNumber(montoCLP)} CLP</strong>.`
+                );
+            }
+        }
+        
+        function mostrarResultado(valor, detalles) {
+            document.getElementById('resultValue').textContent = valor;
+            document.getElementById('resultDetails').innerHTML = detalles;
+            document.getElementById('resultBox').classList.add('show');
+        }
+        
+        function ocultarResultado() {
+            document.getElementById('resultBox').classList.remove('show');
+        }
+        
+        function mostrarError(mensaje) {
+            const errorBox = document.getElementById('errorBox');
+            errorBox.textContent = mensaje;
+            errorBox.classList.add('show');
+            ocultarResultado();
+        }
+        
+        function formatNumber(num) {
+            return parseFloat(num).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        }
+        
+        // Inicializar
+        init();
+    </script>
+</body>
+</html>
