@@ -3288,9 +3288,9 @@ async function obtenerContextoSistema(userId, userRole) {
             });
         });
 
-        // Obtener total de clientes
+        // Obtener total de clientes (solo los que tienen nombre, igual que el frontend)
         const totalClientesPromise = new Promise((resolve) => {
-            db.get(`SELECT COUNT(*) as total FROM clientes`, [], (err, row) => {
+            db.get(`SELECT COUNT(*) as total FROM clientes WHERE nombre IS NOT NULL AND nombre != ''`, [], (err, row) => {
                 if (err) return resolve(0);
                 resolve(row.total || 0);
             });
@@ -3528,7 +3528,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
     // Para todo lo demás, usar OpenAI con Function Calling
     try {
         // Usar variable de entorno OPENAI_API_KEY, o fallback a la key hardcodeada
-        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
+        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
         
         // Validar que hay API key
         if (!OPENAI_API_KEY || OPENAI_API_KEY === '' || OPENAI_API_KEY.includes('your-api-key-here')) {
