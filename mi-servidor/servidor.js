@@ -3967,7 +3967,7 @@ const agentFunctions = [
     },
     {
         name: "consultar_rendimiento",
-        description: "Consulta el rendimiento del operador actual en el mes. Usa esto cuando pregunten 'cómo voy', 'mi desempeño', 'mis operaciones', 'cuánto he hecho', etc.",
+        description: "Consulta el rendimiento del operador actual HOY y en el mes. Usa esto cuando pregunten: 'cómo voy hoy', 'mi desempeño', 'mis operaciones', 'cuántas operaciones llevo', 'cómo va mi rendimiento', 'cuánto he hecho hoy', etc. Retorna datos del DÍA ACTUAL y del mes completo.",
         parameters: {
             type: "object",
             properties: {}
@@ -4238,27 +4238,71 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                     
                 case 'consultar_rendimiento':
                     functionResult = await new Promise((resolve) => {
+                        console.log(`🔍 [DEBUG] consultar_rendimiento - userId: ${userId}`);
+                        
+                        // Primero obtener datos del día
                         db.get(
                             `SELECT 
                                 COUNT(*) as total_ops,
                                 SUM(monto_clp) as total_clp,
-                                SUM(ganancia_neta_clp) as ganancia_total,
-                                AVG(ganancia_neta_clp) as ganancia_promedio
+                                SUM(ganancia_neta_clp) as ganancia_total
                              FROM operaciones
                              WHERE usuario_id = ? 
-                             AND strftime('%Y-%m', fecha) = strftime('%Y-%m', 'now')`,
+                             AND DATE(fecha) = DATE('now', 'localtime')`,
                             [userId],
-                            (err, stats) => {
-                                if (!err && stats && stats.total_ops > 0) {
-                                    resolve({
-                                        total_operaciones: stats.total_ops,
-                                        total_procesado_clp: Math.round(stats.total_clp),
-                                        ganancia_total_clp: Math.round(stats.ganancia_total),
-                                        ganancia_promedio_clp: Math.round(stats.ganancia_promedio)
-                                    });
-                                } else {
-                                    resolve({ total_operaciones: 0, mensaje: "No hay operaciones este mes" });
-                                }
+                            (err, statsHoy) => {
+                                console.log(`🔍 [DEBUG] Operaciones HOY - Error:`, err);
+                                console.log(`🔍 [DEBUG] Operaciones HOY - Resultado:`, statsHoy);
+                                
+                                // Luego obtener datos del mes
+                                db.get(
+                                    `SELECT 
+                                        COUNT(*) as total_ops,
+                                        SUM(monto_clp) as total_clp,
+                                        SUM(ganancia_neta_clp) as ganancia_total,
+                                        AVG(ganancia_neta_clp) as ganancia_promedio
+                                     FROM operaciones
+                                     WHERE usuario_id = ? 
+                                     AND strftime('%Y-%m', fecha) = strftime('%Y-%m', 'now')`,
+                                    [userId],
+                                    (err, statsMes) => {
+                                        console.log(`🔍 [DEBUG] Operaciones MES - Error:`, err);
+                                        console.log(`🔍 [DEBUG] Operaciones MES - Resultado:`, statsMes);
+                                        
+                                        const hoyData = statsHoy && statsHoy.total_ops > 0 ? {
+                                            operaciones_hoy: statsHoy.total_ops,
+                                            volumen_hoy_clp: Math.round(statsHoy.total_clp || 0),
+                                            ganancia_hoy_clp: Math.round(statsHoy.ganancia_total || 0)
+                                        } : {
+                                            operaciones_hoy: 0,
+                                            volumen_hoy_clp: 0,
+                                            ganancia_hoy_clp: 0
+                                        };
+
+                                        const mesData = statsMes && statsMes.total_ops > 0 ? {
+                                            total_operaciones_mes: statsMes.total_ops,
+                                            total_procesado_mes_clp: Math.round(statsMes.total_clp || 0),
+                                            ganancia_total_mes_clp: Math.round(statsMes.ganancia_total || 0),
+                                            ganancia_promedio_mes_clp: Math.round(statsMes.ganancia_promedio || 0)
+                                        } : {
+                                            total_operaciones_mes: 0,
+                                            total_procesado_mes_clp: 0,
+                                            ganancia_total_mes_clp: 0,
+                                            ganancia_promedio_mes_clp: 0
+                                        };
+
+                                        const resultado = {
+                                            ...hoyData,
+                                            ...mesData,
+                                            mensaje: hoyData.operaciones_hoy > 0 
+                                                ? `Hoy: ${hoyData.operaciones_hoy} ops, $${hoyData.volumen_hoy_clp.toLocaleString()} CLP | Mes: ${mesData.total_operaciones_mes} ops`
+                                                : "No hay operaciones registradas hoy"
+                                        };
+                                        
+                                        console.log(`🔍 [DEBUG] Resultado final:`, resultado);
+                                        resolve(resultado);
+                                    }
+                                );
                             }
                         );
                     });
