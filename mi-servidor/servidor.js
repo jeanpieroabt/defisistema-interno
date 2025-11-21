@@ -3753,7 +3753,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
         
         // Primera llamada a OpenAI con function calling
         let response = await axios.post('https://api.openai.com/v1/chat/completions', {
-            model: 'gpt-3.5-turbo',
+            model: 'gpt-4o-mini',
             messages: messages,
             functions: agentFunctions,
             function_call: "auto",
@@ -4187,7 +4187,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
             
             // Segunda llamada a OpenAI para que genere respuesta final con los datos
             response = await axios.post('https://api.openai.com/v1/chat/completions', {
-                model: 'gpt-3.5-turbo',
+                model: 'gpt-4o-mini',
                 messages: messages,
                 max_tokens: 500,
                 temperature: 0.8
