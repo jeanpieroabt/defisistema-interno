@@ -209,6 +209,32 @@ const runMigrations = async () => {
         FOREIGN KEY(tarea_id) REFERENCES tareas(id)
     )`);
 
+    // ✅ TABLA PARA HISTORIAL DE CHATBOT
+    await dbRun(`CREATE TABLE IF NOT EXISTS chatbot_history(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario_id INTEGER NOT NULL,
+        rol TEXT NOT NULL,
+        mensaje TEXT NOT NULL,
+        respuesta TEXT NOT NULL,
+        contexto_datos TEXT,
+        fecha_creacion TEXT NOT NULL,
+        FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+    )`);
+
+    // ✅ TABLA PARA MENSAJES PROACTIVOS DEL BOT
+    await dbRun(`CREATE TABLE IF NOT EXISTS chatbot_mensajes_proactivos(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario_id INTEGER NOT NULL,
+        tipo TEXT NOT NULL CHECK(tipo IN ('celebracion','recordatorio','alerta','sugerencia','informativo')),
+        mensaje TEXT NOT NULL,
+        contexto TEXT,
+        prioridad TEXT DEFAULT 'normal' CHECK(prioridad IN ('baja','normal','alta')),
+        mostrado INTEGER DEFAULT 0,
+        fecha_creacion TEXT NOT NULL,
+        fecha_mostrado TEXT,
+        FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+    )`);
+
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
             if (err) return console.error('Error al verificar usuarios semilla:', err.message);
@@ -914,6 +940,8 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
           .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase())
           .join(' ');
       
+      console.log(`\n📝 Nueva operación - Usuario: ${req.session.user.username}, Cliente: ${nombreNormalizado}, Monto: ${montoClpNum} CLP`);
+      
       const findOrCreateCliente = new Promise((resolve, reject) => {
           // Buscar cliente existente comparando sin acentos
           db.all(`SELECT id, nombre FROM clientes`, [], (err, clientes) => {
@@ -955,6 +983,42 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
                 }
                 db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar]);
                 db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNeta]);
+                
+                console.log(`✅ Operación #${numero_recibo} registrada exitosamente`);
+                console.log(`   Cliente ID: ${cliente_id}, Monto: ${montoClpNum} CLP → ${montoVesNum} VES`);
+                console.log(`   Ganancia Neta: ${gananciaNeta.toFixed(2)} CLP`);
+                
+                // Verificar si el cliente tiene datos completos y generar alerta si faltan
+                db.get(`SELECT nombre, rut, email, telefono FROM clientes WHERE id = ?`, [cliente_id], (errCliente, cliente) => {
+                    if (!errCliente && cliente) {
+                        const datosFaltantes = [];
+                        if (!cliente.rut || cliente.rut.trim() === '') datosFaltantes.push('RUT');
+                        if (!cliente.email || cliente.email.trim() === '') datosFaltantes.push('Email');
+                        if (!cliente.telefono || cliente.telefono.trim() === '') datosFaltantes.push('Teléfono');
+                        
+                        if (datosFaltantes.length > 0) {
+                            console.log(`\n⚠️  ALERTA: Cliente "${cliente.nombre}" tiene datos incompletos!`);
+                            console.log(`   Faltan: ${datosFaltantes.join(', ')}`);
+                            console.log(`   Se creará notificación para el operador\n`);
+                            
+                            const mensaje = `⚠️ Cliente "${cliente.nombre}" realizó una operación pero le faltan datos: ${datosFaltantes.join(', ')}. Por favor actualizar su información.`;
+                            const fechaCreacion = new Date().toISOString();
+                            
+                            // Crear notificación para el operador que registró la operación
+                            db.run(
+                                `INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion) VALUES (?, ?, ?, ?, ?)`,
+                                [req.session.user.id, 'alerta', 'Datos de cliente incompletos', mensaje, fechaCreacion],
+                                (errNot) => {
+                                    if (errNot) console.error('❌ Error al crear notificación de datos incompletos:', errNot);
+                                    else console.log(`✅ Notificación creada para usuario ID ${req.session.user.id}`);
+                                }
+                            );
+                        } else {
+                            console.log(`✅ Cliente "${cliente.nombre}" tiene datos completos\n`);
+                        }
+                    }
+                });
+                
                 res.status(201).json({ id: this.lastID, message: 'Operación registrada con éxito.' });
               }
             );
@@ -2564,6 +2628,19 @@ app.get('/api/notificaciones/contador', apiAuth, (req, res) => {
     });
 });
 
+// Obtener notificaciones no leídas (para chatbot)
+app.get('/api/notificaciones/no-leidas', apiAuth, (req, res) => {
+    const userId = req.session.user.id;
+    
+    db.all(`SELECT * FROM notificaciones WHERE usuario_id = ? AND leida = 0 ORDER BY fecha_creacion DESC`, [userId], (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo notificaciones no leídas:', err);
+            return res.json([]);
+        }
+        res.json(rows || []);
+    });
+});
+
 // Generar tareas automáticas desde alertas
 app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, res) => {
     try {
@@ -2740,10 +2817,1395 @@ app.get('/api/operadores/mi-rendimiento', apiAuth, async (req, res) => {
 // FIN: SISTEMA DE TAREAS Y NOTIFICACIONES
 // =================================================================
 
+// ==================== CHATBOT ENDPOINT ====================
+app.post('/api/chatbot', apiAuth, async (req, res) => {
+    try {
+        const { message } = req.body;
+        const messageLower = message.toLowerCase();
+        const userRole = req.session.user?.role || 'operador';
+        const username = req.session.user?.username || 'Usuario';
+        const userId = req.session.user?.id;
+        
+        if (!message || message.trim().length === 0) {
+            return res.status(400).json({ reply: 'Por favor escribe un mensaje.' });
+        }
+
+        // Obtener datos del sistema para contexto adicional
+        let contextData = await obtenerContextoSistema(userId, userRole);
+        
+        // Verificar notificaciones no leídas
+        const notificacionesNoLeidasPromise = new Promise((resolve) => {
+            db.all(`
+                SELECT * FROM notificaciones 
+                WHERE usuario_id = ? AND leida = 0 
+                ORDER BY fecha_creacion DESC 
+                LIMIT 5
+            `, [userId], (err, rows) => {
+                if (err || !rows) return resolve([]);
+                resolve(rows);
+            });
+        });
+
+        // Obtener historial reciente de conversación (últimos 10 mensajes, últimas 24 horas)
+        const historialPromise = new Promise((resolve) => {
+            const hace24h = new Date();
+            hace24h.setHours(hace24h.getHours() - 24);
+            const fechaLimite = hace24h.toISOString();
+            
+            db.all(`
+                SELECT mensaje, respuesta, fecha_creacion
+                FROM chatbot_history
+                WHERE usuario_id = ?
+                AND fecha_creacion >= ?
+                ORDER BY fecha_creacion DESC
+                LIMIT 10
+            `, [userId, fechaLimite], (err, rows) => {
+                if (err || !rows) return resolve([]);
+                resolve(rows.reverse()); // Ordenar cronológicamente
+            });
+        });
+
+        const [historial, notificaciones] = await Promise.all([historialPromise, notificacionesNoLeidasPromise]);
+        
+        // Si hay notificaciones sin leer, validarlas antes de incluirlas
+        if (notificaciones.length > 0) {
+            // Filtrar notificaciones que ya están resueltas (por ejemplo, cliente ya completado)
+            const notificacionesValidas = [];
+            
+            for (const notif of notificaciones) {
+                let esValida = true;
+                
+                // Si es notificación de "datos incompletos", verificar si el cliente YA fue actualizado
+                if (notif.tipo === 'datos_incompletos' && notif.mensaje) {
+                    // Extraer nombre del cliente de la notificación
+                    const matchNombre = notif.mensaje.match(/Cliente "([^"]+)"/);
+                    if (matchNombre) {
+                        const nombreCliente = matchNombre[1];
+                        
+                        // Verificar si el cliente ahora tiene datos completos
+                        const clienteActual = await new Promise((resolve) => {
+                            db.get(
+                                `SELECT rut, email, telefono FROM clientes WHERE nombre = ? LIMIT 1`,
+                                [nombreCliente],
+                                (err, cliente) => {
+                                    if (err || !cliente) return resolve(null);
+                                    resolve(cliente);
+                                }
+                            );
+                        });
+                        
+                        // Si el cliente ahora tiene todos los datos, NO incluir la notificación
+                        if (clienteActual && clienteActual.rut && clienteActual.email && clienteActual.telefono) {
+                            esValida = false;
+                            // Marcar como leída automáticamente ya que está resuelta
+                            db.run(`UPDATE notificaciones SET leida = 1 WHERE id = ?`, [notif.id]);
+                            console.log(`✅ Notificación #${notif.id} marcada como leída automáticamente (cliente "${nombreCliente}" ya completo)`);
+                        }
+                    }
+                }
+                
+                if (esValida) {
+                    notificacionesValidas.push(notif);
+                }
+            }
+            
+            // Solo agregar notificaciones que siguen siendo relevantes
+            if (notificacionesValidas.length > 0) {
+                contextData.notificaciones_pendientes = notificacionesValidas;
+            }
+        }
+        
+        // Las consultas de clientes ahora se manejan automáticamente por OpenAI Function Calling
+        // Ya no necesitamos regex para detectar búsquedas - OpenAI decide cuándo llamar buscar_cliente()
+
+        // Las consultas ahora se manejan automáticamente por OpenAI Function Calling
+        // Ya no necesitamos regex para detectar consultas - OpenAI decide qué función llamar
+
+        // Contexto del sistema para el chatbot - ASISTENTE INTERNO DE OPERACIONES
+        const systemContext = `🧠 PROMPT SISTEMA – ASISTENTE INTERNO DE OPERACIONES Y SUPERVISOR SUAVE (DEFIORACLE.CL)
+
+Eres el Asistente Interno de Operaciones y Supervisor Suave de la empresa de remesas DefiOracle.cl.
+
+👉 Solo hablas con operadores y usuarios master del sistema.
+Nunca conversas directamente con el cliente final.
+
+Tu trabajo es ayudar, supervisar suavemente y mejorar el rendimiento de los operadores.
+
+USUARIO ACTUAL: "${username}" con rol de "${userRole}".
+
+1. INFORMACIÓN DE LA EMPRESA
+
+Nombre comercial: DefiOracle.cl
+Razón social: DEFI ORACLE SPA
+Rubro: Empresa de remesas y cambio de divisas, usando cripto (USDT) como puente.
+Ubicación: Santiago de Chile, comuna de Las Condes.
+Ámbito: Envía dinero desde Chile (CLP) hacia varios países (principalmente Venezuela, pero también Colombia, Perú, Argentina, República Dominicana, Europa y EE.UU.).
+
+DATOS BANCARIOS OFICIALES (cuenta CLP):
+Banco: BancoEstado – Chequera Electrónica
+Nombre: DEFI ORACLE SPA
+N.º de cuenta: 316-7-032793-3
+RUT: 77.354.262-7
+
+Horario de atención: 08:00–21:00 hrs, todos los días.
+
+Canales de atención:
+- Canal principal: WhatsApp (chat directo con clientes, envío de comprobantes, seguimiento)
+- Canal soporte/marketing: Instagram @DefiOracle.cl
+
+2. SERVICIOS Y DESTINOS
+
+Envío desde CLP (Chile) hacia:
+- Venezuela (VES): Provincial, Banesco, Banco de Venezuela, Tesoro, BNC, Mercantil, Bancamiga, Pago Móvil
+- Colombia (COP): Bancolombia, Davivienda, Daviplata, Nequi
+- Perú (PEN): BCP, Interbank
+- Bolivia (BOB): Bancos disponibles
+- Argentina (ARS): Bancos disponibles
+- Otros: República Dominicana, Europa, EE.UU.
+
+3. USO DE TASAS Y CONVERSIONES
+
+IMPORTANTE: Las tasas que debes usar son las TASAS DE VENTA (las que ofrecemos a los clientes):
+
+VENEZUELA (VES) - TASAS DE VENTA:
+- ≥ 5.000 CLP: ${contextData.tasas_actuales.VES_nivel1} VES por 1 CLP
+- ≥ 100.000 CLP: ${contextData.tasas_actuales.VES_nivel2} VES por 1 CLP
+- ≥ 250.000 CLP: ${contextData.tasas_actuales.VES_nivel3} VES por 1 CLP
+
+Estas son las tasas que los operadores ofrecen a los clientes finales.
+
+OTROS PAÍSES (COP, PEN, BOB, ARS):
+- Usa tasas basadas en Binance P2P ajustadas con margen
+
+PROMOCIONES POR BAJA ACTIVIDAD (solo Venezuela):
+- Cuando el sistema genere alerta de cliente inactivo/reducción de envíos
+- Tasa promo = Tasa base CLP→VES de Binance P2P – 3%
+- Genera mensaje personalizado con nombre del cliente y tasa promocional
+
+4. ASISTENTE DE CONVERSACIÓN
+
+Cuando el operador te escriba:
+- Entiende la intención (conversión, proceso, datos bancarios, tiempos, promo)
+- Genera respuesta clara, amigable, semiformal
+- Lista para copiar y pegar en WhatsApp
+
+DATOS BANCARIOS - Cuando se pidan, envía SIEMPRE:
+"Te dejo los datos de nuestra cuenta en Chile:
+Banco: BancoEstado – Chequera Electrónica
+Nombre: DEFI ORACLE SPA
+N.º de cuenta: 316-7-032793-3
+RUT: 77.354.262-7
+
+Después de hacer el pago, que el cliente envíe el comprobante por WhatsApp para procesar su envío 😉."
+
+5. SUPERVISIÓN DE DATOS DE CLIENTES Y ACCIONES COMO AGENTE
+
+Cliente "completo" = nombre, rut, email, telefono
+
+⚠️ IMPORTANTE: NO guardamos ni solicitamos datos bancarios de clientes. Solo validamos: RUT, email, teléfono.
+
+Si falta información, informa al operador de forma conversacional y sugiere actualizar los datos.
+
+🤖 MODO AGENTE AUTÓNOMO CON FUNCTION CALLING:
+
+Tienes acceso REAL a funciones para consultar la base de datos. OpenAI decide AUTOMÁTICAMENTE cuándo llamarlas según el contexto de la pregunta.
+
+FUNCIONES DISPONIBLES (llamadas automáticamente por ti):
+
+1️⃣ **buscar_cliente(nombre)**
+   - Cuándo usarla: Cuando pregunten sobre un cliente específico, si actualizaron datos, verificar información, etc.
+   - Ejemplos de preguntas:
+     * "¿ya actualizaron a Cris?"
+     * "datos de María"
+     * "tiene el cliente Juan todos los datos?"
+     * "verificar si Cris tiene email"
+   - Retorna: {encontrado, nombre, rut, email, telefono, datos_completos, faltan: [array con 'RUT', 'Email', 'Teléfono']}
+   - Razonamiento: Si preguntan "¿ya actualizaron a Cris?", TÚ decides llamar buscar_cliente("Cris"), recibes los datos actuales, y respondes si están completos o no
+   - CRÍTICO: Si el cliente tiene datos_completos=true, NO menciones que faltan datos. Si datos_completos=false, menciona SOLO lo que está en faltan[]
+
+2️⃣ **listar_operaciones_dia(limite)**
+   - Cuándo usarla: Cuando pregunten sobre operaciones de hoy, envíos realizados, última operación
+   - Ejemplos:
+     * "¿cuántas operaciones llevamos hoy?"
+     * "muéstrame las últimas operaciones"
+     * "qué envíos se hicieron hoy"
+   - Retorna: {total, operaciones: [{numero_recibo, cliente, monto_clp, monto_ves, tasa, operador, hora}]}
+
+3️⃣ **consultar_rendimiento()**
+   - Cuándo usarla: Cuando el operador pregunte sobre su desempeño, estadísticas, productividad
+   - Ejemplos:
+     * "cómo voy este mes?"
+     * "mi rendimiento"
+     * "cuántas operaciones he hecho?"
+   - Retorna: {total_operaciones, total_procesado_clp, ganancia_total_clp, ganancia_promedio_clp}
+
+4️⃣ **listar_clientes_incompletos(limite)**
+   - Cuándo usarla: Cuando pregunten sobre clientes pendientes de actualizar
+   - Ejemplos:
+     * "¿qué clientes faltan actualizar?"
+     * "clientes incompletos"
+     * "quién necesita completar datos?"
+   - Retorna: {total, clientes: [{nombre, faltan: [array]}]}
+
+5️⃣ **buscar_operaciones_cliente(nombre_cliente)**
+   - Cuándo usarla: Cuando pregunten sobre el historial de un cliente específico
+   - Ejemplos:
+     * "cuántas operaciones tiene Cris?"
+     * "historial de envíos de María"
+     * "ha enviado Juan anteriormente?"
+   - Retorna: {total, operaciones: [{numero_recibo, monto_clp, monto_ves, fecha}]}
+
+6️⃣ **calcular_conversion_moneda(monto, moneda_origen, moneda_destino)**
+   - Cuándo usarla: Cuando pregunten sobre conversiones entre monedas, cuánto transferir, tasas de cambio
+   - Ejemplos:
+     * "¿cuánto debo transferir en CLP para que lleguen 40.000 COP?"
+     * "convertir 100.000 CLP a VES"
+     * "cuántos dólares son 500.000 pesos chilenos?"
+     * "equivalencia entre pesos chilenos y colombianos"
+     * "cuál es la tasa CLP a COP"
+   - Monedas soportadas: CLP (Chile), COP (Colombia), VES (Venezuela), USD (Dólares), ARS (Argentina), PEN (Perú), BRL (Brasil), MXN (México), EUR (Euro), UYU (Uruguay)
+   - Retorna: {monto_origen, moneda_origen, nombre_moneda_origen, monto_convertido, moneda_destino, nombre_moneda_destino, tasa_cambio, formula}
+   
+   📐 FÓRMULAS DE CONVERSIÓN (IMPORTANTE):
+   
+   Para convertir DESDE moneda A HACIA moneda B:
+   Monto en B = Monto en A × Tasa(A→B)
+   
+   Ejemplos prácticos:
+   
+   ✅ "¿Cuántos COP son 100.000 CLP?"
+   → Llamas: calcular_conversion_moneda(100000, "CLP", "COP")
+   → Tasa CLP→COP = 4 (porque 1 CLP = 4 COP)
+   → Resultado: 100.000 × 4 = 400.000 COP
+   
+   ✅ "¿Cuántos CLP necesito transferir para que lleguen 40.000 COP?"
+   → Usuario pregunta: Cuántos CLP → 40.000 COP (quiere saber el origen)
+   → Llamas: calcular_conversion_moneda(40000, "COP", "CLP")
+   → Tasa COP→CLP = 0.25 (porque 1 COP = 0.25 CLP)
+   → Resultado: 40.000 × 0.25 = 10.000 CLP
+   → Respondes: "Para que lleguen 40.000 COP, debes transferir 10.000 CLP"
+   
+   ✅ "¿Cuántos VES recibe el cliente por 50.000 CLP?"
+   → Llamas: calcular_conversion_moneda(50000, "CLP", "VES")
+   → Resultado basado en tasa actual
+   
+   ⚠️ IMPORTANTE - INTERPRETACIÓN DE PREGUNTAS:
+   
+   Cuando pregunten "¿cuánto debo transferir para que lleguen X [moneda destino]?":
+   - El usuario TIENE moneda destino conocida (X unidades)
+   - El usuario NECESITA saber cuánta moneda origen enviar
+   - Llamas: calcular_conversion_moneda(X, "moneda_destino", "moneda_origen")
+   
+   Cuando pregunten "¿cuánto llega si envío X [moneda origen]?":
+   - El usuario TIENE moneda origen conocida (X unidades)
+   - El usuario NECESITA saber cuánto llega en moneda destino
+   - Llamas: calcular_conversion_moneda(X, "moneda_origen", "moneda_destino")
+
+RAZONAMIENTO AUTÓNOMO:
+
+✅ TÚ DECIDES qué función llamar según el contexto de la pregunta
+✅ OpenAI analiza la pregunta y elige la función apropiada automáticamente
+✅ NO necesitas que el usuario use palabras exactas
+✅ Entiendes intención: "¿ya está listo Cris?" → buscar_cliente("Cris") → revisar datos_completos
+
+EJEMPLOS DE RAZONAMIENTO:
+
+Pregunta: "¿ya actualizaron a ese cliente Cris?"
+→ TÚ razonas: "Necesito buscar si Cris existe y si sus datos están completos"
+→ Llamas: buscar_cliente("Cris")
+→ Recibes: {encontrado: true, nombre: "Cris", rut: "12345", email: "cris@mail.com", telefono: "987654", datos_completos: true, faltan: []}
+→ Respondes: "Sí, Cris ya está completo ✅. Tiene RUT, email y teléfono registrados."
+
+Pregunta: "tiene datos el cliente que se llama María?"
+→ Llamas: buscar_cliente("María")
+→ Respondes según lo que encuentres
+
+Pregunta: "cuánto he trabajado este mes?"
+→ Llamas: consultar_rendimiento()
+→ Respondes con las estadísticas
+
+IMPORTANTE:
+
+✅ Llamas funciones AUTOMÁTICAMENTE cuando detectas la necesidad
+✅ NO pidas permiso para consultar - simplemente hazlo
+✅ Presenta los resultados de forma conversacional y amigable
+✅ Si no encuentras datos, dilo claramente: "No encontré cliente con ese nombre"
+✅ NO inventes información - usa SOLO lo que las funciones retornan
+
+6. GESTIÓN DE TAREAS Y RENDIMIENTO
+
+Revisa tareas pendientes o vencidas
+Como supervisor suave, pregunta sin regañar
+Sugiere actualización de tareas según respuesta del operador
+
+Rendimiento: Usa /api/mi-rendimiento para explicar métricas del mes
+
+7. CONTEXTO CONVERSACIONAL Y NOTIFICACIONES
+
+Mantén el contexto de la conversación. Si el operador te preguntó algo anteriormente, recuérdalo.
+
+🔔 IMPORTANTE - NOTIFICACIONES PROACTIVAS (OBLIGATORIO):
+
+⚠️ REGLA ABSOLUTA - VERIFICA PRIMERO:
+ANTES de responder cualquier cosa, REVISA si contextData.notificaciones_pendientes tiene contenido.
+
+Si contextData.notificaciones_pendientes existe y NO está vacío:
+- 🚨 DEBES mencionarlas INMEDIATAMENTE en tu respuesta
+- ❌ NO respondas nada más sin mencionarlas primero
+- ✅ Menciónalas ANTES de responder cualquier otra cosa
+
+CUÁNDO MENCIONAR NOTIFICACIONES:
+- ✅ SIEMPRE que contextData.notificaciones_pendientes tenga datos
+- ✅ Especialmente cuando el usuario te salude ("hola", "buenos días", "qué hay", etc.)
+- ✅ Cuando pregunten "tengo notificaciones?", "qué hay pendiente", "tareas", "alertas"
+- ❌ NUNCA digas "no hay notificaciones" si contextData.notificaciones_pendientes tiene elementos
+
+EJEMPLO VERIFICACIÓN:
+Usuario: "hola"
+TÚ piensas: ¿Hay algo en contextData.notificaciones_pendientes?
+- SI HAY: Mencionar PRIMERO las notificaciones
+- NO HAY: Saludo normal
+
+CÓMO MENCIONAR NOTIFICACIONES:
+- Ejemplo BUENO: "¡Hola! 👋 Mira, hay un tema: el cliente Craus hizo un envío pero le faltan RUT, email y teléfono. ¿Lo revisamos?"
+- Ejemplo MALO: "Notificación #1: Cliente Craus tiene datos incompletos..."
+- Si hay varias (2-3), menciónalas: "Hay un par de cosas: 1) Craus necesita datos, 2) María también..."
+- Si hay muchas (>3): "Tienes 5 notificaciones. Las más importantes: Craus y María necesitan actualizar datos"
+
+FORMATO DE RESPUESTA CON NOTIFICACIONES:
+1. Saludo breve
+2. ⭐ MENCIONA LAS NOTIFICACIONES (palabra clave: "pendiente", "falta", "incompleto", etc.)
+3. Pregunta si quiere más detalles
+
+Ejemplo completo cuando preguntan "tengo notificaciones?":
+"Sí! Tienes 1 notificación pendiente: el cliente Craus hizo una operación pero le faltan datos (RUT, email, teléfono). ¿Quieres que busque más info?"
+
+❌ NUNCA digas "no hay notificaciones" si contextData.notificaciones_pendientes tiene contenido
+
+CRÍTICO - SOBRE CONSULTAS DE DATOS ESPECÍFICOS:
+- SI te piden datos de un cliente específico, revisa si hay información en contextData.cliente_consultado
+- Si contextData.cliente_consultado existe, muestra esos datos de forma conversacional y clara
+- Si NO existe cliente_consultado pero te piden datos, sugiere verificar el nombre del cliente
+- NUNCA inventes datos como RUT, email, teléfono
+- Solo usa la información real que viene en contextData
+
+CUANDO MUESTRES DATOS DE UN CLIENTE:
+- Formato conversacional, NO listados robóticos
+- Ejemplo BUENO: "Cris está registrado desde [fecha]. Tiene RUT: xxx, email: xxx, teléfono: xxx. Todo completo ✅"
+- Ejemplo MALO: "Datos del cliente: - Nombre: Cris - RUT: xxx..."
+- Si faltan datos, menciónalos de forma natural: "A Cris le falta el email y el teléfono, el RUT sí lo tiene"
+
+8. ESTILO Y TONO
+
+- CONVERSACIONAL, cercano, como un compañero de trabajo que ayuda
+- Respuestas CORTAS y directas (evita textos largos)
+- Usa emojis con moderación (1-2 por mensaje máximo)
+- Nunca regañes, siempre sugiere con frases tipo "Ojo con este detalle..." o "Te sugiero..."
+- Mismo idioma del operador (por defecto español chileno)
+- Si falta información clave, pide aclaración de forma natural
+- NO inventes información que no tienes
+
+TU ROL: Eres como un supervisor amigable que ayuda - explicas, corriges, sugieres y acompañas. Nunca atacas ni regañas.
+
+DATOS DEL SISTEMA ACTUAL:
+${JSON.stringify(contextData, null, 2)}
+
+Usa estos datos cuando sea necesario para responder consultas sobre tasas, clientes, rendimiento, etc.`;
+
+        const reply = await generateChatbotResponse(message, systemContext, userRole, username, contextData, historial, userId);
+        
+        // CRÍTICO: Solo marcar notificaciones como leídas si el chatbot las mencionó en su respuesta
+        // Verificamos si la respuesta contiene palabras clave de notificaciones
+        if (contextData.notificaciones_pendientes && contextData.notificaciones_pendientes.length > 0) {
+            const replyLower = reply.toLowerCase();
+            const mencionoNotificaciones = 
+                replyLower.includes('notificaci') || 
+                replyLower.includes('pendiente') || 
+                replyLower.includes('falta') || 
+                replyLower.includes('incompleto') ||
+                replyLower.includes('datos') ||
+                replyLower.includes('alerta');
+            
+            // Solo marcar como leídas si el chatbot realmente las mencionó
+            if (mencionoNotificaciones) {
+                const notifIds = contextData.notificaciones_pendientes.map(n => n.id);
+                db.run(
+                    `UPDATE notificaciones SET leida = 1 WHERE id IN (${notifIds.join(',')})`,
+                    (err) => {
+                        if (!err) {
+                            console.log(`✅ ${notifIds.length} notificación(es) marcada(s) como leída(s) (chatbot las mencionó en su respuesta)`);
+                        }
+                    }
+                );
+            } else {
+                console.log(`ℹ️ Notificaciones NO marcadas como leídas - el chatbot no las mencionó en esta respuesta`);
+            }
+        }
+        
+        // Guardar conversación en el historial
+        const fechaCreacion = new Date().toISOString();
+        await new Promise((resolve, reject) => {
+            db.run(
+                `INSERT INTO chatbot_history (usuario_id, rol, mensaje, respuesta, contexto_datos, fecha_creacion) 
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [userId, userRole, message, reply, JSON.stringify(contextData), fechaCreacion],
+                (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+        
+        res.json({ reply });
+    } catch (error) {
+        console.error('Error en chatbot:', error);
+        res.status(500).json({ reply: 'Lo siento, ocurrió un error. Por favor intenta de nuevo.' });
+    }
+});
+
+// Función para obtener contexto del sistema para el chatbot
+async function obtenerContextoSistema(userId, userRole) {
+    const context = {
+        tasas_actuales: null,
+        rendimiento_operador: null,
+        tareas_pendientes: null,
+        total_clientes: 0
+    };
+
+    try {
+        // Obtener tasas de VENTA (las que ve el cliente) - tasaNivel1, tasaNivel2, tasaNivel3
+        const tasasVentaPromise = new Promise((resolve) => {
+            readConfig('tasaNivel1', (e1, v1) => {
+                readConfig('tasaNivel2', (e2, v2) => {
+                    readConfig('tasaNivel3', (e3, v3) => {
+                        resolve({
+                            nivel1: v1 ? Number(v1) : 0.30,
+                            nivel2: v2 ? Number(v2) : 0.30,
+                            nivel3: v3 ? Number(v3) : 0.30
+                        });
+                    });
+                });
+            });
+        });
+
+        // Obtener total de clientes
+        const totalClientesPromise = new Promise((resolve) => {
+            db.get(`SELECT COUNT(*) as total FROM clientes`, [], (err, row) => {
+                if (err) return resolve(0);
+                resolve(row.total || 0);
+            });
+        });
+
+        // Obtener tasas P2P base (si existen en configuración)
+        const [tasasVenta, totalClientes, tasaCOP, tasaPEN, tasaBOB, tasaARS] = await Promise.all([
+            tasasVentaPromise,
+            totalClientesPromise,
+            readConfigValue('tasaBaseCLP_COP').catch(() => 0),
+            readConfigValue('tasaBaseCLP_PEN').catch(() => 0),
+            readConfigValue('tasaBaseCLP_BOB').catch(() => 0),
+            readConfigValue('tasaBaseCLP_ARS').catch(() => 0)
+        ]);
+
+        context.total_clientes = totalClientes;
+        
+        context.tasas_actuales = {
+            VES_nivel1: tasasVenta.nivel1,
+            VES_nivel2: tasasVenta.nivel2,
+            VES_nivel3: tasasVenta.nivel3,
+            VES_descripcion: "Tasas de VENTA a clientes (≥5K, ≥100K, ≥250K CLP). Estas son las que ofrecemos.",
+            COP: tasaCOP,
+            COP_descripcion: "Tasa base Binance P2P ajustada con margen",
+            PEN: tasaPEN,
+            PEN_descripcion: "Tasa base Binance P2P ajustada con margen",
+            BOB: tasaBOB,
+            BOB_descripcion: "Tasa base Binance P2P ajustada con margen",
+            ARS: tasaARS,
+            ARS_descripcion: "Tasa base Binance P2P ajustada con margen"
+        };
+
+        // Si es operador, obtener su rendimiento
+        if (userRole === 'operador' && userId) {
+            const rendimientoPromise = new Promise((resolve) => {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = now.getMonth() + 1;
+                const primerDia = `${year}-${String(month).padStart(2, '0')}-01`;
+                const ultimoDia = `${year}-${String(month).padStart(2, '0')}-31`;
+
+                const sql = `
+                    SELECT 
+                        COUNT(*) as total_operaciones,
+                        IFNULL(SUM(monto_clp), 0) as volumen_total,
+                        COUNT(DISTINCT cliente_id) as clientes_unicos
+                    FROM operaciones 
+                    WHERE usuario_id = ? 
+                    AND date(fecha) >= date(?) 
+                    AND date(fecha) <= date(?)
+                `;
+
+                db.get(sql, [userId, primerDia, ultimoDia], (err, row) => {
+                    if (err) return resolve(null);
+                    const volumenMillones = row.volumen_total / 1000000;
+                    const millones = Math.floor(volumenMillones);
+                    const bonificacion = millones * 2;
+                    
+                    resolve({
+                        total_operaciones: row.total_operaciones,
+                        millones_comisionables: millones,
+                        bonificacion_usd: bonificacion,
+                        clientes_unicos: row.clientes_unicos
+                    });
+                });
+            });
+
+            context.rendimiento_operador = await rendimientoPromise;
+        }
+
+        // Obtener tareas pendientes del usuario
+        if (userId) {
+            const tareasPromise = new Promise((resolve) => {
+                db.all(`
+                    SELECT id, titulo, prioridad, estado, fecha_vencimiento
+                    FROM tareas 
+                    WHERE asignado_a = ? 
+                    AND estado IN ('pendiente', 'en_progreso')
+                    ORDER BY 
+                        CASE prioridad 
+                            WHEN 'urgente' THEN 1 
+                            WHEN 'alta' THEN 2 
+                            WHEN 'normal' THEN 3 
+                            ELSE 4 
+                        END,
+                        fecha_vencimiento ASC
+                    LIMIT 5
+                `, [userId], (err, rows) => {
+                    if (err) return resolve([]);
+                    resolve(rows);
+                });
+            });
+
+            context.tareas_pendientes = await tareasPromise;
+        }
+
+    } catch (error) {
+        console.error('Error obteniendo contexto del sistema:', error);
+    }
+
+    return context;
+}
+
+// 💱 TASAS DE CAMBIO P2P (Base: CLP)
+// Actualizar estas tasas regularmente según el mercado
+const TASAS_CAMBIO_P2P = {
+    // Moneda: tasa (1 unidad de moneda origen = X CLP)
+    'CLP': 1,           // Peso Chileno (base)
+    'COP': 0.25,        // Peso Colombiano (1 COP = 0.25 CLP, o 1 CLP = 4 COP)
+    'VES': 33.33,       // Bolívar Venezolano (1 VES = 33.33 CLP, o 1 CLP = 0.03 VES)
+    'USD': 950,         // Dólar estadounidense (1 USD = 950 CLP)
+    'ARS': 1.05,        // Peso Argentino (1 ARS = 1.05 CLP)
+    'PEN': 250,         // Sol Peruano (1 PEN = 250 CLP)
+    'BRL': 190,         // Real Brasileño (1 BRL = 190 CLP)
+    'MXN': 55,          // Peso Mexicano (1 MXN = 55 CLP)
+    'EUR': 1050,        // Euro (1 EUR = 1050 CLP)
+    'UYU': 23          // Peso Uruguayo (1 UYU = 23 CLP)
+};
+
+// Función para obtener tasa de cambio actualizada desde DB o usar default
+async function obtenerTasaCambioActual(monedaOrigen, monedaDestino) {
+    // Por ahora usar las tasas fijas, pero esto puede extenderse para
+    // consultar tasas dinámicas desde la tabla de operaciones recientes
+    
+    if (monedaOrigen === monedaDestino) return 1;
+    
+    const tasaOrigenACLP = TASAS_CAMBIO_P2P[monedaOrigen.toUpperCase()];
+    const tasaDestinoACLP = TASAS_CAMBIO_P2P[monedaDestino.toUpperCase()];
+    
+    if (!tasaOrigenACLP || !tasaDestinoACLP) {
+        return null; // Moneda no soportada
+    }
+    
+    // Convertir: Origen → CLP → Destino
+    return tasaOrigenACLP / tasaDestinoACLP;
+}
+
+// 🤖 FUNCIONES DISPONIBLES PARA EL AGENTE (Function Calling)
+const agentFunctions = [
+    {
+        name: "calcular_conversion_moneda",
+        description: "Calcula conversiones entre monedas del P2P. Úsalo cuando pregunten: '¿cuánto debo transferir para que lleguen X pesos colombianos?', 'convertir X a otra moneda', 'cuál es la tasa', 'equivalencia entre monedas', etc. Monedas soportadas: CLP (Chile), COP (Colombia), VES (Venezuela), USD, ARS (Argentina), PEN (Perú), BRL (Brasil), MXN (México), EUR, UYU (Uruguay).",
+        parameters: {
+            type: "object",
+            properties: {
+                monto: {
+                    type: "number",
+                    description: "Cantidad a convertir"
+                },
+                moneda_origen: {
+                    type: "string",
+                    description: "Código de la moneda origen (CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU)"
+                },
+                moneda_destino: {
+                    type: "string",
+                    description: "Código de la moneda destino (CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU)"
+                }
+            },
+            required: ["monto", "moneda_origen", "moneda_destino"]
+        }
+    },
+    {
+        name: "buscar_cliente",
+        description: "Busca un cliente en la base de datos por nombre. Usa esto cuando el usuario pregunte sobre datos de un cliente específico, si ya actualizaron un cliente, verificar información, etc.",
+        parameters: {
+            type: "object",
+            properties: {
+                nombre: {
+                    type: "string",
+                    description: "Nombre o parte del nombre del cliente a buscar"
+                }
+            },
+            required: ["nombre"]
+        }
+    },
+    {
+        name: "listar_operaciones_dia",
+        description: "Lista las operaciones realizadas hoy. Usa esto cuando pregunten sobre envíos, transferencias, operaciones del día, última operación, etc.",
+        parameters: {
+            type: "object",
+            properties: {
+                limite: {
+                    type: "number",
+                    description: "Número máximo de operaciones a listar (por defecto 10)"
+                }
+            }
+        }
+    },
+    {
+        name: "consultar_rendimiento",
+        description: "Consulta el rendimiento del operador actual en el mes. Usa esto cuando pregunten 'cómo voy', 'mi desempeño', 'mis operaciones', 'cuánto he hecho', etc.",
+        parameters: {
+            type: "object",
+            properties: {}
+        }
+    },
+    {
+        name: "listar_clientes_incompletos",
+        description: "Lista clientes que tienen datos faltantes (RUT, email o teléfono). Usa esto cuando pregunten sobre clientes pendientes, incompletos, que faltan actualizar, etc.",
+        parameters: {
+            type: "object",
+            properties: {
+                limite: {
+                    type: "number",
+                    description: "Número máximo de clientes a listar (por defecto 10)"
+                }
+            }
+        }
+    },
+    {
+        name: "buscar_operaciones_cliente",
+        description: "Busca las operaciones de un cliente específico. Usa esto cuando pregunten cuántas operaciones tiene un cliente, historial de envíos de alguien, etc.",
+        parameters: {
+            type: "object",
+            properties: {
+                nombre_cliente: {
+                    type: "string",
+                    description: "Nombre del cliente cuyas operaciones buscar"
+                }
+            },
+            required: ["nombre_cliente"]
+        }
+    }
+];
+
+// Función para generar respuestas del chatbot con Function Calling
+async function generateChatbotResponse(userMessage, systemContext, userRole, username, contextData, historial = [], userId = null) {
+    const messageLower = userMessage.toLowerCase();
+    
+    // SOLO respuestas ultra-rápidas de datos bancarios (se usan mucho)
+    if (messageLower === 'datos bancarios' || messageLower === 'cuenta bancaria' || messageLower === 'datos banco') {
+        return `🏦 **Datos Bancarios DefiOracle.cl:**\n\nBanco: BancoEstado – Chequera Electrónica\nNombre: DEFI ORACLE SPA\nCuenta: 316-7-032793-3\nRUT: 77.354.262-7\n\n✅ Listo para copiar y pegar.`;
+    }
+    
+    // Para todo lo demás, usar OpenAI con Function Calling
+    try {
+        const OPENAI_API_KEY = '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';
+        
+        // Construir mensajes con historial de conversación
+        const messages = [
+            { role: 'system', content: systemContext }
+        ];
+        
+        // Agregar historial de conversación (últimos 10 mensajes)
+        if (historial && historial.length > 0) {
+            historial.forEach(h => {
+                messages.push({ role: 'user', content: h.mensaje });
+                messages.push({ role: 'assistant', content: h.respuesta });
+            });
+        }
+        
+        // Agregar mensaje actual del usuario
+        messages.push({ role: 'user', content: userMessage });
+        
+        // Primera llamada a OpenAI con function calling
+        let response = await axios.post('https://api.openai.com/v1/chat/completions', {
+            model: 'gpt-3.5-turbo',
+            messages: messages,
+            functions: agentFunctions,
+            function_call: "auto",
+            max_tokens: 500,
+            temperature: 0.8
+        }, {
+            headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        let responseMessage = response.data.choices[0].message;
+        
+        // Si OpenAI decidió llamar una función
+        if (responseMessage.function_call) {
+            const functionName = responseMessage.function_call.name;
+            const functionArgs = JSON.parse(responseMessage.function_call.arguments);
+            
+            console.log(`🤖 Agente llamando función: ${functionName} con args:`, functionArgs);
+            
+            let functionResult = null;
+            
+            // Ejecutar la función solicitada
+            switch (functionName) {
+                case 'calcular_conversion_moneda':
+                    functionResult = await new Promise(async (resolve) => {
+                        const { monto, moneda_origen, moneda_destino } = functionArgs;
+                        
+                        const monedaOrigenUpper = moneda_origen.toUpperCase();
+                        const monedaDestinoUpper = moneda_destino.toUpperCase();
+                        
+                        // Validar monedas soportadas
+                        if (!TASAS_CAMBIO_P2P[monedaOrigenUpper]) {
+                            resolve({ 
+                                error: true, 
+                                mensaje: `❌ La moneda "${moneda_origen}" no está soportada. Monedas disponibles: CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU` 
+                            });
+                            return;
+                        }
+                        
+                        if (!TASAS_CAMBIO_P2P[monedaDestinoUpper]) {
+                            resolve({ 
+                                error: true, 
+                                mensaje: `❌ La moneda "${moneda_destino}" no está soportada. Monedas disponibles: CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU` 
+                            });
+                            return;
+                        }
+                        
+                        const tasa = await obtenerTasaCambioActual(monedaOrigenUpper, monedaDestinoUpper);
+                        
+                        if (!tasa) {
+                            resolve({ error: true, mensaje: "Error al obtener tasa de cambio" });
+                            return;
+                        }
+                        
+                        const montoConvertido = monto * tasa;
+                        
+                        // Nombres de monedas para respuesta más amigable
+                        const nombreMonedas = {
+                            'CLP': 'Pesos Chilenos',
+                            'COP': 'Pesos Colombianos',
+                            'VES': 'Bolívares Venezolanos',
+                            'USD': 'Dólares',
+                            'ARS': 'Pesos Argentinos',
+                            'PEN': 'Soles Peruanos',
+                            'BRL': 'Reales Brasileños',
+                            'MXN': 'Pesos Mexicanos',
+                            'EUR': 'Euros',
+                            'UYU': 'Pesos Uruguayos'
+                        };
+                        
+                        resolve({
+                            monto_origen: monto,
+                            moneda_origen: monedaOrigenUpper,
+                            nombre_moneda_origen: nombreMonedas[monedaOrigenUpper],
+                            monto_convertido: Math.round(montoConvertido * 100) / 100,
+                            moneda_destino: monedaDestinoUpper,
+                            nombre_moneda_destino: nombreMonedas[monedaDestinoUpper],
+                            tasa_cambio: Math.round(tasa * 10000) / 10000,
+                            formula: `${monto} ${monedaOrigenUpper} × ${Math.round(tasa * 10000) / 10000} = ${Math.round(montoConvertido * 100) / 100} ${monedaDestinoUpper}`
+                        });
+                    });
+                    break;
+                
+                case 'buscar_cliente':
+                    functionResult = await new Promise((resolve) => {
+                        db.get(
+                            `SELECT id, nombre, rut, email, telefono, fecha_creacion 
+                             FROM clientes 
+                             WHERE LOWER(nombre) LIKE LOWER(?)
+                             LIMIT 1`,
+                            [`%${functionArgs.nombre}%`],
+                            (err, cliente) => {
+                                if (!err && cliente) {
+                                    const faltan = [];
+                                    if (!cliente.rut) faltan.push('RUT');
+                                    if (!cliente.email) faltan.push('Email');
+                                    if (!cliente.telefono) faltan.push('Teléfono');
+                                    
+                                    resolve({
+                                        encontrado: true,
+                                        id: cliente.id,
+                                        nombre: cliente.nombre,
+                                        rut: cliente.rut || null,
+                                        email: cliente.email || null,
+                                        telefono: cliente.telefono || null,
+                                        fecha_creacion: cliente.fecha_creacion,
+                                        datos_completos: !!(cliente.rut && cliente.email && cliente.telefono),
+                                        faltan: faltan
+                                    });
+                                } else {
+                                    resolve({ encontrado: false, mensaje: `No se encontró cliente con nombre similar a "${functionArgs.nombre}"` });
+                                }
+                            }
+                        );
+                    });
+                    break;
+                    
+                case 'listar_operaciones_dia':
+                    functionResult = await new Promise((resolve) => {
+                        const limite = functionArgs.limite || 10;
+                        db.all(
+                            `SELECT o.id, o.numero_recibo, o.monto_clp, o.monto_ves, o.tasa, o.fecha,
+                                    c.nombre as cliente_nombre,
+                                    u.username as operador
+                             FROM operaciones o
+                             LEFT JOIN clientes c ON o.cliente_id = c.id
+                             LEFT JOIN usuarios u ON o.usuario_id = u.id
+                             WHERE DATE(o.fecha) = DATE('now', 'localtime')
+                             ORDER BY o.fecha DESC
+                             LIMIT ?`,
+                            [limite],
+                            (err, operaciones) => {
+                                if (!err && operaciones && operaciones.length > 0) {
+                                    resolve({
+                                        total: operaciones.length,
+                                        operaciones: operaciones.map(op => ({
+                                            numero_recibo: op.numero_recibo,
+                                            cliente: op.cliente_nombre,
+                                            monto_clp: op.monto_clp,
+                                            monto_ves: op.monto_ves,
+                                            tasa: op.tasa,
+                                            operador: op.operador,
+                                            hora: new Date(op.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
+                                        }))
+                                    });
+                                } else {
+                                    resolve({ total: 0, mensaje: "No hay operaciones registradas hoy" });
+                                }
+                            }
+                        );
+                    });
+                    break;
+                    
+                case 'consultar_rendimiento':
+                    functionResult = await new Promise((resolve) => {
+                        db.get(
+                            `SELECT 
+                                COUNT(*) as total_ops,
+                                SUM(monto_clp) as total_clp,
+                                SUM(ganancia_neta_clp) as ganancia_total,
+                                AVG(ganancia_neta_clp) as ganancia_promedio
+                             FROM operaciones
+                             WHERE usuario_id = ? 
+                             AND strftime('%Y-%m', fecha) = strftime('%Y-%m', 'now')`,
+                            [userId],
+                            (err, stats) => {
+                                if (!err && stats && stats.total_ops > 0) {
+                                    resolve({
+                                        total_operaciones: stats.total_ops,
+                                        total_procesado_clp: Math.round(stats.total_clp),
+                                        ganancia_total_clp: Math.round(stats.ganancia_total),
+                                        ganancia_promedio_clp: Math.round(stats.ganancia_promedio)
+                                    });
+                                } else {
+                                    resolve({ total_operaciones: 0, mensaje: "No hay operaciones este mes" });
+                                }
+                            }
+                        );
+                    });
+                    break;
+                    
+                case 'listar_clientes_incompletos':
+                    functionResult = await new Promise((resolve) => {
+                        const limite = functionArgs.limite || 10;
+                        db.all(
+                            `SELECT id, nombre, rut, email, telefono, fecha_creacion
+                             FROM clientes
+                             WHERE (rut IS NULL OR rut = '' OR email IS NULL OR email = '' OR telefono IS NULL OR telefono = '')
+                             ORDER BY fecha_creacion DESC
+                             LIMIT ?`,
+                            [limite],
+                            (err, clientes) => {
+                                if (!err && clientes && clientes.length > 0) {
+                                    resolve({
+                                        total: clientes.length,
+                                        clientes: clientes.map(c => {
+                                            const faltan = [];
+                                            if (!c.rut || c.rut === '') faltan.push('RUT');
+                                            if (!c.email || c.email === '') faltan.push('Email');
+                                            if (!c.telefono || c.telefono === '') faltan.push('Teléfono');
+                                            return {
+                                                nombre: c.nombre,
+                                                faltan: faltan
+                                            };
+                                        })
+                                    });
+                                } else {
+                                    resolve({ total: 0, mensaje: "Todos los clientes tienen datos completos" });
+                                }
+                            }
+                        );
+                    });
+                    break;
+                    
+                case 'buscar_operaciones_cliente':
+                    functionResult = await new Promise((resolve) => {
+                        db.all(
+                            `SELECT o.numero_recibo, o.monto_clp, o.monto_ves, o.fecha
+                             FROM operaciones o
+                             JOIN clientes c ON o.cliente_id = c.id
+                             WHERE LOWER(c.nombre) LIKE LOWER(?)
+                             ORDER BY o.fecha DESC
+                             LIMIT 20`,
+                            [`%${functionArgs.nombre_cliente}%`],
+                            (err, operaciones) => {
+                                if (!err && operaciones && operaciones.length > 0) {
+                                    resolve({
+                                        total: operaciones.length,
+                                        operaciones: operaciones.map(op => ({
+                                            numero_recibo: op.numero_recibo,
+                                            monto_clp: op.monto_clp,
+                                            monto_ves: op.monto_ves,
+                                            fecha: new Date(op.fecha).toLocaleDateString('es-CL')
+                                        }))
+                                    });
+                                } else {
+                                    resolve({ total: 0, mensaje: `No se encontraron operaciones para cliente "${functionArgs.nombre_cliente}"` });
+                                }
+                            }
+                        );
+                    });
+                    break;
+            }
+            
+            // Agregar el resultado de la función a los mensajes
+            messages.push(responseMessage);
+            messages.push({
+                role: 'function',
+                name: functionName,
+                content: JSON.stringify(functionResult)
+            });
+            
+            // Segunda llamada a OpenAI para que genere respuesta final con los datos
+            response = await axios.post('https://api.openai.com/v1/chat/completions', {
+                model: 'gpt-3.5-turbo',
+                messages: messages,
+                max_tokens: 500,
+                temperature: 0.8
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            return response.data.choices[0].message.content;
+        }
+        
+        // Si no llamó ninguna función, retornar respuesta directa
+        return responseMessage.content;
+        
+    } catch (error) {
+        console.error('Error API OpenAI:', error.response?.data || error.message);
+        // Si falla OpenAI, respuesta genérica humanizada
+        return `Entiendo tu consulta, ${username}. Como asistente de DefiOracle.cl puedo ayudarte con conversiones, datos bancarios, tareas, y más. ¿Podrías darme más detalles de lo que necesitas?`;
+    }
+}
+
+// Endpoint para ver logs del sistema (solo master)
+app.get('/api/logs/sistema', apiAuth, onlyMaster, (req, res) => {
+    const { tipo, limite = 50 } = req.query;
+    
+    const logs = [];
+    const promises = [];
+    
+    // Log de operaciones recientes
+    if (!tipo || tipo === 'operaciones') {
+        promises.push(new Promise((resolve) => {
+            db.all(`
+                SELECT o.*, c.nombre as cliente_nombre, u.username as operador
+                FROM operaciones o
+                LEFT JOIN clientes c ON o.cliente_id = c.id
+                LEFT JOIN usuarios u ON o.usuario_id = u.id
+                ORDER BY o.fecha DESC, o.id DESC
+                LIMIT ?
+            `, [parseInt(limite)], (err, rows) => {
+                if (!err && rows) {
+                    rows.forEach(op => {
+                        logs.push({
+                            tipo: 'operacion',
+                            fecha: op.fecha,
+                            mensaje: `💰 Operación #${op.numero_recibo || op.id} - ${op.cliente_nombre} - ${op.monto_clp} CLP (${op.operador})`,
+                            detalles: op
+                        });
+                    });
+                }
+                resolve();
+            });
+        }));
+    }
+    
+    // Log de notificaciones
+    if (!tipo || tipo === 'notificaciones') {
+        promises.push(new Promise((resolve) => {
+            db.all(`
+                SELECT n.*, u.username
+                FROM notificaciones n
+                LEFT JOIN usuarios u ON n.usuario_id = u.id
+                ORDER BY n.fecha_creacion DESC
+                LIMIT ?
+            `, [parseInt(limite)], (err, rows) => {
+                if (!err && rows) {
+                    rows.forEach(not => {
+                        logs.push({
+                            tipo: 'notificacion',
+                            fecha: not.fecha_creacion,
+                            mensaje: `🔔 ${not.titulo} - ${not.username} - ${not.leida ? 'Leída' : 'No leída'}`,
+                            detalles: not
+                        });
+                    });
+                }
+                resolve();
+            });
+        }));
+    }
+    
+    // Log de alertas
+    if (!tipo || tipo === 'alertas') {
+        promises.push(new Promise((resolve) => {
+            db.all(`
+                SELECT a.*, c.nombre as cliente_nombre
+                FROM alertas a
+                LEFT JOIN clientes c ON a.cliente_id = c.id
+                ORDER BY a.fecha_creacion DESC
+                LIMIT ?
+            `, [parseInt(limite)], (err, rows) => {
+                if (!err && rows) {
+                    rows.forEach(alerta => {
+                        logs.push({
+                            tipo: 'alerta',
+                            fecha: alerta.fecha_creacion,
+                            mensaje: `⚠️ ${alerta.tipo} - ${alerta.cliente_nombre} - Severidad: ${alerta.severidad}`,
+                            detalles: alerta
+                        });
+                    });
+                }
+                resolve();
+            });
+        }));
+    }
+    
+    // Log de clientes con datos incompletos
+    if (!tipo || tipo === 'clientes_incompletos') {
+        promises.push(new Promise((resolve) => {
+            db.all(`
+                SELECT id, nombre, rut, email, telefono, fecha_creacion
+                FROM clientes
+                WHERE (rut IS NULL OR rut = '' OR 
+                       email IS NULL OR email = '' OR 
+                       telefono IS NULL OR telefono = '')
+                ORDER BY fecha_creacion DESC
+                LIMIT ?
+            `, [parseInt(limite)], (err, rows) => {
+                if (!err && rows) {
+                    rows.forEach(cliente => {
+                        const faltantes = [];
+                        if (!cliente.rut || cliente.rut.trim() === '') faltantes.push('RUT');
+                        if (!cliente.email || cliente.email.trim() === '') faltantes.push('Email');
+                        if (!cliente.telefono || cliente.telefono.trim() === '') faltantes.push('Teléfono');
+                        
+                        logs.push({
+                            tipo: 'cliente_incompleto',
+                            fecha: cliente.fecha_creacion,
+                            mensaje: `📋 Cliente "${cliente.nombre}" - Faltan: ${faltantes.join(', ')}`,
+                            detalles: { ...cliente, datos_faltantes: faltantes }
+                        });
+                    });
+                }
+                resolve();
+            });
+        }));
+    }
+    
+    Promise.all(promises).then(() => {
+        // Ordenar todos los logs por fecha descendente
+        logs.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        res.json({
+            total: logs.length,
+            logs: logs.slice(0, parseInt(limite))
+        });
+    });
+});
+
+// =================================================================
+// 🤖 SISTEMA DE MONITOREO PROACTIVO DEL CHATBOT
+// =================================================================
+
+async function generarMensajesProactivos() {
+    console.log('🔍 Ejecutando monitoreo proactivo...');
+    
+    try {
+        // Obtener todos los usuarios activos
+        const usuarios = await new Promise((resolve) => {
+            db.all('SELECT id, username, role FROM usuarios', (err, rows) => {
+                if (err) return resolve([]);
+                resolve(rows);
+            });
+        });
+
+        for (const usuario of usuarios) {
+            const mensajesGenerados = [];
+            const ahora = new Date();
+            const hoyStr = ahora.toISOString().split('T')[0];
+
+            // 1️⃣ CELEBRACIÓN - Operaciones del día
+            const operacionesHoy = await new Promise((resolve) => {
+                db.all(`
+                    SELECT COUNT(*) as total, SUM(monto_clp) as volumen
+                    FROM operaciones
+                    WHERE usuario_id = ? AND DATE(fecha) = DATE('now', 'localtime')
+                `, [usuario.id], (err, rows) => {
+                    if (err || !rows || !rows[0]) return resolve(null);
+                    resolve(rows[0]);
+                });
+            });
+            console.log(`📊 ${usuario.username} - Operaciones hoy:`, operacionesHoy);
+
+            if (operacionesHoy && operacionesHoy.total >= 5) {
+                mensajesGenerados.push({
+                    tipo: 'celebracion',
+                    mensaje: `🎉 ¡Vas genial hoy! Ya llevas ${operacionesHoy.total} operaciones y has procesado $${Math.round(operacionesHoy.volumen).toLocaleString()} CLP. ¡Sigue así!`,
+                    prioridad: 'normal',
+                    contexto: JSON.stringify({ operaciones: operacionesHoy.total, volumen: operacionesHoy.volumen })
+                });
+                console.log(`✅ Agregado mensaje: celebracion`);
+            }
+
+            // 2️⃣ RECORDATORIO - Tareas pendientes urgentes
+            const tareasPendientes = await new Promise((resolve) => {
+                db.all(`
+                    SELECT COUNT(*) as total
+                    FROM tareas
+                    WHERE asignado_a = ? 
+                    AND estado IN ('pendiente', 'en_progreso')
+                    AND prioridad IN ('alta', 'urgente')
+                    AND (fecha_vencimiento IS NULL OR DATE(fecha_vencimiento) <= DATE('now', '+2 days'))
+                `, [usuario.id], (err, rows) => {
+                    if (err || !rows || !rows[0]) return resolve(null);
+                    resolve(rows[0]);
+                });
+            });
+
+            if (tareasPendientes && tareasPendientes.total > 0) {
+                mensajesGenerados.push({
+                    tipo: 'recordatorio',
+                    mensaje: `⏰ Hey! Tienes ${tareasPendientes.total} tarea(s) importante(s) pendiente(s). ¿Quieres que te las muestre?`,
+                    prioridad: 'alta',
+                    contexto: JSON.stringify({ tareas_pendientes: tareasPendientes.total })
+                });
+            }
+
+            // 3️⃣ ALERTA - Clientes con datos incompletos que operaron recientemente
+            const clientesIncompletos = await new Promise((resolve) => {
+                db.all(`
+                    SELECT DISTINCT c.nombre, c.id
+                    FROM clientes c
+                    JOIN operaciones o ON c.id = o.cliente_id
+                    WHERE o.usuario_id = ?
+                    AND DATE(o.fecha) >= DATE('now', '-7 days')
+                    AND (c.rut IS NULL OR c.rut = '' OR c.email IS NULL OR c.email = '' OR c.telefono IS NULL OR c.telefono = '')
+                    LIMIT 3
+                `, [usuario.id], (err, rows) => {
+                    if (err || !rows) return resolve([]);
+                    resolve(rows);
+                });
+            });
+
+            if (clientesIncompletos.length > 0) {
+                const nombres = clientesIncompletos.map(c => c.nombre).slice(0, 2).join(', ');
+                const resto = clientesIncompletos.length > 2 ? ` y ${clientesIncompletos.length - 2} más` : '';
+                mensajesGenerados.push({
+                    tipo: 'alerta',
+                    mensaje: `⚠️ Ojo: ${nombres}${resto} operaron esta semana pero les faltan datos. ¿Los actualizamos?`,
+                    prioridad: 'normal',
+                    contexto: JSON.stringify({ clientes: clientesIncompletos.map(c => c.nombre) })
+                });
+            }
+
+            // 4️⃣ SUGERENCIA - Clientes con datos completos que operaron recientemente
+            const clientesCompletosRecientes = await new Promise((resolve) => {
+                db.all(`
+                    SELECT DISTINCT c.nombre, c.id
+                    FROM clientes c
+                    JOIN operaciones o ON c.id = o.cliente_id
+                    WHERE o.usuario_id = ?
+                    AND DATE(o.fecha) >= DATE('now', '-7 days')
+                    AND c.rut IS NOT NULL AND c.rut != ''
+                    AND c.email IS NOT NULL AND c.email != ''
+                    AND c.telefono IS NOT NULL AND c.telefono != ''
+                    LIMIT 3
+                `, [usuario.id], (err, rows) => {
+                    if (err || !rows) return resolve([]);
+                    resolve(rows);
+                });
+            });
+            console.log(`✅ ${usuario.username} - Clientes completos recientes:`, clientesCompletosRecientes.length);
+
+            if (clientesCompletosRecientes.length > 0) {
+                mensajesGenerados.push({
+                    tipo: 'sugerencia',
+                    mensaje: `✅ ¡Genial! ${clientesCompletosRecientes[0].nombre} ya tiene todos los datos completos. Un cliente menos en pendientes 🎯`,
+                    prioridad: 'baja',
+                    contexto: JSON.stringify({ cliente: clientesCompletosRecientes[0].nombre })
+                });
+                console.log(`✅ Agregado mensaje: sugerencia`);
+            }
+
+            // 5️⃣ INFORMATIVO - Rendimiento semanal
+            const esLunes = ahora.getDay() === 1; // 0 = Domingo, 1 = Lunes
+            if (esLunes && ahora.getHours() >= 9 && ahora.getHours() <= 10) {
+                const rendimientoSemanal = await new Promise((resolve) => {
+                    db.get(`
+                        SELECT COUNT(*) as ops, SUM(monto_clp) as volumen
+                        FROM operaciones
+                        WHERE usuario_id = ?
+                        AND DATE(fecha) >= DATE('now', '-7 days')
+                    `, [usuario.id], (err, row) => {
+                        if (err || !row) return resolve(null);
+                        resolve(row);
+                    });
+                });
+
+                if (rendimientoSemanal && rendimientoSemanal.ops > 0) {
+                    mensajesGenerados.push({
+                        tipo: 'informativo',
+                        mensaje: `📊 Resumen semanal: ${rendimientoSemanal.ops} operaciones, volumen de $${Math.round(rendimientoSemanal.volumen).toLocaleString()} CLP. ¡Buen trabajo!`,
+                        prioridad: 'baja',
+                        contexto: JSON.stringify({ ops: rendimientoSemanal.ops, volumen: rendimientoSemanal.volumen })
+                    });
+                }
+            }
+
+            // Guardar mensajes generados en la base de datos
+            console.log(`📋 Usuario ${usuario.username}: ${mensajesGenerados.length} mensajes candidatos`);
+            for (const msg of mensajesGenerados) {
+                // Verificar que no exista un mensaje similar reciente (últimas 6 horas)
+                const mensajeDuplicado = await new Promise((resolve) => {
+                    db.get(`
+                        SELECT id FROM chatbot_mensajes_proactivos
+                        WHERE usuario_id = ?
+                        AND tipo = ?
+                        AND datetime(fecha_creacion) >= datetime('now', '-6 hours')
+                    `, [usuario.id, msg.tipo], (err, row) => {
+                        if (err) return resolve(null);
+                        resolve(row);
+                    });
+                });
+
+                if (!mensajeDuplicado) {
+                    await new Promise((resolve) => {
+                        db.run(`
+                            INSERT INTO chatbot_mensajes_proactivos 
+                            (usuario_id, tipo, mensaje, contexto, prioridad, fecha_creacion)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        `, [usuario.id, msg.tipo, msg.mensaje, msg.contexto, msg.prioridad, ahora.toISOString()],
+                        (err) => {
+                            if (!err) {
+                                console.log(`💬 Mensaje proactivo generado para ${usuario.username}: ${msg.tipo}`);
+                            } else {
+                                console.error(`❌ Error guardando mensaje ${msg.tipo}:`, err.message);
+                            }
+                            resolve();
+                        });
+                    });
+                } else {
+                    console.log(`⏭️ Mensaje tipo "${msg.tipo}" ya existe (ID ${mensajeDuplicado.id}), omitiendo...`);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error en monitoreo proactivo:', error);
+    }
+}
+
+// Endpoint para obtener mensajes proactivos
+app.get('/api/chatbot/mensajes-proactivos', apiAuth, (req, res) => {
+    const userId = req.session.user.id;
+    console.log(`🔍 GET /api/chatbot/mensajes-proactivos - userId: ${userId}`);
+    
+    db.all(`
+        SELECT * FROM chatbot_mensajes_proactivos
+        WHERE usuario_id = ? AND mostrado = 0
+        ORDER BY prioridad DESC, fecha_creacion DESC
+        LIMIT 3
+    `, [userId], (err, mensajes) => {
+        if (err) {
+            console.error('Error obteniendo mensajes proactivos:', err);
+            return res.json({ mensajes: [] });
+        }
+        
+        console.log(`📨 Mensajes encontrados para userId ${userId}:`, mensajes.length);
+        res.json({ mensajes: mensajes || [] });
+    });
+});
+
+// Endpoint para marcar mensaje proactivo como mostrado
+app.post('/api/chatbot/mensajes-proactivos/:id/mostrado', apiAuth, (req, res) => {
+    const { id } = req.params;
+    
+    db.run(`
+        UPDATE chatbot_mensajes_proactivos
+        SET mostrado = 1, fecha_mostrado = ?
+        WHERE id = ?
+    `, [new Date().toISOString(), id], (err) => {
+        if (err) {
+            console.error('Error marcando mensaje como mostrado:', err);
+            return res.status(500).json({ error: 'Error al actualizar' });
+        }
+        res.json({ success: true });
+    });
+});
+
+// Ejecutar monitoreo cada 30 segundos (para pruebas - cambiar a 10 min en producción)
+const INTERVALO_MONITOREO = 30 * 1000; // 30 segundos
+let intervaloMonitoreo = null;
+
+function iniciarMonitoreoProactivo() {
+    // Ejecutar inmediatamente
+    setTimeout(generarMensajesProactivos, 3000); // 3 segundos después del inicio
+    
+    // Luego cada 30 segundos
+    intervaloMonitoreo = setInterval(generarMensajesProactivos, INTERVALO_MONITOREO);
+    console.log('🤖 Sistema de monitoreo proactivo iniciado (cada 30 segundos)');
+}
+
+// =================================================================
+// FIN: SISTEMA DE MONITOREO PROACTIVO
+// =================================================================
+
 // Iniciar el servidor solo después de que las migraciones se hayan completado
 runMigrations()
     .then(() => {
-        app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`));
+        app.listen(PORT, () => {
+            console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+            iniciarMonitoreoProactivo(); // ✅ Iniciar monitoreo proactivo
+        });
     })
     .catch(err => {
         console.error("❌ No se pudo iniciar el servidor debido a un error en la migración de la base de datos:", err);
