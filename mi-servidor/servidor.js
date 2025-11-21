@@ -228,7 +228,7 @@ const runMigrations = async () => {
         tipo TEXT NOT NULL CHECK(tipo IN ('celebracion','recordatorio','alerta','sugerencia','informativo')),
         mensaje TEXT NOT NULL,
         contexto TEXT,
-        prioridad TEXT DEFAULT 'normal' CHECK(prioridad IN ('baja','normal','alta')),
+        prioridad TEXT DEFAULT 'normal' CHECK(prioridad IN ('baja','normal','alta','urgente')),
         mostrado INTEGER DEFAULT 0,
         fecha_creacion TEXT NOT NULL,
         fecha_mostrado TEXT,
@@ -4612,13 +4612,14 @@ async function monitorearTasasVES() {
 
         // 2. Consultar tasas P2P de Binance
         let tasaP2PAjustada = 0;
+        let tasa_base_clp_ves = 0;
         try {
             const [tasa_ves_p2p, tasa_clp_p2p] = await Promise.all([
                 obtenerTasaVentaVES(),
                 obtenerTasaCompraCLP()
             ]);
 
-            const tasa_base_clp_ves = tasa_ves_p2p / tasa_clp_p2p;
+            tasa_base_clp_ves = tasa_ves_p2p / tasa_clp_p2p;
             tasaP2PAjustada = tasa_base_clp_ves * (1 - 0.04); // -4% para 250K CLP
             
             console.log(`📊 Tasa Manual (250K): ${tasaManual.toFixed(4)} VES/CLP`);
@@ -4644,8 +4645,8 @@ async function monitorearTasasVES() {
                 
                 // Si ya pasaron 15 minutos y el Master no actualizó
                 if (minutosTranscurridos >= 15) {
-                    console.log('🔄 15 minutos transcurridos. Actualizando tasas automáticamente...');
-                    await actualizarTasasAutomaticamente(tasaP2PAjustada);
+                    console.log('🔄 15 minutos transcurridos. Actualizando las 3 tasas automáticamente...');
+                    await actualizarTasasAutomaticamente(alertaTasasPendiente.tasa_base);
                     
                     // Limpiar alerta
                     if (alertaTasasPendiente.timeout_id) {
@@ -4658,10 +4659,10 @@ async function monitorearTasasVES() {
                 console.log('🔔 Generando nueva alerta de tasas...');
                 await generarAlertaTasas(tasaManual, tasaP2PAjustada, diferencia, porcentajeDiferencia);
                 
-                // Programar actualización automática en 15 minutos
+                // Programar actualización automática de las 3 tasas en 15 minutos
                 const timeoutId = setTimeout(async () => {
-                    console.log('⏰ Timeout de 15 minutos alcanzado. Actualizando tasas...');
-                    await actualizarTasasAutomaticamente(tasaP2PAjustada);
+                    console.log('⏰ Timeout de 15 minutos alcanzado. Actualizando las 3 tasas...');
+                    await actualizarTasasAutomaticamente(alertaTasasPendiente.tasa_base);
                     alertaTasasPendiente = null;
                 }, 15 * 60 * 1000); // 15 minutos
                 
@@ -4669,6 +4670,7 @@ async function monitorearTasasVES() {
                     timestamp: Date.now(),
                     tasa_manual: tasaManual,
                     tasa_p2p: tasaP2PAjustada,
+                    tasa_base: tasa_base_clp_ves, // 🎯 Guardamos la tasa base para reutilizarla
                     notificado: true,
                     timeout_id: timeoutId
                 };
@@ -4710,15 +4712,22 @@ async function generarAlertaTasas(tasaManual, tasaP2P, diferencia, porcentaje) {
                          `📊 **Tasa Manual (250K CLP):** ${tasaManual.toFixed(4)} VES/CLP\n` +
                          `📊 **Tasa Binance P2P (-4%):** ${tasaP2P.toFixed(4)} VES/CLP\n` +
                          `⚠️ **Diferencia:** +${diferencia.toFixed(4)} VES/CLP (${porcentaje.toFixed(2)}% más alta)\n\n` +
-                         `🔴 Estamos ofreciendo una tasa MENOS competitiva que el mercado.\n\n` +
-                         `**ACCIÓN:** Actualiza las tasas manualmente en /admin.html\n` +
-                         `⏰ Si no actualizas en 15 minutos, el sistema enviará la mejor tasa por WhatsApp automáticamente.`;
+                         `🔴 **Nuestra tasa está MÁS ALTA que el mercado - POSIBLES PÉRDIDAS**\n\n` +
+                         `**ACCIÓN URGENTE:** Actualiza las tasas manualmente en /admin.html\n\n` +
+                         `⏰ **Si no actualizas en 15 minutos:**\n` +
+                         `   El sistema actualizará automáticamente las 3 tasas (5K, 100K, 250K)\n` +
+                         `   basándose en las tasas actuales de Binance P2P.`;
             } else {
-                // Mensaje para operadores - informativo
-                mensaje = `🚨 **ALERTA: Tasas desactualizadas**\n\n` +
-                         `📊 Nuestra tasa actual (${tasaManual.toFixed(4)} VES/CLP) está por encima del mercado P2P (${tasaP2P.toFixed(4)} VES/CLP).\n\n` +
-                         `💡 **Por favor informa al Master urgentemente.**\n\n` +
-                         `El sistema actualizará automáticamente en 15 minutos si no se corrige.`;
+                // Mensaje para operadores - informativo y directivo
+                mensaje = `🚨 **ALERTA: Tasas MÁS ALTAS que mercado**\n\n` +
+                         `📊 Nuestra tasa: ${tasaManual.toFixed(4)} VES/CLP\n` +
+                         `📊 Mercado P2P: ${tasaP2P.toFixed(4)} VES/CLP\n` +
+                         `⚠️ Diferencia: +${diferencia.toFixed(4)} VES/CLP (${porcentaje.toFixed(2)}% más alta)\n\n` +
+                         `🔴 **Estamos dando más de lo necesario - posibles pérdidas.**\n\n` +
+                         `**⚡ ACCIÓN INMEDIATA:**\n` +
+                         `   🔔 Informa al Master AHORA\n` +
+                         `   📱 Contacta vía WhatsApp/llamada si es necesario\n\n` +
+                         `⏰ En 15 minutos el sistema actualizará las tasas automáticamente.`;
             }
             
             // Crear notificación en la BD
@@ -4752,44 +4761,56 @@ async function generarAlertaTasas(tasaManual, tasaP2P, diferencia, porcentaje) {
 }
 
 /**
- * Actualiza las tasas automáticamente y envía a WhatsApp/Whaticket
+ * Actualiza las 3 tasas automáticamente usando la tasa base ya calculada
+ * @param {number} tasa_base_clp_ves - Tasa base VES/CLP de Binance P2P ya calculada
  */
-async function actualizarTasasAutomaticamente(nuevaTasaP2P) {
+async function actualizarTasasAutomaticamente(tasa_base_clp_ves) {
     try {
-        console.log('🔄 Actualizando tasas automáticamente...');
+        console.log('🔄 Actualizando las 3 tasas automáticamente...');
+        console.log(`📊 Usando tasa base P2P: ${tasa_base_clp_ves.toFixed(4)} VES/CLP (calculada previamente)`);
         
-        // 1. Calcular las 3 tasas basadas en la tasa P2P de 250K
-        // Si nuevaTasaP2P es la tasa con -4%, entonces:
-        const tasa_base_original = nuevaTasaP2P / (1 - 0.04); // Recuperar la tasa base sin ajuste
+        // 1. Calcular las 3 tasas con sus respectivos ajustes
+        const tasa_nivel1 = tasa_base_clp_ves * (1 - 0.05);  // -5% para 5K CLP
+        const tasa_nivel2 = tasa_base_clp_ves * (1 - 0.045); // -4.5% para 100K CLP
+        const tasa_nivel3 = tasa_base_clp_ves * (1 - 0.04);  // -4% para 250K CLP
         
-        const tasa_nivel1 = tasa_base_original * (1 - 0.05);  // -5% para 5K
-        const tasa_nivel2 = tasa_base_original * (1 - 0.045); // -4.5% para 100K
-        const tasa_nivel3 = nuevaTasaP2P; // -4% para 250K (ya viene ajustada)
-        
-        // 2. Actualizar en la base de datos
+        // 2. Actualizar las 3 tasas en la base de datos
         await dbRun(`INSERT OR REPLACE INTO configuracion(clave, valor) VALUES ('tasaNivel1', ?)`, [tasa_nivel1.toString()]);
         await dbRun(`INSERT OR REPLACE INTO configuracion(clave, valor) VALUES ('tasaNivel2', ?)`, [tasa_nivel2.toString()]);
         await dbRun(`INSERT OR REPLACE INTO configuracion(clave, valor) VALUES ('tasaNivel3', ?)`, [tasa_nivel3.toString()]);
         
         console.log(`✅ Tasas actualizadas en BD:`);
-        console.log(`   - Nivel 1 (5K CLP): ${tasa_nivel1.toFixed(4)} VES/CLP`);
-        console.log(`   - Nivel 2 (100K CLP): ${tasa_nivel2.toFixed(4)} VES/CLP`);
-        console.log(`   - Nivel 3 (250K CLP): ${tasa_nivel3.toFixed(4)} VES/CLP`);
+        console.log(`   - Nivel 1 (5K CLP, -5%): ${tasa_nivel1.toFixed(4)} VES/CLP`);
+        console.log(`   - Nivel 2 (100K CLP, -4.5%): ${tasa_nivel2.toFixed(4)} VES/CLP`);
+        console.log(`   - Nivel 3 (250K CLP, -4%): ${tasa_nivel3.toFixed(4)} VES/CLP`);
         
-        // 3. Enviar mensaje a WhatsApp/Whaticket (si está configurado)
-        await enviarTasasAWhatsApp(tasa_nivel1, tasa_nivel2, tasa_nivel3);
-        
-        // 4. Notificar a todos los usuarios que las tasas fueron actualizadas
+        // 5. Notificar a todos los usuarios que las tasas fueron actualizadas
         const usuarios = await dbAll('SELECT id, username, role FROM usuarios');
         const fechaHoy = new Date().toISOString();
         
         for (const usuario of usuarios) {
-            const mensaje = `✅ **Tasas actualizadas automáticamente**\n\n` +
-                          `Las tasas fueron actualizadas según Binance P2P:\n\n` +
-                          `📊 5K CLP: ${tasa_nivel1.toFixed(4)} VES/CLP\n` +
-                          `📊 100K CLP: ${tasa_nivel2.toFixed(4)} VES/CLP\n` +
-                          `📊 250K CLP: ${tasa_nivel3.toFixed(4)} VES/CLP\n\n` +
-                          `🔔 Mensaje enviado a clientes por WhatsApp.`;
+            let mensaje = '';
+            
+            if (usuario.role === 'master') {
+                // Mensaje para Master
+                mensaje = `✅ **Tasas actualizadas automáticamente**\n\n` +
+                         `⏰ El tiempo de espera de 15 minutos expiró.\n` +
+                         `🤖 El sistema actualizó las 3 tasas según Binance P2P:\n\n` +
+                         `📊 Nivel 1 (5K CLP): ${tasa_nivel1.toFixed(4)} VES/CLP\n` +
+                         `📊 Nivel 2 (100K CLP): ${tasa_nivel2.toFixed(4)} VES/CLP\n` +
+                         `📊 Nivel 3 (250K CLP): ${tasa_nivel3.toFixed(4)} VES/CLP\n\n` +
+                         `✅ Las nuevas tasas ya están disponibles en el sistema.\n` +
+                         `📋 Puedes verificarlas en /admin.html`;
+            } else {
+                // Mensaje para Operadores
+                mensaje = `✅ **TASAS ACTUALIZADAS AUTOMÁTICAMENTE**\n\n` +
+                         `🤖 El sistema actualizó las tasas según mercado P2P:\n\n` +
+                         `📊 Nivel 1 (5K CLP): ${tasa_nivel1.toFixed(4)} VES/CLP\n` +
+                         `📊 Nivel 2 (100K CLP): ${tasa_nivel2.toFixed(4)} VES/CLP\n` +
+                         `📊 Nivel 3 (250K CLP): ${tasa_nivel3.toFixed(4)} VES/CLP\n\n` +
+                         `✅ Las nuevas tasas ya están activas en el sistema.\n` +
+                         `📋 El Master fue notificado de la actualización.`;
+            }
             
             await dbRun(`
                 INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, leida)
@@ -4807,50 +4828,12 @@ async function actualizarTasasAutomaticamente(nuevaTasaP2P) {
     }
 }
 
-/**
- * Envía las nuevas tasas a WhatsApp/Whaticket
- */
-async function enviarTasasAWhatsApp(tasa1, tasa2, tasa3) {
-    try {
-        // URL del webhook de Whaticket/WhatsApp (configurable)
-        const WHATICKET_WEBHOOK = process.env.WHATICKET_WEBHOOK || null;
-        
-        if (!WHATICKET_WEBHOOK) {
-            console.log('⚠️ No hay webhook de WhatsApp configurado (WHATICKET_WEBHOOK)');
-            console.log('📝 Para enviar a WhatsApp, configura la variable de entorno WHATICKET_WEBHOOK');
-            return;
-        }
-        
-        // Mensaje promocional para clientes
-        const mensaje = `🇻🇪 **NUEVAS TASAS DEFI ORACLE** 🇨🇱\n\n` +
-                       `Hemos actualizado nuestras tasas CLP → VES:\n\n` +
-                       `💰 Desde $5.000 CLP: ${tasa1.toFixed(3)} VES por cada CLP\n` +
-                       `💰 Desde $100.000 CLP: ${tasa2.toFixed(3)} VES por cada CLP\n` +
-                       `💰 Desde $250.000 CLP: ${tasa3.toFixed(3)} VES por cada CLP\n\n` +
-                       `✅ Tasas actualizadas en tiempo real según mercado P2P\n` +
-                       `⚡ Envíos inmediatos • Disponibles 08:00-21:00\n\n` +
-                       `📲 Escríbenos para tu próximo envío!`;
-        
-        // Enviar a Whaticket
-        const response = await axios.post(WHATICKET_WEBHOOK, {
-            message: mensaje,
-            broadcast: true, // Enviar a todos los contactos
-            type: 'promotional'
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.WHATICKET_TOKEN || ''}`
-            },
-            timeout: 10000
-        });
-        
-        console.log(`✅ Tasas enviadas a WhatsApp/Whaticket:`, response.data);
-        
-    } catch (error) {
-        console.error('❌ Error enviando a WhatsApp:', error.message);
-        console.log('💡 Verifica que WHATICKET_WEBHOOK y WHATICKET_TOKEN estén configurados correctamente');
-    }
-}
+// Función generarMensajeWhatsApp eliminada - el sistema NO envía WhatsApp automáticamente
+// Los operadores pueden comunicar cambios de tasas manualmente cuando lo consideren necesario
+    
+    console.log('📲 Mensaje de WhatsApp generado para que operadores lo envíen:');
+    console.log(mensaje);
+
 
 /**
  * Endpoint manual para forzar verificación de tasas (solo Master)
