@@ -581,8 +581,10 @@
       const fmtCLP = v => Number(v).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
       const fmtVES = v => Number(v).toLocaleString('es-VE');
 
+      console.log('DEBUG row() - user object:', user, 'role:', user?.role);
+      
       let actions = `<button class="btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>`;
-      if (user.role === 'master') {
+      if (user && user.role === 'master') {
         actions += ` <button class="btn-danger" onclick="deleteOperacion(${op.id})">Borrar</button>`;
       }
 
