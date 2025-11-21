@@ -1631,7 +1631,11 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
         const hace60 = new Date(hoy.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         
         const clientesActivos = await dbAll(`
-            SELECT DISTINCT cliente_id FROM operaciones WHERE fecha >= ?
+            SELECT DISTINCT o.cliente_id 
+            FROM operaciones o
+            JOIN clientes c ON o.cliente_id = c.id
+            WHERE o.fecha >= ?
+            AND julianday('now') - julianday(c.fecha_creacion) > 7
         `, [hace60]);
         
         for (const c of clientesActivos) {
@@ -2846,6 +2850,41 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             });
         });
 
+        // Obtener mensajes proactivos no mostrados (IMPORTANTE: Estos contienen contexto específico de alertas)
+        const mensajesProactivosPromise = new Promise((resolve) => {
+            db.all(`
+                SELECT id, tipo, mensaje, prioridad, fecha_creacion
+                FROM chatbot_mensajes_proactivos
+                WHERE usuario_id = ? AND mostrado = 0
+                ORDER BY prioridad DESC, fecha_creacion DESC
+                LIMIT 3
+            `, [userId], (err, rows) => {
+                if (err || !rows) return resolve([]);
+                resolve(rows);
+            });
+        });
+
+        // Obtener tareas pendientes del usuario
+        const tareasPendientesPromise = new Promise((resolve) => {
+            db.all(`
+                SELECT id, titulo, descripcion, prioridad, estado, fecha_vencimiento, fecha_creacion
+                FROM tareas
+                WHERE asignado_a = ? AND estado NOT IN ('completada', 'cancelada')
+                ORDER BY 
+                    CASE prioridad 
+                        WHEN 'alta' THEN 1 
+                        WHEN 'media' THEN 2 
+                        WHEN 'baja' THEN 3 
+                        ELSE 4 
+                    END,
+                    fecha_vencimiento ASC
+                LIMIT 10
+            `, [userId], (err, rows) => {
+                if (err || !rows) return resolve([]);
+                resolve(rows);
+            });
+        });
+
         // Obtener historial reciente de conversación (últimos 10 mensajes, últimas 24 horas)
         const historialPromise = new Promise((resolve) => {
             const hace24h = new Date();
@@ -2865,7 +2904,12 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             });
         });
 
-        const [historial, notificaciones] = await Promise.all([historialPromise, notificacionesNoLeidasPromise]);
+        const [historial, notificaciones, mensajesProactivos, tareasPendientes] = await Promise.all([
+            historialPromise, 
+            notificacionesNoLeidasPromise, 
+            mensajesProactivosPromise,
+            tareasPendientesPromise
+        ]);
         
         // Si hay notificaciones sin leer, validarlas antes de incluirlas
         if (notificaciones.length > 0) {
@@ -2913,6 +2957,40 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             if (notificacionesValidas.length > 0) {
                 contextData.notificaciones_pendientes = notificacionesValidas;
             }
+        }
+        
+        // Agregar mensajes proactivos al contexto (IMPORTANTE: contienen detalles específicos de alertas)
+        if (mensajesProactivos.length > 0) {
+            contextData.mensajes_proactivos = mensajesProactivos.map(mp => ({
+                tipo: mp.tipo,
+                mensaje: mp.mensaje,
+                prioridad: mp.prioridad
+            }));
+        }
+        
+        // Agregar tareas pendientes al contexto (IMPORTANTE: el usuario puede preguntar sobre sus tareas)
+        if (tareasPendientes.length > 0) {
+            const hoy = new Date();
+            contextData.tareas_pendientes = tareasPendientes.map(t => {
+                const fechaVenc = t.fecha_vencimiento ? new Date(t.fecha_vencimiento) : null;
+                const diasRestantes = fechaVenc ? Math.ceil((fechaVenc - hoy) / (1000 * 60 * 60 * 24)) : null;
+                const vencida = fechaVenc ? fechaVenc < hoy : false;
+                
+                return {
+                    id: t.id,
+                    titulo: t.titulo,
+                    descripcion: t.descripcion,
+                    prioridad: t.prioridad,
+                    estado: t.estado,
+                    fecha_vencimiento: t.fecha_vencimiento,
+                    vencida: vencida,
+                    dias_restantes: diasRestantes
+                };
+            });
+            contextData.total_tareas_pendientes = tareasPendientes.length;
+        } else {
+            contextData.tareas_pendientes = [];
+            contextData.total_tareas_pendientes = 0;
         }
         
         // Las consultas de clientes ahora se manejan automáticamente por OpenAI Function Calling
@@ -3063,8 +3141,44 @@ FUNCIONES DISPONIBLES (llamadas automáticamente por ti):
      * "cuántos dólares son 500.000 pesos chilenos?"
      * "equivalencia entre pesos chilenos y colombianos"
      * "cuál es la tasa CLP a COP"
+
+7️⃣ **consultar_tareas(incluir_completadas)**
+   - Cuándo usarla: Cuando pregunten sobre tareas pendientes, trabajo asignado, qué hacer
+   - Ejemplos:
+     * "¿tengo tareas pendientes?"
+     * "qué tareas tengo hoy?"
+     * "mis asignaciones"
+     * "qué debo hacer?"
+     * "tareas"
+   - Retorna: {total, tareas: [{titulo, descripcion, prioridad, estado, fecha_vencimiento, vencida, dias_restantes}]}
+   - IMPORTANTE: Si el mensaje proactivo mencionó tareas, SIEMPRE llama esta función
+
+8️⃣ **obtener_estadisticas_clientes()**
+   - Cuándo usarla: Cuando pregunten por el total de clientes, estadísticas generales
+   - Ejemplos:
+     * "¿cuántos clientes tenemos?"
+     * "total de clientes registrados"
+     * "estadísticas de clientes"
+   - Retorna: {total_clientes, clientes_completos, clientes_incompletos, porcentaje_completos}
+
+9️⃣ **analizar_tarea_cliente_inactivo(nombre_cliente, descripcion_tarea)**
+   - Cuándo usarla: Cuando el operador pida ayuda con una tarea de cliente inactivo o reducción de actividad
+   - Ejemplos:
+     * "¿qué hago con esta tarea de [cliente]?"
+     * "ayúdame con el cliente inactivo [nombre]"
+     * "¿qué mensaje envío a [cliente]?"
+     * Operador menciona tarea de: "cliente inactivo por X días", "reducción de actividad", "riesgo alto"
+   - Función INTELIGENTE que:
+     ✅ Analiza los días de inactividad
+     ✅ Determina si debe enviar recordatorio (30-44 días) o promoción (45+ días)
+     ✅ Calcula tasa promocional automáticamente (0.33% descuento sobre última tasa VES)
+     ✅ Genera mensaje personalizado listo para copiar y enviar
+   - Aplica a: "Cliente inactivo", "Reducción de actividad", "Riesgo alto"
+   - Retorna: {tipo_accion, dias_inactivo, tasa_original, tasa_promocional, mensaje_sugerido}
+
    - Monedas soportadas: CLP (Chile), COP (Colombia), VES (Venezuela), USD (Dólares), ARS (Argentina), PEN (Perú), BRL (Brasil), MXN (México), EUR (Euro), UYU (Uruguay)
    - Retorna: {monto_origen, moneda_origen, nombre_moneda_origen, monto_convertido, moneda_destino, nombre_moneda_destino, tasa_cambio, formula}
+
    
    📐 FÓRMULAS DE CONVERSIÓN (IMPORTANTE):
    
@@ -3206,6 +3320,52 @@ CUANDO MUESTRES DATOS DE UN CLIENTE:
 - NO inventes información que no tienes
 
 TU ROL: Eres como un supervisor amigable que ayuda - explicas, corriges, sugieres y acompañas. Nunca atacas ni regañas.
+
+⚠️ IMPORTANTE - LEE SIEMPRE ESTOS CONTEXTOS PRIMERO:
+
+📋 **1. MENSAJES PROACTIVOS** (contextData.mensajes_proactivos):
+- Estos mensajes contienen información ESPECÍFICA ya detectada por el sistema
+- Nombres exactos de clientes, detalles precisos de alertas
+- Cuando el usuario responda a un mensaje proactivo, USA LA INFORMACIÓN DEL MENSAJE
+- NO llames funciones genéricas si el mensaje proactivo ya tiene los detalles
+- Ejemplo: Si dice "Cristia Jose, Craus y 1 más", menciona ESOS nombres exactos
+
+🔔 **2. NOTIFICACIONES PENDIENTES** (contextData.notificaciones_pendientes):
+- Alertas del sistema de notificaciones normales
+- Menciónalas cuando existan, especialmente al saludar
+- Palabra clave para mencionar: "pendiente", "falta", "incompleto"
+
+✅ **3. TAREAS PENDIENTES** (contextData.tareas_pendientes):
+- Lista de tareas asignadas al usuario
+- Total disponible en: contextData.total_tareas_pendientes
+- Cuando pregunten por tareas, VERIFICA PRIMERO si ya están en el contexto
+- Si contextData.tareas_pendientes tiene datos, úsalos directamente
+- Solo llama a consultar_tareas() si necesitas actualizar o filtrar
+
+🎯 **AYUDA CON TAREAS - FUNCIÓN INTELIGENTE**:
+
+Cuando el operador tenga tareas y pida ayuda:
+- **Detecta tipo de tarea**: "Cliente inactivo por X días", "Reducción de actividad", etc.
+- **Ofrece ayuda automáticamente**: "¿Quieres que te ayude a resolver esta tarea?"
+- **Usa analizar_tarea_cliente_inactivo()** para generar mensajes automáticos
+
+Ejemplo de flujo:
+Operador: "Tengo una tarea de andrez hernandez, cliente inactivo por 71 días"
+Tú: "¡Claro! Voy a analizar esta tarea y generar un mensaje para andrez..."
+→ Llamas: analizar_tarea_cliente_inactivo("andrez hernandez", "Cliente inactivo por 71 días")
+→ Recibes: tasa promocional calculada + mensaje listo
+→ Respondes: "Aquí está el mensaje para andrez: [mensaje generado]. La tasa promocional es [X] VES. ¿Lo envío?"
+
+Tipos de tareas que puedes resolver:
+1. **Cliente inactivo 30-44 días**: Mensaje de recordatorio/cercanía (sin promoción)
+2. **Cliente inactivo 45+ días**: Mensaje con promoción (tasa + 0.33% descuento)
+3. **Reducción de actividad**: Mensaje con promoción (tasa + 0.33% descuento)
+
+📊 **PRIORIDAD DE LECTURA**:
+1. PRIMERO: Lee mensajes_proactivos (información más específica)
+2. SEGUNDO: Lee notificaciones_pendientes
+3. TERCERO: Lee tareas_pendientes
+4. ÚLTIMO: Llama funciones solo si necesitas datos adicionales
 
 DATOS DEL SISTEMA ACTUAL:
 ${JSON.stringify(contextData, null, 2)}
@@ -3453,6 +3613,14 @@ const agentFunctions = [
         }
     },
     {
+        name: "obtener_estadisticas_clientes",
+        description: "Obtiene estadísticas generales sobre clientes: total de clientes registrados, cuántos tienen datos completos, cuántos incompletos, distribución, etc. Usa esto cuando pregunten '¿cuántos clientes tenemos?', 'total de clientes', 'estadísticas de clientes', 'clientes registrados', etc.",
+        parameters: {
+            type: "object",
+            properties: {}
+        }
+    },
+    {
         name: "buscar_cliente",
         description: "Busca un cliente en la base de datos por nombre. Usa esto cuando el usuario pregunte sobre datos de un cliente específico, si ya actualizaron un cliente, verificar información, etc.",
         parameters: {
@@ -3513,6 +3681,37 @@ const agentFunctions = [
             },
             required: ["nombre_cliente"]
         }
+    },
+    {
+        name: "consultar_tareas",
+        description: "Consulta las tareas asignadas al operador. ÚSALO SIEMPRE cuando pregunten: '¿tengo tareas?', 'mis tareas pendientes', 'qué debo hacer hoy', 'tareas', 'pendientes', 'asignaciones', 'trabajo pendiente', etc. Esta función muestra tareas activas, su prioridad, estado y fecha de vencimiento.",
+        parameters: {
+            type: "object",
+            properties: {
+                incluir_completadas: {
+                    type: "boolean",
+                    description: "Si debe incluir las tareas ya completadas (por defecto false)"
+                }
+            }
+        }
+    },
+    {
+        name: "analizar_tarea_cliente_inactivo",
+        description: "Analiza una tarea de cliente inactivo y genera una sugerencia de mensaje personalizado. Úsala cuando el operador pida ayuda con una tarea de: 'cliente inactivo', 'reducción de actividad', 'riesgo alto', o cuando pregunten '¿qué hago con esta tarea?', 'ayúdame con este cliente', '¿qué mensaje envío?'",
+        parameters: {
+            type: "object",
+            properties: {
+                nombre_cliente: {
+                    type: "string",
+                    description: "Nombre del cliente de la tarea"
+                },
+                descripcion_tarea: {
+                    type: "string",
+                    description: "Descripción completa de la tarea (ej: 'Cliente inactivo por 30 días')"
+                }
+            },
+            required: ["nombre_cliente", "descripcion_tarea"]
+        }
     }
 ];
 
@@ -3528,7 +3727,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
     // Para todo lo demás, usar OpenAI con Function Calling
     try {
         // Usar variable de entorno OPENAI_API_KEY, o fallback a la key hardcodeada
-        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
+        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
         
         // Validar que hay API key
         if (!OPENAI_API_KEY || OPENAI_API_KEY === '' || OPENAI_API_KEY.includes('your-api-key-here')) {
@@ -3738,6 +3937,39 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                     });
                     break;
                     
+                case 'obtener_estadisticas_clientes':
+                    functionResult = await new Promise((resolve) => {
+                        // Obtener total de clientes con nombre
+                        db.get(
+                            `SELECT COUNT(*) as total FROM clientes WHERE nombre IS NOT NULL AND nombre != ''`,
+                            [],
+                            (err, totalRow) => {
+                                const totalClientes = totalRow?.total || 0;
+                                
+                                // Obtener total de clientes incompletos
+                                db.get(
+                                    `SELECT COUNT(*) as total FROM clientes 
+                                     WHERE (nombre IS NOT NULL AND nombre != '') 
+                                     AND (rut IS NULL OR rut = '' OR email IS NULL OR email = '' OR telefono IS NULL OR telefono = '')`,
+                                    [],
+                                    (err, incompletosRow) => {
+                                        const totalIncompletos = incompletosRow?.total || 0;
+                                        const totalCompletos = totalClientes - totalIncompletos;
+                                        
+                                        resolve({
+                                            total_clientes: totalClientes,
+                                            clientes_completos: totalCompletos,
+                                            clientes_incompletos: totalIncompletos,
+                                            porcentaje_completos: totalClientes > 0 ? ((totalCompletos / totalClientes) * 100).toFixed(1) : 0,
+                                            mensaje: `Total: ${totalClientes} clientes | Completos: ${totalCompletos} | Incompletos: ${totalIncompletos}`
+                                        });
+                                    }
+                                );
+                            }
+                        );
+                    });
+                    break;
+                    
                 case 'listar_clientes_incompletos':
                     functionResult = await new Promise((resolve) => {
                         const limite = functionArgs.limite || 10;
@@ -3814,6 +4046,131 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 } else {
                                     resolve({ total: 0, mensaje: `No se encontraron operaciones para cliente "${functionArgs.nombre_cliente}"` });
                                 }
+                            }
+                        );
+                    });
+                    break;
+                    
+                case 'consultar_tareas':
+                    functionResult = await new Promise((resolve) => {
+                        const incluirCompletadas = functionArgs.incluir_completadas || false;
+                        const condicionEstado = incluirCompletadas ? '' : `AND estado != 'completada' AND estado != 'cancelada'`;
+                        
+                        db.all(
+                            `SELECT id, titulo, descripcion, prioridad, estado, fecha_vencimiento, fecha_creacion
+                             FROM tareas
+                             WHERE asignado_a = ? ${condicionEstado}
+                             ORDER BY 
+                                CASE prioridad 
+                                    WHEN 'urgente' THEN 1
+                                    WHEN 'alta' THEN 2
+                                    WHEN 'normal' THEN 3
+                                    WHEN 'baja' THEN 4
+                                END,
+                                fecha_vencimiento ASC
+                             LIMIT 20`,
+                            [userId],
+                            (err, tareas) => {
+                                if (!err && tareas && tareas.length > 0) {
+                                    const ahora = new Date();
+                                    resolve({
+                                        total: tareas.length,
+                                        tareas: tareas.map(t => {
+                                            const vencimiento = t.fecha_vencimiento ? new Date(t.fecha_vencimiento) : null;
+                                            const vencida = vencimiento && vencimiento < ahora;
+                                            return {
+                                                titulo: t.titulo,
+                                                descripcion: t.descripcion || '',
+                                                prioridad: t.prioridad,
+                                                estado: t.estado,
+                                                fecha_vencimiento: vencimiento ? vencimiento.toLocaleDateString('es-CL') : 'Sin fecha límite',
+                                                vencida: vencida,
+                                                dias_restantes: vencimiento ? Math.ceil((vencimiento - ahora) / (1000 * 60 * 60 * 24)) : null
+                                            };
+                                        })
+                                    });
+                                } else {
+                                    resolve({ total: 0, mensaje: "No tienes tareas pendientes asignadas" });
+                                }
+                            }
+                        );
+                    });
+                    break;
+
+                case 'analizar_tarea_cliente_inactivo':
+                    functionResult = await new Promise((resolve) => {
+                        const nombreCliente = functionArgs.nombre_cliente;
+                        const descripcionTarea = functionArgs.descripcion_tarea || '';
+                        
+                        // Extraer días de inactividad de la descripción
+                        const matchDias = descripcionTarea.match(/(\d+)\s*d[ií]as?/i);
+                        const diasInactivo = matchDias ? parseInt(matchDias[1]) : 0;
+                        
+                        // Determinar tipo de acción según días
+                        let tipoAccion = '';
+                        let requierePromocion = false;
+                        
+                        if (descripcionTarea.toLowerCase().includes('reducción de actividad')) {
+                            tipoAccion = 'reduccion_actividad';
+                            requierePromocion = true;
+                        } else if (diasInactivo >= 45 || descripcionTarea.toLowerCase().includes('riesgo alto')) {
+                            tipoAccion = 'inactivo_promocion';
+                            requierePromocion = true;
+                        } else if (diasInactivo >= 30) {
+                            tipoAccion = 'inactivo_recordatorio';
+                            requierePromocion = false;
+                        } else {
+                            tipoAccion = 'otro';
+                            requierePromocion = false;
+                        }
+                        
+                        // Buscar última tasa de compra en el historial de compras (tabla compras)
+                        db.get(
+                            `SELECT tasa_clp_ves, fecha
+                             FROM compras
+                             ORDER BY fecha DESC
+                             LIMIT 1`,
+                            [],
+                            (err, ultimaCompra) => {
+                                let tasaOriginal = null;
+                                let tasaPromocional = null;
+                                let mensajeSugerido = '';
+                                let fechaCompra = null;
+                                
+                                // Calcular tasa promocional si hay compra registrada
+                                if (!err && ultimaCompra && ultimaCompra.tasa_clp_ves > 0) {
+                                    tasaOriginal = ultimaCompra.tasa_clp_ves;
+                                    fechaCompra = ultimaCompra.fecha;
+                                    // Aplicar 0.33% de DESCUENTO
+                                    const descuento = tasaOriginal * 0.0033;
+                                    tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
+                                }
+                                
+                                // Generar mensaje según tipo de acción
+                                if (tipoAccion === 'inactivo_recordatorio') {
+                                    mensajeSugerido = `Hola ${nombreCliente}! 👋\n\nHemos notado que hace ${diasInactivo} días no realizas una operación con nosotros. 😊\n\nTe esperamos pronto, siempre estamos atentos a tus operaciones. ¡Gracias por ser un cliente constante de DefiOracle! 🇻🇪🇨🇱`;
+                                    
+                                } else if (requierePromocion && tasaPromocional) {
+                                    if (tipoAccion === 'reduccion_actividad') {
+                                        mensajeSugerido = `Hola ${nombreCliente}! 👋\n\nHemos notado que últimamente has reducido tu actividad con nosotros. 😢\n\nNo queremos que te vayas, así que tenemos una tasa especial solo para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP 💰\n\n¡Aprovecha esta oferta! Estamos disponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                    } else {
+                                        mensajeSugerido = `Hola ${nombreCliente}! 👋\n\nTe extrañamos! Hace tiempo que no haces una operación con nosotros. 😢\n\nPorque nos importa tu regreso, tenemos una tasa de regalo especial para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP 💰\n\n¡Esperamos verte pronto! Disponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                    }
+                                } else if (requierePromocion && !tasaPromocional) {
+                                    mensajeSugerido = `⚠️ No se pudo calcular la tasa promocional porque no hay historial de compras de USDT registrado.\n\nSugerencia: Revisa el historial de compras en /admin.html y registra al menos una compra de USDT para poder calcular tasas promocionales automáticamente.`;
+                                }
+                                
+                                resolve({
+                                    cliente: nombreCliente,
+                                    tipo_accion: tipoAccion,
+                                    dias_inactivo: diasInactivo,
+                                    requiere_promocion: requierePromocion,
+                                    tasa_original: tasaOriginal ? tasaOriginal.toFixed(4) : null,
+                                    tasa_promocional: tasaPromocional ? tasaPromocional.toFixed(4) : null,
+                                    descuento_aplicado: requierePromocion ? '+0.33%' : 'No aplica',
+                                    fecha_ultima_compra: fechaCompra,
+                                    mensaje_sugerido: mensajeSugerido
+                                });
                             }
                         );
                     });
