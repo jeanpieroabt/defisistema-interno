@@ -198,7 +198,8 @@
     
     .table-container {
       border-radius: 12px;
-      overflow: hidden;
+      overflow-x: auto;
+      overflow-y: visible;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     
@@ -582,7 +583,7 @@
       const fmtVES = v => Number(v).toLocaleString('es-VE');
 
       let actions = `<button class="btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>`;
-      if (user.role === 'master') {
+      if (user && user.role === 'master') {
         actions += ` <button class="btn-danger" onclick="deleteOperacion(${op.id})">Borrar</button>`;
       }
 
