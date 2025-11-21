@@ -3527,7 +3527,14 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
     
     // Para todo lo demás, usar OpenAI con Function Calling
     try {
-        const OPENAI_API_KEY = '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';
+        // Usar variable de entorno OPENAI_API_KEY, o fallback a la key hardcodeada
+        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
+        
+        // Validar que hay API key
+        if (!OPENAI_API_KEY || OPENAI_API_KEY === '' || OPENAI_API_KEY.includes('your-api-key-here')) {
+            console.error('❌ No se encontró API key de OpenAI válida');
+            return '❌ Lo siento, el chatbot no está configurado correctamente. Por favor contacta al administrador para configurar la API key de OpenAI.';
+        }
         
         // Construir mensajes con historial de conversación
         const messages = [
@@ -3822,9 +3829,15 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
         return responseMessage.content;
         
     } catch (error) {
-        console.error('Error API OpenAI:', error.response?.data || error.message);
-        // Si falla OpenAI, respuesta genérica humanizada
-        return `Entiendo tu consulta, ${username}. Como asistente de DefiOracle.cl puedo ayudarte con conversiones, datos bancarios, tareas, y más. ¿Podrías darme más detalles de lo que necesitas?`;
+        console.error('❌ Error API OpenAI:', error.response?.data || error.message);
+        
+        // Si el error es de API key inválida, dar mensaje específico
+        if (error.response?.data?.error?.code === 'invalid_api_key') {
+            return `❌ **Configuración pendiente**\n\nLo siento, la API key de OpenAI no está configurada correctamente.\n\n**Administrador:** Configure la variable de entorno \`OPENAI_API_KEY\` en Render con una key válida de https://platform.openai.com/api-keys`;
+        }
+        
+        // Si falla OpenAI por otro motivo, respuesta genérica humanizada
+        return `Entiendo tu consulta, ${username}. Como asistente de DefiOracle.cl puedo ayudarte con conversiones, datos bancarios, tareas, y más. ¿Podrías darme más detalles de lo que necesitas?\n\n_Nota: El servicio de IA está experimentando problemas técnicos._`;
     }
 }
 
