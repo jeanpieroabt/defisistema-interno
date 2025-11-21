@@ -581,11 +581,14 @@
       const fmtCLP = v => Number(v).toLocaleString('es-CL',{style:'currency',currency:'CLP'});
       const fmtVES = v => Number(v).toLocaleString('es-VE');
 
-      console.log('DEBUG row() - user object:', user, 'role:', user?.role);
+      console.log('DEBUG row() - user object:', user, 'role:', user?.role, 'type:', typeof user?.role, 'comparison:', user?.role === 'master');
       
       let actions = `<button class="btn-edit" onclick="abrirModalEdicion(${op.id})">Editar</button>`;
       if (user && user.role === 'master') {
+        console.log('✅ AÑADIENDO BOTÓN BORRAR para operación', op.id);
         actions += ` <button class="btn-danger" onclick="deleteOperacion(${op.id})">Borrar</button>`;
+      } else {
+        console.log('❌ NO se añade botón borrar. user:', user, 'user.role:', user?.role);
       }
 
       tr.innerHTML = `
