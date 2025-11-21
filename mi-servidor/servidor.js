@@ -1287,17 +1287,24 @@ app.get('/api/tasas', apiAuth, (req, res) => {
       result.tasaNivel2 = v2 ? Number(v2) : null;
       readConfig('tasaNivel3', (e3, v3) => {
         result.tasaNivel3 = v3 ? Number(v3) : null;
-        res.json(result);
+        readConfig('margenToleranciaAlertas', (e4, v4) => {
+          result.margenToleranciaAlertas = v4 ? Number(v4) : 2.0;
+          res.json(result);
+        });
       });
     });
   });
 });
 
 app.post('/api/tasas', apiAuth, onlyMaster, (req, res) => {
-  const { tasaNivel1, tasaNivel2, tasaNivel3 } = req.body;
+  const { tasaNivel1, tasaNivel2, tasaNivel3, margenToleranciaAlertas } = req.body;
   upsertConfig('tasaNivel1', String(tasaNivel1 ?? ''), () => {
     upsertConfig('tasaNivel2', String(tasaNivel2 ?? ''), () => {
-      upsertConfig('tasaNivel3', String(tasaNivel3 ?? ''), () => res.json({ ok: true }));
+      upsertConfig('tasaNivel3', String(tasaNivel3 ?? ''), () => {
+        upsertConfig('margenToleranciaAlertas', String(margenToleranciaAlertas ?? '2.0'), () => res.json({ ok: true }));
+      });
+    });
+  });
     });
   });
 });
@@ -4629,12 +4636,21 @@ async function monitorearTasasVES() {
             return;
         }
 
-        // 3. COMPARAR: Si tasa manual > tasa P2P (estamos cobrando MÁS de lo debido)
+        // 3. Obtener margen de tolerancia configurado (por defecto 2%)
+        let margenTolerancia = await readConfigValue('margenToleranciaAlertas');
+        if (!margenTolerancia || margenTolerancia === 0) {
+            margenTolerancia = 2.0; // Margen por defecto: 2%
+        }
+        
+        // 4. COMPARAR: Si tasa manual > tasa P2P (estamos cobrando MÁS de lo debido)
         const diferencia = tasaManual - tasaP2PAjustada;
         const porcentajeDiferencia = (diferencia / tasaP2PAjustada) * 100;
 
-        if (tasaManual > tasaP2PAjustada) {
-            console.log(`🚨 ALERTA: Tasa manual es ${porcentajeDiferencia.toFixed(2)}% MAYOR que P2P`);
+        console.log(`📊 Diferencia: ${porcentajeDiferencia.toFixed(2)}% | Margen tolerancia: ${margenTolerancia}%`);
+
+        // Solo alertar si la diferencia supera el margen de tolerancia
+        if (tasaManual > tasaP2PAjustada && porcentajeDiferencia > margenTolerancia) {
+            console.log(`🚨 ALERTA: Tasa manual es ${porcentajeDiferencia.toFixed(2)}% MAYOR que P2P (supera margen de ${margenTolerancia}%)`);
             
             // Verificar si ya existe una alerta pendiente
             if (alertaTasasPendiente) {
@@ -4674,6 +4690,18 @@ async function monitorearTasasVES() {
                     notificado: true,
                     timeout_id: timeoutId
                 };
+            }
+        } else if (tasaManual > tasaP2PAjustada && porcentajeDiferencia <= margenTolerancia) {
+            // Diferencia dentro del margen de tolerancia - no alertar
+            console.log(`✅ Diferencia ${porcentajeDiferencia.toFixed(2)}% dentro del margen de tolerancia (${margenTolerancia}%) - No se alerta`);
+            
+            // Si había alerta pendiente, cancelarla
+            if (alertaTasasPendiente) {
+                console.log('✅ Diferencia ahora dentro del margen. Cancelando alerta...');
+                if (alertaTasasPendiente.timeout_id) {
+                    clearTimeout(alertaTasasPendiente.timeout_id);
+                }
+                alertaTasasPendiente = null;
             }
         } else {
             console.log(`✅ Tasas OK: Manual (${tasaManual.toFixed(4)}) <= P2P (${tasaP2PAjustada.toFixed(4)})`);
