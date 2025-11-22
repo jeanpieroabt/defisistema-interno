@@ -2174,17 +2174,17 @@ app.get('/api/p2p/tasas-ves-clp', apiAuth, async (req, res) => {
         const tasa_menos_4_5 = tasa_base_clp_ves * (1 - 0.045);
         const tasa_menos_4 = tasa_base_clp_ves * (1 - 0.04);
 
-        // 4. Redondear a 4 decimales
-        const redondear = (num) => Math.round(num * 10000) / 10000;
+        // 4. Truncar a 4 decimales SIN redondear
+        const truncar = (num) => Math.floor(num * 10000) / 10000;
 
         const response = {
-            tasa_ves_p2p: redondear(tasa_ves_p2p),
-            tasa_clp_p2p: redondear(tasa_clp_p2p),
-            tasa_base_clp_ves: redondear(tasa_base_clp_ves),
+            tasa_ves_p2p: truncar(tasa_ves_p2p),
+            tasa_clp_p2p: truncar(tasa_clp_p2p),
+            tasa_base_clp_ves: truncar(tasa_base_clp_ves),
             tasas_ajustadas: {
-                tasa_menos_5: redondear(tasa_menos_5),
-                tasa_menos_4_5: redondear(tasa_menos_4_5),
-                tasa_menos_4: redondear(tasa_menos_4)
+                tasa_menos_5: truncar(tasa_menos_5),
+                tasa_menos_4_5: truncar(tasa_menos_4_5),
+                tasa_menos_4: truncar(tasa_menos_4)
             },
             metadata: {
                 fuente: 'Binance P2P',
@@ -2227,17 +2227,17 @@ app.get('/api/p2p/tasas-cop-clp', apiAuth, async (req, res) => {
         const tasa_menos_4_5 = tasa_base_clp_cop * (1 - 0.045);
         const tasa_menos_4 = tasa_base_clp_cop * (1 - 0.04);
 
-        // 4. Redondear a 4 decimales
-        const redondear = (num) => Math.round(num * 10000) / 10000;
+        // 4. Truncar a 4 decimales SIN redondear
+        const truncar = (num) => Math.floor(num * 10000) / 10000;
 
         const response = {
-            tasa_cop_p2p: redondear(tasa_cop_p2p),
-            tasa_clp_p2p: redondear(tasa_clp_p2p),
-            tasa_base_clp_cop: redondear(tasa_base_clp_cop),
+            tasa_cop_p2p: truncar(tasa_cop_p2p),
+            tasa_clp_p2p: truncar(tasa_clp_p2p),
+            tasa_base_clp_cop: truncar(tasa_base_clp_cop),
             tasas_ajustadas: {
-                tasa_menos_5: redondear(tasa_menos_5),
-                tasa_menos_4_5: redondear(tasa_menos_4_5),
-                tasa_menos_4: redondear(tasa_menos_4)
+                tasa_menos_5: truncar(tasa_menos_5),
+                tasa_menos_4_5: truncar(tasa_menos_4_5),
+                tasa_menos_4: truncar(tasa_menos_4)
             },
             metadata: {
                 fuente: 'Binance P2P',
@@ -2280,17 +2280,17 @@ app.get('/api/p2p/tasas-pen-clp', apiAuth, async (req, res) => {
         const tasa_menos_4_5 = tasa_base_clp_pen * (1 - 0.045);
         const tasa_menos_4 = tasa_base_clp_pen * (1 - 0.04);
 
-        // 4. Redondear a 6 decimales para PEN
-        const redondear = (num) => Math.round(num * 1000000) / 1000000;
+        // 4. Truncar a 6 decimales SIN redondear (PEN tiene valores más pequeños)
+        const truncar = (num) => Math.floor(num * 1000000) / 1000000;
 
         const response = {
-            tasa_pen_p2p: redondear(tasa_pen_p2p),
-            tasa_clp_p2p: redondear(tasa_clp_p2p),
-            tasa_base_clp_pen: redondear(tasa_base_clp_pen),
+            tasa_pen_p2p: truncar(tasa_pen_p2p),
+            tasa_clp_p2p: truncar(tasa_clp_p2p),
+            tasa_base_clp_pen: truncar(tasa_base_clp_pen),
             tasas_ajustadas: {
-                tasa_menos_5: redondear(tasa_menos_5),
-                tasa_menos_4_5: redondear(tasa_menos_4_5),
-                tasa_menos_4: redondear(tasa_menos_4)
+                tasa_menos_5: truncar(tasa_menos_5),
+                tasa_menos_4_5: truncar(tasa_menos_4_5),
+                tasa_menos_4: truncar(tasa_menos_4)
             },
             metadata: {
                 fuente: 'Binance P2P',
@@ -2333,17 +2333,17 @@ app.get('/api/p2p/tasas-bob-clp', apiAuth, async (req, res) => {
         const tasa_menos_4_5 = tasa_base_clp_bob * (1 - 0.045);
         const tasa_menos_4 = tasa_base_clp_bob * (1 - 0.04);
 
-        // 4. Redondear a 4 decimales para BOB
-        const redondear = (num) => Math.round(num * 10000) / 10000;
+        // 4. Truncar a 5 decimales SIN redondear (BOB requiere más precisión)
+        const truncar = (num) => Math.floor(num * 100000) / 100000;
 
         const response = {
-            tasa_bob_p2p: redondear(tasa_bob_p2p),
-            tasa_clp_p2p: redondear(tasa_clp_p2p),
-            tasa_base_clp_bob: redondear(tasa_base_clp_bob),
+            tasa_bob_p2p: truncar(tasa_bob_p2p),
+            tasa_clp_p2p: truncar(tasa_clp_p2p),
+            tasa_base_clp_bob: truncar(tasa_base_clp_bob),
             tasas_ajustadas: {
-                tasa_menos_5: redondear(tasa_menos_5),
-                tasa_menos_4_5: redondear(tasa_menos_4_5),
-                tasa_menos_4: redondear(tasa_menos_4)
+                tasa_menos_5: truncar(tasa_menos_5),
+                tasa_menos_4_5: truncar(tasa_menos_4_5),
+                tasa_menos_4: truncar(tasa_menos_4)
             },
             metadata: {
                 fuente: 'Binance P2P',
@@ -2386,17 +2386,17 @@ app.get('/api/p2p/tasas-ars-clp', apiAuth, async (req, res) => {
         const tasa_menos_4_5 = tasa_base_clp_ars * (1 - 0.045);
         const tasa_menos_4 = tasa_base_clp_ars * (1 - 0.04);
 
-        // 4. Redondear a 4 decimales para ARS
-        const redondear = (num) => Math.round(num * 10000) / 10000;
+        // 4. Truncar a 4 decimales SIN redondear
+        const truncar = (num) => Math.floor(num * 10000) / 10000;
 
         const response = {
-            tasa_ars_p2p: redondear(tasa_ars_p2p),
-            tasa_clp_p2p: redondear(tasa_clp_p2p),
-            tasa_base_clp_ars: redondear(tasa_base_clp_ars),
+            tasa_ars_p2p: truncar(tasa_ars_p2p),
+            tasa_clp_p2p: truncar(tasa_clp_p2p),
+            tasa_base_clp_ars: truncar(tasa_base_clp_ars),
             tasas_ajustadas: {
-                tasa_menos_5: redondear(tasa_menos_5),
-                tasa_menos_4_5: redondear(tasa_menos_4_5),
-                tasa_menos_4: redondear(tasa_menos_4)
+                tasa_menos_5: truncar(tasa_menos_5),
+                tasa_menos_4_5: truncar(tasa_menos_4_5),
+                tasa_menos_4: truncar(tasa_menos_4)
             },
             metadata: {
                 fuente: 'Binance P2P',
@@ -4365,21 +4365,25 @@ async function generarMensajesProactivos() {
 
         for (const usuario of usuarios) {
             const mensajesGenerados = [];
+            // Obtener fecha actual en zona horaria de Venezuela (UTC-4)
             const ahora = new Date();
-            const hoyStr = ahora.toISOString().split('T')[0];
+            const fechaVenezuela = new Date(ahora.toLocaleString('en-US', { timeZone: 'America/Caracas' }));
+            const hoyStr = fechaVenezuela.toISOString().split('T')[0]; // YYYY-MM-DD en hora local de Venezuela
+            
+            console.log(`⏰ Verificando mensajes para ${usuario.username} - Fecha local Venezuela: ${hoyStr}`);
 
             // 1️⃣ CELEBRACIÓN - Operaciones del día
             const operacionesHoy = await new Promise((resolve) => {
                 db.all(`
                     SELECT COUNT(*) as total, SUM(monto_clp) as volumen
                     FROM operaciones
-                    WHERE usuario_id = ? AND DATE(fecha) = DATE('now', 'localtime')
-                `, [usuario.id], (err, rows) => {
+                    WHERE usuario_id = ? AND DATE(fecha) = ?
+                `, [usuario.id, hoyStr], (err, rows) => {
                     if (err || !rows || !rows[0]) return resolve(null);
                     resolve(rows[0]);
                 });
             });
-            console.log(`📊 ${usuario.username} - Operaciones hoy:`, operacionesHoy);
+            console.log(`📊 ${usuario.username} - Operaciones hoy (${hoyStr}):`, operacionesHoy);
 
             if (operacionesHoy && operacionesHoy.total >= 5) {
                 mensajesGenerados.push({
@@ -4416,16 +4420,20 @@ async function generarMensajesProactivos() {
             }
 
             // 3️⃣ ALERTA - Clientes con datos incompletos que operaron recientemente
+            const hace7Dias = new Date(fechaVenezuela);
+            hace7Dias.setDate(hace7Dias.getDate() - 7);
+            const fecha7DiasStr = hace7Dias.toISOString().split('T')[0];
+            
             const clientesIncompletos = await new Promise((resolve) => {
                 db.all(`
                     SELECT DISTINCT c.nombre, c.id
                     FROM clientes c
                     JOIN operaciones o ON c.id = o.cliente_id
                     WHERE o.usuario_id = ?
-                    AND DATE(o.fecha) >= DATE('now', '-7 days')
+                    AND DATE(o.fecha) >= ?
                     AND (c.rut IS NULL OR c.rut = '' OR c.email IS NULL OR c.email = '' OR c.telefono IS NULL OR c.telefono = '')
                     LIMIT 3
-                `, [usuario.id], (err, rows) => {
+                `, [usuario.id, fecha7DiasStr], (err, rows) => {
                     if (err || !rows) return resolve([]);
                     resolve(rows);
                 });
@@ -4449,12 +4457,12 @@ async function generarMensajesProactivos() {
                     FROM clientes c
                     JOIN operaciones o ON c.id = o.cliente_id
                     WHERE o.usuario_id = ?
-                    AND DATE(o.fecha) >= DATE('now', '-7 days')
+                    AND DATE(o.fecha) >= ?
                     AND c.rut IS NOT NULL AND c.rut != ''
                     AND c.email IS NOT NULL AND c.email != ''
                     AND c.telefono IS NOT NULL AND c.telefono != ''
                     LIMIT 3
-                `, [usuario.id], (err, rows) => {
+                `, [usuario.id, fecha7DiasStr], (err, rows) => {
                     if (err || !rows) return resolve([]);
                     resolve(rows);
                 });
@@ -4472,15 +4480,15 @@ async function generarMensajesProactivos() {
             }
 
             // 5️⃣ INFORMATIVO - Rendimiento semanal
-            const esLunes = ahora.getDay() === 1; // 0 = Domingo, 1 = Lunes
-            if (esLunes && ahora.getHours() >= 9 && ahora.getHours() <= 10) {
+            const esLunes = fechaVenezuela.getDay() === 1; // 0 = Domingo, 1 = Lunes
+            if (esLunes && fechaVenezuela.getHours() >= 9 && fechaVenezuela.getHours() <= 10) {
                 const rendimientoSemanal = await new Promise((resolve) => {
                     db.get(`
                         SELECT COUNT(*) as ops, SUM(monto_clp) as volumen
                         FROM operaciones
                         WHERE usuario_id = ?
-                        AND DATE(fecha) >= DATE('now', '-7 days')
-                    `, [usuario.id], (err, row) => {
+                        AND DATE(fecha) >= ?
+                    `, [usuario.id, fecha7DiasStr], (err, row) => {
                         if (err || !row) return resolve(null);
                         resolve(row);
                     });
@@ -4518,7 +4526,7 @@ async function generarMensajesProactivos() {
                             INSERT INTO chatbot_mensajes_proactivos 
                             (usuario_id, tipo, mensaje, contexto, prioridad, fecha_creacion)
                             VALUES (?, ?, ?, ?, ?, ?)
-                        `, [usuario.id, msg.tipo, msg.mensaje, msg.contexto, msg.prioridad, ahora.toISOString()],
+                        `, [usuario.id, msg.tipo, msg.mensaje, msg.contexto, msg.prioridad, fechaVenezuela.toISOString()],
                         (err) => {
                             if (!err) {
                                 console.log(`💬 Mensaje proactivo generado para ${usuario.username}: ${msg.tipo}`);
@@ -4538,10 +4546,37 @@ async function generarMensajesProactivos() {
     }
 }
 
+// Función para limpiar mensajes antiguos (más de 24 horas)
+async function limpiarMensajesAntiguos() {
+    try {
+        const ahora = new Date();
+        const fechaVenezuela = new Date(ahora.toLocaleString('en-US', { timeZone: 'America/Caracas' }));
+        const hace24Horas = new Date(fechaVenezuela);
+        hace24Horas.setHours(hace24Horas.getHours() - 24);
+        const fecha24HorasStr = hace24Horas.toISOString();
+        
+        db.run(`
+            DELETE FROM chatbot_mensajes_proactivos
+            WHERE fecha_creacion < ? OR mostrado = 1
+        `, [fecha24HorasStr], function(err) {
+            if (err) {
+                console.error('❌ Error limpiando mensajes antiguos:', err);
+            } else if (this.changes > 0) {
+                console.log(`🧹 Limpiados ${this.changes} mensajes antiguos/mostrados`);
+            }
+        });
+    } catch (error) {
+        console.error('❌ Error en limpieza de mensajes:', error);
+    }
+}
+
 // Endpoint para obtener mensajes proactivos
 app.get('/api/chatbot/mensajes-proactivos', apiAuth, (req, res) => {
     const userId = req.session.user.id;
     console.log(`🔍 GET /api/chatbot/mensajes-proactivos - userId: ${userId}`);
+    
+    // Limpiar mensajes antiguos antes de consultar
+    limpiarMensajesAntiguos();
     
     db.all(`
         SELECT * FROM chatbot_mensajes_proactivos
@@ -4576,9 +4611,41 @@ app.post('/api/chatbot/mensajes-proactivos/:id/mostrado', apiAuth, (req, res) =>
     });
 });
 
+// Endpoint para limpiar manualmente todos los mensajes (solo master)
+app.post('/api/chatbot/mensajes-proactivos/limpiar', apiAuth, (req, res) => {
+    if (req.session.user.role !== 'master') {
+        return res.status(403).json({ error: 'No autorizado' });
+    }
+    
+    limpiarMensajesAntiguos();
+    res.json({ success: true, message: 'Limpieza iniciada' });
+});
+
+// Endpoint para ver todos los mensajes en la BD (debug - solo master)
+app.get('/api/chatbot/mensajes-proactivos/debug', apiAuth, (req, res) => {
+    if (req.session.user.role !== 'master') {
+        return res.status(403).json({ error: 'No autorizado' });
+    }
+    
+    db.all(`
+        SELECT m.*, u.username 
+        FROM chatbot_mensajes_proactivos m
+        JOIN usuarios u ON m.usuario_id = u.id
+        ORDER BY m.fecha_creacion DESC
+        LIMIT 50
+    `, [], (err, mensajes) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ mensajes });
+    });
+});
+
 // Ejecutar monitoreo cada 30 segundos (para pruebas - cambiar a 10 min en producción)
 const INTERVALO_MONITOREO = 30 * 1000; // 30 segundos
+const INTERVALO_LIMPIEZA = 60 * 60 * 1000; // 1 hora
 let intervaloMonitoreo = null;
+let intervaloLimpieza = null;
 
 function iniciarMonitoreoProactivo() {
     // Ejecutar inmediatamente
@@ -4587,6 +4654,10 @@ function iniciarMonitoreoProactivo() {
     // Luego cada 30 segundos
     intervaloMonitoreo = setInterval(generarMensajesProactivos, INTERVALO_MONITOREO);
     console.log('🤖 Sistema de monitoreo proactivo iniciado (cada 30 segundos)');
+    
+    // Limpieza de mensajes antiguos cada hora
+    intervaloLimpieza = setInterval(limpiarMensajesAntiguos, INTERVALO_LIMPIEZA);
+    console.log('🧹 Sistema de limpieza de mensajes iniciado (cada 1 hora)');
 }
 
 // =================================================================
@@ -4797,17 +4868,22 @@ async function actualizarTasasAutomaticamente(tasa_base_clp_ves) {
         console.log('🔄 Actualizando las 3 tasas automáticamente...');
         console.log(`📊 Usando tasa base P2P: ${tasa_base_clp_ves.toFixed(4)} VES/CLP (calculada previamente)`);
         
-        // 1. Calcular las 3 tasas con sus respectivos ajustes
-        const tasa_nivel1 = tasa_base_clp_ves * (1 - 0.05);  // -5% para 5K CLP
-        const tasa_nivel2 = tasa_base_clp_ves * (1 - 0.045); // -4.5% para 100K CLP
-        const tasa_nivel3 = tasa_base_clp_ves * (1 - 0.04);  // -4% para 250K CLP
+        // Función auxiliar para truncar (NO redondear) a exactamente 4 decimales
+        const truncarA4Decimales = (num) => {
+            return Math.floor(num * 10000) / 10000;
+        };
+        
+        // 1. Calcular las 3 tasas con sus respectivos ajustes y truncar a 4 decimales
+        const tasa_nivel1 = truncarA4Decimales(tasa_base_clp_ves * (1 - 0.05));  // -5% para 5K CLP
+        const tasa_nivel2 = truncarA4Decimales(tasa_base_clp_ves * (1 - 0.045)); // -4.5% para 100K CLP
+        const tasa_nivel3 = truncarA4Decimales(tasa_base_clp_ves * (1 - 0.04));  // -4% para 250K CLP
         
         // 2. Actualizar las 3 tasas en la base de datos
         await dbRun(`INSERT OR REPLACE INTO configuracion(clave, valor) VALUES ('tasaNivel1', ?)`, [tasa_nivel1.toString()]);
         await dbRun(`INSERT OR REPLACE INTO configuracion(clave, valor) VALUES ('tasaNivel2', ?)`, [tasa_nivel2.toString()]);
         await dbRun(`INSERT OR REPLACE INTO configuracion(clave, valor) VALUES ('tasaNivel3', ?)`, [tasa_nivel3.toString()]);
         
-        console.log(`✅ Tasas actualizadas en BD:`);
+        console.log(`✅ Tasas actualizadas en BD (truncadas a 4 decimales SIN redondear):`);
         console.log(`   - Nivel 1 (5K CLP, -5%): ${tasa_nivel1.toFixed(4)} VES/CLP`);
         console.log(`   - Nivel 2 (100K CLP, -4.5%): ${tasa_nivel2.toFixed(4)} VES/CLP`);
         console.log(`   - Nivel 3 (250K CLP, -4%): ${tasa_nivel3.toFixed(4)} VES/CLP`);
