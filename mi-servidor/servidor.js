@@ -5237,12 +5237,12 @@ async function generarTareasAutomaticas() {
         console.log('📋 Generando tareas automáticas desde alertas...');
         const fechaHoy = hoyLocalYYYYMMDD();
         
-        // Obtener alertas activas SIN acción realizada
+        // Obtener alertas activas SIN acción realizada (sin mensaje_enviado ni promocion_enviada)
         const alertasSinResolver = await dbAll(`
             SELECT a.* 
             FROM alertas a
             WHERE a.activa = 1 
-            AND (a.accion_realizada IS NULL OR a.accion_realizada = '')
+            AND a.accion_realizada IS NULL
             AND (
                 a.tarea_id IS NULL 
                 OR EXISTS (

@@ -1018,9 +1018,10 @@
             <!-- Barra de acciones múltiples -->
             <div id="bulkActionsBar" class="bulk-actions-bar">
                 <span class="selected-count"><span id="selectedCount">0</span> tareas seleccionadas</span>
-                <button class="btn-select-all" onclick="selectAllTareas()">Seleccionar todas</button>
+                <button class="btn-select-all" onclick="selectAllTareas()">✓ Seleccionar todas</button>
+                <button class="btn-cancel-selected" onclick="cancelarTareasSeleccionadas()" style="background: linear-gradient(135deg, #ffa726 0%, #fb8c00 100%);">🚫 Cancelar seleccionadas</button>
                 <button class="btn-delete-selected" onclick="eliminarTareasSeleccionadas()">🗑️ Eliminar seleccionadas</button>
-                <button class="btn-cancel-selection" onclick="cancelarSeleccion()">Cancelar</button>
+                <button class="btn-cancel-selection" onclick="cancelarSeleccion()">✗ Cancelar selección</button>
             </div>
 
             <div id="noTareas" class="no-tareas" style="display: none;">
@@ -1369,6 +1370,33 @@
             } catch (error) {
                 console.error('Error eliminando tareas:', error);
                 alert('Error al eliminar las tareas');
+            }
+        }
+
+        async function cancelarTareasSeleccionadas() {
+            if (tareasSeleccionadas.size === 0) return;
+            
+            const confirmacion = confirm(`¿Estás seguro de cancelar ${tareasSeleccionadas.size} tarea(s)?`);
+            if (!confirmacion) return;
+            
+            try {
+                const promesas = Array.from(tareasSeleccionadas).map(id => 
+                    fetch(`/api/tareas/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ estado: 'cancelada' })
+                    })
+                );
+                
+                await Promise.all(promesas);
+                
+                alert(`Se cancelaron ${tareasSeleccionadas.size} tarea(s) correctamente`);
+                tareasSeleccionadas.clear();
+                actualizarBarraAcciones();
+                await cargarTareas();
+            } catch (error) {
+                console.error('Error cancelando tareas:', error);
+                alert('Error al cancelar las tareas');
             }
         }
 
