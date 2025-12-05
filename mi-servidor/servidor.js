@@ -2969,7 +2969,7 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
         const fechaHoy = hoyLocalYYYYMMDD();
         
         // Obtener alertas activas SIN acción realizada (sin mensaje_enviado ni promocion_enviada)
-        // Permitir reasignar si la última tarea fue cancelada o es de días anteriores
+        // Permitir reasignar si: 1) sin tarea, 2) tarea eliminada, 3) tarea cancelada, 4) tarea de días anteriores
         const alertasSinResolver = await dbAll(`
             SELECT a.* 
             FROM alertas a
@@ -2977,6 +2977,7 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             AND (a.accion_realizada IS NULL OR a.accion_realizada = '')
             AND (
                 a.tarea_id IS NULL 
+                OR NOT EXISTS (SELECT 1 FROM tareas t WHERE t.id = a.tarea_id)
                 OR EXISTS (
                     SELECT 1 FROM tareas t 
                     WHERE t.id = a.tarea_id 
@@ -5238,6 +5239,7 @@ async function generarTareasAutomaticas() {
         const fechaHoy = hoyLocalYYYYMMDD();
         
         // Obtener alertas activas SIN acción realizada (sin mensaje_enviado ni promocion_enviada)
+        // Permitir reasignar si: 1) sin tarea, 2) tarea eliminada, 3) tarea cancelada, 4) tarea de días anteriores
         const alertasSinResolver = await dbAll(`
             SELECT a.* 
             FROM alertas a
@@ -5245,6 +5247,7 @@ async function generarTareasAutomaticas() {
             AND a.accion_realizada IS NULL
             AND (
                 a.tarea_id IS NULL 
+                OR NOT EXISTS (SELECT 1 FROM tareas t WHERE t.id = a.tarea_id)
                 OR EXISTS (
                     SELECT 1 FROM tareas t 
                     WHERE t.id = a.tarea_id 
