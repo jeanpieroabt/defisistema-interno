@@ -483,6 +483,11 @@
         .btn-accion:hover {
             transform: translateY(-2px);
         }
+        
+        .btn-resolver-agente:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5) !important;
+        }
 
         .btn-iniciar {
             background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
@@ -1389,14 +1394,23 @@
 
             let botonesAccion = '';
             
-            if (tarea.estado === 'pendiente') {
+            // Botón de resolver automáticamente si es tarea automática y no está resuelta
+            if (tarea.tipo === 'automatica' && !tarea.resolucion_agente && tarea.estado !== 'completada' && tarea.estado !== 'cancelada') {
                 botonesAccion = `
+                    <button class="btn-resolver-agente" onclick="resolverTarea(${tarea.id})" style="background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 0.5rem; width: 100%; justify-content: center; margin-bottom: 0.75rem; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); transition: all 0.3s ease;">
+                        <span style="font-size: 1.2rem;">🤖</span> Resolver con IA
+                    </button>
+                `;
+            }
+            
+            if (tarea.estado === 'pendiente') {
+                botonesAccion += `
                     <button class="btn-accion btn-iniciar" onclick="cambiarEstadoRapido(${tarea.id}, 'en_progreso')">
                         Iniciar
                     </button>
                 `;
             } else if (tarea.estado === 'en_progreso') {
-                botonesAccion = `
+                botonesAccion += `
                     <button class="btn-accion btn-completar" onclick="abrirModalCompletar(${tarea.id})">
                         Completar
                     </button>
@@ -1425,10 +1439,73 @@
                    </div>` 
                 : '';
             
+            // Agregar badge y sección de resolución automática del agente
+            let badgeAgente = '';
+            let seccionMensaje = '';
+            
+            if (tarea.resolucion_agente === 'automatica' && tarea.mensaje_generado) {
+                badgeAgente = '<span class="badge badge-agente" style="background: #10B981; color: white; font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 12px; margin-left: 0.5rem;">🤖 Resuelta por Agente</span>';
+                
+                let metadata = {};
+                try {
+                    metadata = tarea.metadata ? JSON.parse(tarea.metadata) : {};
+                } catch (e) {
+                    console.error('Error parseando metadata:', e);
+                }
+                
+                seccionMensaje = `
+                    <div class="seccion-agente" style="background: #F0FDF4; border-left: 4px solid #10B981; padding: 1rem; margin: 1rem 0; border-radius: 8px;">
+                        ${metadata.tasa_promocional ? `
+                            <div class="info-promo" style="margin-bottom: 0.75rem; font-size: 0.9rem; color: #065F46;">
+                                <strong>📊 Análisis:</strong>
+                                <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                                    ${metadata.dias_inactivo ? `<li>${metadata.dias_inactivo} días sin actividad</li>` : ''}
+                                    ${metadata.tipo_estrategia ? `<li>Estrategia: ${metadata.tipo_estrategia.replace(/_/g, ' ')}</li>` : ''}
+                                    <li>Tasa promocional: <strong>${metadata.tasa_promocional}</strong> VES/CLP (${metadata.descuento_porcentaje}% descuento)</li>
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="mensaje-generado" style="margin-bottom: 1rem;">
+                            <strong style="color: #065F46; display: block; margin-bottom: 0.5rem;">💬 Mensaje Generado:</strong>
+                            <div id="mensaje-texto-${tarea.id}" style="background: white; padding: 1rem; border-radius: 8px; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; border: 1px solid #D1FAE5;">${tarea.mensaje_generado}</div>
+                        </div>
+                        
+                        ${tarea.estado !== 'completada' ? `
+                            <div class="acciones-agente" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                                <button class="btn-copiar-mensaje" onclick="copiarMensaje(${tarea.id}, this)" style="background: #3B82F6; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                                    📋 Copiar Mensaje
+                                </button>
+                                <button class="btn-confirmar-envio" onclick="confirmarEnvio(${tarea.id})" style="background: #10B981; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                                    ✓ Mensaje Enviado
+                                </button>
+                            </div>
+                        ` : `
+                            <div style="color: #059669; font-weight: 600; font-size: 0.9rem;">
+                                ✅ Mensaje enviado${tarea.fecha_mensaje_enviado ? ` el ${tarea.fecha_mensaje_enviado}` : ''}
+                            </div>
+                        `}
+                    </div>
+                `;
+            } else if (tarea.resolucion_agente === 'asistida') {
+                badgeAgente = '<span class="badge badge-asistida" style="background: #F59E0B; color: white; font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 12px; margin-left: 0.5rem;">⚠️ Requiere Acción</span>';
+                seccionMensaje = `
+                    <div class="seccion-agente" style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 1rem; margin: 1rem 0; border-radius: 8px;">
+                        <strong style="color: #92400E;">⚠️ Acción Requerida:</strong>
+                        <p style="margin: 0.5rem 0; color: #78350F;">${tarea.observaciones || tarea.accion_requerida || 'Requiere intervención manual'}</p>
+                        ${!tarea.mensaje_generado && tarea.estado !== 'completada' ? `
+                            <button onclick="resolverTarea(${tarea.id})" style="background: #3B82F6; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 0.5rem;">
+                                🔄 Reintentar Resolución
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
             return `
                 <div class="tarea-card ${tarea.prioridad}" data-tarea-id="${tarea.id}">${checkboxHtml}
                     <div class="tarea-header-card">
-                        <h3 class="tarea-titulo">${tarea.titulo}</h3>
+                        <h3 class="tarea-titulo">${tarea.titulo}${badgeAgente}</h3>
                     </div>
                     <div class="tarea-badges">
                         <span class="badge ${tarea.estado}">${estadosTexto[tarea.estado]}</span>
@@ -1436,13 +1513,14 @@
                         <span class="badge ${tarea.tipo}">${tiposTexto[tarea.tipo]}</span>
                     </div>
                     <p class="tarea-descripcion">${tarea.descripcion || 'Sin descripción'}</p>
+                    ${seccionMensaje}
                     ${tarea.asignado_nombre ? `<div class="tarea-info"><strong>Asignado a:</strong> ${tarea.asignado_nombre}</div>` : ''}
                     ${tarea.creado_por_nombre ? `<div class="tarea-info"><strong>Creado por:</strong> ${tarea.creado_por_nombre}</div>` : ''}
                     <div class="tarea-info"><strong>Creado:</strong> ${tarea.fecha_creacion}</div>
                     ${tarea.fecha_vencimiento ? `<div class="tarea-info"><strong>Vencimiento:</strong> ${tarea.fecha_vencimiento}</div>` : ''}
                     ${tarea.fecha_completada ? `<div class="tarea-info"><strong>Completada:</strong> ${tarea.fecha_completada}</div>` : ''}
                     ${tarea.resultado ? `<div class="tarea-info"><strong>Resultado:</strong> ${tarea.resultado}</div>` : ''}
-                    ${tarea.observaciones ? `<div class="tarea-info"><strong>Observaciones:</strong> ${tarea.observaciones}</div>` : ''}
+                    ${tarea.observaciones && !tarea.resolucion_agente ? `<div class="tarea-info"><strong>Observaciones:</strong> ${tarea.observaciones}</div>` : ''}
                     ${botonesAccion ? `<div class="tarea-acciones">${botonesAccion}</div>` : ''}
                 </div>
             `;
@@ -2244,6 +2322,104 @@
         // Debug: Verificar que los modales existen
         console.log('Modal Crear:', document.getElementById('modalCrearTarea'));
         console.log('Modal Actualizar:', document.getElementById('modalActualizarTarea'));
+        
+        // ============================================
+        // FUNCIONES PARA RESOLUCIÓN AUTOMÁTICA DEL AGENTE
+        // ============================================
+        
+        async function copiarMensaje(tareaId, btnElement) {
+            const mensajeElement = document.getElementById(`mensaje-texto-${tareaId}`);
+            if (!mensajeElement) {
+                alert('No se encontró el mensaje para copiar');
+                return;
+            }
+            
+            const texto = mensajeElement.innerText;
+            
+            try {
+                await navigator.clipboard.writeText(texto);
+                
+                // Feedback visual
+                const textoOriginal = btnElement.innerHTML;
+                btnElement.innerHTML = '✓ Copiado!';
+                btnElement.style.background = '#10B981';
+                
+                setTimeout(() => {
+                    btnElement.innerHTML = textoOriginal;
+                    btnElement.style.background = '#3B82F6';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error copiando mensaje:', error);
+                // Fallback: Seleccionar texto manualmente
+                const range = document.createRange();
+                range.selectNode(mensajeElement);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                
+                try {
+                    document.execCommand('copy');
+                    alert('✓ Mensaje copiado al portapapeles');
+                    window.getSelection().removeAllRanges();
+                } catch (e) {
+                    alert('Error al copiar. Por favor, selecciona el texto manualmente (Ctrl+C)');
+                }
+            }
+        }
+        
+        async function confirmarEnvio(tareaId) {
+            const confirmacion = confirm('¿Confirmas que enviaste este mensaje al cliente por WhatsApp?');
+            if (!confirmacion) return;
+            
+            try {
+                const response = await fetch(`/api/tareas/${tareaId}/confirmar-envio`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ Tarea completada exitosamente. El mensaje fue confirmado.');
+                    await cargarTareas();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error confirmando envío:', error);
+                alert('Error al confirmar el envío del mensaje.');
+            }
+        }
+        
+        async function resolverTarea(tareaId) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Resolviendo...';
+            
+            try {
+                const response = await fetch(`/api/tareas/${tareaId}/resolver`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Tarea resuelta automáticamente. El mensaje está listo.');
+                    await cargarTareas();
+                } else {
+                    alert('⚠️ ' + data.mensaje);
+                    await cargarTareas();
+                }
+            } catch (error) {
+                console.error('Error resolviendo tarea:', error);
+                alert('Error al resolver la tarea.');
+                btn.disabled = false;
+                btn.innerHTML = '🔄 Reintentar Resolución';
+            }
+        }
     </script>
 </body>
 </html>

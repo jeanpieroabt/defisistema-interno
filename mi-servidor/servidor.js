@@ -174,6 +174,12 @@ const runMigrations = async () => {
         fecha_completada TEXT,
         resultado TEXT,
         observaciones TEXT,
+        resolucion_agente TEXT CHECK(resolucion_agente IN ('automatica','asistida','manual')),
+        mensaje_generado TEXT,
+        accion_requerida TEXT,
+        metadata TEXT,
+        fecha_mensaje_enviado TEXT,
+        respuesta_cliente TEXT,
         FOREIGN KEY(asignado_a) REFERENCES usuarios(id),
         FOREIGN KEY(creado_por) REFERENCES usuarios(id)
     )`);
@@ -234,6 +240,70 @@ const runMigrations = async () => {
         fecha_mostrado TEXT,
         FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
     )`);
+
+    // 🔧 MIGRACIÓN: Agregar columnas de resolución automática a tareas
+    try {
+        await dbRun(`ALTER TABLE tareas ADD COLUMN resolucion_agente TEXT CHECK(resolucion_agente IN ('automatica','asistida','manual'))`);
+        console.log('✅ Columna resolucion_agente agregada');
+    } catch (e) {
+        if (!e.message.includes('duplicate column')) console.log('ℹ️  resolucion_agente ya existe');
+    }
+    
+    try {
+        await dbRun(`ALTER TABLE tareas ADD COLUMN mensaje_generado TEXT`);
+        console.log('✅ Columna mensaje_generado agregada');
+    } catch (e) {
+        if (!e.message.includes('duplicate column')) console.log('ℹ️  mensaje_generado ya existe');
+    }
+    
+    try {
+        await dbRun(`ALTER TABLE tareas ADD COLUMN accion_requerida TEXT`);
+        console.log('✅ Columna accion_requerida agregada');
+    } catch (e) {
+        if (!e.message.includes('duplicate column')) console.log('ℹ️  accion_requerida ya existe');
+    }
+    
+    try {
+        await dbRun(`ALTER TABLE tareas ADD COLUMN metadata TEXT`);
+        console.log('✅ Columna metadata agregada');
+    } catch (e) {
+        if (!e.message.includes('duplicate column')) console.log('ℹ️  metadata ya existe');
+    }
+    
+    try {
+        await dbRun(`ALTER TABLE tareas ADD COLUMN fecha_mensaje_enviado TEXT`);
+        console.log('✅ Columna fecha_mensaje_enviado agregada');
+    } catch (e) {
+        if (!e.message.includes('duplicate column')) console.log('ℹ️  fecha_mensaje_enviado ya existe');
+    }
+    
+    try {
+        await dbRun(`ALTER TABLE tareas ADD COLUMN respuesta_cliente TEXT`);
+        console.log('✅ Columna respuesta_cliente agregada');
+    } catch (e) {
+        if (!e.message.includes('duplicate column')) console.log('ℹ️  respuesta_cliente ya existe');
+    }
+    
+    try {
+        await dbRun(`ALTER TABLE tareas ADD COLUMN tipo_alerta TEXT`);
+        console.log('✅ Columna tipo_alerta agregada');
+    } catch (e) {
+        if (!e.message.includes('duplicate column')) console.log('ℹ️  tipo_alerta ya existe');
+    }
+    
+    try {
+        await dbRun(`ALTER TABLE tareas ADD COLUMN cliente_id INTEGER`);
+        console.log('✅ Columna cliente_id agregada');
+    } catch (e) {
+        if (!e.message.includes('duplicate column')) console.log('ℹ️  cliente_id ya existe');
+    }
+    
+    try {
+        await dbRun(`ALTER TABLE tareas ADD COLUMN cliente_nombre TEXT`);
+        console.log('✅ Columna cliente_nombre agregada');
+    } catch (e) {
+        if (!e.message.includes('duplicate column')) console.log('ℹ️  cliente_nombre ya existe');
+    }
 
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -1301,7 +1371,12 @@ app.post('/api/tasas', apiAuth, onlyMaster, (req, res) => {
   upsertConfig('tasaNivel1', String(tasaNivel1 ?? ''), () => {
     upsertConfig('tasaNivel2', String(tasaNivel2 ?? ''), () => {
       upsertConfig('tasaNivel3', String(tasaNivel3 ?? ''), () => {
-        upsertConfig('margenToleranciaAlertas', String(margenToleranciaAlertas ?? '2.0'), () => res.json({ ok: true }));
+        upsertConfig('margenToleranciaAlertas', String(margenToleranciaAlertas ?? '2.0'), () => {
+          // ✅ Ejecutar verificación inmediata después de guardar tasas
+          console.log('🔔 Tasas actualizadas por Master - Ejecutando verificación inmediata...');
+          setTimeout(() => monitorearTasasVES(), 2000); // Verificar en 2 segundos
+          res.json({ ok: true });
+        });
       });
     });
   });
@@ -2556,6 +2631,244 @@ app.put('/api/tareas/:id', apiAuth, async (req, res) => {
     }
 });
 
+// Resolver tarea automáticamente con el agente
+app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
+    const tareaId = req.params.id;
+    const userId = req.session.user.id;
+    
+    try {
+        // Obtener datos de la tarea
+        const tarea = await dbGet(`
+            SELECT t.*, a.cliente_id, a.tipo as tipo_alerta, a.dias_inactivo, a.ultima_operacion,
+                   c.nombre as cliente_nombre
+            FROM tareas t
+            LEFT JOIN alertas a ON a.tarea_id = t.id
+            LEFT JOIN clientes c ON c.id = a.cliente_id
+            WHERE t.id = ?
+        `, [tareaId]);
+        
+        if (!tarea) {
+            return res.status(404).json({ message: 'Tarea no encontrada' });
+        }
+        
+        // Verificar si ya fue resuelta
+        if (tarea.resolucion_agente === 'automatica' && tarea.mensaje_generado) {
+            return res.json({
+                success: true,
+                ya_resuelta: true,
+                resolucion_agente: tarea.resolucion_agente,
+                mensaje_generado: tarea.mensaje_generado,
+                metadata: tarea.metadata ? JSON.parse(tarea.metadata) : null,
+                accion_requerida: tarea.accion_requerida
+            });
+        }
+        
+        // Extraer días de inactividad
+        const matchDias = tarea.descripcion ? tarea.descripcion.match(/(\d+)\s*d[ií]as?/i) : null;
+        const diasInactivo = tarea.dias_inactivo || (matchDias ? parseInt(matchDias[1]) : 0);
+        
+        // Obtener última compra USDT
+        const ultimaCompra = await dbGet(`
+            SELECT tasa_clp_ves, fecha
+            FROM compras
+            ORDER BY fecha DESC
+            LIMIT 1
+        `);
+        
+        if (!ultimaCompra || !ultimaCompra.tasa_clp_ves) {
+            // Resolución ASISTIDA - Sin historial de compras
+            await dbRun(`
+                UPDATE tareas
+                SET resolucion_agente = 'asistida',
+                    accion_requerida = 'registrar_compra_usdt',
+                    observaciones = 'No hay historial de compras USDT para calcular tasa promocional',
+                    estado = 'en_progreso'
+                WHERE id = ?
+            `, [tareaId]);
+            
+            return res.json({
+                success: false,
+                resolucion_agente: 'asistida',
+                problema: 'sin_historial_compras',
+                mensaje: 'No se puede resolver automáticamente porque no hay historial de compras USDT. Registra una compra en /admin.html'
+            });
+        }
+        
+        // Determinar estrategia según tipo de alerta y días
+        let tipoEstrategia = '';
+        let descuentoPorcentaje = 0;
+        let mensajeGenerado = '';
+        
+        if (tarea.tipo_alerta === 'critico' || diasInactivo > 60) {
+            tipoEstrategia = 'critico_reactivacion';
+            descuentoPorcentaje = 5.0;
+        } else if (tarea.tipo_alerta === 'disminucion' || (tarea.descripcion && tarea.descripcion.toLowerCase().includes('reducción'))) {
+            tipoEstrategia = 'reduccion_actividad';
+            descuentoPorcentaje = 3.3;  // Cambiado de 4.0 a 3.3%
+        } else if (diasInactivo >= 45) {
+            tipoEstrategia = 'inactivo_promocion';
+            descuentoPorcentaje = 3.3;
+        } else if (diasInactivo >= 30) {
+            tipoEstrategia = 'inactivo_recordatorio';
+            descuentoPorcentaje = 0;
+        }
+        
+        // Calcular tasa promocional
+        const tasaOriginal = ultimaCompra.tasa_clp_ves;
+        let tasaPromocional = null;
+        
+        if (descuentoPorcentaje > 0) {
+            const descuento = tasaOriginal * (descuentoPorcentaje / 100);
+            tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
+        }
+        
+        // Generar mensaje con IA (OpenAI)
+        const nombreCliente = tarea.cliente_nombre || 'Cliente';
+        
+        try {
+            const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
+            
+            let promptMensaje = '';
+            
+            if (tipoEstrategia === 'inactivo_recordatorio') {
+                promptMensaje = `Genera un mensaje amigable de WhatsApp para reactivar al cliente ${nombreCliente} que lleva ${diasInactivo} días sin operar. Tono: cálido y cercano, sin ser insistente. NO menciones descuento (esta es solo un recordatorio amistoso). Incluye emojis apropiados. Horario de atención: 08:00-21:00. Países: Venezuela 🇻🇪 Chile 🇨🇱. Máximo 4 líneas.`;
+                
+            } else if (tipoEstrategia === 'inactivo_promocion') {
+                promptMensaje = `Genera un mensaje de WhatsApp para reactivar al cliente ${nombreCliente} que lleva ${diasInactivo} días inactivo. Ofrécele una tasa promocional especial de ${tasaPromocional.toFixed(3)} VES por cada CLP. Tono: nostálgico pero motivador. Incluye emojis. Horario: 08:00-21:00. Países: 🇻🇪🇨🇱. Máximo 5 líneas.`;
+                
+            } else if (tipoEstrategia === 'critico_reactivacion') {
+                const fechaLimite = new Date();
+                fechaLimite.setDate(fechaLimite.getDate() + 7);
+                const fechaLimiteStr = fechaLimite.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
+                
+                promptMensaje = `Genera un mensaje URGENTE de WhatsApp para el cliente ${nombreCliente} que lleva ${diasInactivo} días sin operar (riesgo de pérdida). Ofrece tasa ESPECIAL de reactivación: ${tasaPromocional.toFixed(3)} VES/CLP. IMPORTANTE: Oferta válida solo 7 días hasta ${fechaLimiteStr}. Tono: urgente pero profesional. Emojis ⚠️💰. Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 6 líneas.`;
+                
+            } else if (tipoEstrategia === 'reduccion_actividad') {
+                promptMensaje = `Genera un mensaje de WhatsApp para ${nombreCliente} que redujo significativamente su actividad. Muestra preocupación genuina, pregunta si algo podemos mejorar. Ofrece tasa especial de retención: ${tasaPromocional.toFixed(3)} VES/CLP. Tono: empático, solicita feedback. Emojis apropiados. Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 5 líneas.`;
+            }
+            
+            const responseIA = await axios.post('https://api.openai.com/v1/chat/completions', {
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Eres un experto en marketing conversacional para servicios de cambio de divisas Chile-Venezuela. Genera mensajes profesionales, cálidos y efectivos en español para WhatsApp. Usa emojis apropiadamente pero sin exceso.'
+                    },
+                    {
+                        role: 'user',
+                        content: promptMensaje
+                    }
+                ],
+                max_tokens: 200,
+                temperature: 0.7
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            mensajeGenerado = responseIA.data.choices[0].message.content.trim();
+            
+        } catch (errorIA) {
+            console.error('Error generando mensaje con IA:', errorIA.message);
+            // Fallback a mensaje predeterminado si falla la IA
+            if (tipoEstrategia === 'inactivo_recordatorio') {
+                mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nHace tiempo que no te vemos por aquí. ¿Todo bien? 😊\n\nEstamos disponibles 08:00-21:00 todos los días para tus operaciones. 🇻🇪🇨🇱\n\n¡Esperamos verte pronto!`;
+            } else {
+                mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nTenemos una tasa especial para ti: ${tasaPromocional ? tasaPromocional.toFixed(3) : ''} VES/CLP 💰\n\n¡Contáctanos! Disponibles 08:00-21:00 🇻🇪🇨🇱`;
+            }
+        }
+        
+        // Preparar metadata
+        const metadata = {
+            tasa_original: tasaOriginal,
+            tasa_promocional: tasaPromocional,
+            descuento_porcentaje: descuentoPorcentaje,
+            dias_inactivo: diasInactivo,
+            tipo_estrategia: tipoEstrategia,
+            fecha_ultima_compra: ultimaCompra.fecha,
+            cliente_id: tarea.cliente_id,
+            resuelto_por: userId,
+            fecha_resolucion: hoyLocalYYYYMMDD()
+        };
+        
+        // Actualizar tarea con resolución automática
+        await dbRun(`
+            UPDATE tareas
+            SET resolucion_agente = 'automatica',
+                mensaje_generado = ?,
+                accion_requerida = 'enviar_whatsapp',
+                metadata = ?,
+                estado = 'en_progreso'
+            WHERE id = ?
+        `, [mensajeGenerado, JSON.stringify(metadata), tareaId]);
+        
+        res.json({
+            success: true,
+            resolucion_agente: 'automatica',
+            cliente_nombre: nombreCliente,
+            mensaje_generado: mensajeGenerado,
+            metadata: metadata,
+            accion_requerida: 'enviar_whatsapp'
+        });
+        
+    } catch (error) {
+        console.error('Error resolviendo tarea:', error);
+        res.status(500).json({ message: 'Error al resolver tarea: ' + error.message });
+    }
+});
+
+// Confirmar envío de mensaje
+app.post('/api/tareas/:id/confirmar-envio', apiAuth, async (req, res) => {
+    const tareaId = req.params.id;
+    const { respuesta_cliente } = req.body;
+    const fechaHoy = hoyLocalYYYYMMDD();
+    
+    try {
+        // Obtener tarea y cliente asociado
+        const tarea = await dbGet(`
+            SELECT t.*, a.cliente_id
+            FROM tareas t
+            LEFT JOIN alertas a ON a.tarea_id = t.id
+            WHERE t.id = ?
+        `, [tareaId]);
+        
+        if (!tarea) {
+            return res.status(404).json({ message: 'Tarea no encontrada' });
+        }
+        
+        // Marcar tarea como completada
+        await dbRun(`
+            UPDATE tareas 
+            SET estado = 'completada',
+                fecha_completada = ?,
+                fecha_mensaje_enviado = ?,
+                respuesta_cliente = ?
+            WHERE id = ?
+        `, [fechaHoy, fechaHoy, respuesta_cliente || null, tareaId]);
+        
+        // Actualizar alerta
+        if (tarea.cliente_id) {
+            await dbRun(`
+                UPDATE alertas 
+                SET accion_realizada = 'mensaje_enviado',
+                    fecha_accion = ?
+                WHERE cliente_id = ? AND activa = 1
+            `, [fechaHoy, tarea.cliente_id]);
+        }
+        
+        res.json({
+            success: true,
+            message: 'Mensaje enviado confirmado. Tarea completada exitosamente.'
+        });
+        
+    } catch (error) {
+        console.error('Error confirmando envío:', error);
+        res.status(500).json({ message: 'Error al confirmar envío' });
+    }
+});
+
 // Eliminar tarea
 app.delete('/api/tareas/:id', apiAuth, onlyMaster, (req, res) => {
     const tareaId = req.params.id;
@@ -3061,9 +3374,10 @@ OTROS PAÍSES (COP, PEN, BOB, ARS):
 - Usa tasas basadas en Binance P2P ajustadas con margen
 
 PROMOCIONES POR BAJA ACTIVIDAD (solo Venezuela):
-- Cuando el sistema genere alerta de cliente inactivo/reducción de envíos
-- Tasa promo = Tasa base CLP→VES de Binance P2P – 3%
-- Genera mensaje personalizado con nombre del cliente y tasa promocional
+- Cuando el sistema genere alerta de cliente inactivo/reducción de envíos (≥45 días)
+- Tasa promo = Última tasa de compra USDT registrada en "Historial de Compras" – 3.3%
+- Ejemplo: Si última compra fue a 0.393651 VES/CLP, la tasa promocional es 0.393651 - (0.393651 × 0.033) = 0.3806 VES/CLP
+- Genera mensaje personalizado con nombre del cliente y tasa promocional calculada
 
 4. ASISTENTE DE CONVERSACIÓN
 
@@ -3176,9 +3490,10 @@ FUNCIONES DISPONIBLES (llamadas automáticamente por ti):
    - Función INTELIGENTE que:
      ✅ Analiza los días de inactividad
      ✅ Determina si debe enviar recordatorio (30-44 días) o promoción (45+ días)
-     ✅ Calcula tasa promocional automáticamente (3.3% descuento sobre última tasa VES)
+     ✅ Calcula tasa promocional automáticamente (3.3% descuento sobre ÚLTIMA TASA DE COMPRA USDT del historial de compras)
      ✅ Genera mensaje personalizado listo para copiar y enviar
    - Aplica a: "Cliente inactivo", "Reducción de actividad", "Riesgo alto"
+   - IMPORTANTE: La tasa promocional se calcula desde el "Historial de Compras" (última compra de USDT), NO desde Binance P2P
    - Retorna: {tipo_accion, dias_inactivo, tasa_original, tasa_promocional, mensaje_sugerido}
 
    - Monedas soportadas: CLP (Chile), COP (Colombia), VES (Venezuela), USD (Dólares), ARS (Argentina), PEN (Perú), BRL (Brasil), MXN (México), EUR (Euro), UYU (Uruguay)
@@ -3717,6 +4032,24 @@ const agentFunctions = [
             },
             required: ["nombre_cliente", "descripcion_tarea"]
         }
+    },
+    {
+        name: "resolver_tarea",
+        description: "Resuelve automáticamente una tarea generando mensaje, calculando promoción y preparando todo para que el operador solo confirme el envío. Úsala cuando: 1) Se crea una tarea nueva automática, 2) El operador pregunta sobre una tarea asignada, 3) Necesitas preparar el mensaje de forma proactiva. Esta función analiza la tarea, obtiene datos del cliente, calcula tasa promocional y genera mensaje listo para copiar.",
+        parameters: {
+            type: "object",
+            properties: {
+                tarea_id: {
+                    type: "number",
+                    description: "ID de la tarea a resolver"
+                },
+                confirmar_envio: {
+                    type: "boolean",
+                    description: "true si el operador confirma que envió el mensaje al cliente (marca tarea completada)"
+                }
+            },
+            required: ["tarea_id"]
+        }
     }
 ];
 
@@ -3732,7 +4065,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
     // Para todo lo demás, usar OpenAI con Function Calling
     try {
         // Usar variable de entorno OPENAI_API_KEY, o fallback a la key hardcodeada
-        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
+        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
         
         // Validar que hay API key
         if (!OPENAI_API_KEY || OPENAI_API_KEY === '' || OPENAI_API_KEY.includes('your-api-key-here')) {
@@ -4130,6 +4463,8 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                         }
                         
                         // Buscar última tasa de compra en el historial de compras (tabla compras)
+                        // IMPORTANTE: Esta es la tasa CLP→VES de la última compra de USDT registrada
+                        // NO se usa la tasa de Binance P2P, sino la tasa real de compra
                         db.get(
                             `SELECT tasa_clp_ves, fecha
                              FROM compras
@@ -4143,10 +4478,11 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 let fechaCompra = null;
                                 
                                 // Calcular tasa promocional si hay compra registrada
+                                // Ejemplo: Si tasa_clp_ves = 0.393651, descuento 3.3% = 0.01299, tasa promo = 0.3806
                                 if (!err && ultimaCompra && ultimaCompra.tasa_clp_ves > 0) {
                                     tasaOriginal = ultimaCompra.tasa_clp_ves;
                                     fechaCompra = ultimaCompra.fecha;
-                                    // Aplicar 3.3% de DESCUENTO
+                                    // Aplicar 3.3% de DESCUENTO sobre la tasa de compra
                                     const descuento = tasaOriginal * 0.033;
                                     tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
                                 }
@@ -4178,6 +4514,249 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 });
                             }
                         );
+                    });
+                    break;
+
+                case 'resolver_tarea':
+                    functionResult = await new Promise(async (resolve) => {
+                        const tareaId = functionArgs.tarea_id;
+                        const confirmarEnvio = functionArgs.confirmar_envio || false;
+                        
+                        try {
+                            // 1. Obtener datos de la tarea
+                            const tarea = await dbGet(`
+                                SELECT t.*, a.cliente_id, a.tipo as tipo_alerta, a.dias_inactivo, a.ultima_operacion,
+                                       c.nombre as cliente_nombre
+                                FROM tareas t
+                                LEFT JOIN alertas a ON a.tarea_id = t.id
+                                LEFT JOIN clientes c ON c.id = a.cliente_id
+                                WHERE t.id = ?
+                            `, [tareaId]);
+                            
+                            if (!tarea) {
+                                resolve({ error: true, mensaje: 'Tarea no encontrada' });
+                                return;
+                            }
+                            
+                            // Si solo está confirmando envío
+                            if (confirmarEnvio) {
+                                const fechaHoy = hoyLocalYYYYMMDD();
+                                
+                                // Marcar tarea como completada
+                                await dbRun(`
+                                    UPDATE tareas 
+                                    SET estado = 'completada',
+                                        fecha_completada = ?,
+                                        fecha_mensaje_enviado = ?
+                                    WHERE id = ?
+                                `, [fechaHoy, fechaHoy, tareaId]);
+                                
+                                // Actualizar alerta
+                                if (tarea.cliente_id) {
+                                    await dbRun(`
+                                        UPDATE alertas 
+                                        SET accion_realizada = 'mensaje_enviado',
+                                            fecha_accion = ?
+                                        WHERE cliente_id = ? AND activa = 1
+                                    `, [fechaHoy, tarea.cliente_id]);
+                                }
+                                
+                                resolve({
+                                    success: true,
+                                    mensaje: `✅ Tarea completada exitosamente. Mensaje enviado a ${tarea.cliente_nombre}.`
+                                });
+                                return;
+                            }
+                            
+                            // 2. Verificar si ya fue resuelta
+                            if (tarea.resolucion_agente === 'automatica' && tarea.mensaje_generado) {
+                                resolve({
+                                    success: true,
+                                    ya_resuelta: true,
+                                    resolucion_agente: tarea.resolucion_agente,
+                                    mensaje_generado: tarea.mensaje_generado,
+                                    metadata: tarea.metadata ? JSON.parse(tarea.metadata) : null,
+                                    accion_requerida: tarea.accion_requerida,
+                                    mensaje: `Esta tarea ya fue resuelta automáticamente. El mensaje está listo para copiar y enviar.`
+                                });
+                                return;
+                            }
+                            
+                            // 3. Extraer días de inactividad
+                            const matchDias = tarea.descripcion ? tarea.descripcion.match(/(\d+)\s*d[ií]as?/i) : null;
+                            const diasInactivo = tarea.dias_inactivo || (matchDias ? parseInt(matchDias[1]) : 0);
+                            
+                            // 4. Obtener última compra USDT
+                            const ultimaCompra = await dbGet(`
+                                SELECT tasa_clp_ves, fecha
+                                FROM compras
+                                ORDER BY fecha DESC
+                                LIMIT 1
+                            `);
+                            
+                            if (!ultimaCompra || !ultimaCompra.tasa_clp_ves) {
+                                // Resolución ASISTIDA - Sin historial de compras
+                                await dbRun(`
+                                    UPDATE tareas
+                                    SET resolucion_agente = 'asistida',
+                                        accion_requerida = 'registrar_compra_usdt',
+                                        observaciones = 'No hay historial de compras USDT para calcular tasa promocional',
+                                        estado = 'en_progreso'
+                                    WHERE id = ?
+                                `, [tareaId]);
+                                
+                                resolve({
+                                    success: false,
+                                    resolucion_agente: 'asistida',
+                                    problema: 'sin_historial_compras',
+                                    mensaje: `⚠️ No se puede resolver automáticamente porque no hay historial de compras USDT.\n\n**Acción requerida:** Registra al menos una compra de USDT en el Historial de Compras (/admin.html) para poder calcular tasas promocionales.`
+                                });
+                                return;
+                            }
+                            
+                            // 5. Determinar estrategia según tipo de alerta y días
+                            let tipoEstrategia = '';
+                            let descuentoPorcentaje = 0;
+                            let mensajeGenerado = '';
+                            
+                            if (tarea.tipo_alerta === 'critico' || diasInactivo > 60) {
+                                // Cliente CRÍTICO: 2% descuento
+                                tipoEstrategia = 'critico_reactivacion';
+                                descuentoPorcentaje = 2.0;
+                                
+                            } else if (tarea.tipo_alerta === 'disminucion' || tarea.descripcion.toLowerCase().includes('reducción')) {
+                                // Reducción de actividad: 3.3% descuento
+                                tipoEstrategia = 'reduccion_actividad';
+                                descuentoPorcentaje = 3.3;
+                                
+                            } else if (diasInactivo >= 45) {
+                                // Inactivo 45-60 días: 3.3% descuento
+                                tipoEstrategia = 'inactivo_promocion';
+                                descuentoPorcentaje = 3.3;
+                                
+                            } else if (diasInactivo >= 30) {
+                                // Inactivo 30-44 días: Solo recordatorio (SIN promoción)
+                                tipoEstrategia = 'inactivo_recordatorio';
+                                descuentoPorcentaje = 0;
+                            }
+                            
+                            // 6. Calcular tasa promocional
+                            const tasaOriginal = ultimaCompra.tasa_clp_ves;
+                            let tasaPromocional = null;
+                            
+                            if (descuentoPorcentaje > 0) {
+                                const descuento = tasaOriginal * (descuentoPorcentaje / 100);
+                                tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
+                            }
+                            
+                            // 7. Generar mensaje con OpenAI según estrategia
+                            const nombreCliente = tarea.cliente_nombre || 'Cliente';
+                            
+                            try {
+                                let promptMensaje = '';
+                                
+                                if (tipoEstrategia === 'inactivo_recordatorio') {
+                                    promptMensaje = `Genera un mensaje amigable de WhatsApp para ${nombreCliente}, un cliente que lleva ${diasInactivo} días sin hacer operaciones. NO menciones ningún descuento ni promoción, solo un recordatorio amistoso preguntando si todo está bien. Menciona que estamos disponibles 08:00-21:00. Usa emojis apropiados. Máximo 4 líneas.`;
+                                    
+                                } else if (tipoEstrategia === 'inactivo_promocion') {
+                                    promptMensaje = `Genera un mensaje de WhatsApp para ${nombreCliente}, que lleva ${diasInactivo} días sin operar. Ofrécele una tasa promocional de ${tasaPromocional.toFixed(3)} VES por cada CLP. Sé cálido y hazle saber que lo extrañamos. Menciona horario 08:00-21:00. Usa emojis. Máximo 5 líneas.`;
+                                    
+                                } else if (tipoEstrategia === 'critico_reactivacion') {
+                                    const fechaLimite = new Date();
+                                    fechaLimite.setDate(fechaLimite.getDate() + 7);
+                                    const fechaLimiteStr = fechaLimite.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
+                                    
+                                    promptMensaje = `Genera un mensaje URGENTE de WhatsApp para ${nombreCliente}, cliente inactivo por ${diasInactivo} días. Ofrece tasa especial de reactivación: ${tasaPromocional.toFixed(3)} VES/CLP. Menciona que es válido 7 días hasta ${fechaLimiteStr}. Transmite urgencia pero con calidez. Usa emojis de alerta y dinero. Horario 08:00-21:00. Máximo 6 líneas.`;
+                                    
+                                } else if (tipoEstrategia === 'reduccion_actividad') {
+                                    promptMensaje = `Genera un mensaje para ${nombreCliente}, que redujo su frecuencia de operaciones. Muestra preocupación genuina, pregunta si podemos mejorar. Ofrece tasa especial: ${tasaPromocional.toFixed(3)} VES/CLP. Sé empático y abierto al feedback. Usa emojis. Horario 08:00-21:00. Máximo 5 líneas.`;
+                                }
+                                
+                                // Llamar a OpenAI para generar el mensaje
+                                const responseIA = await axios.post('https://api.openai.com/v1/chat/completions', {
+                                    model: 'gpt-4o-mini',
+                                    messages: [
+                                        {
+                                            role: 'system',
+                                            content: 'Eres un experto en marketing conversacional para WhatsApp en el contexto de remesas Venezuela-Chile. Genera mensajes cálidos, directos y persuasivos. Usa emojis con moderación. Mantén tono profesional pero cercano.'
+                                        },
+                                        {
+                                            role: 'user',
+                                            content: promptMensaje
+                                        }
+                                    ],
+                                    max_tokens: 200,
+                                    temperature: 0.7
+                                }, {
+                                    headers: {
+                                        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                
+                                mensajeGenerado = responseIA.data.choices[0].message.content.trim();
+                                
+                            } catch (errorIA) {
+                                console.error('Error generando mensaje con OpenAI (chatbot):', errorIA.message);
+                                
+                                // Fallback a mensajes de plantilla si OpenAI falla
+                                if (tipoEstrategia === 'inactivo_recordatorio') {
+                                    mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nHace tiempo que no te vemos por aquí. ¿Todo bien? 😊\n\nEstamos disponibles 08:00-21:00 todos los días para tus operaciones. 🇻🇪🇨🇱\n\n¡Esperamos verte pronto!`;
+                                    
+                                } else if (tipoEstrategia === 'inactivo_promocion') {
+                                    mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nTe extrañamos! Hace ${diasInactivo} días que no haces una operación con nosotros. 😢\n\nPorque nos importa tu regreso, tenemos una tasa de regalo especial para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP 💰\n\n¡Esperamos verte pronto! Disponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                    
+                                } else if (tipoEstrategia === 'critico_reactivacion') {
+                                    const fechaLimite = new Date();
+                                    fechaLimite.setDate(fechaLimite.getDate() + 7);
+                                    const fechaLimiteStr = fechaLimite.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
+                                    
+                                    mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nHan pasado más de ${diasInactivo} días desde tu última operación con nosotros. 😢\n\n⚠️ No queremos perderte como cliente! Por eso te ofrecemos una tasa ESPECIAL de reactivación:\n\n💰 ${tasaPromocional.toFixed(3)} VES por cada CLP\n(2% de descuento especial!)\n\nEsta oferta es válida solo por 7 días. Escríbenos antes del ${fechaLimiteStr}.\n\nDisponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                    
+                                } else if (tipoEstrategia === 'reduccion_actividad') {
+                                    mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nNotamos que antes hacías más operaciones con nosotros. 🤔\n\n¿Hay algo que podamos mejorar? ¿Nuestro servicio te está satisfaciendo?\n\nQueremos que sigas confiando en nosotros, por eso te ofrecemos una tasa especial: ${tasaPromocional.toFixed(3)} VES/CLP 💰\n\nEscríbenos y cuéntanos cómo te podemos ayudar mejor. 🙏\n\nDisponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                }
+                            }
+                            
+                            // 8. Preparar metadata
+                            const metadata = {
+                                tasa_original: tasaOriginal,
+                                tasa_promocional: tasaPromocional,
+                                descuento_porcentaje: descuentoPorcentaje,
+                                dias_inactivo: diasInactivo,
+                                tipo_estrategia: tipoEstrategia,
+                                fecha_ultima_compra: ultimaCompra.fecha,
+                                cliente_id: tarea.cliente_id
+                            };
+                            
+                            // 9. Actualizar tarea con resolución automática
+                            await dbRun(`
+                                UPDATE tareas
+                                SET resolucion_agente = 'automatica',
+                                    mensaje_generado = ?,
+                                    accion_requerida = 'enviar_whatsapp',
+                                    metadata = ?,
+                                    estado = 'en_progreso'
+                                WHERE id = ?
+                            `, [mensajeGenerado, JSON.stringify(metadata), tareaId]);
+                            
+                            resolve({
+                                success: true,
+                                resolucion_agente: 'automatica',
+                                cliente_nombre: nombreCliente,
+                                mensaje_generado: mensajeGenerado,
+                                metadata: metadata,
+                                accion_requerida: 'enviar_whatsapp',
+                                mensaje: `✅ Tarea resuelta automáticamente para ${nombreCliente}.\n\n📋 Mensaje listo para copiar y enviar por WhatsApp.`
+                            });
+                            
+                        } catch (error) {
+                            console.error('Error resolviendo tarea:', error);
+                            resolve({
+                                error: true,
+                                mensaje: 'Error al resolver la tarea: ' + error.message
+                            });
+                        }
                     });
                     break;
             }
@@ -4644,8 +5223,96 @@ app.get('/api/chatbot/mensajes-proactivos/debug', apiAuth, (req, res) => {
 // Ejecutar monitoreo cada 30 segundos (para pruebas - cambiar a 10 min en producción)
 const INTERVALO_MONITOREO = 30 * 1000; // 30 segundos
 const INTERVALO_LIMPIEZA = 60 * 60 * 1000; // 1 hora
+const INTERVALO_GENERACION_TAREAS = 24 * 60 * 60 * 1000; // 24 horas
 let intervaloMonitoreo = null;
 let intervaloLimpieza = null;
+let intervaloGeneracionTareas = null;
+
+/**
+ * Genera tareas automáticamente desde alertas pendientes
+ * Distribuye equitativamente entre operadores
+ */
+async function generarTareasAutomaticas() {
+    try {
+        console.log('📋 Generando tareas automáticas desde alertas...');
+        const fechaHoy = hoyLocalYYYYMMDD();
+        
+        // Obtener alertas activas SIN acción realizada
+        const alertasSinResolver = await dbAll(`
+            SELECT a.* 
+            FROM alertas a
+            WHERE a.activa = 1 
+            AND (a.accion_realizada IS NULL OR a.accion_realizada = '')
+            AND (
+                a.tarea_id IS NULL 
+                OR EXISTS (
+                    SELECT 1 FROM tareas t 
+                    WHERE t.id = a.tarea_id 
+                    AND (t.estado = 'cancelada' OR t.fecha_creacion < ?)
+                )
+            )
+        `, [fechaHoy]);
+        
+        if (alertasSinResolver.length === 0) {
+            console.log('✅ No hay alertas pendientes para crear tareas');
+            return;
+        }
+        
+        // Obtener operadores disponibles (excluir master)
+        const operadores = await dbAll(`
+            SELECT id, username FROM usuarios WHERE role != 'master' ORDER BY id
+        `);
+        
+        if (operadores.length === 0) {
+            console.log('⚠️ No hay operadores disponibles para asignar tareas');
+            return;
+        }
+        
+        let indiceOperador = 0;
+        let tareasCreadas = 0;
+        
+        // Distribuir alertas equitativamente
+        for (const alerta of alertasSinResolver) {
+            // Seleccionar operador por rotación
+            const operador = operadores[indiceOperador];
+            indiceOperador = (indiceOperador + 1) % operadores.length;
+            
+            // Obtener datos del cliente
+            const cliente = await dbGet(`SELECT nombre FROM clientes WHERE id = ?`, [alerta.cliente_id]);
+            
+            // Determinar prioridad según días de inactividad
+            let prioridad = 'normal';
+            if (alerta.dias_inactivo > 60) prioridad = 'urgente';
+            else if (alerta.dias_inactivo >= 45) prioridad = 'alta';
+            
+            // Crear tarea
+            const titulo = `Reactivar cliente: ${cliente ? cliente.nombre : 'Desconocido'}`;
+            const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crítico' : 'Disminución de frecuencia'} - ${alerta.dias_inactivo ? `${alerta.dias_inactivo} días sin actividad` : 'Reducción de operaciones'}. Última operación: ${alerta.ultima_operacion || 'N/A'}`;
+            
+            const resultTarea = await dbRun(`
+                INSERT INTO tareas(titulo, descripcion, tipo, prioridad, asignado_a, creado_por, fecha_creacion, tipo_alerta, cliente_id, cliente_nombre)
+                VALUES (?, ?, 'automatica', ?, ?, 1, ?, ?, ?, ?)
+            `, [titulo, descripcion, prioridad, operador.id, fechaHoy, alerta.tipo, alerta.cliente_id, cliente ? cliente.nombre : 'Desconocido']);
+            
+            // Vincular tarea con alerta
+            await dbRun(`
+                UPDATE alertas SET tarea_id = ? WHERE id = ?
+            `, [resultTarea.lastID, alerta.id]);
+            
+            // Crear notificación para el operador
+            await dbRun(`
+                INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, tarea_id)
+                VALUES (?, 'tarea', 'Nueva tarea asignada automáticamente', ?, ?, ?)
+            `, [operador.id, titulo, fechaHoy, resultTarea.lastID]);
+            
+            tareasCreadas++;
+        }
+        
+        console.log(`✅ ${tareasCreadas} tareas creadas y distribuidas entre ${operadores.length} operadores`);
+    } catch (error) {
+        console.error('❌ Error generando tareas automáticas:', error);
+    }
+}
 
 function iniciarMonitoreoProactivo() {
     // Ejecutar inmediatamente
@@ -4658,6 +5325,11 @@ function iniciarMonitoreoProactivo() {
     // Limpieza de mensajes antiguos cada hora
     intervaloLimpieza = setInterval(limpiarMensajesAntiguos, INTERVALO_LIMPIEZA);
     console.log('🧹 Sistema de limpieza de mensajes iniciado (cada 1 hora)');
+    
+    // Generar tareas automáticas cada 24 horas
+    setTimeout(generarTareasAutomaticas, 10000); // Primera ejecución 10 segundos después del inicio
+    intervaloGeneracionTareas = setInterval(generarTareasAutomaticas, INTERVALO_GENERACION_TAREAS);
+    console.log('📋 Sistema de generación automática de tareas iniciado (cada 24 horas)');
 }
 
 // =================================================================
@@ -4952,6 +5624,63 @@ app.post('/api/monitoreo/verificar-tasas', apiAuth, onlyMaster, async (req, res)
 });
 
 /**
+ * Endpoint de diagnóstico completo (solo Master)
+ */
+app.get('/api/monitoreo/diagnostico-tasas', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const tasaManual = await readConfigValue('tasaNivel3');
+        const margenTolerancia = await readConfigValue('margenToleranciaAlertas') || 2.0;
+        
+        let tasaP2PAjustada = null;
+        let tasa_base = null;
+        let errorP2P = null;
+        
+        try {
+            const [tasa_ves_p2p, tasa_clp_p2p] = await Promise.all([
+                obtenerTasaVentaVES(),
+                obtenerTasaCompraCLP()
+            ]);
+            tasa_base = tasa_ves_p2p / tasa_clp_p2p;
+            tasaP2PAjustada = tasa_base * (1 - 0.04);
+        } catch (error) {
+            errorP2P = error.message;
+        }
+        
+        const diferencia = tasaManual && tasaP2PAjustada ? tasaManual - tasaP2PAjustada : null;
+        const porcentajeDiferencia = diferencia && tasaP2PAjustada ? (diferencia / tasaP2PAjustada) * 100 : null;
+        
+        res.json({
+            monitoreo_activo: !!intervaloMonitoreoTasas,
+            alerta_pendiente: !!alertaTasasPendiente,
+            configuracion: {
+                tasa_manual_250k: tasaManual,
+                margen_tolerancia_porcentaje: margenTolerancia
+            },
+            tasas_p2p: {
+                tasa_base_binance: tasa_base,
+                tasa_ajustada_menos_4: tasaP2PAjustada,
+                error: errorP2P
+            },
+            comparacion: {
+                diferencia_absoluta: diferencia,
+                diferencia_porcentaje: porcentajeDiferencia,
+                supera_margen: porcentajeDiferencia ? porcentajeDiferencia > margenTolerancia : false,
+                deberia_alertar: tasaManual && tasaP2PAjustada && tasaManual > tasaP2PAjustada && porcentajeDiferencia > margenTolerancia
+            },
+            alerta_actual: alertaTasasPendiente ? {
+                timestamp: new Date(alertaTasasPendiente.timestamp).toISOString(),
+                minutos_transcurridos: Math.floor((Date.now() - alertaTasasPendiente.timestamp) / 60000),
+                tasa_manual: alertaTasasPendiente.tasa_manual,
+                tasa_p2p: alertaTasasPendiente.tasa_p2p,
+                tasa_base_guardada: alertaTasasPendiente.tasa_base
+            } : null
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error en diagnóstico', error: error.message });
+    }
+});
+
+/**
  * Endpoint para cancelar alerta de tasas manualmente (solo Master)
  */
 app.post('/api/monitoreo/cancelar-alerta-tasas', apiAuth, onlyMaster, (req, res) => {
@@ -5002,16 +5731,16 @@ app.get('/api/monitoreo/estado-tasas', apiAuth, onlyMaster, async (req, res) => 
 });
 
 /**
- * Iniciar monitoreo de tasas (cada 5 minutos)
+ * Iniciar monitoreo de tasas (cada 2 minutos para respuesta más rápida)
  */
 function iniciarMonitoreoTasas() {
     // Ejecutar verificación inicial después de 10 segundos
     setTimeout(monitorearTasasVES, 10000);
     
-    // Luego verificar cada 5 minutos
-    intervaloMonitoreoTasas = setInterval(monitorearTasasVES, 5 * 60 * 1000);
+    // Luego verificar cada 2 minutos (más frecuente que antes)
+    intervaloMonitoreoTasas = setInterval(monitorearTasasVES, 2 * 60 * 1000);
     
-    console.log('💹 Sistema de monitoreo de tasas P2P iniciado (cada 5 minutos)');
+    console.log('💹 Sistema de monitoreo de tasas P2P iniciado (cada 2 minutos)');
 }
 
 // =================================================================
