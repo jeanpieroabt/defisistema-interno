@@ -2974,7 +2974,7 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             SELECT a.* 
             FROM alertas a
             WHERE a.activa = 1 
-            AND (a.accion_realizada IS NULL OR a.accion_realizada = '')
+            AND a.accion_realizada IS NULL
             AND (
                 a.tarea_id IS NULL 
                 OR NOT EXISTS (SELECT 1 FROM tareas t WHERE t.id = a.tarea_id)
