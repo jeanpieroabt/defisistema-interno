@@ -3065,7 +3065,7 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
                 console.log(`⏭️ Saltando alerta ${alerta.id}: cliente ya no cumple criterio inactivo (${diasInactivo} días)`);
                 continue;
             }
-            if (alerta.tipo === 'critico' && diasInactivo <= 60) {
+            if (alerta.tipo === 'critico' && diasInactivo < 61) {
                 console.log(`⏭️ Saltando alerta ${alerta.id}: cliente ya no cumple criterio crítico (${diasInactivo} días)`);
                 continue;
             }
@@ -5350,17 +5350,51 @@ async function generarTareasAutomaticas() {
             const operador = operadores[indiceOperador];
             indiceOperador = (indiceOperador + 1) % operadores.length;
             
-            // Obtener datos del cliente
-            const cliente = await dbGet(`SELECT nombre FROM clientes WHERE id = ?`, [alerta.cliente_id]);
+            // Obtener datos del cliente y RECALCULAR días de inactividad en tiempo real
+            const cliente = await dbGet(`
+                SELECT c.nombre, MAX(o.fecha) as ultima_operacion,
+                       CAST(julianday('now') - julianday(
+                           CASE 
+                               WHEN o.fecha LIKE '__-__-____' THEN substr(o.fecha, 7, 4) || '-' || substr(o.fecha, 4, 2) || '-' || substr(o.fecha, 1, 2)
+                               ELSE o.fecha
+                           END
+                       ) AS INTEGER) as dias_reales
+                FROM clientes c
+                LEFT JOIN operaciones o ON c.id = o.cliente_id
+                WHERE c.id = ?
+                GROUP BY c.id
+            `, [alerta.cliente_id]);
             
-            // Determinar prioridad según días de inactividad
+            // Validar en tiempo real si aún cumple criterio
+            const diasInactivo = cliente?.dias_reales || 0;
+            if (alerta.tipo === 'inactivo' && (diasInactivo < 30 || diasInactivo > 60)) {
+                continue; // Saltar si ya no cumple
+            }
+            if (alerta.tipo === 'critico' && diasInactivo < 61) {
+                continue; // Saltar si ya no cumple (debe ser 61+ días)
+            }
+            
+            // Para reducción de frecuencia, verificar AHORA
+            if (alerta.tipo === 'disminucion') {
+                const hace30 = new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                const hace60 = new Date(new Date().getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                
+                const recientes = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ?`, [alerta.cliente_id, hace30]);
+                const anteriores = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [alerta.cliente_id, hace60, hace30]);
+                
+                if (anteriores.cnt < 3 || recientes.cnt >= anteriores.cnt * 0.5) {
+                    continue; // Saltar si ya no hay reducción
+                }
+            }
+            
+            // Determinar prioridad según días REALES de inactividad
             let prioridad = 'normal';
-            if (alerta.dias_inactivo > 60) prioridad = 'urgente';
-            else if (alerta.dias_inactivo >= 45) prioridad = 'alta';
+            if (diasInactivo > 60) prioridad = 'urgente';
+            else if (diasInactivo >= 45) prioridad = 'alta';
             
-            // Crear tarea
+            // Crear tarea con días REALES
             const titulo = `Reactivar cliente: ${cliente ? cliente.nombre : 'Desconocido'}`;
-            const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crítico' : 'Disminución de frecuencia'} - ${alerta.dias_inactivo ? `${alerta.dias_inactivo} días sin actividad` : 'Reducción de operaciones'}. Última operación: ${alerta.ultima_operacion || 'N/A'}`;
+            const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crítico' : 'Disminución de frecuencia'} - ${diasInactivo ? `${diasInactivo} días sin actividad` : 'Reducción de operaciones'}. Última operación: ${cliente?.ultima_operacion || 'N/A'}`;
             
             const resultTarea = await dbRun(`
                 INSERT INTO tareas(titulo, descripcion, tipo, prioridad, asignado_a, creado_por, fecha_creacion, tipo_alerta, cliente_id, cliente_nombre)
