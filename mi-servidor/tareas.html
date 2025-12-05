@@ -1161,9 +1161,13 @@
                 if (usuarioActual.role === 'master') {
                     document.getElementById('filtroAsignado').style.display = 'block';
                     document.getElementById('btnCrearTarea').style.display = 'block';
-                    document.getElementById('btnModoSeleccion').style.display = 'block';
                     await cargarOperadores();
-                } else {
+                }
+                
+                // Modo selección disponible para todos los usuarios
+                document.getElementById('btnModoSeleccion').style.display = 'block';
+                
+                if (usuarioActual.role !== 'master') {
                     // Si es operador, cargar su rendimiento
                     await cargarMiRendimiento();
                 }
@@ -1461,7 +1465,7 @@
                 `;
             }
 
-            const checkboxHtml = (modoSeleccion && usuarioActual && usuarioActual.role === 'master' && (tarea.estado === 'completada' || tarea.estado === 'cancelada')) 
+            const checkboxHtml = modoSeleccion
                 ? `<div class="tarea-checkbox-container">
                     <input type="checkbox" class="tarea-checkbox" data-tarea-id="${tarea.id}" onchange="toggleTareaSeleccion(${tarea.id}, this)">
                    </div>` 
