@@ -2858,7 +2858,7 @@ app.post('/api/tareas/:id/confirmar-envio', apiAuth, async (req, res) => {
         const operadorNombre = req.session.user.username || 'Operador';
         await dbRun(`
             INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, tarea_id)
-            VALUES (1, 'tarea_completada', 'Tarea completada', ?, ?, ?)
+            VALUES (1, 'tarea', 'Tarea completada', ?, ?, ?)
         `, [
             `${operadorNombre} completó: ${tarea.titulo}`,
             fechaHoy,
