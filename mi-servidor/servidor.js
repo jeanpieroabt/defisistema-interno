@@ -3042,17 +3042,50 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             const operador = operadores[indiceOperador];
             indiceOperador = (indiceOperador + 1) % operadores.length;
             
-            // Obtener datos del cliente
-            const cliente = await dbGet(`SELECT nombre FROM clientes WHERE id = ?`, [alerta.cliente_id]);
+            // Obtener datos del cliente y RECALCULAR días de inactividad en tiempo real
+            const cliente = await dbGet(`
+                SELECT c.nombre, MAX(o.fecha) as ultima_operacion,
+                       CAST(julianday('now') - julianday(MAX(o.fecha)) AS INTEGER) as dias_reales
+                FROM clientes c
+                LEFT JOIN operaciones o ON c.id = o.cliente_id
+                WHERE c.id = ?
+                GROUP BY c.id
+            `, [alerta.cliente_id]);
             
-            // Determinar prioridad según días de inactividad
+            // Si el cliente ya no cumple el criterio de inactividad, saltar
+            const diasInactivo = cliente?.dias_reales || 0;
+            if (alerta.tipo === 'inactivo' && (diasInactivo < 30 || diasInactivo > 60)) {
+                console.log(`⏭️ Saltando alerta ${alerta.id}: cliente ya no cumple criterio inactivo (${diasInactivo} días)`);
+                continue;
+            }
+            if (alerta.tipo === 'critico' && diasInactivo <= 60) {
+                console.log(`⏭️ Saltando alerta ${alerta.id}: cliente ya no cumple criterio crítico (${diasInactivo} días)`);
+                continue;
+            }
+            
+            // Para reducción de frecuencia, verificar AHORA si realmente hay reducción
+            if (alerta.tipo === 'disminucion') {
+                const hace30 = new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                const hace60 = new Date(new Date().getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                
+                const recientes = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ?`, [alerta.cliente_id, hace30]);
+                const anteriores = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [alerta.cliente_id, hace60, hace30]);
+                
+                // Si ya NO hay reducción significativa, saltar
+                if (anteriores.cnt < 3 || recientes.cnt >= anteriores.cnt * 0.5) {
+                    console.log(`⏭️ Saltando alerta ${alerta.id}: cliente ya no tiene reducción significativa (${anteriores.cnt}→${recientes.cnt} ops)`);
+                    continue;
+                }
+            }
+            
+            // Determinar prioridad según días REALES de inactividad
             let prioridad = 'normal';
-            if (alerta.dias_inactivo > 60) prioridad = 'urgente';
-            else if (alerta.dias_inactivo >= 45) prioridad = 'alta';
+            if (diasInactivo > 60) prioridad = 'urgente';
+            else if (diasInactivo >= 45) prioridad = 'alta';
             
-            // Crear tarea
+            // Crear tarea con días REALES
             const titulo = `Reactivar cliente: ${cliente ? cliente.nombre : 'Desconocido'}`;
-            const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crítico' : 'Disminución de frecuencia'} - ${alerta.dias_inactivo ? `${alerta.dias_inactivo} días sin actividad` : 'Reducción de operaciones'}. Última operación: ${alerta.ultima_operacion || 'N/A'}`;
+            const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crítico' : 'Disminución de frecuencia'} - ${diasInactivo ? `${diasInactivo} días sin actividad` : 'Reducción de operaciones'}. Última operación: ${cliente?.ultima_operacion || 'N/A'}`;
             
             const resultTarea = await dbRun(`
                 INSERT INTO tareas(titulo, descripcion, tipo, prioridad, asignado_a, creado_por, fecha_creacion)
