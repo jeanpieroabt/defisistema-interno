@@ -2968,13 +2968,28 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
     try {
         const fechaHoy = hoyLocalYYYYMMDD();
         
+        console.log('🔍 === DEBUG: Generando tareas automáticas ===');
+        console.log(`📅 Fecha hoy: ${fechaHoy}`);
+        
+        // Primero verificar TODAS las alertas activas
+        const todasAlertas = await dbAll(`SELECT id, cliente_id, tipo, accion_realizada, tarea_id FROM alertas WHERE activa = 1`);
+        console.log(`📊 Total alertas activas: ${todasAlertas.length}`);
+        
+        const conMensaje = todasAlertas.filter(a => a.accion_realizada === 'mensaje_enviado');
+        const conPromocion = todasAlertas.filter(a => a.accion_realizada === 'promocion_enviada');
+        const sinAccion = todasAlertas.filter(a => !a.accion_realizada || a.accion_realizada === '');
+        
+        console.log(`✅ Con mensaje_enviado: ${conMensaje.length}`);
+        console.log(`✅ Con promocion_enviada: ${conPromocion.length}`);
+        console.log(`⚪ Sin acción (NULL o vacío): ${sinAccion.length}`);
+        
         // Obtener alertas activas SIN acción realizada (sin mensaje_enviado ni promocion_enviada)
         // Permitir reasignar si: 1) sin tarea, 2) tarea eliminada, 3) tarea cancelada, 4) tarea de días anteriores
         const alertasSinResolver = await dbAll(`
             SELECT a.* 
             FROM alertas a
             WHERE a.activa = 1 
-            AND a.accion_realizada IS NULL
+            AND (a.accion_realizada IS NULL OR a.accion_realizada = '')
             AND (
                 a.tarea_id IS NULL 
                 OR NOT EXISTS (SELECT 1 FROM tareas t WHERE t.id = a.tarea_id)
@@ -2986,7 +3001,19 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             )
         `, [fechaHoy]);
         
+        console.log(`🎯 Alertas que cumplen condiciones para generar tareas: ${alertasSinResolver.length}`);
+        
+        // Verificar si hay alguna con accion_realizada que no debería estar
+        const errorAccion = alertasSinResolver.filter(a => a.accion_realizada && a.accion_realizada !== '');
+        if (errorAccion.length > 0) {
+            console.log(`⚠️ ERROR: ${errorAccion.length} alertas con accion_realizada pasaron el filtro:`);
+            errorAccion.slice(0, 5).forEach(a => {
+                console.log(`   - ID ${a.id}: accion_realizada="${a.accion_realizada}"`);
+            });
+        }
+        
         if (alertasSinResolver.length === 0) {
+            console.log('✅ No hay alertas pendientes para crear tareas');
             return res.json({ message: 'No hay alertas pendientes sin resolver', tareas_creadas: 0 });
         }
         
