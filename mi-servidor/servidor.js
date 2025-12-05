@@ -2669,9 +2669,9 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
         
         // Obtener última compra USDT
         const ultimaCompra = await dbGet(`
-            SELECT tasa_clp_ves, fecha
+            SELECT tasa_clp_ves, fecha, id
             FROM compras
-            ORDER BY fecha DESC
+            ORDER BY id DESC
             LIMIT 1
         `);
         
@@ -2748,7 +2748,7 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cálidos y profesionales en español para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderación (2-3 máximo). Enfoque: remesas familiares, no inversiones ni pérdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayúsculas, múltiples signos de exclamación (!!!), lenguaje muy formal o corporativo, frases genéricas de marketing. Preferir: conversación natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo.'
+                        content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cálidos y profesionales en español para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderación (2-3 máximo). Enfoque: remesas familiares, no inversiones ni pérdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayúsculas, múltiples signos de exclamación (!!!), lenguaje muy formal o corporativo, frases genéricas de marketing. Preferir: conversación natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo. PRIVACIDAD: NO menciones situaciones personales/familiares del cliente ("apoyo a casa", "seres queridos", "familia"). Solo usar: "enviar dinero a Venezuela" o "hacer un envío".'
                     },
                     {
                         role: 'user',
@@ -4623,9 +4623,9 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                             
                             // 4. Obtener última compra USDT
                             const ultimaCompra = await dbGet(`
-                                SELECT tasa_clp_ves, fecha
+                                SELECT tasa_clp_ves, fecha, id
                                 FROM compras
-                                ORDER BY fecha DESC
+                                ORDER BY id DESC
                                 LIMIT 1
                             `);
                             
@@ -4709,7 +4709,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                     messages: [
                                         {
                                             role: 'system',
-                                            content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cálidos y profesionales en español para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderación (2-3 máximo). Enfoque: remesas familiares, no inversiones ni pérdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayúsculas, múltiples signos de exclamación (!!!), lenguaje muy formal o corporativo, frases genéricas de marketing. Preferir: conversación natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo.'
+                                            content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cálidos y profesionales en español para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderación (2-3 máximo). Enfoque: remesas familiares, no inversiones ni pérdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayúsculas, múltiples signos de exclamación (!!!), lenguaje muy formal o corporativo, frases genéricas de marketing. Preferir: conversación natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo. PRIVACIDAD: NO menciones situaciones personales/familiares del cliente ("apoyo a casa", "seres queridos", "familia"). Solo usar: "enviar dinero a Venezuela" o "hacer un envío".'
                                         },
                                         {
                                             role: 'user',
