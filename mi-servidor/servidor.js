@@ -2701,7 +2701,7 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
         
         if (tarea.tipo_alerta === 'critico' || diasInactivo > 60) {
             tipoEstrategia = 'critico_reactivacion';
-            descuentoPorcentaje = 5.0;
+            descuentoPorcentaje = 2.0;
         } else if (tarea.tipo_alerta === 'disminucion' || (tarea.descripcion && tarea.descripcion.toLowerCase().includes('reducción'))) {
             tipoEstrategia = 'reduccion_actividad';
             descuentoPorcentaje = 3.3;  // Cambiado de 4.0 a 3.3%
@@ -2731,20 +2731,20 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
             let promptMensaje = '';
             
             if (tipoEstrategia === 'inactivo_recordatorio') {
-                promptMensaje = `Genera un mensaje amigable de WhatsApp para reactivar al cliente ${nombreCliente} que lleva ${diasInactivo} días sin operar. Tono: cálido y cercano, sin ser insistente. NO menciones descuento (esta es solo un recordatorio amistoso). Incluye emojis apropiados. Horario de atención: 08:00-21:00. Países: Venezuela 🇻🇪 Chile 🇨🇱. Máximo 4 líneas.`;
+                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje amigable de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. Tono: cálido, cercano, pregunta cómo está. NO menciones descuentos ni promociones (solo recordatorio). NO uses placeholders. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 4 líneas. IMPORTANTE: Sé CREATIVO y VARÍA el estilo - evita usar siempre la misma estructura o frases. Cada mensaje debe sentirse único y personalizado. ANTI-SPAM: Escribe como humano, NO como bot comercial. Evita mayúsculas excesivas, !!!, lenguaje de ventas. Preferir conversación natural.`;
                 
             } else if (tipoEstrategia === 'inactivo_promocion') {
-                promptMensaje = `Genera un mensaje de WhatsApp para reactivar al cliente ${nombreCliente} que lleva ${diasInactivo} días inactivo. Ofrécele una tasa promocional especial de ${tasaPromocional.toFixed(3)} VES por cada CLP. Tono: nostálgico pero motivador. Incluye emojis. Horario: 08:00-21:00. Países: 🇻🇪🇨🇱. Máximo 5 líneas.`;
+                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero a Venezuela. Ofrece tasa promocional: ${tasaPromocional.toFixed(3)} VES/CLP. Tono: cercano, hazle saber que lo extrañamos. NO uses placeholders como [Tu Nombre]. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 5 líneas. IMPORTANTE: Sé CREATIVO - varía el tono, la estructura y las palabras. Cada mensaje debe ser único. ANTI-SPAM: Lenguaje humano y natural, NO promocional agresivo. Evita: OFERTAS!!!, TODO EN MAYÚSCULAS, lenguaje de marketing. Sé conversacional.`;
                 
             } else if (tipoEstrategia === 'critico_reactivacion') {
                 const fechaLimite = new Date();
                 fechaLimite.setDate(fechaLimite.getDate() + 7);
                 const fechaLimiteStr = fechaLimite.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
                 
-                promptMensaje = `Genera un mensaje URGENTE de WhatsApp para el cliente ${nombreCliente} que lleva ${diasInactivo} días sin operar (riesgo de pérdida). Ofrece tasa ESPECIAL de reactivación: ${tasaPromocional.toFixed(3)} VES/CLP. IMPORTANTE: Oferta válida solo 7 días hasta ${fechaLimiteStr}. Tono: urgente pero profesional. Emojis ⚠️💰. Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 6 líneas.`;
+                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. Ofrece tasa ESPECIAL de reactivación: ${tasaPromocional.toFixed(3)} VES/CLP, válida 7 días hasta ${fechaLimiteStr}. Tono: urgente pero cálido, transmite que lo extrañamos. NO menciones "pérdidas" ni "riesgos". NO incluyas placeholders como [Tu Nombre] o [Tu Empresa]. El mensaje es DIRECTO del equipo DefiOracle. Emojis: ⚠️💰 (máximo 3). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 6 líneas. IMPORTANTE: Sé MUY CREATIVO - cada mensaje debe tener diferente estructura, estilo y expresiones. Personaliza según el contexto. ANTI-SPAM: Urgencia SIN agresividad comercial. Evita: !!URGENTE!!, OFERTA LIMITADA!!!, mayúsculas excesivas. Preferir: lenguaje directo pero amigable.`;
                 
             } else if (tipoEstrategia === 'reduccion_actividad') {
-                promptMensaje = `Genera un mensaje de WhatsApp para ${nombreCliente} que redujo significativamente su actividad. Muestra preocupación genuina, pregunta si algo podemos mejorar. Ofrece tasa especial de retención: ${tasaPromocional.toFixed(3)} VES/CLP. Tono: empático, solicita feedback. Emojis apropiados. Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 5 líneas.`;
+                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje para ${nombreCliente} que antes enviaba dinero con más frecuencia pero ahora no tanto. Tono: preocupación genuina, pregunta si todo está bien o si podemos mejorar. Ofrece tasa EXCLUSIVA solo para él/ella: ${tasaPromocional.toFixed(3)} VES/CLP. NO uses palabras corporativas como "retención", "estrategia", "fidelización". Lenguaje cercano y familiar. NO placeholders. Emojis moderados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 5 líneas. IMPORTANTE: Varía la forma de expresar preocupación y oferta. Sé único y creativo en cada mensaje. ANTI-SPAM: Tono empático y humano, NO ventas. Evita: frases genéricas de marketing, exclamaciones excesivas. Parecer conversación real.`;
             }
             
             const responseIA = await axios.post('https://api.openai.com/v1/chat/completions', {
@@ -2752,7 +2752,7 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Eres un experto en marketing conversacional para servicios de cambio de divisas Chile-Venezuela. Genera mensajes profesionales, cálidos y efectivos en español para WhatsApp. Usa emojis apropiadamente pero sin exceso.'
+                        content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cálidos y profesionales en español para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderación (2-3 máximo). Enfoque: remesas familiares, no inversiones ni pérdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayúsculas, múltiples signos de exclamación (!!!), lenguaje muy formal o corporativo, frases genéricas de marketing. Preferir: conversación natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo.'
                     },
                     {
                         role: 'user',
@@ -2760,7 +2760,7 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
                     }
                 ],
                 max_tokens: 200,
-                temperature: 0.7
+                temperature: 0.9
             }, {
                 headers: {
                     'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -2857,6 +2857,17 @@ app.post('/api/tareas/:id/confirmar-envio', apiAuth, async (req, res) => {
                 WHERE cliente_id = ? AND activa = 1
             `, [fechaHoy, tarea.cliente_id]);
         }
+        
+        // Crear notificación para el master
+        const operadorNombre = req.session.user.username || 'Operador';
+        await dbRun(`
+            INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, tarea_id)
+            VALUES (1, 'tarea_completada', 'Tarea completada', ?, ?, ?)
+        `, [
+            `${operadorNombre} completó: ${tarea.titulo}`,
+            fechaHoy,
+            tareaId
+        ]);
         
         res.json({
             success: true,
@@ -4684,20 +4695,20 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 let promptMensaje = '';
                                 
                                 if (tipoEstrategia === 'inactivo_recordatorio') {
-                                    promptMensaje = `Genera un mensaje amigable de WhatsApp para ${nombreCliente}, un cliente que lleva ${diasInactivo} días sin hacer operaciones. NO menciones ningún descuento ni promoción, solo un recordatorio amistoso preguntando si todo está bien. Menciona que estamos disponibles 08:00-21:00. Usa emojis apropiados. Máximo 4 líneas.`;
+                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje amigable de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. Tono: cálido, cercano, pregunta cómo está. NO menciones descuentos ni promociones (solo recordatorio). NO uses placeholders. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 4 líneas. IMPORTANTE: Sé CREATIVO y VARÍA el estilo - evita usar siempre la misma estructura o frases. Cada mensaje debe sentirse único y personalizado. ANTI-SPAM: Escribe como humano, NO como bot comercial. Evita mayúsculas excesivas, !!!, lenguaje de ventas. Preferir conversación natural.`;
                                     
                                 } else if (tipoEstrategia === 'inactivo_promocion') {
-                                    promptMensaje = `Genera un mensaje de WhatsApp para ${nombreCliente}, que lleva ${diasInactivo} días sin operar. Ofrécele una tasa promocional de ${tasaPromocional.toFixed(3)} VES por cada CLP. Sé cálido y hazle saber que lo extrañamos. Menciona horario 08:00-21:00. Usa emojis. Máximo 5 líneas.`;
+                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero a Venezuela. Ofrece tasa promocional: ${tasaPromocional.toFixed(3)} VES/CLP. Tono: cercano, hazle saber que lo extrañamos. NO uses placeholders como [Tu Nombre]. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 5 líneas. IMPORTANTE: Sé CREATIVO - varía el tono, la estructura y las palabras. Cada mensaje debe ser único. ANTI-SPAM: Lenguaje humano y natural, NO promocional agresivo. Evita: OFERTAS!!!, TODO EN MAYÚSCULAS, lenguaje de marketing. Sé conversacional.`;
                                     
                                 } else if (tipoEstrategia === 'critico_reactivacion') {
                                     const fechaLimite = new Date();
                                     fechaLimite.setDate(fechaLimite.getDate() + 7);
                                     const fechaLimiteStr = fechaLimite.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
                                     
-                                    promptMensaje = `Genera un mensaje URGENTE de WhatsApp para ${nombreCliente}, cliente inactivo por ${diasInactivo} días. Ofrece tasa especial de reactivación: ${tasaPromocional.toFixed(3)} VES/CLP. Menciona que es válido 7 días hasta ${fechaLimiteStr}. Transmite urgencia pero con calidez. Usa emojis de alerta y dinero. Horario 08:00-21:00. Máximo 6 líneas.`;
+                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. Ofrece tasa ESPECIAL de reactivación: ${tasaPromocional.toFixed(3)} VES/CLP, válida 7 días hasta ${fechaLimiteStr}. Tono: urgente pero cálido, transmite que lo extrañamos. NO menciones "pérdidas" ni "riesgos". NO incluyas placeholders como [Tu Nombre] o [Tu Empresa]. El mensaje es DIRECTO del equipo DefiOracle. Emojis: ⚠️💰 (máximo 3). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 6 líneas. IMPORTANTE: Sé MUY CREATIVO - cada mensaje debe tener diferente estructura, estilo y expresiones. Personaliza según el contexto. ANTI-SPAM: Urgencia SIN agresividad comercial. Evita: !!URGENTE!!, OFERTA LIMITADA!!!, mayúsculas excesivas. Preferir: lenguaje directo pero amigable.`;
                                     
                                 } else if (tipoEstrategia === 'reduccion_actividad') {
-                                    promptMensaje = `Genera un mensaje para ${nombreCliente}, que redujo su frecuencia de operaciones. Muestra preocupación genuina, pregunta si podemos mejorar. Ofrece tasa especial: ${tasaPromocional.toFixed(3)} VES/CLP. Sé empático y abierto al feedback. Usa emojis. Horario 08:00-21:00. Máximo 5 líneas.`;
+                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje para ${nombreCliente} que antes enviaba dinero con más frecuencia pero ahora no tanto. Tono: preocupación genuina, pregunta si todo está bien o si podemos mejorar. Ofrece tasa EXCLUSIVA solo para él/ella: ${tasaPromocional.toFixed(3)} VES/CLP. NO uses palabras corporativas como "retención", "estrategia", "fidelización". Lenguaje cercano y familiar. NO placeholders. Emojis moderados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 5 líneas. IMPORTANTE: Varía la forma de expresar preocupación y oferta. Sé único y creativo en cada mensaje. ANTI-SPAM: Tono empático y humano, NO ventas. Evita: frases genéricas de marketing, exclamaciones excesivas. Parecer conversación real.`;
                                 }
                                 
                                 // Llamar a OpenAI para generar el mensaje
@@ -4706,7 +4717,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                     messages: [
                                         {
                                             role: 'system',
-                                            content: 'Eres un experto en marketing conversacional para WhatsApp en el contexto de remesas Venezuela-Chile. Genera mensajes cálidos, directos y persuasivos. Usa emojis con moderación. Mantén tono profesional pero cercano.'
+                                            content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cálidos y profesionales en español para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderación (2-3 máximo). Enfoque: remesas familiares, no inversiones ni pérdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayúsculas, múltiples signos de exclamación (!!!), lenguaje muy formal o corporativo, frases genéricas de marketing. Preferir: conversación natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo.'
                                         },
                                         {
                                             role: 'user',
@@ -4714,7 +4725,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                         }
                                     ],
                                     max_tokens: 200,
-                                    temperature: 0.7
+                                    temperature: 0.9
                                 }, {
                                     headers: {
                                         'Authorization': `Bearer ${OPENAI_API_KEY}`,
