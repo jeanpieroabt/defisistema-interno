@@ -3045,12 +3045,19 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             // Obtener datos del cliente y RECALCULAR días de inactividad en tiempo real
             const cliente = await dbGet(`
                 SELECT c.nombre, MAX(o.fecha) as ultima_operacion,
-                       CAST(julianday('now') - julianday(MAX(o.fecha)) AS INTEGER) as dias_reales
+                       CAST(julianday('now') - julianday(
+                           CASE 
+                               WHEN o.fecha LIKE '__-__-____' THEN substr(o.fecha, 7, 4) || '-' || substr(o.fecha, 4, 2) || '-' || substr(o.fecha, 1, 2)
+                               ELSE o.fecha
+                           END
+                       ) AS INTEGER) as dias_reales
                 FROM clientes c
                 LEFT JOIN operaciones o ON c.id = o.cliente_id
                 WHERE c.id = ?
                 GROUP BY c.id
             `, [alerta.cliente_id]);
+            
+            console.log(`📊 Cliente ID ${alerta.cliente_id} (${cliente?.nombre}): última op ${cliente?.ultima_operacion}, días reales: ${cliente?.dias_reales}`);
             
             // Si el cliente ya no cumple el criterio de inactividad, saltar
             const diasInactivo = cliente?.dias_reales || 0;
