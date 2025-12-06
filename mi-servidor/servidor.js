@@ -379,17 +379,145 @@ app.post('/login', (req, res) => {
     bcrypt.compare(password, u.password, (e, ok) => {
       if (e || !ok) return res.status(400).json({ message: 'Credenciales inválidas' });
       req.session.user = { id: u.id, username: u.username, role: u.role };
+      
+      // Registrar login en actividad
+      const timestamp = new Date().toISOString();
+      db.run(`
+        INSERT INTO actividad_operadores(usuario_id, tipo_actividad, timestamp)
+        VALUES (?, 'login', ?)
+      `, [u.id, timestamp], (errLog) => {
+        if (errLog) console.error('Error registrando login:', errLog);
+      });
+      
       res.json({ message: 'Login OK' });
     });
   });
 });
 app.get('/logout', (req, res) => {
+  // Registrar logout en actividad
+  if (req.session.user) {
+    const timestamp = new Date().toISOString();
+    db.run(`
+      INSERT INTO actividad_operadores(usuario_id, tipo_actividad, timestamp)
+      VALUES (?, 'logout', ?)
+    `, [req.session.user.id, timestamp]);
+  }
+  
   req.session.destroy(() => {
     res.clearCookie('connect.sid');
     res.redirect('/login.html');
   });
 });
 app.get('/api/user-info', apiAuth, (req, res) => res.json(req.session.user));
+
+// Endpoint de heartbeat para monitoreo de actividad
+app.post('/api/actividad/heartbeat', apiAuth, (req, res) => {
+    const timestamp = new Date().toISOString();
+    db.run(`
+        INSERT INTO actividad_operadores(usuario_id, tipo_actividad, timestamp)
+        VALUES (?, 'heartbeat', ?)
+    `, [req.session.user.id, timestamp], (err) => {
+        if (err) {
+            console.error('Error registrando heartbeat:', err);
+            return res.status(500).json({ error: 'Error al registrar actividad' });
+        }
+        res.json({ success: true });
+    });
+});
+
+// Endpoint para obtener actividad de operadores (solo master)
+app.get('/api/actividad/operadores', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { fecha } = req.query; // Formato YYYY-MM-DD
+        const fechaFiltro = fecha || hoyLocalYYYYMMDD();
+        
+        const operadores = await dbAll(`
+            SELECT id, username FROM usuarios WHERE role != 'master' ORDER BY username
+        `);
+        
+        const resultado = [];
+        
+        for (const operador of operadores) {
+            // Obtener todas las actividades del día
+            const actividades = await dbAll(`
+                SELECT tipo_actividad, timestamp
+                FROM actividad_operadores
+                WHERE usuario_id = ?
+                AND DATE(timestamp) = ?
+                ORDER BY timestamp ASC
+            `, [operador.id, fechaFiltro]);
+            
+            // Calcular horas online con gaps de máximo 30 minutos
+            let horasOnline = 0;
+            let sesionInicio = null;
+            let ultimaActividad = null;
+            const UMBRAL_MINUTOS = 30;
+            
+            for (const act of actividades) {
+                const timestamp = new Date(act.timestamp);
+                
+                if (!sesionInicio) {
+                    // Iniciar nueva sesión
+                    sesionInicio = timestamp;
+                    ultimaActividad = timestamp;
+                } else {
+                    // Calcular diferencia con última actividad
+                    const diffMinutos = (timestamp - ultimaActividad) / (1000 * 60);
+                    
+                    if (diffMinutos > UMBRAL_MINUTOS) {
+                        // Gap > 30 min: cerrar sesión anterior e iniciar nueva
+                        horasOnline += (ultimaActividad - sesionInicio) / (1000 * 60 * 60);
+                        sesionInicio = timestamp;
+                    }
+                    
+                    ultimaActividad = timestamp;
+                }
+            }
+            
+            // Cerrar última sesión si existe
+            if (sesionInicio && ultimaActividad) {
+                horasOnline += (ultimaActividad - sesionInicio) / (1000 * 60 * 60);
+            }
+            
+            // Contar actividades específicas
+            const operaciones = await dbGet(`
+                SELECT COUNT(*) as cnt FROM actividad_operadores
+                WHERE usuario_id = ? AND tipo_actividad = 'operacion' AND DATE(timestamp) = ?
+            `, [operador.id, fechaFiltro]);
+            
+            const tareas = await dbGet(`
+                SELECT COUNT(*) as cnt FROM actividad_operadores
+                WHERE usuario_id = ? AND tipo_actividad = 'tarea' AND DATE(timestamp) = ?
+            `, [operador.id, fechaFiltro]);
+            
+            const mensajes = await dbGet(`
+                SELECT COUNT(*) as cnt FROM actividad_operadores
+                WHERE usuario_id = ? AND tipo_actividad = 'mensaje' AND DATE(timestamp) = ?
+            `, [operador.id, fechaFiltro]);
+            
+            const ultimoHeartbeat = actividades.length > 0 
+                ? actividades[actividades.length - 1].timestamp 
+                : null;
+            
+            resultado.push({
+                operador_id: operador.id,
+                operador_nombre: operador.username,
+                fecha: fechaFiltro,
+                horas_online: Math.round(horasOnline * 100) / 100, // 2 decimales
+                operaciones: operaciones.cnt,
+                tareas: tareas.cnt,
+                mensajes: mensajes.cnt,
+                ultimo_heartbeat: ultimoHeartbeat,
+                estado: ultimoHeartbeat && new Date() - new Date(ultimoHeartbeat) < 5 * 60 * 1000 ? 'online' : 'offline'
+            });
+        }
+        
+        res.json(resultado);
+    } catch (error) {
+        console.error('Error obteniendo actividad operadores:', error);
+        res.status(500).json({ error: 'Error al obtener actividad' });
+    }
+});
 
 // --- Endpoint para verificar número de recibo ---
 app.get('/api/recibo/check', apiAuth, (req, res) => {
@@ -1057,6 +1185,17 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
                 console.log(`✅ Operación #${numero_recibo} registrada exitosamente`);
                 console.log(`   Cliente ID: ${cliente_id}, Monto: ${montoClpNum} CLP → ${montoVesNum} VES`);
                 console.log(`   Ganancia Neta: ${gananciaNeta.toFixed(2)} CLP`);
+                
+                // Registrar actividad de operación
+                const timestamp = new Date().toISOString();
+                db.run(`
+                    INSERT INTO actividad_operadores(usuario_id, tipo_actividad, timestamp, metadata)
+                    VALUES (?, 'operacion', ?, ?)
+                `, [req.session.user.id, timestamp, JSON.stringify({ 
+                    operacion_id: this.lastID,
+                    monto_clp: montoClpNum,
+                    cliente_id: cliente_id
+                })]);
                 
                 // Verificar si el cliente tiene datos completos y generar alerta si faltan
                 db.get(`SELECT nombre, rut, email, telefono FROM clientes WHERE id = ?`, [cliente_id], (errCliente, cliente) => {
@@ -2622,6 +2761,15 @@ app.put('/api/tareas/:id', apiAuth, async (req, res) => {
                     VALUES (?, 'info', ?, ?, ?, ?)
                 `, [tarea.creado_por, 'Tarea completada', `La tarea "${tarea.titulo}" ha sido completada`, hoyLocalYYYYMMDD(), tareaId]);
             }
+            
+            // Registrar actividad de tarea completada
+            const timestamp = new Date().toISOString();
+            await dbRun(`
+                INSERT INTO actividad_operadores(usuario_id, tipo_actividad, timestamp, metadata)
+                VALUES (?, 'tarea', ?, ?)
+            `, [req.session.user.id, timestamp, JSON.stringify({
+                tarea_id: tareaId
+            })]);
         }
         
         res.json({ message: 'Tarea actualizada exitosamente' });
@@ -2843,6 +2991,16 @@ app.post('/api/tareas/:id/confirmar-envio', apiAuth, async (req, res) => {
                 respuesta_cliente = ?
             WHERE id = ?
         `, [fechaHoy, fechaHoy, respuesta_cliente || null, tareaId]);
+        
+        // Registrar actividad de mensaje enviado
+        const timestamp = new Date().toISOString();
+        await dbRun(`
+            INSERT INTO actividad_operadores(usuario_id, tipo_actividad, timestamp, metadata)
+            VALUES (?, 'mensaje', ?, ?)
+        `, [req.session.user.id, timestamp, JSON.stringify({
+            tarea_id: tareaId,
+            cliente_id: tarea.cliente_id
+        })]);
         
         // Actualizar alerta
         if (tarea.cliente_id) {

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoreo de Actividad - Defi Oracle</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .operador-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .operador-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        
+        .operador-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .operador-nombre {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .estado-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .estado-online {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .estado-offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .metricas {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .metrica {
+            text-align: center;
+        }
+        
+        .metrica-valor {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2D8CDB;
+            margin-bottom: 0.3rem;
+        }
+        
+        .metrica-label {
+            font-size: 0.85rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .horas-online {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 1rem;
+        }
+        
+        .horas-online .valor {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+        
+        .ultimo-heartbeat {
+            font-size: 0.8rem;
+            color: #999;
+            margin-top: 1rem;
+            text-align: center;
+        }
+        
+        .filtros {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .filtros label {
+            margin-right: 1rem;
+            font-weight: 600;
+        }
+        
+        .filtros input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 1rem;
+        }
+        
+        .btn-actualizar {
+            background: #2D8CDB;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .btn-actualizar:hover {
+            background: #2574B8;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            font-size: 1.2rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="hdr">
+                <div class="logo-header">
+                    <img src="logo.png" alt="Logo">
+                    <h1>📊 Monitoreo de Actividad</h1>
+                </div>
+                <div class="btns">
+                    <a href="home.html" class="btn-back">← Volver al Inicio</a>
+                </div>
+            </div>
+            
+            <div class="filtros">
+                <label for="fecha">Fecha:</label>
+                <input type="date" id="fecha" value="">
+                <button class="btn-actualizar" onclick="cargarActividad()">🔄 Actualizar</button>
+                <span style="margin-left: 1rem; color: #666;">Auto-actualización cada 30 segundos</span>
+            </div>
+            
+            <div id="contenido" class="dashboard-grid">
+                <div class="loading">⏳ Cargando actividad...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="heartbeat.js"></script>
+    <script>
+        let intervaloActualizacion = null;
+        
+        // Establecer fecha de hoy por defecto
+        document.getElementById('fecha').valueAsDate = new Date();
+        
+        function formatearHoras(horas) {
+            if (horas === 0) return '0h 0m';
+            const h = Math.floor(horas);
+            const m = Math.round((horas - h) * 60);
+            return `${h}h ${m}m`;
+        }
+        
+        function formatearFecha(timestamp) {
+            if (!timestamp) return 'Nunca';
+            const fecha = new Date(timestamp);
+            const ahora = new Date();
+            const diffMinutos = Math.floor((ahora - fecha) / (1000 * 60));
+            
+            if (diffMinutos < 1) return 'Ahora mismo';
+            if (diffMinutos < 60) return `Hace ${diffMinutos} min`;
+            
+            const diffHoras = Math.floor(diffMinutos / 60);
+            if (diffHoras < 24) return `Hace ${diffHoras}h`;
+            
+            return fecha.toLocaleDateString('es-CL', { 
+                day: '2-digit', 
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        async function cargarActividad() {
+            try {
+                const fecha = document.getElementById('fecha').value;
+                const response = await fetch(`/api/actividad/operadores?fecha=${fecha}`);
+                const datos = await response.json();
+                
+                const contenido = document.getElementById('contenido');
+                
+                if (datos.length === 0) {
+                    contenido.innerHTML = '<div class="loading">📭 No hay actividad registrada para esta fecha</div>';
+                    return;
+                }
+                
+                contenido.innerHTML = datos.map(op => `
+                    <div class="operador-card">
+                        <div class="operador-header">
+                            <div class="operador-nombre">${op.operador_nombre}</div>
+                            <div class="estado-badge estado-${op.estado}">
+                                ${op.estado === 'online' ? '🟢 Online' : '⚪ Offline'}
+                            </div>
+                        </div>
+                        
+                        <div class="metricas">
+                            <div class="metrica">
+                                <div class="metrica-valor">${op.operaciones}</div>
+                                <div class="metrica-label">Operaciones</div>
+                            </div>
+                            <div class="metrica">
+                                <div class="metrica-valor">${op.tareas}</div>
+                                <div class="metrica-label">Tareas</div>
+                            </div>
+                            <div class="metrica">
+                                <div class="metrica-valor">${op.mensajes}</div>
+                                <div class="metrica-label">Mensajes</div>
+                            </div>
+                            <div class="metrica">
+                                <div class="metrica-valor">${op.operaciones + op.tareas + op.mensajes}</div>
+                                <div class="metrica-label">Total</div>
+                            </div>
+                            
+                            <div class="horas-online">
+                                <div class="valor">${formatearHoras(op.horas_online)}</div>
+                                <div class="metrica-label" style="color: white;">⏰ Tiempo Online</div>
+                            </div>
+                        </div>
+                        
+                        <div class="ultimo-heartbeat">
+                            Última actividad: ${formatearFecha(op.ultimo_heartbeat)}
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error cargando actividad:', error);
+                document.getElementById('contenido').innerHTML = 
+                    '<div class="loading">❌ Error cargando actividad</div>';
+            }
+        }
+        
+        // Cargar actividad al iniciar
+        cargarActividad();
+        
+        // Auto-actualizar cada 30 segundos
+        intervaloActualizacion = setInterval(cargarActividad, 30000);
+        
+        // Detener auto-actualización al salir
+        window.addEventListener('beforeunload', () => {
+            if (intervaloActualizacion) {
+                clearInterval(intervaloActualizacion);
+            }
+        });
+    </script>
+</body>
+</html>
