@@ -6263,7 +6263,6 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
         operador: operador.username,
         horas_trabajadas,
         millones_comisionables,
-        atenciones_rapidas: count_atencion_rapida,
         domingos_trabajados,
         total_pagar
       });

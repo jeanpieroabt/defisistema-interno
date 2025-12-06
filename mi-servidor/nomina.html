@@ -182,25 +182,44 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.6);
+            z-index: 999999;
+            backdrop-filter: blur(3px);
+        }
+
+        .modal.show {
+            display: flex !important;
             justify-content: center;
             align-items: center;
         }
 
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
+        .modal .modal-content {
             background: white;
             border-radius: 12px;
             padding: 2rem;
             max-width: 500px;
             width: 90%;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease-out;
+            position: relative;
+            z-index: 1000000;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         .modal-header {
@@ -366,9 +385,9 @@
         </div>
     </div>
 
-    <!-- Modal para bonos extras -->
-    <div class="modal" id="modalBonos">
-        <div class="modal-content">
+    <!--Modal para bonos extras (FUERA del contenedor principal) -->
+    <div class="modal" id="modalBonos" style="display: none;">
+        <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">💰 Agregar Bonos</div>
             <div class="form-group">
                 <label>Operador:</label>
@@ -389,11 +408,12 @@
                 <textarea id="modalNota" placeholder="Ej: Bono por desempeño excepcional, incentivo, etc."></textarea>
             </div>
             <div class="modal-actions">
-                <button class="btn" style="background: #6c757d; color: white;" onclick="cerrarModal()">
+                <button type="button" class="btn" style="background: #6c757d; color: white;" id="btnCancelarModal">
                     Cancelar
                 </button>
-                <button class="btn btn-success" onclick="guardarBonos()">
+                <button type="button" class="btn btn-success" id="btnGuardarBonos">
                     Guardar
+                </button>
                 </button>
             </div>
         </div>
@@ -490,7 +510,7 @@
                     <td class="text-right total-pagar">$${n.total_pagar.toFixed(2)}</td>
                     <td class="text-center">
                         ${periodoActual.estado === 'abierto' ? 
-                            `<button class="btn btn-icon btn-primary" onclick="abrirModalBonos(${n.id}, '${n.username}', ${n.bono_atencion_rapida}, ${n.bonos_extra}, '${n.nota_bonos || ''}')">
+                            `<button type="button" class="btn btn-icon btn-primary btn-bonos" data-nomina-id="${n.id}" data-username="${n.username}" data-atencion="${n.bono_atencion_rapida}" data-bonos="${n.bonos_extra}">
                                 ➕ Bonos
                             </button>` : 
                             '<span style="color: #999;">Cerrado</span>'
@@ -498,6 +518,27 @@
                     </td>
                 `;
                 tbody.appendChild(tr);
+            });
+
+            // Agregar event listeners a todos los botones de bonos
+            document.querySelectorAll('.btn-bonos').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    
+                    const nominaId = parseInt(this.getAttribute('data-nomina-id'));
+                    const username = this.getAttribute('data-username');
+                    const atencion = parseFloat(this.getAttribute('data-atencion'));
+                    const bonos = parseFloat(this.getAttribute('data-bonos'));
+                    
+                    // CRÍTICO: Esperar a que el evento del click termine completamente
+                    setTimeout(() => {
+                        abrirModalBonos(nominaId, username, atencion, bonos);
+                    }, 150);
+                    
+                    return false;
+                });
             });
 
             document.getElementById('loadingNomina').style.display = 'none';
@@ -568,19 +609,40 @@
             }
         }
 
-        function abrirModalBonos(nominaId, username, atencionRapida, bonosActuales, notaActual) {
+        function abrirModalBonos(nominaId, username, atencionRapida, bonosActuales) {
             nominaIdSeleccionada = nominaId;
             document.getElementById('modalOperadorNombre').value = username;
             document.getElementById('modalAtencionRapida').checked = atencionRapida > 0;
-            document.getElementById('modalBonosInput').value = bonosActuales;
-            document.getElementById('modalNota').value = notaActual;
-            document.getElementById('modalBonos').classList.add('active');
+            document.getElementById('modalBonosInput').value = bonosActuales || 0;
+            document.getElementById('modalNota').value = '';
+            document.getElementById('modalBonos').style.display = 'flex';
+            
+            // Agregar listener para clicks fuera del modal después de un delay
+            setTimeout(() => {
+                document.addEventListener('click', handleClickOutside);
+            }, 200);
         }
 
         function cerrarModal() {
-            document.getElementById('modalBonos').classList.remove('active');
+            document.getElementById('modalBonos').style.display = 'none';
             nominaIdSeleccionada = null;
+            document.removeEventListener('click', handleClickOutside);
         }
+
+        function handleClickOutside(event) {
+            const modal = document.getElementById('modalBonos');
+            const modalContent = modal.querySelector('.modal-content');
+            
+            if (!modalContent.contains(event.target)) {
+                cerrarModal();
+            }
+        }
+
+        // Event listeners para botones del modal
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('btnCancelarModal').addEventListener('click', cerrarModal);
+            document.getElementById('btnGuardarBonos').addEventListener('click', guardarBonos);
+        });
 
         async function guardarBonos() {
             const atencionRapida = document.getElementById('modalAtencionRapida').checked ? 15.00 : 0;
