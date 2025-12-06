@@ -305,6 +305,83 @@ const runMigrations = async () => {
         if (!e.message.includes('duplicate column')) console.log('ℹ️  cliente_nombre ya existe');
     }
 
+    // ✅ TABLA PARA MONITOREO DE ACTIVIDAD DE OPERADORES
+    await dbRun(`CREATE TABLE IF NOT EXISTS actividad_operadores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario_id INTEGER NOT NULL,
+        tipo_actividad TEXT NOT NULL CHECK(tipo_actividad IN ('login', 'logout', 'heartbeat', 'operacion', 'tarea', 'mensaje')),
+        timestamp TEXT NOT NULL,
+        fecha TEXT GENERATED ALWAYS AS (DATE(timestamp)) VIRTUAL,
+        metadata TEXT,
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+    )`);
+    console.log('✅ Tabla actividad_operadores verificada');
+
+    // Índices para actividad_operadores
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_actividad_usuario_timestamp ON actividad_operadores(usuario_id, timestamp)`);
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_actividad_tipo ON actividad_operadores(tipo_actividad, timestamp)`);
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_actividad_fecha ON actividad_operadores(fecha)`);
+    console.log('✅ Índices de actividad_operadores verificados');
+
+    // ✅ TABLAS PARA SISTEMA DE NÓMINA
+    await dbRun(`CREATE TABLE IF NOT EXISTS periodos_pago (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        anio INTEGER NOT NULL,
+        mes INTEGER NOT NULL,
+        quincena INTEGER NOT NULL CHECK(quincena IN (1, 2)),
+        fecha_inicio TEXT NOT NULL,
+        fecha_fin TEXT NOT NULL,
+        estado TEXT NOT NULL DEFAULT 'abierto' CHECK(estado IN ('abierto', 'cerrado', 'pagado')),
+        fecha_cierre TEXT,
+        fecha_pago TEXT,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(anio, mes, quincena)
+    )`);
+    console.log('✅ Tabla periodos_pago verificada');
+
+    await dbRun(`CREATE TABLE IF NOT EXISTS nomina (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        periodo_id INTEGER NOT NULL,
+        usuario_id INTEGER NOT NULL,
+        sueldo_base REAL NOT NULL DEFAULT 150.00,
+        horas_trabajadas REAL NOT NULL DEFAULT 0,
+        bono_asistencia REAL NOT NULL DEFAULT 0,
+        bono_atencion_rapida REAL NOT NULL DEFAULT 0,
+        comision_ventas REAL NOT NULL DEFAULT 0,
+        millones_comisionables REAL NOT NULL DEFAULT 0,
+        bono_domingos REAL NOT NULL DEFAULT 0,
+        domingos_trabajados INTEGER NOT NULL DEFAULT 0,
+        bonos_extra REAL NOT NULL DEFAULT 0,
+        nota_bonos TEXT,
+        total_pagar REAL NOT NULL DEFAULT 0,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        actualizado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (periodo_id) REFERENCES periodos_pago(id),
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+        UNIQUE(periodo_id, usuario_id)
+    )`);
+    console.log('✅ Tabla nomina verificada');
+
+    await dbRun(`CREATE TABLE IF NOT EXISTS atencion_rapida (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario_id INTEGER NOT NULL,
+        cliente_id INTEGER NOT NULL,
+        tipo TEXT NOT NULL CHECK(tipo IN ('operacion', 'mensaje')),
+        fecha TEXT NOT NULL,
+        tiempo_respuesta_minutos REAL NOT NULL,
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+        FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+    )`);
+    console.log('✅ Tabla atencion_rapida verificada');
+
+    // Índices para nómina
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_nomina_periodo ON nomina(periodo_id)`);
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_nomina_usuario ON nomina(usuario_id)`);
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_atencion_rapida_usuario_fecha ON atencion_rapida(usuario_id, fecha)`);
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_periodos_pago_estado ON periodos_pago(estado)`);
+    console.log('✅ Índices de nómina verificados');
+
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
             if (err) return console.error('Error al verificar usuarios semilla:', err.message);
@@ -6125,10 +6202,10 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
 
       // 2. CALCULAR MILLONES COMISIONABLES (desde operaciones)
       const millonesResult = await dbGet(`
-        SELECT COALESCE(SUM(monto_bs / 1000000.0), 0) as millones_comisionables
+        SELECT COALESCE(SUM(monto_ves / 1000000.0), 0) as millones_comisionables
         FROM operaciones
-        WHERE operador_id = ?
-        AND DATE(fecha_operacion) BETWEEN ? AND ?
+        WHERE usuario_id = ?
+        AND DATE(fecha) BETWEEN ? AND ?
       `, [operador.id, periodo.fecha_inicio, periodo.fecha_fin]);
 
       const millones_comisionables = millonesResult.millones_comisionables || 0;

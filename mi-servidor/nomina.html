@@ -292,7 +292,7 @@
         </div>
 
         <!-- Resumen del periodo -->
-        <div class="resumen-periodo" id="resumenPeriodo" style="display: none;">
+        <div class="resumen-periodo" id="resumenPeriodoContainer" style="display: none;">
             <div class="resumen-card">
                 <div class="icono">📅</div>
                 <div class="valor" id="resumenPeriodo"></div>
@@ -501,7 +501,7 @@
         function actualizarResumen() {
             if (!periodoActual) return;
 
-            document.getElementById('resumenPeriodo').style.display = 'grid';
+            document.getElementById('resumenPeriodoContainer').style.display = 'grid';
 
             const nombreMes = new Date(periodoActual.anio, periodoActual.mes - 1).toLocaleString('es', { month: 'short' });
             document.getElementById('resumenPeriodo').textContent = 
