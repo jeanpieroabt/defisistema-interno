@@ -6200,9 +6200,9 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
 
       const horas_trabajadas = horasResult.horas_trabajadas || 0;
 
-      // 2. CALCULAR MILLONES COMISIONABLES (desde operaciones)
+      // 2. CALCULAR MILLONES COMISIONABLES (desde operaciones en CLP)
       const millonesResult = await dbGet(`
-        SELECT COALESCE(SUM(monto_ves / 1000000.0), 0) as millones_comisionables
+        SELECT COALESCE(SUM(monto_clp / 1000000.0), 0) as millones_comisionables
         FROM operaciones
         WHERE usuario_id = ?
         AND DATE(fecha) BETWEEN ? AND ?
@@ -6210,17 +6210,7 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
 
       const millones_comisionables = millonesResult.millones_comisionables || 0;
 
-      // 3. CONTAR ATENCIONES RÁPIDAS (menos de 5 minutos)
-      const atencionRapidaCount = await dbGet(`
-        SELECT COUNT(*) as count
-        FROM atencion_rapida
-        WHERE usuario_id = ?
-        AND fecha BETWEEN ? AND ?
-      `, [operador.id, periodo.fecha_inicio, periodo.fecha_fin]);
-
-      const count_atencion_rapida = atencionRapidaCount.count || 0;
-
-      // 4. CONTAR DOMINGOS TRABAJADOS
+      // 3. CONTAR DOMINGOS TRABAJADOS
       const domingosResult = await dbGet(`
         SELECT COUNT(DISTINCT fecha) as domingos
         FROM actividad_operadores
@@ -6231,11 +6221,16 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
 
       const domingos_trabajados = domingosResult.domingos || 0;
 
-      // 5. CALCULAR BONOS
-      const sueldo_base = 150.00;
-      const bono_atencion_rapida = count_atencion_rapida >= 1 ? 30.00 : 0;
-      const bono_asistencia = horas_trabajadas >= 40 ? 30.00 : 0; // Ejemplo: 40 horas mínimas
-      const comision_ventas = millones_comisionables * 2.00; // $2 por millón
+      // 4. CALCULAR PAGOS
+      // Sistema quincenal: máximo 54 horas × $1.38/hora = $75 USD base
+      const TASA_POR_HORA = 1.38;
+      const HORAS_MAXIMAS_QUINCENA = 54;
+      const horas_a_pagar = Math.min(horas_trabajadas, HORAS_MAXIMAS_QUINCENA);
+      const sueldo_base = horas_a_pagar * TASA_POR_HORA; // Pago por horas trabajadas hasta el tope
+      
+      const bono_atencion_rapida = 0; // Se agrega manualmente desde el botón Bonos
+      const bono_asistencia = horas_trabajadas >= HORAS_MAXIMAS_QUINCENA ? 15.00 : 0; // $15 quincenal por cumplir 54 horas
+      const comision_ventas = millones_comisionables * 2.00; // $2 por millón CLP
       const bono_domingos = domingos_trabajados * 8.00; // $8 por domingo
       const bonos_extra = 0; // Se pueden agregar manualmente después
 
@@ -6314,7 +6309,7 @@ app.get('/api/nomina/periodo/:periodoId', apiAuth, onlyMaster, async (req, res) 
 app.put('/api/nomina/:nominaId/bonos', apiAuth, onlyMaster, async (req, res) => {
   try {
     const { nominaId } = req.params;
-    const { bonos_extra, nota_bonos } = req.body;
+    const { bono_atencion_rapida, bonos_extra, nota_bonos } = req.body;
 
     // Obtener la nómina actual
     const nomina = await dbGet('SELECT * FROM nomina WHERE id = ?', [nominaId]);
@@ -6323,12 +6318,13 @@ app.put('/api/nomina/:nominaId/bonos', apiAuth, onlyMaster, async (req, res) => 
     }
 
     // Recalcular el total
-    const nuevo_total = nomina.sueldo_base + nomina.bono_asistencia + nomina.bono_atencion_rapida + 
+    const nuevo_bono_atencion = parseFloat(bono_atencion_rapida || 0);
+    const nuevo_total = nomina.sueldo_base + nomina.bono_asistencia + nuevo_bono_atencion + 
                         nomina.comision_ventas + nomina.bono_domingos + parseFloat(bonos_extra || 0);
 
     await dbRun(
-      'UPDATE nomina SET bonos_extra = ?, nota_bonos = ?, total_pagar = ?, actualizado_en = CURRENT_TIMESTAMP WHERE id = ?',
-      [bonos_extra || 0, nota_bonos || null, nuevo_total, nominaId]
+      'UPDATE nomina SET bono_atencion_rapida = ?, bonos_extra = ?, nota_bonos = ?, total_pagar = ?, actualizado_en = CURRENT_TIMESTAMP WHERE id = ?',
+      [nuevo_bono_atencion, bonos_extra || 0, nota_bonos || null, nuevo_total, nominaId]
     );
 
     res.json({ mensaje: 'Bonos actualizados exitosamente' });

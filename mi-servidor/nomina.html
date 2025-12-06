@@ -341,14 +341,14 @@
                 <thead>
                     <tr>
                         <th>Operador</th>
-                        <th class="text-center">Horas</th>
-                        <th class="text-center">Millones</th>
-                        <th class="text-right">Base</th>
-                        <th class="text-right">Asistencia</th>
-                        <th class="text-right">At. Rápida</th>
-                        <th class="text-right">Comisiones</th>
-                        <th class="text-right">Domingos</th>
-                        <th class="text-right">Extras</th>
+                        <th class="text-center" title="Horas trabajadas (máx 54h pagadas)">Horas</th>
+                        <th class="text-center" title="Millones CLP comisionables">Millones</th>
+                        <th class="text-right" title="$1.38/hora × horas (máx 54h = $75)">Base</th>
+                        <th class="text-right" title="$15 quincenal si cumple 54+ horas">Asistencia</th>
+                        <th class="text-right" title="$15 manual - agregar desde Bonos">At. Rápida</th>
+                        <th class="text-right" title="$2 por millón CLP">Comisiones</th>
+                        <th class="text-right" title="$8 por domingo trabajado">Domingos</th>
+                        <th class="text-right" title="Bonos extras manuales">Extras</th>
                         <th class="text-right">Total</th>
                         <th class="text-center">Acciones</th>
                     </tr>
@@ -369,18 +369,24 @@
     <!-- Modal para bonos extras -->
     <div class="modal" id="modalBonos">
         <div class="modal-content">
-            <div class="modal-header">💰 Agregar Bonos Extras</div>
+            <div class="modal-header">💰 Agregar Bonos</div>
             <div class="form-group">
                 <label>Operador:</label>
                 <input type="text" id="modalOperadorNombre" readonly style="background: #f8f9fa;">
             </div>
             <div class="form-group">
-                <label>Monto Extra (USD):</label>
-                <input type="number" id="modalBonos" step="0.01" placeholder="0.00">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <input type="checkbox" id="modalAtencionRapida" style="width: 20px; height: 20px;">
+                    <span>Bono Atención Rápida ($15 USD)</span>
+                </label>
+            </div>
+            <div class="form-group">
+                <label>Bonos Extras (USD):</label>
+                <input type="number" id="modalBonosInput" step="0.01" placeholder="0.00">
             </div>
             <div class="form-group">
                 <label>Nota / Motivo:</label>
-                <textarea id="modalNota" placeholder="Ej: Bono por desempeño excepcional"></textarea>
+                <textarea id="modalNota" placeholder="Ej: Bono por desempeño excepcional, incentivo, etc."></textarea>
             </div>
             <div class="modal-actions">
                 <button class="btn" style="background: #6c757d; color: white;" onclick="cerrarModal()">
@@ -484,7 +490,7 @@
                     <td class="text-right total-pagar">$${n.total_pagar.toFixed(2)}</td>
                     <td class="text-center">
                         ${periodoActual.estado === 'abierto' ? 
-                            `<button class="btn btn-icon btn-primary" onclick="abrirModalBonos(${n.id}, '${n.username}', ${n.bonos_extra}, '${n.nota_bonos || ''}')">
+                            `<button class="btn btn-icon btn-primary" onclick="abrirModalBonos(${n.id}, '${n.username}', ${n.bono_atencion_rapida}, ${n.bonos_extra}, '${n.nota_bonos || ''}')">
                                 ➕ Bonos
                             </button>` : 
                             '<span style="color: #999;">Cerrado</span>'
@@ -562,10 +568,11 @@
             }
         }
 
-        function abrirModalBonos(nominaId, username, bonosActuales, notaActual) {
+        function abrirModalBonos(nominaId, username, atencionRapida, bonosActuales, notaActual) {
             nominaIdSeleccionada = nominaId;
             document.getElementById('modalOperadorNombre').value = username;
-            document.getElementById('modalBonos').value = bonosActuales;
+            document.getElementById('modalAtencionRapida').checked = atencionRapida > 0;
+            document.getElementById('modalBonosInput').value = bonosActuales;
             document.getElementById('modalNota').value = notaActual;
             document.getElementById('modalBonos').classList.add('active');
         }
@@ -576,14 +583,19 @@
         }
 
         async function guardarBonos() {
-            const bonos = parseFloat(document.getElementById('modalBonos').value) || 0;
+            const atencionRapida = document.getElementById('modalAtencionRapida').checked ? 15.00 : 0;
+            const bonos = parseFloat(document.getElementById('modalBonosInput').value) || 0;
             const nota = document.getElementById('modalNota').value;
 
             try {
                 const response = await fetch(`/api/nomina/${nominaIdSeleccionada}/bonos`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bonos_extra: bonos, nota_bonos: nota })
+                    body: JSON.stringify({ 
+                        bono_atencion_rapida: atencionRapida,
+                        bonos_extra: bonos, 
+                        nota_bonos: nota 
+                    })
                 });
 
                 if (response.ok) {
