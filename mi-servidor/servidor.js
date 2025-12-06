@@ -6180,25 +6180,48 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
     const resultados = [];
 
     for (const operador of operadores) {
-      // 1. CALCULAR HORAS TRABAJADAS (desde actividad_operadores)
-      const horasResult = await dbGet(`
-        WITH sesiones AS (
-          SELECT 
-            fecha,
-            MIN(timestamp) as inicio,
-            MAX(timestamp) as fin,
-            CAST((julianday(MAX(timestamp)) - julianday(MIN(timestamp))) * 24 * 60 AS REAL) as minutos_totales
-          FROM actividad_operadores
-          WHERE usuario_id = ?
-          AND fecha BETWEEN ? AND ?
-          AND tipo_actividad IN ('login', 'heartbeat', 'operacion', 'tarea', 'mensaje')
-          GROUP BY fecha
-        )
-        SELECT COALESCE(SUM(minutos_totales) / 60.0, 0) as horas_trabajadas
-        FROM sesiones
+      // 1. CALCULAR HORAS TRABAJADAS (mismo algoritmo que monitoreo)
+      // Obtener todas las actividades del período
+      const actividades = await dbAll(`
+        SELECT fecha, timestamp
+        FROM actividad_operadores
+        WHERE usuario_id = ?
+        AND fecha BETWEEN ? AND ?
+        AND tipo_actividad IN ('login', 'heartbeat', 'operacion', 'tarea', 'mensaje')
+        ORDER BY timestamp ASC
       `, [operador.id, periodo.fecha_inicio, periodo.fecha_fin]);
 
-      const horas_trabajadas = horasResult.horas_trabajadas || 0;
+      // Calcular horas con gaps de máximo 30 minutos (igual que monitoreo)
+      let horasOnline = 0;
+      let sesionInicio = null;
+      let ultimaActividad = null;
+      const UMBRAL_MINUTOS = 30;
+
+      for (const act of actividades) {
+        const timestamp = new Date(act.timestamp);
+        
+        if (!sesionInicio) {
+          sesionInicio = timestamp;
+          ultimaActividad = timestamp;
+        } else {
+          const diffMinutos = (timestamp - ultimaActividad) / (1000 * 60);
+          
+          if (diffMinutos > UMBRAL_MINUTOS) {
+            // Gap > 30 min: cerrar sesión anterior e iniciar nueva
+            horasOnline += (ultimaActividad - sesionInicio) / (1000 * 60 * 60);
+            sesionInicio = timestamp;
+          }
+          
+          ultimaActividad = timestamp;
+        }
+      }
+
+      // Cerrar última sesión si existe
+      if (sesionInicio && ultimaActividad) {
+        horasOnline += (ultimaActividad - sesionInicio) / (1000 * 60 * 60);
+      }
+
+      const horas_trabajadas = Math.round(horasOnline * 100) / 100; // 2 decimales
 
       // 2. CALCULAR MILLONES COMISIONABLES (desde operaciones en CLP)
       const millonesResult = await dbGet(`
