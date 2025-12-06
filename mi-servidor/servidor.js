@@ -3065,7 +3065,7 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
                 console.log(`⏭️ Saltando alerta ${alerta.id}: cliente ya no cumple criterio inactivo (${diasInactivo} días)`);
                 continue;
             }
-            if (alerta.tipo === 'critico' && diasInactivo < 61) {
+            if (alerta.tipo === 'critico' && diasInactivo <= 60) {
                 console.log(`⏭️ Saltando alerta ${alerta.id}: cliente ya no cumple criterio crítico (${diasInactivo} días)`);
                 continue;
             }
@@ -3089,6 +3089,17 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             let prioridad = 'normal';
             if (diasInactivo > 60) prioridad = 'urgente';
             else if (diasInactivo >= 45) prioridad = 'alta';
+            
+            // ANTES de crear nueva tarea, cancelar tareas pendientes antiguas del mismo cliente
+            await dbRun(`
+                UPDATE tareas 
+                SET estado = 'cancelada', 
+                    resolucion_agente = 'Tarea obsoleta - reemplazada por nueva tarea automática'
+                WHERE cliente_id = ? 
+                AND tipo = 'automatica'
+                AND estado IN ('pendiente', 'en_progreso')
+                AND fecha_creacion < ?
+            `, [alerta.cliente_id, fechaHoy]);
             
             // Crear tarea con días REALES
             const titulo = `Reactivar cliente: ${cliente ? cliente.nombre : 'Desconocido'}`;
@@ -5370,8 +5381,8 @@ async function generarTareasAutomaticas() {
             if (alerta.tipo === 'inactivo' && (diasInactivo < 30 || diasInactivo > 60)) {
                 continue; // Saltar si ya no cumple
             }
-            if (alerta.tipo === 'critico' && diasInactivo < 61) {
-                continue; // Saltar si ya no cumple (debe ser 61+ días)
+            if (alerta.tipo === 'critico' && diasInactivo <= 60) {
+                continue; // Saltar si ya no cumple (debe ser más de 60 días)
             }
             
             // Para reducción de frecuencia, verificar AHORA
@@ -5391,6 +5402,17 @@ async function generarTareasAutomaticas() {
             let prioridad = 'normal';
             if (diasInactivo > 60) prioridad = 'urgente';
             else if (diasInactivo >= 45) prioridad = 'alta';
+            
+            // ANTES de crear nueva tarea, cancelar tareas pendientes antiguas del mismo cliente
+            await dbRun(`
+                UPDATE tareas 
+                SET estado = 'cancelada', 
+                    resolucion_agente = 'Tarea obsoleta - reemplazada por nueva tarea automática'
+                WHERE cliente_id = ? 
+                AND tipo = 'automatica'
+                AND estado IN ('pendiente', 'en_progreso')
+                AND fecha_creacion < ?
+            `, [alerta.cliente_id, fechaHoy]);
             
             // Crear tarea con días REALES
             const titulo = `Reactivar cliente: ${cliente ? cliente.nombre : 'Desconocido'}`;
