@@ -308,6 +308,9 @@
                 <select id="periodoSelect" onchange="cargarNomina()">
                     <option value="">Cargando periodos...</option>
                 </select>
+                <button class="btn btn-danger" onclick="limpiarActividadPeriodo()" style="background: #dc3545;">
+                    🗑️ Limpiar Actividad
+                </button>
                 <button class="btn btn-primary" onclick="calcularNomina()">
                     🔄 Recalcular Nómina
                 </button>
@@ -604,6 +607,42 @@
             } catch (error) {
                 console.error('Error calculando nómina:', error);
                 alert('❌ Error calculando nómina');
+            }
+        }
+
+        async function limpiarActividadPeriodo() {
+            if (!periodoActual) {
+                alert('⚠️ Selecciona un periodo');
+                return;
+            }
+
+            const confirmacion = confirm(
+                `⚠️ ADVERTENCIA ⚠️\n\n` +
+                `Esto eliminará TODOS los registros de actividad entre:\n` +
+                `${periodoActual.fecha_inicio} y ${periodoActual.fecha_fin}\n\n` +
+                `Esta acción NO se puede deshacer.\n\n` +
+                `¿Estás seguro de continuar?`
+            );
+
+            if (!confirmacion) return;
+
+            try {
+                const response = await fetch(
+                    `/api/actividad/limpiar?fecha_inicio=${periodoActual.fecha_inicio}&fecha_fin=${periodoActual.fecha_fin}`,
+                    { method: 'DELETE' }
+                );
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`✅ ${result.registros_eliminados} registros de actividad eliminados`);
+                    await calcularNomina(); // Recalcular automáticamente
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error limpiando actividad:', error);
+                alert('❌ Error limpiando actividad');
             }
         }
 

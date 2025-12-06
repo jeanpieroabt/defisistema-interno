@@ -6304,6 +6304,30 @@ app.get('/api/nomina/periodo/:periodoId', apiAuth, onlyMaster, async (req, res) 
   }
 });
 
+// Limpiar datos de actividad incorrectos (solo master)
+app.delete('/api/actividad/limpiar', apiAuth, onlyMaster, async (req, res) => {
+  try {
+    const { fecha_inicio, fecha_fin } = req.query;
+    
+    if (!fecha_inicio || !fecha_fin) {
+      return res.status(400).json({ error: 'Se requieren fecha_inicio y fecha_fin' });
+    }
+    
+    const result = await dbRun(`
+      DELETE FROM actividad_operadores
+      WHERE fecha BETWEEN ? AND ?
+    `, [fecha_inicio, fecha_fin]);
+    
+    res.json({ 
+      mensaje: 'Actividad limpiada exitosamente',
+      registros_eliminados: result.changes 
+    });
+  } catch (error) {
+    console.error('Error limpiando actividad:', error);
+    res.status(500).json({ error: 'Error limpiando actividad' });
+  }
+});
+
 // Actualizar bonos extras de un operador
 app.put('/api/nomina/:nominaId/bonos', apiAuth, onlyMaster, async (req, res) => {
   try {
