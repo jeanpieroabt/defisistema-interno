@@ -443,7 +443,7 @@ app.get('/api/actividad/operadores', apiAuth, onlyMaster, async (req, res) => {
                 SELECT tipo_actividad, timestamp
                 FROM actividad_operadores
                 WHERE usuario_id = ?
-                AND DATE(timestamp) = ?
+                AND fecha = ?
                 ORDER BY timestamp ASC
             `, [operador.id, fechaFiltro]);
             
@@ -482,17 +482,17 @@ app.get('/api/actividad/operadores', apiAuth, onlyMaster, async (req, res) => {
             // Contar actividades específicas
             const operaciones = await dbGet(`
                 SELECT COUNT(*) as cnt FROM actividad_operadores
-                WHERE usuario_id = ? AND tipo_actividad = 'operacion' AND DATE(timestamp) = ?
+                WHERE usuario_id = ? AND tipo_actividad = 'operacion' AND fecha = ?
             `, [operador.id, fechaFiltro]);
             
             const tareas = await dbGet(`
                 SELECT COUNT(*) as cnt FROM actividad_operadores
-                WHERE usuario_id = ? AND tipo_actividad = 'tarea' AND DATE(timestamp) = ?
+                WHERE usuario_id = ? AND tipo_actividad = 'tarea' AND fecha = ?
             `, [operador.id, fechaFiltro]);
             
             const mensajes = await dbGet(`
                 SELECT COUNT(*) as cnt FROM actividad_operadores
-                WHERE usuario_id = ? AND tipo_actividad = 'mensaje' AND DATE(timestamp) = ?
+                WHERE usuario_id = ? AND tipo_actividad = 'mensaje' AND fecha = ?
             `, [operador.id, fechaFiltro]);
             
             const ultimoHeartbeat = actividades.length > 0 
@@ -6032,6 +6032,286 @@ function iniciarMonitoreoTasas() {
 
 // =================================================================
 // FIN: SISTEMA DE MONITOREO DE TASAS
+// =================================================================
+
+// =================================================================
+// SISTEMA DE NÓMINA
+// =================================================================
+
+// Obtener periodo actual o crear uno nuevo
+app.get('/api/nomina/periodo-actual', apiAuth, onlyMaster, async (req, res) => {
+  try {
+    const hoy = new Date();
+    const anio = hoy.getFullYear();
+    const mes = hoy.getMonth() + 1;
+    const dia = hoy.getDate();
+    const quincena = dia <= 15 ? 1 : 2;
+
+    // Buscar periodo existente
+    let periodo = await dbGet(
+      'SELECT * FROM periodos_pago WHERE anio = ? AND mes = ? AND quincena = ?',
+      [anio, mes, quincena]
+    );
+
+    // Si no existe, crear uno nuevo
+    if (!periodo) {
+      const fecha_inicio = quincena === 1 ? `${anio}-${mes.toString().padStart(2, '0')}-01` : `${anio}-${mes.toString().padStart(2, '0')}-16`;
+      const fecha_fin = quincena === 1 ? `${anio}-${mes.toString().padStart(2, '0')}-15` : `${anio}-${mes.toString().padStart(2, '0')}-${new Date(anio, mes, 0).getDate()}`;
+
+      const result = await dbRun(
+        'INSERT INTO periodos_pago (anio, mes, quincena, fecha_inicio, fecha_fin) VALUES (?, ?, ?, ?, ?)',
+        [anio, mes, quincena, fecha_inicio, fecha_fin]
+      );
+
+      periodo = await dbGet('SELECT * FROM periodos_pago WHERE id = ?', [result.lastID]);
+    }
+
+    res.json(periodo);
+  } catch (error) {
+    console.error('Error obteniendo periodo actual:', error);
+    res.status(500).json({ error: 'Error obteniendo periodo actual' });
+  }
+});
+
+// Obtener todos los periodos
+app.get('/api/nomina/periodos', apiAuth, onlyMaster, async (req, res) => {
+  try {
+    const periodos = await dbAll(
+      'SELECT * FROM periodos_pago ORDER BY anio DESC, mes DESC, quincena DESC'
+    );
+    res.json(periodos);
+  } catch (error) {
+    console.error('Error obteniendo periodos:', error);
+    res.status(500).json({ error: 'Error obteniendo periodos' });
+  }
+});
+
+// Calcular nómina para un periodo
+app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res) => {
+  try {
+    const { periodoId } = req.params;
+    
+    // Obtener el periodo
+    const periodo = await dbGet('SELECT * FROM periodos_pago WHERE id = ?', [periodoId]);
+    if (!periodo) {
+      return res.status(404).json({ error: 'Periodo no encontrado' });
+    }
+
+    // Obtener todos los operadores (role != 'master')
+    const operadores = await dbAll("SELECT * FROM usuarios WHERE role != 'master'");
+
+    const resultados = [];
+
+    for (const operador of operadores) {
+      // 1. CALCULAR HORAS TRABAJADAS (desde actividad_operadores)
+      const horasResult = await dbGet(`
+        WITH sesiones AS (
+          SELECT 
+            fecha,
+            MIN(timestamp) as inicio,
+            MAX(timestamp) as fin,
+            CAST((julianday(MAX(timestamp)) - julianday(MIN(timestamp))) * 24 * 60 AS REAL) as minutos_totales
+          FROM actividad_operadores
+          WHERE usuario_id = ?
+          AND fecha BETWEEN ? AND ?
+          AND tipo_actividad IN ('login', 'heartbeat', 'operacion', 'tarea', 'mensaje')
+          GROUP BY fecha
+        )
+        SELECT COALESCE(SUM(minutos_totales) / 60.0, 0) as horas_trabajadas
+        FROM sesiones
+      `, [operador.id, periodo.fecha_inicio, periodo.fecha_fin]);
+
+      const horas_trabajadas = horasResult.horas_trabajadas || 0;
+
+      // 2. CALCULAR MILLONES COMISIONABLES (desde operaciones)
+      const millonesResult = await dbGet(`
+        SELECT COALESCE(SUM(monto_bs / 1000000.0), 0) as millones_comisionables
+        FROM operaciones
+        WHERE operador_id = ?
+        AND DATE(fecha_operacion) BETWEEN ? AND ?
+      `, [operador.id, periodo.fecha_inicio, periodo.fecha_fin]);
+
+      const millones_comisionables = millonesResult.millones_comisionables || 0;
+
+      // 3. CONTAR ATENCIONES RÁPIDAS (menos de 5 minutos)
+      const atencionRapidaCount = await dbGet(`
+        SELECT COUNT(*) as count
+        FROM atencion_rapida
+        WHERE usuario_id = ?
+        AND fecha BETWEEN ? AND ?
+      `, [operador.id, periodo.fecha_inicio, periodo.fecha_fin]);
+
+      const count_atencion_rapida = atencionRapidaCount.count || 0;
+
+      // 4. CONTAR DOMINGOS TRABAJADOS
+      const domingosResult = await dbGet(`
+        SELECT COUNT(DISTINCT fecha) as domingos
+        FROM actividad_operadores
+        WHERE usuario_id = ?
+        AND fecha BETWEEN ? AND ?
+        AND CAST(strftime('%w', fecha) AS INTEGER) = 0
+      `, [operador.id, periodo.fecha_inicio, periodo.fecha_fin]);
+
+      const domingos_trabajados = domingosResult.domingos || 0;
+
+      // 5. CALCULAR BONOS
+      const sueldo_base = 150.00;
+      const bono_atencion_rapida = count_atencion_rapida >= 1 ? 30.00 : 0;
+      const bono_asistencia = horas_trabajadas >= 40 ? 30.00 : 0; // Ejemplo: 40 horas mínimas
+      const comision_ventas = millones_comisionables * 2.00; // $2 por millón
+      const bono_domingos = domingos_trabajados * 8.00; // $8 por domingo
+      const bonos_extra = 0; // Se pueden agregar manualmente después
+
+      const total_pagar = sueldo_base + bono_atencion_rapida + bono_asistencia + comision_ventas + bono_domingos + bonos_extra;
+
+      // 6. INSERTAR O ACTUALIZAR NÓMINA
+      await dbRun(`
+        INSERT INTO nomina (
+          periodo_id, usuario_id, sueldo_base, horas_trabajadas,
+          bono_asistencia, bono_atencion_rapida, comision_ventas, millones_comisionables,
+          bono_domingos, domingos_trabajados, bonos_extra, total_pagar, actualizado_en
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(periodo_id, usuario_id) DO UPDATE SET
+          horas_trabajadas = excluded.horas_trabajadas,
+          bono_asistencia = excluded.bono_asistencia,
+          bono_atencion_rapida = excluded.bono_atencion_rapida,
+          comision_ventas = excluded.comision_ventas,
+          millones_comisionables = excluded.millones_comisionables,
+          bono_domingos = excluded.bono_domingos,
+          domingos_trabajados = excluded.domingos_trabajados,
+          total_pagar = excluded.total_pagar,
+          actualizado_en = CURRENT_TIMESTAMP
+      `, [
+        periodoId, operador.id, sueldo_base, horas_trabajadas,
+        bono_asistencia, bono_atencion_rapida, comision_ventas, millones_comisionables,
+        bono_domingos, domingos_trabajados, bonos_extra, total_pagar
+      ]);
+
+      resultados.push({
+        operador: operador.username,
+        horas_trabajadas,
+        millones_comisionables,
+        atenciones_rapidas: count_atencion_rapida,
+        domingos_trabajados,
+        total_pagar
+      });
+    }
+
+    res.json({ mensaje: 'Nómina calculada exitosamente', resultados });
+  } catch (error) {
+    console.error('Error calculando nómina:', error);
+    res.status(500).json({ error: 'Error calculando nómina' });
+  }
+});
+
+// Obtener nómina de un periodo
+app.get('/api/nomina/periodo/:periodoId', apiAuth, onlyMaster, async (req, res) => {
+  try {
+    const { periodoId } = req.params;
+    
+    const nominas = await dbAll(`
+      SELECT 
+        n.*,
+        u.username,
+        p.anio,
+        p.mes,
+        p.quincena,
+        p.fecha_inicio,
+        p.fecha_fin,
+        p.estado as estado_periodo
+      FROM nomina n
+      JOIN usuarios u ON n.usuario_id = u.id
+      JOIN periodos_pago p ON n.periodo_id = p.id
+      WHERE n.periodo_id = ?
+      ORDER BY n.total_pagar DESC
+    `, [periodoId]);
+
+    res.json(nominas);
+  } catch (error) {
+    console.error('Error obteniendo nómina:', error);
+    res.status(500).json({ error: 'Error obteniendo nómina' });
+  }
+});
+
+// Actualizar bonos extras de un operador
+app.put('/api/nomina/:nominaId/bonos', apiAuth, onlyMaster, async (req, res) => {
+  try {
+    const { nominaId } = req.params;
+    const { bonos_extra, nota_bonos } = req.body;
+
+    // Obtener la nómina actual
+    const nomina = await dbGet('SELECT * FROM nomina WHERE id = ?', [nominaId]);
+    if (!nomina) {
+      return res.status(404).json({ error: 'Nómina no encontrada' });
+    }
+
+    // Recalcular el total
+    const nuevo_total = nomina.sueldo_base + nomina.bono_asistencia + nomina.bono_atencion_rapida + 
+                        nomina.comision_ventas + nomina.bono_domingos + parseFloat(bonos_extra || 0);
+
+    await dbRun(
+      'UPDATE nomina SET bonos_extra = ?, nota_bonos = ?, total_pagar = ?, actualizado_en = CURRENT_TIMESTAMP WHERE id = ?',
+      [bonos_extra || 0, nota_bonos || null, nuevo_total, nominaId]
+    );
+
+    res.json({ mensaje: 'Bonos actualizados exitosamente' });
+  } catch (error) {
+    console.error('Error actualizando bonos:', error);
+    res.status(500).json({ error: 'Error actualizando bonos' });
+  }
+});
+
+// Cerrar un periodo (no se podrá modificar después)
+app.post('/api/nomina/periodo/:periodoId/cerrar', apiAuth, onlyMaster, async (req, res) => {
+  try {
+    const { periodoId } = req.params;
+
+    await dbRun(
+      'UPDATE periodos_pago SET estado = ?, fecha_cierre = CURRENT_TIMESTAMP WHERE id = ?',
+      ['cerrado', periodoId]
+    );
+
+    res.json({ mensaje: 'Periodo cerrado exitosamente' });
+  } catch (error) {
+    console.error('Error cerrando periodo:', error);
+    res.status(500).json({ error: 'Error cerrando periodo' });
+  }
+});
+
+// Marcar periodo como pagado
+app.post('/api/nomina/periodo/:periodoId/pagar', apiAuth, onlyMaster, async (req, res) => {
+  try {
+    const { periodoId } = req.params;
+
+    await dbRun(
+      'UPDATE periodos_pago SET estado = ?, fecha_pago = CURRENT_TIMESTAMP WHERE id = ?',
+      ['pagado', periodoId]
+    );
+
+    res.json({ mensaje: 'Periodo marcado como pagado' });
+  } catch (error) {
+    console.error('Error marcando periodo como pagado:', error);
+    res.status(500).json({ error: 'Error marcando periodo como pagado' });
+  }
+});
+
+// Registrar atención rápida (llamar desde endpoint de operaciones/mensajes)
+async function registrarAtencionRapida(usuario_id, cliente_id, tipo, tiempo_respuesta_minutos) {
+  try {
+    if (tiempo_respuesta_minutos <= 5) {
+      const fecha = hoyLocalYYYYMMDD();
+      await dbRun(
+        'INSERT INTO atencion_rapida (usuario_id, cliente_id, tipo, fecha, tiempo_respuesta_minutos) VALUES (?, ?, ?, ?, ?)',
+        [usuario_id, cliente_id, tipo, fecha, tiempo_respuesta_minutos]
+      );
+    }
+  } catch (error) {
+    console.error('Error registrando atención rápida:', error);
+  }
+}
+
+// =================================================================
+// FIN: SISTEMA DE NÓMINA
 // =================================================================
 
 // Iniciar el servidor solo después de que las migraciones se hayan completado

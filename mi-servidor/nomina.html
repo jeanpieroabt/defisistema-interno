@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nómina - Defi Oracle</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .nomina-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 3px solid #2D8CDB;
+        }
+
+        .periodo-selector {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .periodo-selector select {
+            padding: 0.8rem 1.2rem;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(45, 140, 219, 0.3);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .resumen-periodo {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .resumen-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .resumen-card .icono {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .resumen-card .valor {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2D8CDB;
+            margin-bottom: 0.3rem;
+        }
+
+        .resumen-card .label {
+            font-size: 0.9rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nomina-table {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            color: white;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+        }
+
+        th {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .monto {
+            font-weight: 600;
+            color: #2D8CDB;
+        }
+
+        .total-pagar {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #28a745;
+        }
+
+        .estado-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .estado-abierto {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .estado-cerrado {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .estado-pagado {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+        }
+
+        .empty-state .icono {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn-icon {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="nomina-container">
+        <!-- Header -->
+        <div class="header-section">
+            <div>
+                <h1>💰 Nómina Quincenal</h1>
+                <p style="color: #666; margin-top: 0.5rem;">Gestión de pagos y bonificaciones</p>
+            </div>
+            <div class="periodo-selector">
+                <select id="periodoSelect" onchange="cargarNomina()">
+                    <option value="">Cargando periodos...</option>
+                </select>
+                <button class="btn btn-primary" onclick="calcularNomina()">
+                    🔄 Recalcular Nómina
+                </button>
+            </div>
+        </div>
+
+        <!-- Resumen del periodo -->
+        <div class="resumen-periodo" id="resumenPeriodo" style="display: none;">
+            <div class="resumen-card">
+                <div class="icono">📅</div>
+                <div class="valor" id="resumenPeriodo"></div>
+                <div class="label">Periodo</div>
+            </div>
+            <div class="resumen-card">
+                <div class="icono">👥</div>
+                <div class="valor" id="resumenOperadores">0</div>
+                <div class="label">Operadores</div>
+            </div>
+            <div class="resumen-card">
+                <div class="icono">💵</div>
+                <div class="valor" id="resumenTotal">$0.00</div>
+                <div class="label">Total a Pagar</div>
+            </div>
+            <div class="resumen-card">
+                <div class="icono">📊</div>
+                <div class="valor" id="resumenEstado">-</div>
+                <div class="label">Estado</div>
+            </div>
+        </div>
+
+        <!-- Acciones del periodo -->
+        <div style="text-align: right; margin-bottom: 1.5rem;" id="accionesPeriodo">
+            <button class="btn btn-warning" id="btnCerrar" onclick="cerrarPeriodo()" style="display: none;">
+                🔒 Cerrar Periodo
+            </button>
+            <button class="btn btn-success" id="btnPagar" onclick="marcarComoPagado()" style="display: none;">
+                ✅ Marcar como Pagado
+            </button>
+        </div>
+
+        <!-- Tabla de nómina -->
+        <div class="nomina-table">
+            <div id="loadingNomina" class="loading">
+                <div>⏳ Cargando nómina...</div>
+            </div>
+            <div id="emptyNomina" class="empty-state" style="display: none;">
+                <div class="icono">📋</div>
+                <div>No hay registros de nómina para este periodo</div>
+                <button class="btn btn-primary" onclick="calcularNomina()" style="margin-top: 1.5rem;">
+                    Calcular Nómina
+                </button>
+            </div>
+            <table id="tablaNomina" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Operador</th>
+                        <th class="text-center">Horas</th>
+                        <th class="text-center">Millones</th>
+                        <th class="text-right">Base</th>
+                        <th class="text-right">Asistencia</th>
+                        <th class="text-right">At. Rápida</th>
+                        <th class="text-right">Comisiones</th>
+                        <th class="text-right">Domingos</th>
+                        <th class="text-right">Extras</th>
+                        <th class="text-right">Total</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="nominaBody">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Volver -->
+        <div style="margin-top: 2rem;">
+            <a href="home.html" class="btn" style="background: #6c757d; color: white;">
+                ← Volver al Inicio
+            </a>
+        </div>
+    </div>
+
+    <!-- Modal para bonos extras -->
+    <div class="modal" id="modalBonos">
+        <div class="modal-content">
+            <div class="modal-header">💰 Agregar Bonos Extras</div>
+            <div class="form-group">
+                <label>Operador:</label>
+                <input type="text" id="modalOperadorNombre" readonly style="background: #f8f9fa;">
+            </div>
+            <div class="form-group">
+                <label>Monto Extra (USD):</label>
+                <input type="number" id="modalBonos" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Nota / Motivo:</label>
+                <textarea id="modalNota" placeholder="Ej: Bono por desempeño excepcional"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" style="background: #6c757d; color: white;" onclick="cerrarModal()">
+                    Cancelar
+                </button>
+                <button class="btn btn-success" onclick="guardarBonos()">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let periodos = [];
+        let periodoActual = null;
+        let nominaActual = [];
+        let nominaIdSeleccionada = null;
+
+        // Cargar periodos al iniciar
+        (async function init() {
+            await cargarPeriodos();
+            await cargarNomina();
+        })();
+
+        async function cargarPeriodos() {
+            try {
+                const response = await fetch('/api/nomina/periodos');
+                periodos = await response.json();
+
+                const select = document.getElementById('periodoSelect');
+                select.innerHTML = '';
+
+                if (periodos.length === 0) {
+                    // Crear periodo actual si no existe
+                    const responsePeriodo = await fetch('/api/nomina/periodo-actual');
+                    const nuevoPeriodo = await responsePeriodo.json();
+                    periodos = [nuevoPeriodo];
+                }
+
+                periodos.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    const nombreMes = new Date(p.anio, p.mes - 1).toLocaleString('es', { month: 'long' });
+                    option.textContent = `${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)} ${p.anio} - ${p.quincena === 1 ? '1ra' : '2da'} Quincena (${p.estado})`;
+                    if (p.estado === 'abierto') {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error cargando periodos:', error);
+            }
+        }
+
+        async function cargarNomina() {
+            const periodoId = document.getElementById('periodoSelect').value;
+            if (!periodoId) return;
+
+            document.getElementById('loadingNomina').style.display = 'block';
+            document.getElementById('emptyNomina').style.display = 'none';
+            document.getElementById('tablaNomina').style.display = 'none';
+            document.getElementById('resumenPeriodo').style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/nomina/periodo/${periodoId}`);
+                nominaActual = await response.json();
+
+                periodoActual = periodos.find(p => p.id == periodoId);
+
+                if (nominaActual.length === 0) {
+                    document.getElementById('loadingNomina').style.display = 'none';
+                    document.getElementById('emptyNomina').style.display = 'block';
+                } else {
+                    mostrarNomina();
+                }
+
+                actualizarResumen();
+                actualizarBotones();
+            } catch (error) {
+                console.error('Error cargando nómina:', error);
+                document.getElementById('loadingNomina').style.display = 'none';
+            }
+        }
+
+        function mostrarNomina() {
+            const tbody = document.getElementById('nominaBody');
+            tbody.innerHTML = '';
+
+            nominaActual.forEach(n => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${n.username}</strong></td>
+                    <td class="text-center">${n.horas_trabajadas.toFixed(1)}h</td>
+                    <td class="text-center">${n.millones_comisionables.toFixed(2)}M</td>
+                    <td class="text-right monto">$${n.sueldo_base.toFixed(2)}</td>
+                    <td class="text-right monto">$${n.bono_asistencia.toFixed(2)}</td>
+                    <td class="text-right monto">$${n.bono_atencion_rapida.toFixed(2)}</td>
+                    <td class="text-right monto">$${n.comision_ventas.toFixed(2)}</td>
+                    <td class="text-right monto">$${n.bono_domingos.toFixed(2)} (${n.domingos_trabajados})</td>
+                    <td class="text-right monto">$${n.bonos_extra.toFixed(2)}</td>
+                    <td class="text-right total-pagar">$${n.total_pagar.toFixed(2)}</td>
+                    <td class="text-center">
+                        ${periodoActual.estado === 'abierto' ? 
+                            `<button class="btn btn-icon btn-primary" onclick="abrirModalBonos(${n.id}, '${n.username}', ${n.bonos_extra}, '${n.nota_bonos || ''}')">
+                                ➕ Bonos
+                            </button>` : 
+                            '<span style="color: #999;">Cerrado</span>'
+                        }
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('loadingNomina').style.display = 'none';
+            document.getElementById('tablaNomina').style.display = 'table';
+        }
+
+        function actualizarResumen() {
+            if (!periodoActual) return;
+
+            document.getElementById('resumenPeriodo').style.display = 'grid';
+
+            const nombreMes = new Date(periodoActual.anio, periodoActual.mes - 1).toLocaleString('es', { month: 'short' });
+            document.getElementById('resumenPeriodo').textContent = 
+                `${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)} ${periodoActual.quincena === 1 ? '1-15' : '16-30'}`;
+
+            document.getElementById('resumenOperadores').textContent = nominaActual.length;
+
+            const totalPagar = nominaActual.reduce((sum, n) => sum + n.total_pagar, 0);
+            document.getElementById('resumenTotal').textContent = `$${totalPagar.toFixed(2)}`;
+
+            const estadoBadge = `<span class="estado-badge estado-${periodoActual.estado}">${periodoActual.estado.toUpperCase()}</span>`;
+            document.getElementById('resumenEstado').innerHTML = estadoBadge;
+        }
+
+        function actualizarBotones() {
+            const btnCerrar = document.getElementById('btnCerrar');
+            const btnPagar = document.getElementById('btnPagar');
+
+            if (periodoActual.estado === 'abierto') {
+                btnCerrar.style.display = 'inline-block';
+                btnPagar.style.display = 'none';
+            } else if (periodoActual.estado === 'cerrado') {
+                btnCerrar.style.display = 'none';
+                btnPagar.style.display = 'inline-block';
+            } else {
+                btnCerrar.style.display = 'none';
+                btnPagar.style.display = 'none';
+            }
+        }
+
+        async function calcularNomina() {
+            const periodoId = document.getElementById('periodoSelect').value;
+            if (!periodoId) return;
+
+            if (!confirm('¿Recalcular la nómina de este periodo? Esto actualizará todos los valores automáticamente.')) {
+                return;
+            }
+
+            try {
+                document.getElementById('loadingNomina').style.display = 'block';
+                document.getElementById('tablaNomina').style.display = 'none';
+
+                const response = await fetch(`/api/nomina/calcular/${periodoId}`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ Nómina calculada exitosamente');
+                    await cargarNomina();
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error calculando nómina:', error);
+                alert('❌ Error calculando nómina');
+            }
+        }
+
+        function abrirModalBonos(nominaId, username, bonosActuales, notaActual) {
+            nominaIdSeleccionada = nominaId;
+            document.getElementById('modalOperadorNombre').value = username;
+            document.getElementById('modalBonos').value = bonosActuales;
+            document.getElementById('modalNota').value = notaActual;
+            document.getElementById('modalBonos').classList.add('active');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modalBonos').classList.remove('active');
+            nominaIdSeleccionada = null;
+        }
+
+        async function guardarBonos() {
+            const bonos = parseFloat(document.getElementById('modalBonos').value) || 0;
+            const nota = document.getElementById('modalNota').value;
+
+            try {
+                const response = await fetch(`/api/nomina/${nominaIdSeleccionada}/bonos`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bonos_extra: bonos, nota_bonos: nota })
+                });
+
+                if (response.ok) {
+                    alert('✅ Bonos actualizados exitosamente');
+                    cerrarModal();
+                    await cargarNomina();
+                } else {
+                    const result = await response.json();
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error guardando bonos:', error);
+                alert('❌ Error guardando bonos');
+            }
+        }
+
+        async function cerrarPeriodo() {
+            if (!confirm('¿Cerrar este periodo? No podrás modificar los valores después.')) {
+                return;
+            }
+
+            const periodoId = document.getElementById('periodoSelect').value;
+
+            try {
+                const response = await fetch(`/api/nomina/periodo/${periodoId}/cerrar`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    alert('✅ Periodo cerrado exitosamente');
+                    await cargarPeriodos();
+                    await cargarNomina();
+                } else {
+                    const result = await response.json();
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error cerrando periodo:', error);
+                alert('❌ Error cerrando periodo');
+            }
+        }
+
+        async function marcarComoPagado() {
+            if (!confirm('¿Marcar este periodo como pagado?')) {
+                return;
+            }
+
+            const periodoId = document.getElementById('periodoSelect').value;
+
+            try {
+                const response = await fetch(`/api/nomina/periodo/${periodoId}/pagar`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    alert('✅ Periodo marcado como pagado');
+                    await cargarPeriodos();
+                    await cargarNomina();
+                } else {
+                    const result = await response.json();
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error marcando como pagado:', error);
+                alert('❌ Error marcando como pagado');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'defi_oracle.db');
+const DB_PATH = path.join(process.env.DATA_DIR || '.', 'database.db');
 const db = new sqlite3.Database(DB_PATH);
 
 console.log('📊 Creando tabla de monitoreo de actividad...\n');
@@ -15,6 +15,7 @@ db.serialize(() => {
             usuario_id INTEGER NOT NULL,
             tipo_actividad TEXT NOT NULL CHECK(tipo_actividad IN ('login', 'logout', 'heartbeat', 'operacion', 'tarea', 'mensaje')),
             timestamp TEXT NOT NULL,
+            fecha TEXT GENERATED ALWAYS AS (DATE(timestamp)) VIRTUAL,
             metadata TEXT,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         )
@@ -46,6 +47,17 @@ db.serialize(() => {
             console.error('❌ Error creando índice:', err.message);
         } else {
             console.log('✅ Índice idx_actividad_tipo creado');
+        }
+    });
+
+    db.run(`
+        CREATE INDEX IF NOT EXISTS idx_actividad_fecha 
+        ON actividad_operadores(fecha)
+    `, (err) => {
+        if (err) {
+            console.error('❌ Error creando índice:', err.message);
+        } else {
+            console.log('✅ Índice idx_actividad_fecha creado');
         }
     });
 
