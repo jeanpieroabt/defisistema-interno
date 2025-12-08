@@ -220,6 +220,32 @@
             <button id="btnCargarMasCompras" class="btn btn-light" style="display: none;">Cargar 50 más</button>
           </div>
       </div>
+
+      <!-- CONFIGURACIÓN BOT TELEGRAM -->
+      <div class="box" style="margin-top:16px; border: 2px solid #0088cc;">
+          <h3>🤖 Bot Telegram - Notificaciones App</h3>
+          <p style="color: var(--medium-grey); font-size: 0.9rem; margin-bottom: 15px;">
+            Configura el bot para recibir notificaciones instantáneas cuando un cliente de la app crea una solicitud.
+          </p>
+          <div class="grid2">
+              <div>
+                <label>Bot Token</label>
+                <input type="text" id="telegramBotToken" placeholder="123456789:ABCdefGHI..." style="width:100%">
+                <small style="color: var(--medium-grey);">Obtén el token desde @BotFather en Telegram</small>
+              </div>
+              <div>
+                <label>Chat ID / Grupo ID</label>
+                <input type="text" id="telegramChatId" placeholder="-1001234567890 o 123456789" style="width:100%">
+                <small style="color: var(--medium-grey);">ID del chat o grupo donde enviar notificaciones</small>
+              </div>
+          </div>
+          <div style="margin-top:15px; display: flex; gap: 10px;">
+              <button id="saveTelegram" class="btn btn-primary">💾 Guardar Configuración</button>
+              <button id="testTelegram" class="btn btn-light">📤 Enviar Mensaje de Prueba</button>
+          </div>
+          <div id="telegramStatus" style="margin-top: 10px;"></div>
+      </div>
+
     </div>
   </div>
 
@@ -430,8 +456,48 @@
         if(resp.ok) e.target.reset();
     };
 
+    // ============ CONFIGURACIÓN TELEGRAM ============
+    async function loadTelegramConfig() {
+        try {
+            const resp = await fetch('/api/config/telegram');
+            if (resp.ok) {
+                const data = await resp.json();
+                document.getElementById('telegramBotToken').value = data.bot_token || '';
+                document.getElementById('telegramChatId').value = data.chat_id || '';
+                const status = document.getElementById('telegramStatus');
+                if (data.configurado) {
+                    status.innerHTML = '<span style="color: #28a745;">✅ Bot configurado y activo</span>';
+                } else {
+                    status.innerHTML = '<span style="color: #ffc107;">⚠️ Bot no configurado</span>';
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando config Telegram:', error);
+        }
+    }
+
+    document.getElementById('saveTelegram').onclick = async () => {
+        const bot_token = document.getElementById('telegramBotToken').value.trim();
+        const chat_id = document.getElementById('telegramChatId').value.trim();
+        
+        const resp = await fetch('/api/config/telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bot_token, chat_id })
+        });
+        const res = await resp.json();
+        showToast(res.mensaje || res.error || 'Error', resp.ok ? 'success' : 'error');
+        loadTelegramConfig();
+    };
+
+    document.getElementById('testTelegram').onclick = async () => {
+        const resp = await fetch('/api/config/telegram/test', { method: 'POST' });
+        const res = await resp.json();
+        showToast(res.mensaje || res.error || 'Error', resp.ok ? 'success' : 'error');
+    };
+
     (async ()=>{ 
-        await Promise.all([loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras()]); 
+        await Promise.all([loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig()]); 
     })();
   </script>
 </body>

@@ -9,6 +9,107 @@ const bcrypt = require('bcryptjs');
 const session = require('express-session');
 const path = require('path');
 const axios = require('axios');
+const crypto = require('crypto');
+
+// Clave secreta para tokens de la app cliente
+const JWT_SECRET = process.env.JWT_SECRET || 'defi-oracle-jwt-secret-key-' + crypto.randomBytes(16).toString('hex');
+
+// =================================================================
+// CONFIGURACIÓN BOT TELEGRAM PARA NOTIFICACIONES
+// =================================================================
+let TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || ''; // Token del bot
+let TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';     // Chat/Grupo ID para notificaciones
+
+// Función para cargar configuración de Telegram desde BD
+async function cargarConfigTelegram() {
+    try {
+        const [botToken, chatId] = await Promise.all([
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_bot_token'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_chat_id'")
+        ]);
+        if (botToken?.valor) TELEGRAM_BOT_TOKEN = botToken.valor;
+        if (chatId?.valor) TELEGRAM_CHAT_ID = chatId.valor;
+        if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+            console.log('✅ Configuración de Telegram cargada');
+        }
+    } catch (error) {
+        console.log('⚠️ No se pudo cargar configuración de Telegram');
+    }
+}
+
+// Función para enviar notificación a Telegram
+async function enviarNotificacionTelegram(mensaje, parseMode = 'HTML') {
+    // Cargar config actualizada de BD
+    await cargarConfigTelegram();
+    
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+        console.log('⚠️ Telegram no configurado - Notificación omitida');
+        return false;
+    }
+    
+    try {
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+        const response = await axios.post(url, {
+            chat_id: TELEGRAM_CHAT_ID,
+            text: mensaje,
+            parse_mode: parseMode
+        });
+        console.log('✅ Notificación Telegram enviada');
+        return response.data.ok;
+    } catch (error) {
+        console.error('❌ Error enviando notificación Telegram:', error.message);
+        return false;
+    }
+}
+
+// Función para notificar nueva solicitud de la app
+async function notificarNuevaSolicitud(solicitud) {
+    const mensaje = `
+🔔 <b>NUEVA SOLICITUD - APP MÓVIL</b>
+
+👤 <b>Cliente:</b> ${solicitud.cliente_nombre}
+📧 ${solicitud.cliente_email}
+
+💰 <b>Envía:</b> $${Number(solicitud.monto_origen).toLocaleString('es-CL')} ${solicitud.moneda_origen}
+💵 <b>Recibe:</b> ${Number(solicitud.monto_destino).toLocaleString('es-VE')} ${solicitud.moneda_destino}
+📊 <b>Tasa:</b> ${solicitud.tasa_aplicada}
+
+👥 <b>Beneficiario:</b> ${solicitud.beneficiario_nombre}
+🏦 ${solicitud.beneficiario_banco}
+
+⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}
+
+📱 <i>Solicitud desde App Defi Oracle</i>
+    `.trim();
+    
+    return await enviarNotificacionTelegram(mensaje);
+}
+
+// Función para notificar cambio de estado
+async function notificarCambioEstado(solicitud, nuevoEstado) {
+    const estados = {
+        'comprobante_enviado': '📤 Comprobante Recibido',
+        'verificando': '🔍 Verificando Pago',
+        'procesando': '⚙️ Procesando Envío',
+        'completada': '✅ Completada',
+        'rechazada': '❌ Rechazada',
+        'cancelada': '🚫 Cancelada'
+    };
+    
+    const mensaje = `
+📋 <b>ACTUALIZACIÓN DE SOLICITUD #${solicitud.id}</b>
+
+${estados[nuevoEstado] || nuevoEstado}
+
+👤 <b>Cliente:</b> ${solicitud.cliente_nombre}
+💰 $${Number(solicitud.monto_origen).toLocaleString('es-CL')} CLP → ${Number(solicitud.monto_destino).toLocaleString('es-VE')} VES
+
+⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}
+    `.trim();
+    
+    return await enviarNotificacionTelegram(mensaje);
+}
+// =================================================================
 
 // ✅ RUTA DE LA BASE DE DATOS AJUSTADA PARA DESPLIEGUE
 const DB_PATH = path.join(process.env.DATA_DIR || '.', 'database.db');
@@ -381,6 +482,108 @@ const runMigrations = async () => {
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_atencion_rapida_usuario_fecha ON atencion_rapida(usuario_id, fecha)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_periodos_pago_estado ON periodos_pago(estado)`);
     console.log('✅ Índices de nómina verificados');
+
+    // =================================================================
+    // TABLAS PARA APP CLIENTE MÓVIL
+    // =================================================================
+    
+    // Tabla de usuarios de la app cliente (autenticación con Google)
+    await dbRun(`CREATE TABLE IF NOT EXISTS clientes_app (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        google_id TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        nombre TEXT NOT NULL,
+        foto_url TEXT,
+        telefono TEXT,
+        documento_tipo TEXT CHECK(documento_tipo IN ('cedula', 'rut', 'pasaporte', 'dni')),
+        documento_numero TEXT,
+        pais TEXT,
+        ciudad TEXT,
+        direccion TEXT,
+        fecha_nacimiento TEXT,
+        registro_completo INTEGER DEFAULT 0,
+        activo INTEGER DEFAULT 1,
+        token_sesion TEXT,
+        fecha_registro TEXT NOT NULL,
+        ultimo_acceso TEXT,
+        UNIQUE(documento_tipo, documento_numero)
+    )`);
+    console.log('✅ Tabla clientes_app verificada');
+
+    // Tabla de beneficiarios de transferencias
+    await dbRun(`CREATE TABLE IF NOT EXISTS beneficiarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente_app_id INTEGER NOT NULL,
+        alias TEXT NOT NULL,
+        nombre_completo TEXT NOT NULL,
+        documento_tipo TEXT CHECK(documento_tipo IN ('cedula', 'rut', 'pasaporte', 'dni')),
+        documento_numero TEXT,
+        banco TEXT NOT NULL,
+        tipo_cuenta TEXT CHECK(tipo_cuenta IN ('corriente', 'ahorro', 'vista')),
+        numero_cuenta TEXT NOT NULL,
+        pais TEXT NOT NULL,
+        telefono TEXT,
+        email TEXT,
+        activo INTEGER DEFAULT 1,
+        fecha_creacion TEXT NOT NULL,
+        fecha_actualizacion TEXT,
+        FOREIGN KEY (cliente_app_id) REFERENCES clientes_app(id)
+    )`);
+    console.log('✅ Tabla beneficiarios verificada');
+
+    // Tabla de cuentas de pago (donde recibe dinero la empresa)
+    await dbRun(`CREATE TABLE IF NOT EXISTS cuentas_pago (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        banco TEXT NOT NULL,
+        tipo_cuenta TEXT CHECK(tipo_cuenta IN ('corriente', 'ahorro', 'vista')),
+        numero_cuenta TEXT NOT NULL,
+        titular TEXT NOT NULL,
+        rut_titular TEXT,
+        pais TEXT NOT NULL,
+        moneda TEXT NOT NULL CHECK(moneda IN ('CLP', 'USD', 'VES', 'COP', 'PEN')),
+        activo INTEGER DEFAULT 1,
+        orden INTEGER DEFAULT 0,
+        fecha_creacion TEXT NOT NULL
+    )`);
+    console.log('✅ Tabla cuentas_pago verificada');
+
+    // Tabla de solicitudes de transferencia desde la app
+    await dbRun(`CREATE TABLE IF NOT EXISTS solicitudes_transferencia (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente_app_id INTEGER NOT NULL,
+        beneficiario_id INTEGER NOT NULL,
+        cuenta_pago_id INTEGER NOT NULL,
+        monto_origen REAL NOT NULL,
+        moneda_origen TEXT NOT NULL,
+        monto_destino REAL,
+        moneda_destino TEXT NOT NULL,
+        tasa_aplicada REAL,
+        estado TEXT NOT NULL DEFAULT 'pendiente' CHECK(estado IN ('pendiente', 'comprobante_enviado', 'verificando', 'procesando', 'completada', 'rechazada', 'cancelada')),
+        comprobante_url TEXT,
+        referencia TEXT,
+        notas_cliente TEXT,
+        notas_operador TEXT,
+        operador_id INTEGER,
+        operacion_id INTEGER,
+        fecha_solicitud TEXT NOT NULL,
+        fecha_verificacion TEXT,
+        fecha_completada TEXT,
+        FOREIGN KEY (cliente_app_id) REFERENCES clientes_app(id),
+        FOREIGN KEY (beneficiario_id) REFERENCES beneficiarios(id),
+        FOREIGN KEY (cuenta_pago_id) REFERENCES cuentas_pago(id),
+        FOREIGN KEY (operador_id) REFERENCES usuarios(id),
+        FOREIGN KEY (operacion_id) REFERENCES operaciones(id)
+    )`);
+    console.log('✅ Tabla solicitudes_transferencia verificada');
+
+    // Índices para app cliente
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_clientes_app_google ON clientes_app(google_id)`);
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_clientes_app_email ON clientes_app(email)`);
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_beneficiarios_cliente ON beneficiarios(cliente_app_id)`);
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_solicitudes_cliente ON solicitudes_transferencia(cliente_app_id)`);
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_solicitudes_estado ON solicitudes_transferencia(estado)`);
+    console.log('✅ Índices de app cliente verificados');
 
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -1622,6 +1825,66 @@ app.post('/api/config/ajustar-saldo-ves', apiAuth, onlyMaster, (req, res) => {
         if (err) return res.status(500).json({ message: 'Error al actualizar el saldo.' });
         res.json({ message: 'Saldo VES Online actualizado con éxito.' });
     });
+});
+
+// =================================================================
+// CONFIGURACIÓN BOT TELEGRAM
+// =================================================================
+app.get('/api/config/telegram', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const [botToken, chatId] = await Promise.all([
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_bot_token'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_chat_id'")
+        ]);
+        res.json({
+            bot_token: botToken?.valor || '',
+            chat_id: chatId?.valor || '',
+            configurado: !!(botToken?.valor && chatId?.valor)
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener configuración' });
+    }
+});
+
+app.post('/api/config/telegram', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { bot_token, chat_id } = req.body;
+        
+        await new Promise((resolve, reject) => {
+            upsertConfig('telegram_bot_token', bot_token || '', (err) => err ? reject(err) : resolve());
+        });
+        await new Promise((resolve, reject) => {
+            upsertConfig('telegram_chat_id', chat_id || '', (err) => err ? reject(err) : resolve());
+        });
+
+        // Actualizar variables globales
+        global.TELEGRAM_BOT_TOKEN = bot_token;
+        global.TELEGRAM_CHAT_ID = chat_id;
+
+        // Enviar mensaje de prueba si está configurado
+        if (bot_token && chat_id) {
+            const testResult = await enviarNotificacionTelegram('✅ <b>Bot configurado correctamente</b>\n\nRecibirás notificaciones de nuevas solicitudes de la App Defi Oracle.');
+            if (testResult) {
+                res.json({ mensaje: 'Configuración guardada y mensaje de prueba enviado' });
+            } else {
+                res.json({ mensaje: 'Configuración guardada, pero no se pudo enviar mensaje de prueba. Verifica el token y chat ID.' });
+            }
+        } else {
+            res.json({ mensaje: 'Configuración guardada' });
+        }
+    } catch (error) {
+        console.error('Error guardando config Telegram:', error);
+        res.status(500).json({ error: 'Error al guardar configuración' });
+    }
+});
+
+app.post('/api/config/telegram/test', apiAuth, onlyMaster, async (req, res) => {
+    const result = await enviarNotificacionTelegram('🔔 <b>Mensaje de prueba</b>\n\n¡Las notificaciones de Telegram están funcionando correctamente!');
+    if (result) {
+        res.json({ mensaje: 'Mensaje de prueba enviado correctamente' });
+    } else {
+        res.status(400).json({ error: 'No se pudo enviar el mensaje. Verifica la configuración.' });
+    }
 });
 
 app.get('/api/usuarios', apiAuth, onlyMaster, (req, res) => {
@@ -6431,6 +6694,712 @@ async function registrarAtencionRapida(usuario_id, cliente_id, tipo, tiempo_resp
 
 // =================================================================
 // FIN: SISTEMA DE NÓMINA
+// =================================================================
+
+// =================================================================
+// INICIO: APP CLIENTE MÓVIL - AUTENTICACIÓN Y ENDPOINTS
+// =================================================================
+
+// Función para generar token simple
+function generarTokenCliente() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+// Función para verificar token de Google
+async function verificarGoogleToken(credential) {
+    try {
+        // Decodificar el JWT de Google
+        const parts = credential.split('.');
+        if (parts.length !== 3) {
+            throw new Error('Token de Google inválido');
+        }
+        
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        
+        // Verificar que el token no haya expirado
+        if (payload.exp * 1000 < Date.now()) {
+            throw new Error('Token de Google expirado');
+        }
+        
+        return {
+            google_id: payload.sub,
+            email: payload.email,
+            nombre: payload.name,
+            foto_url: payload.picture,
+            email_verificado: payload.email_verified
+        };
+    } catch (error) {
+        console.error('Error verificando token de Google:', error);
+        throw error;
+    }
+}
+
+// Middleware para autenticación de clientes de la app
+const clienteAuth = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Token no proporcionado' });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    try {
+        const cliente = await dbGet(
+            'SELECT * FROM clientes_app WHERE token_sesion = ? AND activo = 1',
+            [token]
+        );
+        
+        if (!cliente) {
+            return res.status(401).json({ error: 'Token inválido o sesión expirada' });
+        }
+        
+        req.clienteApp = cliente;
+        next();
+    } catch (error) {
+        console.error('Error en autenticación de cliente:', error);
+        res.status(500).json({ error: 'Error de autenticación' });
+    }
+};
+
+// Servir archivos estáticos de la app cliente
+app.use('/app-cliente', express.static(path.join(__dirname, 'app-cliente')));
+
+// POST /api/cliente/auth/google - Autenticación con Google
+app.post('/api/cliente/auth/google', async (req, res) => {
+    try {
+        const { credential } = req.body;
+        
+        if (!credential) {
+            return res.status(400).json({ error: 'Credencial de Google no proporcionada' });
+        }
+        
+        // Verificar el token de Google
+        const googleUser = await verificarGoogleToken(credential);
+        
+        if (!googleUser.email_verificado) {
+            return res.status(400).json({ error: 'El email de Google no está verificado' });
+        }
+        
+        // Buscar si el usuario ya existe
+        let cliente = await dbGet(
+            'SELECT * FROM clientes_app WHERE google_id = ?',
+            [googleUser.google_id]
+        );
+        
+        const token = generarTokenCliente();
+        const ahora = new Date().toISOString();
+        let nuevoUsuario = false;
+        
+        if (cliente) {
+            // Usuario existente - actualizar token y último acceso
+            await dbRun(
+                'UPDATE clientes_app SET token_sesion = ?, ultimo_acceso = ?, nombre = ?, foto_url = ? WHERE id = ?',
+                [token, ahora, googleUser.nombre, googleUser.foto_url, cliente.id]
+            );
+            cliente = await dbGet('SELECT * FROM clientes_app WHERE id = ?', [cliente.id]);
+        } else {
+            // Usuario nuevo - crear cuenta
+            nuevoUsuario = true;
+            const result = await dbRun(
+                `INSERT INTO clientes_app (google_id, email, nombre, foto_url, token_sesion, fecha_registro, ultimo_acceso) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [googleUser.google_id, googleUser.email, googleUser.nombre, googleUser.foto_url, token, ahora, ahora]
+            );
+            cliente = await dbGet('SELECT * FROM clientes_app WHERE id = ?', [result.lastID]);
+        }
+        
+        res.json({
+            mensaje: nuevoUsuario ? 'Cuenta creada exitosamente' : 'Inicio de sesión exitoso',
+            token: token,
+            nuevoUsuario: nuevoUsuario,
+            usuario: {
+                id: cliente.id,
+                email: cliente.email,
+                nombre: cliente.nombre,
+                foto_url: cliente.foto_url,
+                registroCompleto: cliente.registro_completo === 1
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error en login con Google:', error);
+        res.status(500).json({ error: 'Error al procesar autenticación de Google' });
+    }
+});
+
+// GET /api/cliente/auth/verificar - Verificar sesión activa
+app.get('/api/cliente/auth/verificar', clienteAuth, (req, res) => {
+    res.json({
+        valido: true,
+        registroCompleto: req.clienteApp.registro_completo === 1,
+        usuario: {
+            id: req.clienteApp.id,
+            email: req.clienteApp.email,
+            nombre: req.clienteApp.nombre,
+            foto_url: req.clienteApp.foto_url
+        }
+    });
+});
+
+// POST /api/cliente/auth/logout - Cerrar sesión
+app.post('/api/cliente/auth/logout', clienteAuth, async (req, res) => {
+    try {
+        await dbRun(
+            'UPDATE clientes_app SET token_sesion = NULL WHERE id = ?',
+            [req.clienteApp.id]
+        );
+        res.json({ mensaje: 'Sesión cerrada exitosamente' });
+    } catch (error) {
+        console.error('Error en logout:', error);
+        res.status(500).json({ error: 'Error al cerrar sesión' });
+    }
+});
+
+// PUT /api/cliente/perfil - Actualizar perfil del cliente
+app.put('/api/cliente/perfil', clienteAuth, async (req, res) => {
+    try {
+        const { telefono, documento_tipo, documento_numero, pais, ciudad, direccion, fecha_nacimiento } = req.body;
+        
+        // Validaciones básicas
+        if (!telefono || !documento_tipo || !documento_numero || !pais) {
+            return res.status(400).json({ error: 'Faltan campos obligatorios: teléfono, tipo de documento, número de documento y país' });
+        }
+        
+        // Verificar que el documento no esté registrado por otro usuario
+        const existeDocumento = await dbGet(
+            'SELECT id FROM clientes_app WHERE documento_tipo = ? AND documento_numero = ? AND id != ?',
+            [documento_tipo, documento_numero, req.clienteApp.id]
+        );
+        
+        if (existeDocumento) {
+            return res.status(400).json({ error: 'Este documento ya está registrado' });
+        }
+        
+        await dbRun(
+            `UPDATE clientes_app SET 
+                telefono = ?, 
+                documento_tipo = ?, 
+                documento_numero = ?, 
+                pais = ?, 
+                ciudad = ?, 
+                direccion = ?, 
+                fecha_nacimiento = ?,
+                registro_completo = 1
+             WHERE id = ?`,
+            [telefono, documento_tipo, documento_numero, pais, ciudad, direccion, fecha_nacimiento, req.clienteApp.id]
+        );
+        
+        const clienteActualizado = await dbGet('SELECT * FROM clientes_app WHERE id = ?', [req.clienteApp.id]);
+        
+        res.json({
+            mensaje: 'Perfil actualizado exitosamente',
+            usuario: {
+                id: clienteActualizado.id,
+                email: clienteActualizado.email,
+                nombre: clienteActualizado.nombre,
+                foto_url: clienteActualizado.foto_url,
+                telefono: clienteActualizado.telefono,
+                documento_tipo: clienteActualizado.documento_tipo,
+                documento_numero: clienteActualizado.documento_numero,
+                pais: clienteActualizado.pais,
+                ciudad: clienteActualizado.ciudad,
+                direccion: clienteActualizado.direccion,
+                fecha_nacimiento: clienteActualizado.fecha_nacimiento,
+                registroCompleto: true
+            }
+        });
+    } catch (error) {
+        console.error('Error actualizando perfil:', error);
+        res.status(500).json({ error: 'Error al actualizar perfil' });
+    }
+});
+
+// GET /api/cliente/perfil - Obtener perfil del cliente
+app.get('/api/cliente/perfil', clienteAuth, (req, res) => {
+    const c = req.clienteApp;
+    res.json({
+        id: c.id,
+        email: c.email,
+        nombre: c.nombre,
+        foto_url: c.foto_url,
+        telefono: c.telefono,
+        documento_tipo: c.documento_tipo,
+        documento_numero: c.documento_numero,
+        pais: c.pais,
+        ciudad: c.ciudad,
+        direccion: c.direccion,
+        fecha_nacimiento: c.fecha_nacimiento,
+        registroCompleto: c.registro_completo === 1,
+        fechaRegistro: c.fecha_registro
+    });
+});
+
+// =================================================================
+// APP CLIENTE - BENEFICIARIOS
+// =================================================================
+
+// GET /api/cliente/beneficiarios - Listar beneficiarios del cliente
+app.get('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
+    try {
+        const beneficiarios = await dbAll(
+            'SELECT * FROM beneficiarios WHERE cliente_app_id = ? AND activo = 1 ORDER BY alias',
+            [req.clienteApp.id]
+        );
+        res.json(beneficiarios);
+    } catch (error) {
+        console.error('Error obteniendo beneficiarios:', error);
+        res.status(500).json({ error: 'Error al obtener beneficiarios' });
+    }
+});
+
+// POST /api/cliente/beneficiarios - Agregar beneficiario
+app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
+    try {
+        const { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email } = req.body;
+        
+        if (!alias || !nombre_completo || !banco || !numero_cuenta || !pais) {
+            return res.status(400).json({ error: 'Faltan campos obligatorios' });
+        }
+        
+        const ahora = new Date().toISOString();
+        
+        const result = await dbRun(
+            `INSERT INTO beneficiarios (cliente_app_id, alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, fecha_creacion)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [req.clienteApp.id, alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, ahora]
+        );
+        
+        const beneficiario = await dbGet('SELECT * FROM beneficiarios WHERE id = ?', [result.lastID]);
+        
+        res.json({
+            mensaje: 'Beneficiario agregado exitosamente',
+            beneficiario
+        });
+    } catch (error) {
+        console.error('Error agregando beneficiario:', error);
+        res.status(500).json({ error: 'Error al agregar beneficiario' });
+    }
+});
+
+// PUT /api/cliente/beneficiarios/:id - Actualizar beneficiario
+app.put('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email } = req.body;
+        
+        // Verificar que el beneficiario pertenezca al cliente
+        const beneficiario = await dbGet(
+            'SELECT * FROM beneficiarios WHERE id = ? AND cliente_app_id = ?',
+            [id, req.clienteApp.id]
+        );
+        
+        if (!beneficiario) {
+            return res.status(404).json({ error: 'Beneficiario no encontrado' });
+        }
+        
+        const ahora = new Date().toISOString();
+        
+        await dbRun(
+            `UPDATE beneficiarios SET 
+                alias = ?, nombre_completo = ?, documento_tipo = ?, documento_numero = ?, 
+                banco = ?, tipo_cuenta = ?, numero_cuenta = ?, pais = ?, telefono = ?, email = ?, fecha_actualizacion = ?
+             WHERE id = ?`,
+            [alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, ahora, id]
+        );
+        
+        const beneficiarioActualizado = await dbGet('SELECT * FROM beneficiarios WHERE id = ?', [id]);
+        
+        res.json({
+            mensaje: 'Beneficiario actualizado exitosamente',
+            beneficiario: beneficiarioActualizado
+        });
+    } catch (error) {
+        console.error('Error actualizando beneficiario:', error);
+        res.status(500).json({ error: 'Error al actualizar beneficiario' });
+    }
+});
+
+// DELETE /api/cliente/beneficiarios/:id - Eliminar beneficiario (soft delete)
+app.delete('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const beneficiario = await dbGet(
+            'SELECT * FROM beneficiarios WHERE id = ? AND cliente_app_id = ?',
+            [id, req.clienteApp.id]
+        );
+        
+        if (!beneficiario) {
+            return res.status(404).json({ error: 'Beneficiario no encontrado' });
+        }
+        
+        await dbRun('UPDATE beneficiarios SET activo = 0 WHERE id = ?', [id]);
+        
+        res.json({ mensaje: 'Beneficiario eliminado exitosamente' });
+    } catch (error) {
+        console.error('Error eliminando beneficiario:', error);
+        res.status(500).json({ error: 'Error al eliminar beneficiario' });
+    }
+});
+
+// =================================================================
+// APP CLIENTE - CUENTAS DE PAGO
+// =================================================================
+
+// GET /api/cliente/cuentas-pago - Listar cuentas de pago disponibles
+app.get('/api/cliente/cuentas-pago', clienteAuth, async (req, res) => {
+    try {
+        const cuentas = await dbAll(
+            'SELECT id, nombre, banco, tipo_cuenta, numero_cuenta, titular, pais, moneda FROM cuentas_pago WHERE activo = 1 ORDER BY orden, nombre'
+        );
+        res.json(cuentas);
+    } catch (error) {
+        console.error('Error obteniendo cuentas de pago:', error);
+        res.status(500).json({ error: 'Error al obtener cuentas de pago' });
+    }
+});
+
+// =================================================================
+// APP CLIENTE - TASAS Y COTIZACIONES
+// =================================================================
+
+// GET /api/cliente/tasa - Obtener tasas de venta automáticas por tramos
+app.get('/api/cliente/tasa', async (req, res) => {
+    try {
+        const [t1, t2, t3] = await Promise.all([
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaNivel1'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaNivel2'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaNivel3'")
+        ]);
+        
+        // Tasas por tramos (CLP → VES)
+        const tasas = {
+            tramos: [
+                { minCLP: 5000, maxCLP: 99999, tasa: t1 ? parseFloat(t1.valor) : 0, label: '5.000 - 99.999 CLP' },
+                { minCLP: 100000, maxCLP: 249999, tasa: t2 ? parseFloat(t2.valor) : 0, label: '100.000 - 249.999 CLP' },
+                { minCLP: 250000, maxCLP: null, tasa: t3 ? parseFloat(t3.valor) : 0, label: '250.000+ CLP' }
+            ],
+            monedaOrigen: 'CLP',
+            monedaDestino: 'VES',
+            actualizacion: new Date().toISOString()
+        };
+        
+        // Tasa por defecto (la del primer tramo)
+        tasas.tasaDefecto = tasas.tramos[0].tasa;
+        
+        res.json(tasas);
+    } catch (error) {
+        console.error('Error obteniendo tasas:', error);
+        res.status(500).json({ error: 'Error al obtener tasas' });
+    }
+});
+
+// =================================================================
+// APP CLIENTE - SOLICITUDES DE TRANSFERENCIA
+// =================================================================
+
+// POST /api/cliente/solicitudes - Crear nueva solicitud de transferencia
+app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
+    try {
+        const clienteId = req.clienteId;
+        const { 
+            beneficiario_id, 
+            monto_origen, 
+            moneda_origen = 'CLP',
+            monto_destino,
+            moneda_destino = 'VES',
+            tasa_aplicada,
+            metodo_entrega
+        } = req.body;
+
+        // Validaciones
+        if (!beneficiario_id || !monto_origen || !monto_destino) {
+            return res.status(400).json({ error: 'Datos incompletos' });
+        }
+
+        // Verificar que el beneficiario pertenece al cliente
+        const beneficiario = await dbGet(
+            `SELECT b.*, c.nombre as cliente_nombre, c.email as cliente_email 
+             FROM beneficiarios b 
+             JOIN clientes_app c ON b.cliente_app_id = c.id
+             WHERE b.id = ? AND b.cliente_app_id = ? AND b.activo = 1`,
+            [beneficiario_id, clienteId]
+        );
+
+        if (!beneficiario) {
+            return res.status(404).json({ error: 'Beneficiario no encontrado' });
+        }
+
+        // Obtener cuenta de pago activa (la empresa)
+        const cuentaPago = await dbGet(
+            `SELECT * FROM cuentas_pago WHERE activo = 1 AND moneda = ? ORDER BY orden ASC LIMIT 1`,
+            [moneda_origen]
+        );
+
+        // Crear la solicitud
+        const fechaSolicitud = new Date().toISOString();
+        const result = await dbRun(
+            `INSERT INTO solicitudes_transferencia 
+             (cliente_app_id, beneficiario_id, cuenta_pago_id, monto_origen, moneda_origen, 
+              monto_destino, moneda_destino, tasa_aplicada, estado, fecha_solicitud)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?)`,
+            [clienteId, beneficiario_id, cuentaPago?.id || 1, monto_origen, moneda_origen,
+             monto_destino, moneda_destino, tasa_aplicada, fechaSolicitud]
+        );
+
+        const solicitudId = result.lastID;
+
+        // 📱 Enviar notificación a Telegram
+        await notificarNuevaSolicitud({
+            id: solicitudId,
+            cliente_nombre: beneficiario.cliente_nombre,
+            cliente_email: beneficiario.cliente_email,
+            monto_origen,
+            moneda_origen,
+            monto_destino,
+            moneda_destino,
+            tasa_aplicada,
+            beneficiario_nombre: beneficiario.nombre_completo,
+            beneficiario_banco: beneficiario.banco
+        });
+
+        // Devolver datos de la cuenta para pago
+        res.status(201).json({
+            solicitud_id: solicitudId,
+            estado: 'pendiente',
+            cuenta_pago: cuentaPago ? {
+                banco: cuentaPago.banco,
+                tipo_cuenta: cuentaPago.tipo_cuenta,
+                numero_cuenta: cuentaPago.numero_cuenta,
+                titular: cuentaPago.titular,
+                rut: cuentaPago.rut_titular
+            } : null,
+            mensaje: 'Solicitud creada. Realiza la transferencia y sube el comprobante.'
+        });
+
+    } catch (error) {
+        console.error('Error creando solicitud:', error);
+        res.status(500).json({ error: 'Error al crear solicitud' });
+    }
+});
+
+// PUT /api/cliente/solicitudes/:id/comprobante - Subir comprobante de pago
+app.put('/api/cliente/solicitudes/:id/comprobante', clienteAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const clienteId = req.clienteId;
+        const { comprobante_url, referencia } = req.body;
+
+        // Verificar que la solicitud pertenece al cliente
+        const solicitud = await dbGet(
+            `SELECT s.*, c.nombre as cliente_nombre 
+             FROM solicitudes_transferencia s
+             JOIN clientes_app c ON s.cliente_app_id = c.id
+             WHERE s.id = ? AND s.cliente_app_id = ?`,
+            [id, clienteId]
+        );
+
+        if (!solicitud) {
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+
+        if (solicitud.estado !== 'pendiente') {
+            return res.status(400).json({ error: 'La solicitud ya no puede modificarse' });
+        }
+
+        // Actualizar con comprobante
+        await dbRun(
+            `UPDATE solicitudes_transferencia 
+             SET comprobante_url = ?, referencia = ?, estado = 'comprobante_enviado'
+             WHERE id = ?`,
+            [comprobante_url, referencia, id]
+        );
+
+        // 📱 Notificar a Telegram
+        await notificarCambioEstado({
+            id,
+            cliente_nombre: solicitud.cliente_nombre,
+            monto_origen: solicitud.monto_origen,
+            monto_destino: solicitud.monto_destino
+        }, 'comprobante_enviado');
+
+        res.json({ mensaje: 'Comprobante recibido. Estamos verificando tu pago.' });
+
+    } catch (error) {
+        console.error('Error subiendo comprobante:', error);
+        res.status(500).json({ error: 'Error al subir comprobante' });
+    }
+});
+
+// GET /api/cliente/solicitudes - Obtener historial de solicitudes del cliente
+app.get('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
+    try {
+        const clienteId = req.clienteId;
+        
+        const solicitudes = await dbAll(
+            `SELECT s.*, b.alias, b.nombre_completo as beneficiario_nombre, b.banco
+             FROM solicitudes_transferencia s
+             JOIN beneficiarios b ON s.beneficiario_id = b.id
+             WHERE s.cliente_app_id = ?
+             ORDER BY s.fecha_solicitud DESC
+             LIMIT 50`,
+            [clienteId]
+        );
+
+        res.json(solicitudes);
+    } catch (error) {
+        console.error('Error obteniendo solicitudes:', error);
+        res.status(500).json({ error: 'Error al obtener solicitudes' });
+    }
+});
+
+// GET /api/cliente/solicitudes/:id - Obtener detalle de una solicitud
+app.get('/api/cliente/solicitudes/:id', clienteAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const clienteId = req.clienteId;
+
+        const solicitud = await dbGet(
+            `SELECT s.*, b.alias, b.nombre_completo as beneficiario_nombre, 
+                    b.banco, b.numero_cuenta as beneficiario_cuenta,
+                    cp.banco as cuenta_pago_banco, cp.numero_cuenta as cuenta_pago_numero,
+                    cp.titular as cuenta_pago_titular, cp.rut_titular as cuenta_pago_rut
+             FROM solicitudes_transferencia s
+             JOIN beneficiarios b ON s.beneficiario_id = b.id
+             LEFT JOIN cuentas_pago cp ON s.cuenta_pago_id = cp.id
+             WHERE s.id = ? AND s.cliente_app_id = ?`,
+            [id, clienteId]
+        );
+
+        if (!solicitud) {
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+
+        res.json(solicitud);
+    } catch (error) {
+        console.error('Error obteniendo solicitud:', error);
+        res.status(500).json({ error: 'Error al obtener solicitud' });
+    }
+});
+
+// =================================================================
+// API OPERADORES - GESTIÓN DE SOLICITUDES APP
+// =================================================================
+
+// GET /api/solicitudes-app - Listar solicitudes de la app (para operadores)
+app.get('/api/solicitudes-app', apiAuth, async (req, res) => {
+    try {
+        const { estado, limit = 50, offset = 0 } = req.query;
+        
+        let query = `
+            SELECT s.*, 
+                   c.nombre as cliente_nombre, c.email as cliente_email, c.telefono as cliente_telefono,
+                   b.alias, b.nombre_completo as beneficiario_nombre, b.banco, b.numero_cuenta,
+                   u.username as operador_nombre
+            FROM solicitudes_transferencia s
+            JOIN clientes_app c ON s.cliente_app_id = c.id
+            JOIN beneficiarios b ON s.beneficiario_id = b.id
+            LEFT JOIN usuarios u ON s.operador_id = u.id
+        `;
+        const params = [];
+
+        if (estado) {
+            query += ` WHERE s.estado = ?`;
+            params.push(estado);
+        }
+
+        query += ` ORDER BY s.fecha_solicitud DESC LIMIT ? OFFSET ?`;
+        params.push(parseInt(limit), parseInt(offset));
+
+        const solicitudes = await dbAll(query, params);
+        
+        // Contar por estado
+        const conteos = await dbGet(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+                SUM(CASE WHEN estado = 'comprobante_enviado' THEN 1 ELSE 0 END) as con_comprobante,
+                SUM(CASE WHEN estado = 'verificando' THEN 1 ELSE 0 END) as verificando,
+                SUM(CASE WHEN estado = 'procesando' THEN 1 ELSE 0 END) as procesando,
+                SUM(CASE WHEN estado = 'completada' THEN 1 ELSE 0 END) as completadas
+            FROM solicitudes_transferencia
+        `);
+
+        res.json({ solicitudes, conteos });
+    } catch (error) {
+        console.error('Error obteniendo solicitudes app:', error);
+        res.status(500).json({ error: 'Error al obtener solicitudes' });
+    }
+});
+
+// PUT /api/solicitudes-app/:id/estado - Actualizar estado de solicitud (operadores)
+app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { estado, notas_operador, operacion_id } = req.body;
+        const operadorId = req.session.userId;
+
+        const solicitud = await dbGet(
+            `SELECT s.*, c.nombre as cliente_nombre
+             FROM solicitudes_transferencia s
+             JOIN clientes_app c ON s.cliente_app_id = c.id
+             WHERE s.id = ?`,
+            [id]
+        );
+
+        if (!solicitud) {
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+
+        // Campos a actualizar según el estado
+        let updateFields = ['estado = ?', 'operador_id = ?'];
+        let updateParams = [estado, operadorId];
+
+        if (notas_operador) {
+            updateFields.push('notas_operador = ?');
+            updateParams.push(notas_operador);
+        }
+
+        if (operacion_id) {
+            updateFields.push('operacion_id = ?');
+            updateParams.push(operacion_id);
+        }
+
+        if (estado === 'verificando') {
+            updateFields.push('fecha_verificacion = ?');
+            updateParams.push(new Date().toISOString());
+        }
+
+        if (estado === 'completada') {
+            updateFields.push('fecha_completada = ?');
+            updateParams.push(new Date().toISOString());
+        }
+
+        updateParams.push(id);
+
+        await dbRun(
+            `UPDATE solicitudes_transferencia SET ${updateFields.join(', ')} WHERE id = ?`,
+            updateParams
+        );
+
+        // 📱 Notificar cambio de estado a Telegram
+        await notificarCambioEstado({
+            id,
+            cliente_nombre: solicitud.cliente_nombre,
+            monto_origen: solicitud.monto_origen,
+            monto_destino: solicitud.monto_destino
+        }, estado);
+
+        res.json({ mensaje: 'Estado actualizado correctamente' });
+    } catch (error) {
+        console.error('Error actualizando solicitud:', error);
+        res.status(500).json({ error: 'Error al actualizar solicitud' });
+    }
+});
+
+// =================================================================
+// FIN: APP CLIENTE MÓVIL
 // =================================================================
 
 // Iniciar el servidor solo después de que las migraciones se hayan completado
