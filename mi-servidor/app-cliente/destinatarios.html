@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -6,10 +6,6 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1974CE">
     <title>Destinatarios - Defi Oracle</title>
-    <script>
-        // Usa el backend configurado (prod por defecto) para las llamadas de la app
-        window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
-    </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -743,7 +739,6 @@
     </div>
 
     <script>
-        const API_BASE = window.API_BASE_URL || '';
         let destinatarios = [];
         let filtroActual = 'favoritos';
 
@@ -764,7 +759,7 @@
             const token = localStorage.getItem('clienteToken');
             
             try {
-                const response = await fetch(`${API_BASE}/api/cliente/beneficiarios`, {
+                const response = await fetch('/api/cliente/beneficiarios', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -893,4 +888,3 @@
     </script>
 </body>
 </html>
-

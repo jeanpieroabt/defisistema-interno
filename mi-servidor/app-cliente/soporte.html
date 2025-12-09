@@ -10,6 +10,8 @@
     <style>
         :root {
             --primary-blue: #1974CE;
+            --brand-cyan: #2FC7B8;
+            --white: #FFFFFF;
             --surface: #E3EAEE;
             --surface-soft: #F6F8FA;
             --soft-blue: #D8E2E9;
@@ -348,6 +350,143 @@
             background: #f4f7fb;
         }
 
+        /* ============================================
+           BOTTOM NAVIGATION - Glass Nav 2025
+           ============================================ */
+        .glass-nav {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 36px);
+            max-width: 420px;
+            padding: 14px 18px;
+            padding-bottom: calc(14px + env(safe-area-inset-bottom, 0));
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            box-shadow: 0 18px 36px rgba(20, 52, 102, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            z-index: 120;
+        }
+
+        @media (max-width: 520px) {
+            .glass-nav {
+                bottom: clamp(12px, env(safe-area-inset-bottom, 0) + 6px, 20px);
+                width: calc(100% - 24px);
+                padding: 12px 14px;
+            }
+        }
+
+        .glass-nav-item {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+            color: #7E8A9D;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 6px;
+            min-width: 56px;
+            transition: color 0.25s ease;
+        }
+
+        .glass-nav-item .icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: inherit;
+            background: transparent;
+            transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease, transform 0.25s ease;
+        }
+
+        .glass-nav-item .icon svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 1.7;
+        }
+
+        .glass-nav-item .label {
+            font-size: 11px;
+            letter-spacing: 0.25px;
+            color: inherit;
+        }
+
+        .glass-nav-item:hover:not(.active) {
+            color: var(--primary-blue);
+        }
+
+        .glass-nav-item:hover:not(.active) .icon {
+            color: var(--primary-blue);
+        }
+
+        .glass-nav-item.active {
+            color: var(--primary-blue);
+        }
+
+        .glass-nav-item.active .icon {
+            color: var(--white);
+            background: linear-gradient(120deg, var(--primary-blue) 0%, var(--brand-cyan) 100%);
+            box-shadow: 0 10px 22px rgba(25, 116, 206, 0.22);
+        }
+
+        .glass-nav-item.active .label {
+            color: var(--primary-blue);
+            text-shadow: 0 2px 6px rgba(25, 116, 206, 0.18);
+        }
+
+        .glass-nav-fab {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--primary-blue);
+            transform: translateY(-12px);
+        }
+
+        .glass-nav-fab-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 30px;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--brand-cyan) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 20px 36px rgba(25, 116, 206, 0.26);
+            border: 3px solid rgba(255, 255, 255, 0.92);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .glass-nav-fab-button svg {
+            width: 26px;
+            height: 26px;
+            color: #FFFFFF;
+            stroke-width: 1.8;
+        }
+
+        .glass-nav-fab-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 24px 40px rgba(25, 116, 206, 0.30);
+        }
+
+        .glass-nav-fab .label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.25px;
+            color: var(--primary-blue);
+        }
+
         @media (max-width: 720px) {
             .support-shell {
                 padding: 28px 16px 96px;
@@ -489,27 +628,51 @@
                 </section>
             </main>
 
-            <nav class="tab-bar">
-                <a href="home.html" class="tab-bar-item">
-                    <span class="icon" aria-hidden="true">ÐY?ÿ</span>
+                        <nav class="glass-nav">
+                <a href="home.html" class="glass-nav-item">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                    </span>
                     <span class="label">Inicio</span>
                 </a>
-                <a href="destinatarios.html" class="tab-bar-item">
-                    <span class="icon" aria-hidden="true">ÐY'¾</span>
+                <a href="destinatarios.html" class="glass-nav-item">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </span>
                     <span class="label">Destinatarios</span>
                 </a>
-                <a href="enviar.html" class="tab-bar-item tab-send">
-                    <div class="icon-wrapper">
-                        <span class="icon" aria-hidden="true">ƒzÏ</span>
+                <a href="enviar.html" class="glass-nav-fab">
+                    <div class="glass-nav-fab-button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
                     </div>
                     <span class="label">Enviar</span>
                 </a>
-                <a href="soporte.html" class="tab-bar-item active">
-                    <span class="icon" aria-hidden="true">ÐY'ª</span>
+                <a href="soporte.html" class="glass-nav-item active">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </span>
                     <span class="label">Soporte</span>
                 </a>
-                <a href="perfil.html" class="tab-bar-item">
-                    <span class="icon" aria-hidden="true">ÐY'Ï</span>
+                <a href="perfil.html" class="glass-nav-item">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </span>
                     <span class="label">Perfil</span>
                 </a>
             </nav>
@@ -558,3 +721,4 @@
     </script>
 </body>
 </html>
+

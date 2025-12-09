@@ -6965,26 +6965,6 @@ app.get('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
     }
 });
 
-// GET /api/cliente/beneficiarios/:id - Obtener beneficiario específico del cliente
-app.get('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const beneficiario = await dbGet(
-            'SELECT * FROM beneficiarios WHERE id = ? AND cliente_app_id = ? AND activo = 1',
-            [id, req.clienteApp.id]
-        );
-
-        if (!beneficiario) {
-            return res.status(404).json({ error: 'Beneficiario no encontrado' });
-        }
-
-        res.json(beneficiario);
-    } catch (error) {
-        console.error('Error obteniendo beneficiario:', error);
-        res.status(500).json({ error: 'Error al obtener beneficiario' });
-    }
-});
-
 // POST /api/cliente/beneficiarios - Agregar beneficiario
 app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
     try {
