@@ -6870,11 +6870,11 @@ app.post('/api/cliente/auth/logout', clienteAuth, async (req, res) => {
 // PUT /api/cliente/perfil - Actualizar perfil del cliente
 app.put('/api/cliente/perfil', clienteAuth, async (req, res) => {
     try {
-        const { telefono, documento_tipo, documento_numero, pais, ciudad, direccion, fecha_nacimiento } = req.body;
+        const { nombre, telefono, documento_tipo, documento_numero, pais, ciudad, direccion, fecha_nacimiento } = req.body;
         
         // Validaciones básicas
-        if (!telefono || !documento_tipo || !documento_numero || !pais) {
-            return res.status(400).json({ error: 'Faltan campos obligatorios: teléfono, tipo de documento, número de documento y país' });
+        if (!nombre || !telefono || !documento_tipo || !documento_numero || !pais) {
+            return res.status(400).json({ error: 'Faltan campos obligatorios: nombre, teléfono, tipo de documento, número de documento y país' });
         }
         
         // Verificar que el documento no esté registrado por otro usuario
@@ -6889,6 +6889,7 @@ app.put('/api/cliente/perfil', clienteAuth, async (req, res) => {
         
         await dbRun(
             `UPDATE clientes_app SET 
+                nombre = ?, 
                 telefono = ?, 
                 documento_tipo = ?, 
                 documento_numero = ?, 
@@ -6898,7 +6899,7 @@ app.put('/api/cliente/perfil', clienteAuth, async (req, res) => {
                 fecha_nacimiento = ?,
                 registro_completo = 1
              WHERE id = ?`,
-            [telefono, documento_tipo, documento_numero, pais, ciudad, direccion, fecha_nacimiento, req.clienteApp.id]
+            [nombre, telefono, documento_tipo, documento_numero, pais, ciudad, direccion, fecha_nacimiento, req.clienteApp.id]
         );
         
         const clienteActualizado = await dbGet('SELECT * FROM clientes_app WHERE id = ?', [req.clienteApp.id]);
