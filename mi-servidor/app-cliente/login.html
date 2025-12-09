@@ -525,6 +525,9 @@
         let featureIntervalId = null;
 
         window.onload = function() {
+            // Verificar si hay credential en la URL (redirect de Google en móvil)
+            checkGoogleRedirectResponse();
+            
             const token = localStorage.getItem('clienteToken');
             if (token) {
                 verificarSesion(token);
@@ -533,6 +536,22 @@
             initGoogleWhenReady();
             initActions();
         };
+
+        // Manejar respuesta de Google cuando usa redirect (móvil)
+        function checkGoogleRedirectResponse() {
+            // Google puede enviar el credential en el hash de la URL
+            const hash = window.location.hash;
+            if (hash && hash.includes('credential=')) {
+                const params = new URLSearchParams(hash.substring(1));
+                const credential = params.get('credential');
+                if (credential) {
+                    console.log('Credential encontrado en URL (redirect)');
+                    handleGoogleCallback({ credential: credential });
+                    // Limpiar la URL
+                    history.replaceState(null, '', window.location.pathname);
+                }
+            }
+        }
 
         function normalizeEmail(usuario = {}) {
             return (usuario.email || usuario.correo || '').trim().toLowerCase();
@@ -615,15 +634,25 @@
             }
         }
 
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
         function initializeGoogleSignIn() {
             try {
                 console.log('Inicializando Google Sign-In...');
+                console.log('Es móvil:', isMobile());
+                
+                // En móvil usar redirect, en desktop usar popup
+                const currentUrl = window.location.href.split('?')[0];
+                
                 google.accounts.id.initialize({
                     client_id: GOOGLE_CLIENT_ID,
                     callback: handleGoogleCallback,
                     auto_select: false,
                     cancel_on_tap_outside: true,
-                    ux_mode: 'popup'
+                    ux_mode: isMobile() ? 'redirect' : 'popup',
+                    login_uri: currentUrl
                 });
                 
                 google.accounts.id.renderButton(
