@@ -9,6 +9,11 @@
     
     <!-- Google Sign-In -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!-- Config backend (prod apunta a defisistema-interno) -->
+    <script>
+        window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+    </script>
     
     <link rel="stylesheet" href="css/styles.css">
     <style>
@@ -511,6 +516,9 @@
         import { getPublicRates } from './rates/publicRates.js';
 
         const GOOGLE_CLIENT_ID = '951549639267-4c4928hcndqkc6j2cf95gafce48o1i28.apps.googleusercontent.com';
+        // Permite apuntar a un backend distinto en despliegue: define window.API_BASE_URL si no es el mismo dominio.
+        const API_BASE = window.API_BASE_URL || '';
+        const REG_KEY_PREFIX = 'clienteRegistroCompleto:';
         let googleInitialized = false;
         let featureSlides = [];
         let featureDots = [];
@@ -526,6 +534,27 @@
             initGoogleWhenReady();
             initActions();
         };
+
+        function normalizeEmail(usuario = {}) {
+            return (usuario.email || usuario.correo || '').trim().toLowerCase();
+        }
+
+        function markRegistroCompleto(email) {
+            if (!email) return;
+            localStorage.setItem(`${REG_KEY_PREFIX}${email}`, 'true');
+        }
+
+        function hasRegistroCompleto(email) {
+            return !!(email && localStorage.getItem(`${REG_KEY_PREFIX}${email}`) === 'true');
+        }
+
+        function requiereRegistro(usuario = {}, nuevoUsuario = false) {
+            const email = normalizeEmail(usuario);
+            const registradoLocal = hasRegistroCompleto(email);
+            const registradoServidor = !!usuario.registroCompleto;
+            if (registradoLocal || registradoServidor) return false;
+            return !!nuevoUsuario || !registradoServidor;
+        }
 
         function initFeatureCarousel() {
             featureSlides = Array.from(document.querySelectorAll('.feature-slide'));
@@ -589,15 +618,11 @@
 
         function initializeGoogleSignIn() {
             try {
-                console.log('Inicializando Google Sign-In...');
-                
                 google.accounts.id.initialize({
                     client_id: GOOGLE_CLIENT_ID,
                     callback: handleGoogleCallback,
                     auto_select: false,
-                    cancel_on_tap_outside: true,
-                    ux_mode: 'popup',
-                    itp_support: true
+                    cancel_on_tap_outside: true
                 });
                 
                 google.accounts.id.renderButton(
@@ -613,7 +638,6 @@
                 );
                 
                 googleInitialized = true;
-                console.log('Google Sign-In listo');
             } catch (error) {
                 console.error('Error inicializando Google:', error);
                 mostrarError('Error al cargar Google Sign-In');
@@ -693,25 +717,39 @@
             mostrarLoading(true);
             
             try {
-                const serverResponse = await fetch('/api/cliente/auth/google', {
+                const serverResponse = await fetch(`${API_BASE}/api/cliente/auth/google`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ credential: response.credential })
                 });
 
-                const data = await serverResponse.json();
+                let data = null;
+                try {
+                    data = await serverResponse.clone().json();
+                } catch (parseError) {
+                    // Si no viene JSON (ej. HTML vacío), data quedará null y manejamos abajo.
+                }
 
                 if (serverResponse.ok) {
+                    if (!data) {
+                        throw new Error('Respuesta vacía del servidor');
+                    }
+
                     localStorage.setItem('clienteToken', data.token);
                     localStorage.setItem('clienteData', JSON.stringify(data.usuario));
+                    const email = normalizeEmail(data.usuario);
+                    if (data.usuario.registroCompleto) {
+                        markRegistroCompleto(email);
+                    }
                     
-                    if (data.nuevoUsuario || !data.usuario.registroCompleto) {
+                    if (requiereRegistro(data.usuario, data.nuevoUsuario)) {
                         window.location.href = 'registro.html';
                     } else {
                         window.location.href = 'home.html';
                     }
                 } else {
-                    mostrarError(data.error || 'Error al iniciar sesion');
+                    const fallbackText = data?.error || (await serverResponse.text()).slice(0, 200) || 'Error al iniciar sesion';
+                    mostrarError(fallbackText);
                     mostrarLoading(false);
                 }
             } catch (error) {
@@ -723,13 +761,18 @@
 
         async function verificarSesion(token) {
             try {
-                const response = await fetch('/api/cliente/auth/verificar', {
+                const response = await fetch(`${API_BASE}/api/cliente/auth/verificar`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.registroCompleto) {
+                    const usuario = data.usuario || data;
+                    const email = normalizeEmail(usuario);
+                    if (usuario.registroCompleto || hasRegistroCompleto(email)) {
+                        if (usuario.registroCompleto) {
+                            markRegistroCompleto(email);
+                        }
                         window.location.href = 'home.html';
                     } else {
                         window.location.href = 'registro.html';
