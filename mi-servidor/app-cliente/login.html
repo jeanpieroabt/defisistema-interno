@@ -507,7 +507,6 @@
                     <span class="rate-value"></span>
                 </div>
             </div>
-            <p class="rates-updated" id="ratesUpdated"></p>
             <button class="btn btn-secondary" type="button" data-close-rates>Cerrar</button>
         </div>
     </div>
@@ -618,11 +617,13 @@
 
         function initializeGoogleSignIn() {
             try {
+                console.log('Inicializando Google Sign-In...');
                 google.accounts.id.initialize({
                     client_id: GOOGLE_CLIENT_ID,
                     callback: handleGoogleCallback,
                     auto_select: false,
-                    cancel_on_tap_outside: true
+                    cancel_on_tap_outside: true,
+                    ux_mode: 'popup'
                 });
                 
                 google.accounts.id.renderButton(
@@ -638,6 +639,7 @@
                 );
                 
                 googleInitialized = true;
+                console.log('Google Sign-In inicializado correctamente');
             } catch (error) {
                 console.error('Error inicializando Google:', error);
                 mostrarError('Error al cargar Google Sign-In');
@@ -667,20 +669,15 @@
         async function openRatesModal() {
             const modal = document.getElementById('ratesModal');
             const list = document.getElementById('ratesList');
-            const updated = document.getElementById('ratesUpdated');
 
             modal.classList.add('show');
             modal.setAttribute('aria-hidden', 'false');
 
             list.innerHTML = '<div class="rate-item"><span class="rate-min">Cargando tasas...</span><span class="rate-value"></span></div>';
-            updated.textContent = '';
 
             try {
-                const { rates, updatedAt } = await getPublicRates();
+                const { rates } = await getPublicRates();
                 renderRates(list, rates);
-                if (updatedAt) {
-                    updated.textContent = 'Actualizado: ' + updatedAt;
-                }
             } catch (error) {
                 console.error('Error cargando tasas publicas:', error);
                 list.innerHTML = '<div class="rate-item"><span class="rate-min">No se pudieron cargar las tasas.</span></div>';
@@ -714,20 +711,28 @@
         }
 
         async function handleGoogleCallback(response) {
+            console.log('Google callback recibido');
             mostrarLoading(true);
             
             try {
+                if (!response || !response.credential) {
+                    throw new Error('No se recibió credencial de Google');
+                }
+
+                console.log('Enviando credencial al servidor...');
                 const serverResponse = await fetch(`${API_BASE}/api/cliente/auth/google`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ credential: response.credential })
                 });
 
+                console.log('Respuesta del servidor:', serverResponse.status);
+
                 let data = null;
                 try {
                     data = await serverResponse.clone().json();
                 } catch (parseError) {
-                    // Si no viene JSON (ej. HTML vacío), data quedará null y manejamos abajo.
+                    console.error('Error parseando JSON:', parseError);
                 }
 
                 if (serverResponse.ok) {
@@ -735,6 +740,7 @@
                         throw new Error('Respuesta vacía del servidor');
                     }
 
+                    console.log('Login exitoso, guardando datos...');
                     localStorage.setItem('clienteToken', data.token);
                     localStorage.setItem('clienteData', JSON.stringify(data.usuario));
                     const email = normalizeEmail(data.usuario);
@@ -742,19 +748,21 @@
                         markRegistroCompleto(email);
                     }
                     
-                    if (requiereRegistro(data.usuario, data.nuevoUsuario)) {
-                        window.location.href = 'registro.html';
-                    } else {
-                        window.location.href = 'home.html';
-                    }
+                    // Usar setTimeout para asegurar que localStorage se guarde antes de redirigir
+                    const destino = requiereRegistro(data.usuario, data.nuevoUsuario) ? 'registro.html' : 'home.html';
+                    console.log('Redirigiendo a:', destino);
+                    setTimeout(() => {
+                        window.location.href = destino;
+                    }, 100);
                 } else {
-                    const fallbackText = data?.error || (await serverResponse.text()).slice(0, 200) || 'Error al iniciar sesion';
+                    const fallbackText = data?.error || 'Error al iniciar sesión';
+                    console.error('Error del servidor:', fallbackText);
                     mostrarError(fallbackText);
                     mostrarLoading(false);
                 }
             } catch (error) {
                 console.error('Error en login:', error);
-                mostrarError('Error de conexion. Intenta de nuevo.');
+                mostrarError('Error de conexión. Intenta de nuevo.');
                 mostrarLoading(false);
             }
         }
