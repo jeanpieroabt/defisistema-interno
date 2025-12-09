@@ -331,14 +331,15 @@
         }
 
         .rates-dialog {
-            background: #fff;
+            background: linear-gradient(160deg, #ffffff 0%, #f1f7fd 100%);
             border-radius: 20px;
-            padding: 22px 20px;
+            padding: 22px 20px 18px;
             width: 100%;
             max-width: 420px;
             box-shadow: 0 18px 50px rgba(25, 116, 206, 0.18);
             display: grid;
             gap: 12px;
+            border: 1px solid rgba(25, 116, 206, 0.08);
         }
 
         .rates-header {
@@ -357,7 +358,7 @@
 
         .rates-subtitle {
             margin: 0;
-            color: var(--muted-gray);
+            color: #5b7087;
             font-size: 0.95rem;
         }
 
@@ -372,6 +373,32 @@
             font-weight: 700;
         }
 
+        .rate-legend {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            padding: 12px;
+            border-radius: 16px;
+            background: rgba(25, 116, 206, 0.08);
+            border: 1px solid rgba(25, 116, 206, 0.14);
+        }
+
+        .rate-flag {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            color: #1f2c3d;
+            letter-spacing: 0.1px;
+        }
+
+        .rate-flag img {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        }
+
         .rates-list {
             display: grid;
             gap: 10px;
@@ -384,8 +411,14 @@
             gap: 10px;
             padding: 12px 14px;
             border-radius: 14px;
-            background: var(--surface-soft);
-            border: 1px solid rgba(25, 116, 206, 0.12);
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(25, 116, 206, 0.16);
+            box-shadow: 0 10px 30px rgba(25, 116, 206, 0.1);
+        }
+
+        .rate-info {
+            display: grid;
+            gap: 4px;
         }
 
         .rate-min {
@@ -394,14 +427,9 @@
         }
 
         .rate-value {
-            font-weight: 700;
+            font-weight: 800;
             color: var(--primary-blue);
-        }
-
-        .rates-updated {
-            margin: 0;
-            font-size: 0.85rem;
-            color: var(--muted-gray);
+            letter-spacing: 0.1px;
         }
 
         @media (max-width: 520px) {
@@ -435,13 +463,13 @@
 
                 <div class="feature-carousel" aria-live="polite">
                     <div class="feature-slide active" id="feature-slide-0" aria-hidden="false">
-                        <img src="assets/BANER1.jpeg" alt="Banner 1" class="feature-banner">
+                        <img src="assets/BANERBIENVENIDA.jpeg?v=2" alt="Banner bienvenida" class="feature-banner">
                     </div>
                     <div class="feature-slide" id="feature-slide-1" aria-hidden="true">
-                        <img src="assets/baner2.jpeg" alt="Banner 2" class="feature-banner">
+                        <img src="assets/BANERCENA.jpeg?v=2" alt="Banner cena" class="feature-banner">
                     </div>
                     <div class="feature-slide" id="feature-slide-2" aria-hidden="true">
-                        <img src="assets/BANER1.jpeg" alt="Banner 3" class="feature-banner">
+                        <img src="assets/baner2.jpeg?v=2" alt="Banner 2" class="feature-banner">
                     </div>
                     <div class="feature-dots" role="tablist" aria-label="Destacados">
                         <button class="feature-dot active" type="button" aria-label="Destacado 1" data-slide="0"></button>
@@ -497,17 +525,28 @@
     <div class="rates-modal" id="ratesModal" aria-hidden="true">
         <div class="rates-dialog">
             <div class="rates-header">
-                <h2 class="rates-title">Tasas CLP -> VES</h2>
+                <h2 class="rates-title">Tasas CLP a VES</h2>
                 <button class="rates-close" type="button" data-close-rates aria-label="Cerrar">X</button>
             </div>
-            <p class="rates-subtitle">Actualizadas al momento de consultar.</p>
+            <p class="rates-subtitle">Tasas activas para tus envíos.</p>
+            <div class="rate-legend">
+                <div class="rate-flag">
+                    <img src="assets/banderachile.svg" alt="Origen Chile">
+                    <span>Origen CLP</span>
+                </div>
+                <div class="rate-flag">
+                    <img src="assets/BANDERAVENEZUELA.svg" alt="Destino Venezuela">
+                    <span>Destino VES</span>
+                </div>
+            </div>
             <div class="rates-list" id="ratesList">
                 <div class="rate-item">
-                    <span class="rate-min">Cargando...</span>
+                    <div class="rate-info">
+                        <span class="rate-min">Cargando...</span>
+                    </div>
                     <span class="rate-value"></span>
                 </div>
             </div>
-            <p class="rates-updated" id="ratesUpdated"></p>
             <button class="btn btn-secondary" type="button" data-close-rates>Cerrar</button>
         </div>
     </div>
@@ -667,23 +706,18 @@
         async function openRatesModal() {
             const modal = document.getElementById('ratesModal');
             const list = document.getElementById('ratesList');
-            const updated = document.getElementById('ratesUpdated');
 
             modal.classList.add('show');
             modal.setAttribute('aria-hidden', 'false');
 
-            list.innerHTML = '<div class="rate-item"><span class="rate-min">Cargando tasas...</span><span class="rate-value"></span></div>';
-            updated.textContent = '';
+            list.innerHTML = '<div class="rate-item"><div class="rate-info"><span class="rate-min">Cargando tasas...</span></div><span class="rate-value"></span></div>';
 
             try {
-                const { rates, updatedAt } = await getPublicRates();
+                const { rates } = await getPublicRates();
                 renderRates(list, rates);
-                if (updatedAt) {
-                    updated.textContent = 'Actualizado: ' + updatedAt;
-                }
             } catch (error) {
                 console.error('Error cargando tasas publicas:', error);
-                list.innerHTML = '<div class="rate-item"><span class="rate-min">No se pudieron cargar las tasas.</span></div>';
+                list.innerHTML = '<div class="rate-item"><div class="rate-info"><span class="rate-min">No se pudieron cargar las tasas.</span></div></div>';
             }
         }
 
@@ -693,6 +727,9 @@
                 const item = document.createElement('div');
                 item.className = 'rate-item';
 
+                const info = document.createElement('div');
+                info.className = 'rate-info';
+
                 const minEl = document.createElement('span');
                 minEl.className = 'rate-min';
                 minEl.textContent = rate.min;
@@ -701,7 +738,8 @@
                 valueEl.className = 'rate-value';
                 valueEl.textContent = rate.value;
 
-                item.appendChild(minEl);
+                info.appendChild(minEl);
+                item.appendChild(info);
                 item.appendChild(valueEl);
                 listElement.appendChild(item);
             });
