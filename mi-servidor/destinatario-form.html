@@ -1,0 +1,805 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1974CE">
+    <title>Agregar Destinatario - Defi Oracle</title>
+    <script>
+        // Usa el mismo backend configurado para toda la app (prod por defecto)
+        window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #1974CE;
+            --secondary-blue: #D8E2E9;
+            --accent-green: #5C8240;
+            --danger-red: #EF4444;
+            --dark-slate: #211C10;
+            --neutral-gray: #9AA1A1;
+            --light-bg: #E3EAEE;
+            --brand-cyan: #2FC7B8;
+            --white: #FFFFFF;
+
+            --grad-brand-soft: linear-gradient(135deg, rgba(25, 116, 206, 0.10), rgba(47, 199, 184, 0.10));
+            --grad-brand-button: linear-gradient(90deg, #1974CE 0%, #2FC7B8 100%);
+
+            --radius-sm: 10px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --radius-xxl: 24px;
+            --radius-full: 999px;
+
+            --shadow-soft: 0 12px 32px rgba(15, 42, 84, 0.14);
+            --shadow-card: 0 16px 38px rgba(12, 60, 124, 0.16);
+            --shadow-subtle: 0 6px 16px rgba(17, 38, 78, 0.10);
+            --shadow-button: 0 18px 36px rgba(25, 116, 206, 0.24);
+            --shadow-button-hover: 0 22px 44px rgba(25, 116, 206, 0.28);
+
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-xs: 11px;
+            --font-sm: 13px;
+            --font-base: 15px;
+            --font-lg: 17px;
+            --font-xl: 20px;
+            --font-2xl: 24px;
+
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 12px;
+            --space-lg: 16px;
+            --space-xl: 20px;
+            --space-2xl: 24px;
+            --space-3xl: 32px;
+            --space-4xl: 40px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--grad-brand-soft);
+            color: var(--dark-slate);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        button,
+        input,
+        select {
+            font-family: inherit;
+        }
+
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: var(--space-3xl) var(--space-3xl) 240px;
+            gap: var(--space-2xl);
+        }
+
+        @media (max-width: 420px) {
+            .page {
+                padding: var(--space-2xl) var(--space-lg) 240px;
+            }
+        }
+
+        .page-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2xl);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: var(--radius-xxl);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            box-shadow: var(--shadow-card);
+            padding: var(--space-3xl);
+            backdrop-filter: blur(18px);
+        }
+
+        @media (max-width: 420px) {
+            .page-content {
+                padding: var(--space-2xl) var(--space-xl);
+            }
+        }
+
+        .form-header {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-lg);
+        }
+
+        .btn-back {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-full);
+            border: 1px solid rgba(25, 116, 206, 0.20);
+            background: rgba(25, 116, 206, 0.08);
+            color: var(--primary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-back svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 2.2;
+        }
+
+        .btn-back:hover {
+            box-shadow: 0 12px 24px rgba(25, 116, 206, 0.22);
+            transform: translateY(-1px);
+        }
+
+        .btn-back:active {
+            transform: translateY(0);
+            filter: brightness(0.96);
+        }
+
+        .form-header-copy {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .form-header-eyebrow {
+            font-size: var(--font-xs);
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: var(--neutral-gray);
+        }
+
+        .form-header-title {
+            font-size: var(--font-2xl);
+            font-weight: 700;
+            letter-spacing: -0.2px;
+        }
+
+        .form-header-subtitle {
+            font-size: var(--font-sm);
+            color: var(--neutral-gray);
+            max-width: 320px;
+        }
+
+        .form-body {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2xl);
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-xl) var(--space-2xl);
+            border-radius: var(--radius-xl);
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid rgba(25, 116, 206, 0.12);
+            box-shadow: var(--shadow-subtle);
+        }
+
+        .toggle-label {
+            font-weight: 600;
+            color: var(--dark-slate);
+        }
+
+        .toggle-desc {
+            font-size: var(--font-xs);
+            color: var(--neutral-gray);
+            margin-top: 4px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 52px;
+            height: 30px;
+        }
+
+        .toggle input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            border-radius: 18px;
+            background: rgba(25, 116, 206, 0.18);
+            transition: all 0.3s ease;
+        }
+
+        .toggle-slider::before {
+            content: "";
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            left: 2px;
+            top: 2px;
+            border-radius: 50%;
+            background: #FFFFFF;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+            transition: transform 0.3s ease;
+        }
+
+        .toggle input:checked + .toggle-slider {
+            background: linear-gradient(120deg, var(--primary-blue), var(--brand-cyan));
+        }
+
+        .toggle input:checked + .toggle-slider::before {
+            transform: translateX(22px);
+        }
+
+        .form-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-lg);
+            padding: var(--space-2xl);
+            background: rgba(255, 255, 255, 0.94);
+            border-radius: var(--radius-xl);
+            border: 1px solid rgba(25, 116, 206, 0.12);
+            box-shadow: var(--shadow-subtle);
+        }
+
+        .form-section-title {
+            font-size: var(--font-xs);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--neutral-gray);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .input-label {
+            font-size: var(--font-sm);
+            font-weight: 600;
+            color: rgba(33, 28, 16, 0.78);
+        }
+
+        .input,
+        .select-wrapper select {
+            width: 100%;
+            border: 1px solid rgba(25, 116, 206, 0.16);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.96);
+            padding: 14px 18px;
+            font-size: var(--font-base);
+            color: var(--dark-slate);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .input::placeholder,
+        .select-wrapper select option:first-child {
+            color: var(--neutral-gray);
+        }
+
+        .input:focus,
+        .select-wrapper select:focus {
+            outline: none;
+            border-color: rgba(25, 116, 206, 0.45);
+            box-shadow: 0 0 0 3px rgba(25, 116, 206, 0.16);
+        }
+
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: var(--space-sm);
+        }
+
+        .radio-option input {
+            display: none;
+        }
+
+        .radio-option label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 0;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(25, 116, 206, 0.16);
+            background: rgba(25, 116, 206, 0.08);
+            font-weight: 600;
+            color: var(--primary-blue);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .radio-option input:checked + label {
+            background: linear-gradient(135deg, var(--primary-blue), var(--brand-cyan));
+            border-color: transparent;
+            color: var(--white);
+            box-shadow: 0 8px 18px rgba(25, 116, 206, 0.24);
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '';
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            width: 10px;
+            height: 10px;
+            border-right: 2px solid var(--neutral-gray);
+            border-bottom: 2px solid var(--neutral-gray);
+            transform: translateY(-50%) rotate(45deg);
+            pointer-events: none;
+        }
+
+        .form-spacer {
+            height: 200px;
+        }
+
+        .form-footer {
+            position: fixed;
+            bottom: clamp(16px, env(safe-area-inset-bottom, 0) + 18px, 32px);
+            left: 0;
+            right: 0;
+            margin: 0 auto;
+            width: calc(100% - 48px);
+            max-width: 480px;
+            display: flex;
+            gap: var(--space-md);
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            border-radius: 22px;
+            box-shadow: 0 18px 38px rgba(20, 52, 102, 0.14);
+            padding: var(--space-lg);
+            backdrop-filter: blur(18px);
+            z-index: 120;
+        }
+
+        @media (max-width: 420px) {
+            .form-footer {
+                width: calc(100% - 32px);
+            }
+        }
+
+        .btn {
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            height: 52px;
+            flex: 1;
+        }
+
+        .btn-primary {
+            border-radius: 16px;
+            background: var(--grad-brand-button);
+            color: var(--white);
+            box-shadow: var(--shadow-button);
+            font-size: var(--font-lg);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-button-hover);
+            filter: brightness(1.02);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+            filter: brightness(0.97);
+        }
+
+        .btn-secondary {
+            border-radius: 16px;
+            background: rgba(25, 116, 206, 0.08);
+            color: var(--primary-blue);
+            border: 1px solid rgba(25, 116, 206, 0.18);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 12px 22px rgba(25, 116, 206, 0.18);
+        }
+
+        .btn-delete {
+            border-radius: 16px;
+            background: linear-gradient(120deg, rgba(239, 68, 68, 0.90), rgba(220, 38, 38, 0.92));
+            color: #FFFFFF;
+            box-shadow: 0 18px 30px rgba(239, 68, 68, 0.22);
+        }
+
+        .btn-delete:hover {
+            filter: brightness(1.05);
+        }
+
+        .btn-delete:active {
+            filter: brightness(0.95);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(14px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page">
+            <div class="page-content animate-in">
+                <header class="form-header">
+                    <button class="btn-back" onclick="volver()" aria-label="Volver a la lista">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <div class="form-header-copy">
+                        <p class="form-header-eyebrow">Gestión rápida</p>
+                        <h1 class="form-header-title" id="pageTitle">Agregar destinatario</h1>
+                        <p class="form-header-subtitle" id="formSubtitle">Guarda los datos bancarios para enviar en segundos.</p>
+                    </div>
+                </header>
+
+                <main class="form-body">
+                    <div class="toggle-group">
+                        <div>
+                            <p class="toggle-label">⭐ Guardar como favorito</p>
+                            <p class="toggle-desc">Acceso directo y reconocimiento inmediato al enviar.</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="isFavorite">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <section class="form-section">
+                        <h2 class="form-section-title">Datos personales</h2>
+
+                        <div class="input-group">
+                            <label class="input-label">Nombres *</label>
+                            <input type="text" class="input" id="nombres" placeholder="Ej: María Elena" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">Apellidos *</label>
+                            <input type="text" class="input" id="apellidos" placeholder="Ej: García López" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">Alias (opcional)</label>
+                            <input type="text" class="input" id="alias" placeholder="Ej: Mamá, Hermano, etc.">
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">Tipo de documento *</label>
+                            <div class="radio-group">
+                                <div class="radio-option">
+                                    <input type="radio" name="tipoDoc" id="docV" value="V" checked>
+                                    <label for="docV">V</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" name="tipoDoc" id="docE" value="E">
+                                    <label for="docE">E</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" name="tipoDoc" id="docJ" value="J">
+                                    <label for="docJ">J</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" name="tipoDoc" id="docP" value="P">
+                                    <label for="docP">P</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">Número de documento *</label>
+                            <input type="text" class="input" id="numeroDoc" placeholder="Ej: 12345678" inputmode="numeric">
+                        </div>
+                    </section>
+
+                    <section class="form-section">
+                        <h2 class="form-section-title">Datos bancarios</h2>
+
+                        <div class="input-group">
+                            <label class="input-label">Banco *</label>
+                            <div class="select-wrapper">
+                                <select id="banco" required>
+                                    <option value="">Seleccionar banco</option>
+                                    <option value="0102">Banco de Venezuela</option>
+                                    <option value="0104">Venezolano de Crédito</option>
+                                    <option value="0105">Mercantil</option>
+                                    <option value="0108">Provincial</option>
+                                    <option value="0114">Bancaribe</option>
+                                    <option value="0115">Exterior</option>
+                                    <option value="0128">Caroní</option>
+                                    <option value="0134">Banesco</option>
+                                    <option value="0137">Sofitasa</option>
+                                    <option value="0138">Banco Plaza</option>
+                                    <option value="0151">BFC</option>
+                                    <option value="0156">100% Banco</option>
+                                    <option value="0157">Del Sur</option>
+                                    <option value="0163">Banco del Tesoro</option>
+                                    <option value="0166">Agrícola de Venezuela</option>
+                                    <option value="0168">Bancrecer</option>
+                                    <option value="0169">Mi Banco</option>
+                                    <option value="0171">Activo</option>
+                                    <option value="0172">Bancamiga</option>
+                                    <option value="0173">Internacional de Desarrollo</option>
+                                    <option value="0174">Banplus</option>
+                                    <option value="0175">Bicentenario</option>
+                                    <option value="0177">Banfanb</option>
+                                    <option value="0191">BNC</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">Número de cuenta *</label>
+                            <input type="text" class="input" id="numeroCuenta" placeholder="20 dígitos" maxlength="20" inputmode="numeric">
+                        </div>
+                    </section>
+
+                    <section class="form-section">
+                        <h2 class="form-section-title">Pago móvil (opcional)</h2>
+
+                        <div class="input-group">
+                            <label class="input-label">Teléfono</label>
+                            <input type="text" class="input" id="telefono" placeholder="Ej: 04121234567" maxlength="11" inputmode="tel">
+                        </div>
+                    </section>
+
+                    <section class="form-section">
+                        <h2 class="form-section-title">Contacto (opcional)</h2>
+
+                        <div class="input-group">
+                            <label class="input-label">Email</label>
+                            <input type="email" class="input" id="email" placeholder="correo@ejemplo.com">
+                        </div>
+                    </section>
+
+                    <div class="form-spacer"></div>
+                </main>
+            </div>
+
+            <footer class="form-footer animate-in" id="formFooter" style="animation-delay: 0.12s;">
+                <button class="btn btn-secondary" onclick="volver()">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarDestinatario()">Guardar</button>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.API_BASE_URL || '';
+        let editando = false;
+        let destinatarioId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            verificarSesion();
+            checkEditMode();
+        });
+
+        async function verificarSesion() {
+            const token = localStorage.getItem('clienteToken');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+        }
+
+        function checkEditMode() {
+            const params = new URLSearchParams(window.location.search);
+            destinatarioId = params.get('id');
+
+            if (destinatarioId) {
+                editando = true;
+                document.getElementById('pageTitle').textContent = 'Editar destinatario';
+                const subtitle = document.getElementById('formSubtitle');
+                if (subtitle) {
+                    subtitle.textContent = 'Actualiza, guarda o elimina los datos cuando lo necesites.';
+                }
+                cargarDestinatario(destinatarioId);
+
+                const footer = document.getElementById('formFooter');
+                footer.innerHTML = `
+                    <button class="btn btn-delete" onclick="eliminarDestinatario()">Eliminar</button>
+                    <button class="btn btn-primary" onclick="guardarDestinatario()">Guardar</button>
+                `;
+            }
+        }
+
+        async function cargarDestinatario(id) {
+            const token = localStorage.getItem('clienteToken');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/cliente/beneficiarios/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    llenarFormulario(data);
+                }
+            } catch (error) {
+                // Mock para demostración
+                const mockData = {
+                    id: 1,
+                    nombres: 'María Elena',
+                    apellidos: 'García López',
+                    alias: 'Mamá',
+                    tipo_documento: 'V',
+                    numero_documento: '12345678',
+                    banco: '0102',
+                    numero_cuenta: '01020304050607080910',
+                    telefono: '04121234567',
+                    email: 'maria@ejemplo.com',
+                    isFavorite: true
+                };
+                llenarFormulario(mockData);
+            }
+        }
+
+        function llenarFormulario(data) {
+            document.getElementById('nombres').value = data.nombres || '';
+            document.getElementById('apellidos').value = data.apellidos || '';
+            document.getElementById('alias').value = data.alias || '';
+            document.getElementById('numeroDoc').value = data.numero_documento || '';
+            document.getElementById('banco').value = data.banco || '';
+            document.getElementById('numeroCuenta').value = data.numero_cuenta || '';
+            document.getElementById('telefono').value = data.telefono || '';
+            document.getElementById('email').value = data.email || '';
+            document.getElementById('isFavorite').checked = data.isFavorite || false;
+
+            // Tipo documento
+            if (data.tipo_documento) {
+                const radio = document.getElementById(`doc${data.tipo_documento}`);
+                if (radio) radio.checked = true;
+            }
+        }
+
+        function validarFormulario() {
+            const nombres = document.getElementById('nombres').value.trim();
+            const apellidos = document.getElementById('apellidos').value.trim();
+            const numeroDoc = document.getElementById('numeroDoc').value.trim();
+            const banco = document.getElementById('banco').value;
+            const numeroCuenta = document.getElementById('numeroCuenta').value.trim();
+
+            if (!nombres || !apellidos || !numeroDoc || !banco || !numeroCuenta) {
+                alert('Por favor completa todos los campos obligatorios');
+                return false;
+            }
+
+            if (numeroCuenta.length !== 20) {
+                alert('El número de cuenta debe tener 20 dígitos');
+                return false;
+            }
+
+            return true;
+        }
+
+        async function guardarDestinatario() {
+            if (!validarFormulario()) return;
+
+            const token = localStorage.getItem('clienteToken');
+            const tipoDocForm = document.querySelector('input[name="tipoDoc"]:checked').value;
+            const nombres = document.getElementById('nombres').value.trim();
+            const apellidos = document.getElementById('apellidos').value.trim();
+            const bancoSelect = document.getElementById('banco');
+            const bancoNombre = bancoSelect.options[bancoSelect.selectedIndex].text;
+
+            // Mapear tipo de documento al formato de la base de datos
+            const tipoDocMap = {
+                'V': 'cedula',
+                'E': 'cedula',
+                'J': 'rut',
+                'P': 'pasaporte'
+            };
+            const tipoDoc = tipoDocMap[tipoDocForm] || 'cedula';
+
+            const data = {
+                alias: document.getElementById('alias').value.trim() || `${nombres} ${apellidos}`,
+                nombre_completo: `${nombres} ${apellidos}`,
+                documento_tipo: tipoDoc,
+                documento_numero: document.getElementById('numeroDoc').value.trim(),
+                banco: bancoNombre,
+                tipo_cuenta: 'corriente',
+                numero_cuenta: document.getElementById('numeroCuenta').value.trim(),
+                pais: 'Venezuela',
+                telefono: document.getElementById('telefono').value.trim() || null,
+                email: document.getElementById('email').value.trim() || null
+            };
+
+            try {
+                const url = editando 
+                    ? `${API_BASE}/api/cliente/beneficiarios/${destinatarioId}` 
+                    : `${API_BASE}/api/cliente/beneficiarios`;
+                
+                const method = editando ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    window.location.href = 'destinatarios.html';
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Error al guardar');
+                }
+            } catch (error) {
+                // Demo mode
+                alert(editando ? 'Destinatario actualizado' : 'Destinatario agregado');
+                window.location.href = 'destinatarios.html';
+            }
+        }
+
+        async function eliminarDestinatario() {
+            if (!confirm('¿Estás seguro de eliminar este destinatario?')) return;
+
+            const token = localStorage.getItem('clienteToken');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/cliente/beneficiarios/${destinatarioId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    window.location.href = 'destinatarios.html';
+                }
+            } catch (error) {
+                alert('Destinatario eliminado');
+                window.location.href = 'destinatarios.html';
+            }
+        }
+
+        function volver() {
+            window.history.back();
+        }
+    </script>
+</body>
+</html>
+
+
