@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1974CE">
+    <title>Destinatarios - Defi Oracle</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-blue: #1974CE;
+            --secondary-blue: #D8E2E9;
+            --accent-green: #5C8240;
+            --dark-slate: #211C10;
+            --neutral-gray: #9AA1A1;
+            --light-bg: #E3EAEE;
+            --brand-cyan: #2FC7B8;
+            --white: #FFFFFF;
+
+            --grad-brand-soft: linear-gradient(135deg, rgba(25, 116, 206, 0.10), rgba(47, 199, 184, 0.10));
+            --grad-brand-button: linear-gradient(90deg, #1974CE 0%, #2FC7B8 100%);
+
+            --radius-sm: 10px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --radius-xxl: 24px;
+            --radius-full: 999px;
+
+            --shadow-soft: 0 10px 28px rgba(15, 42, 84, 0.14);
+            --shadow-card: 0 14px 32px rgba(12, 60, 124, 0.16);
+            --shadow-subtle: 0 6px 16px rgba(17, 38, 78, 0.10);
+            --shadow-button: 0 18px 36px rgba(25, 116, 206, 0.24);
+            --shadow-button-hover: 0 22px 44px rgba(25, 116, 206, 0.28);
+
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-xs: 11px;
+            --font-sm: 13px;
+            --font-base: 15px;
+            --font-lg: 17px;
+            --font-xl: 20px;
+            --font-2xl: 24px;
+            --font-3xl: 32px;
+
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 12px;
+            --space-lg: 16px;
+            --space-xl: 20px;
+            --space-2xl: 24px;
+            --space-3xl: 32px;
+            --space-4xl: 40px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--grad-brand-soft);
+            color: var(--dark-slate);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        button,
+        input {
+            font-family: inherit;
+        }
+
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: var(--space-3xl) var(--space-3xl) 200px;
+            gap: var(--space-2xl);
+        }
+
+        @media (max-width: 420px) {
+            .page {
+                padding: var(--space-2xl) var(--space-lg) 200px;
+            }
+        }
+
+        .page-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3xl);
+            background: rgba(255, 255, 255, 0.88);
+            border-radius: var(--radius-xxl);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            box-shadow: var(--shadow-card);
+            padding: var(--space-3xl);
+            backdrop-filter: blur(18px);
+        }
+
+        @media (max-width: 420px) {
+            .page-content {
+                padding: var(--space-2xl) var(--space-xl);
+            }
+        }
+
+        .dest-header {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xl);
+        }
+
+        .dest-eyebrow {
+            font-size: var(--font-xs);
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: var(--neutral-gray);
+        }
+
+        .dest-title {
+            font-size: var(--font-2xl);
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .dest-subtitle {
+            font-size: var(--font-sm);
+            color: var(--neutral-gray);
+            max-width: 280px;
+        }
+
+        .dest-search {
+            position: relative;
+        }
+
+        .dest-search-icon {
+            position: absolute;
+            top: 50%;
+            left: 18px;
+            transform: translateY(-50%);
+            color: var(--primary-blue);
+            opacity: 0.75;
+        }
+
+        .dest-search-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .dest-input {
+            width: 100%;
+            border: 1px solid rgba(25, 116, 206, 0.14);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.96);
+            padding: 14px 18px 14px 48px;
+            font-size: var(--font-sm);
+            color: var(--dark-slate);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .dest-input::placeholder {
+            color: var(--neutral-gray);
+        }
+
+        .dest-input:focus {
+            outline: none;
+            border-color: rgba(25, 116, 206, 0.45);
+            box-shadow: 0 0 0 3px rgba(25, 116, 206, 0.16);
+        }
+
+        .dest-tabs {
+            display: flex;
+            justify-content: center;
+        }
+
+        .tabs {
+            width: 100%;
+            background: rgba(25, 116, 206, 0.08);
+            border-radius: 999px;
+            padding: 6px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .tab {
+            flex: 1;
+            border: none;
+            border-radius: 999px;
+            background: transparent;
+            color: rgba(33, 28, 16, 0.6);
+            font-size: var(--font-sm);
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .tab:hover {
+            color: var(--primary-blue);
+        }
+
+        .tab.active {
+            color: var(--white);
+            background: var(--grad-brand-button);
+            box-shadow: 0 10px 20px rgba(25, 116, 206, 0.20);
+        }
+
+        .tab-icon {
+            font-size: var(--font-sm);
+        }
+
+        .list-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xl);
+        }
+
+        .recipient-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .recipient-card {
+            display: flex;
+            align-items: center;
+            gap: var(--space-lg);
+            padding: var(--space-lg) var(--space-xl);
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: var(--radius-xl);
+            border: 1px solid rgba(25, 116, 206, 0.08);
+            box-shadow: var(--shadow-subtle);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+            cursor: pointer;
+        }
+
+        .recipient-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 28px rgba(17, 38, 78, 0.12);
+            border-color: rgba(25, 116, 206, 0.20);
+        }
+
+        .recipient-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius-full);
+            background: linear-gradient(135deg, rgba(25, 116, 206, 0.12), rgba(47, 199, 184, 0.16));
+            color: var(--primary-blue);
+            font-weight: 700;
+            font-size: var(--font-base);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.6px;
+        }
+
+        .recipient-info {
+            display: grid;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .recipient-name-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            flex-wrap: wrap;
+        }
+
+        .recipient-name {
+            font-weight: 600;
+            font-size: var(--font-base);
+            color: var(--dark-slate);
+        }
+
+        .recipient-alias {
+            padding: 2px 10px;
+            border-radius: 999px;
+            background: rgba(25, 116, 206, 0.12);
+            color: var(--primary-blue);
+            font-size: var(--font-xs);
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+
+        .recipient-bank {
+            font-size: var(--font-sm);
+            color: rgba(33, 28, 16, 0.78);
+            font-weight: 500;
+        }
+
+        .recipient-account {
+            font-size: var(--font-xs);
+            color: var(--neutral-gray);
+            letter-spacing: 0.4px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .recipient-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .btn-favorite {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-full);
+            background: rgba(25, 116, 206, 0.10);
+            border: 1px solid rgba(25, 116, 206, 0.16);
+            color: var(--primary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-favorite svg {
+            width: 20px;
+            height: 20px;
+            fill: transparent;
+        }
+
+        .btn-favorite:hover {
+            box-shadow: 0 12px 24px rgba(25, 116, 206, 0.20);
+            transform: translateY(-1px);
+        }
+
+        .btn-favorite.active {
+            background: linear-gradient(135deg, rgba(25, 116, 206, 0.18), rgba(47, 199, 184, 0.24));
+            border-color: rgba(25, 116, 206, 0.40);
+        }
+
+        .btn-favorite.active svg {
+            fill: currentColor;
+        }
+
+        .recipient-chevron {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--neutral-gray);
+        }
+
+        .recipient-chevron svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 1.8;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-md);
+            text-align: center;
+            padding: var(--space-3xl) var(--space-2xl);
+            background: rgba(255, 255, 255, 0.90);
+            border-radius: var(--radius-xl);
+            border: 1px solid rgba(25, 116, 206, 0.10);
+            box-shadow: var(--shadow-subtle);
+        }
+
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: var(--radius-full);
+            background: rgba(25, 116, 206, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-blue);
+        }
+
+        .empty-icon svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .empty-title {
+            font-size: var(--font-lg);
+            font-weight: 700;
+        }
+
+        .empty-text {
+            font-size: var(--font-sm);
+            color: var(--neutral-gray);
+            max-width: 260px;
+        }
+
+        .btn {
+            border: none;
+            background: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            width: 100%;
+            height: 58px;
+            border-radius: 18px;
+            background: var(--grad-brand-button);
+            color: var(--white);
+            box-shadow: var(--shadow-button);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+            font-size: var(--font-lg);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-button-hover);
+            filter: brightness(1.02);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+            filter: brightness(0.97);
+        }
+
+        .btn-icon {
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2.2;
+        }
+
+        .add-recipient-cta {
+            position: fixed;
+            bottom: calc(108px + env(safe-area-inset-bottom, 0));
+            left: 0;
+            right: 0;
+            margin: 0 auto;
+            width: calc(100% - 48px);
+            max-width: 480px;
+            z-index: 120;
+        }
+
+        @media (max-width: 420px) {
+            .add-recipient-cta {
+                width: calc(100% - 32px);
+            }
+        }
+
+        .glass-nav {
+            position: fixed;
+            bottom: 18px;
+            left: 0;
+            right: 0;
+            margin: 0 auto;
+            width: min(92vw, 480px);
+            padding: 14px 18px;
+            padding-bottom: calc(14px + env(safe-area-inset-bottom, 0));
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            box-shadow: 0 18px 36px rgba(20, 52, 102, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            z-index: 110;
+        }
+
+        @media (max-width: 520px) {
+            .glass-nav {
+                bottom: clamp(12px, env(safe-area-inset-bottom, 0) + 6px, 20px);
+                width: calc(100% - 24px);
+                padding: 12px 14px;
+            }
+        }
+
+        .glass-nav-item {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+            color: #7E8A9D;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 6px;
+            min-width: 56px;
+            transition: color 0.25s ease;
+        }
+
+        .glass-nav-item .icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: inherit;
+            background: transparent;
+            transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease, transform 0.25s ease;
+        }
+
+        .glass-nav-item .icon svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 1.7;
+        }
+
+        .glass-nav-item .label {
+            font-size: 11px;
+            letter-spacing: 0.25px;
+            color: inherit;
+        }
+
+        .glass-nav-item:hover:not(.active) {
+            color: var(--primary-blue);
+        }
+
+        .glass-nav-item:hover:not(.active) .icon {
+            color: var(--primary-blue);
+        }
+
+        .glass-nav-item.active {
+            color: var(--primary-blue);
+        }
+
+        .glass-nav-item.active .icon {
+            color: var(--white);
+            background: linear-gradient(120deg, var(--primary-blue) 0%, var(--brand-cyan) 100%);
+            box-shadow: 0 10px 22px rgba(25, 116, 206, 0.22);
+        }
+
+        .glass-nav-item.active .label {
+            color: var(--primary-blue);
+            text-shadow: 0 2px 6px rgba(25, 116, 206, 0.18);
+        }
+
+        .glass-nav-fab {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--primary-blue);
+            transform: translateY(-12px);
+        }
+
+        .glass-nav-fab-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 30px;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--brand-cyan) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 20px 36px rgba(25, 116, 206, 0.26);
+            border: 3px solid rgba(255, 255, 255, 0.92);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .glass-nav-fab-button svg {
+            width: 26px;
+            height: 26px;
+            color: #FFFFFF;
+            stroke-width: 1.8;
+        }
+
+        .glass-nav-fab-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 24px 40px rgba(25, 116, 206, 0.30);
+        }
+
+        .glass-nav-fab .label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.25px;
+            color: var(--primary-blue);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: fadeInUp 0.45s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page">
+            <div class="page-content animate-in">
+                <header class="dest-header">
+                    <div>
+                        <p class="dest-eyebrow">Red de confianza</p>
+                        <h1 class="dest-title">Destinatarios</h1>
+                        <p class="dest-subtitle">Envía dinero rápido a tu gente en Venezuela.</p>
+                    </div>
+                    <div class="dest-search">
+                        <span class="dest-search-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="7"></circle>
+                                <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </span>
+                        <input type="text" class="dest-input" id="searchInput" placeholder="Buscar por nombre, alias o banco" oninput="filtrarDestinatarios()">
+                    </div>
+                </header>
+
+                <section class="dest-tabs">
+                    <div class="tabs">
+                        <button class="tab active" data-filter="favoritos" onclick="filtrarPorTab('favoritos')">
+                            <span class="tab-icon">⭐</span>
+                            <span>Favoritos</span>
+                        </button>
+                        <button class="tab" data-filter="todos" onclick="filtrarPorTab('todos')">
+                            <span class="tab-icon">👥</span>
+                            <span>Todos</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="list-section">
+                    <div class="recipient-list" id="recipientList"></div>
+
+                    <div class="empty-state" id="emptyState" style="display: none;">
+                        <div class="empty-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                        </div>
+                        <p class="empty-title">Sin destinatarios</p>
+                        <p class="empty-text">Agrega destinatarios para enviar dinero a Venezuela rápidamente.</p>
+                    </div>
+                </section>
+            </div>
+
+            <div class="add-recipient-cta animate-in" style="animation-delay: 0.12s;">
+                <button class="btn btn-primary" onclick="agregarDestinatario()">
+                    <span class="btn-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </span>
+                    <span>Agregar destinatario</span>
+                </button>
+            </div>
+
+            <nav class="glass-nav animate-in" style="animation-delay: 0.18s;">
+                <a href="home.html" class="glass-nav-item">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                    </span>
+                    <span class="label">Inicio</span>
+                </a>
+                <a href="destinatarios.html" class="glass-nav-item active">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </span>
+                    <span class="label">Destinatarios</span>
+                </a>
+                <a href="enviar.html" class="glass-nav-fab">
+                    <div class="glass-nav-fab-button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </div>
+                    <span class="label">Enviar</span>
+                </a>
+                <a href="soporte.html" class="glass-nav-item">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </span>
+                    <span class="label">Soporte</span>
+                </a>
+                <a href="perfil.html" class="glass-nav-item">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </span>
+                    <span class="label">Perfil</span>
+                </a>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        let destinatarios = [];
+        let filtroActual = 'favoritos';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            verificarSesion();
+            cargarDestinatarios();
+        });
+
+        async function verificarSesion() {
+            const token = localStorage.getItem('clienteToken');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+        }
+
+        async function cargarDestinatarios() {
+            const token = localStorage.getItem('clienteToken');
+            
+            try {
+                const response = await fetch('/api/cliente/beneficiarios', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    destinatarios = await response.json();
+                } else {
+                    // Mock data si no hay backend
+                    destinatarios = getMockData();
+                }
+            } catch (error) {
+                // Mock data para demostración
+                destinatarios = getMockData();
+            }
+
+            renderizarDestinatarios();
+        }
+
+        function getMockData() {
+            return [
+                { id: 1, alias: 'Mamá', nombre_completo: 'María García López', banco: 'Banco de Venezuela', numero_cuenta: '01020304050607080910', isFavorite: true },
+                { id: 2, alias: 'Hermano', nombre_completo: 'Carlos García López', banco: 'Banesco', numero_cuenta: '01340987654321098765', isFavorite: true },
+                { id: 3, alias: null, nombre_completo: 'Ana Martínez', banco: 'Mercantil', numero_cuenta: '01050011223344556677', isFavorite: false },
+                { id: 4, alias: 'Tía Rosa', nombre_completo: 'Rosa Pérez', banco: 'Provincial', numero_cuenta: '01080098765432109876', isFavorite: false }
+            ];
+        }
+
+        function renderizarDestinatarios() {
+            const container = document.getElementById('recipientList');
+            const emptyState = document.getElementById('emptyState');
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+
+            let filtrados = destinatarios;
+
+            // Filtrar por tab
+            if (filtroActual === 'favoritos') {
+                filtrados = filtrados.filter(d => d.isFavorite);
+            }
+
+            // Filtrar por búsqueda
+            if (searchQuery) {
+                filtrados = filtrados.filter(d => 
+                    d.nombre_completo.toLowerCase().includes(searchQuery) ||
+                    (d.alias && d.alias.toLowerCase().includes(searchQuery)) ||
+                    d.banco.toLowerCase().includes(searchQuery)
+                );
+            }
+
+            if (filtrados.length === 0) {
+                container.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            container.innerHTML = filtrados.map(d => `
+                <div class="recipient-card" onclick="seleccionarDestinatario(${d.id})">
+                    <div class="recipient-avatar">${getInitials(d.nombre_completo)}</div>
+                    <div class="recipient-info">
+                        <div class="recipient-name-row">
+                            <p class="recipient-name">${d.nombre_completo}</p>
+                            ${d.alias ? `<span class="recipient-alias">${d.alias}</span>` : ''}
+                        </div>
+                        <p class="recipient-bank">${d.banco}</p>
+                        <p class="recipient-account">Cuenta: ****${d.numero_cuenta.slice(-4)}</p>
+                    </div>
+                    <div class="recipient-actions">
+                        <button class="btn-favorite ${d.isFavorite ? 'active' : ''}" onclick="event.stopPropagation(); toggleFavorite(${d.id})" aria-label="${d.isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                        </button>
+                        <span class="recipient-chevron" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="9 6 15 12 9 18"></polyline>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getInitials(nombre) {
+            return nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        function filtrarDestinatarios() {
+            renderizarDestinatarios();
+        }
+
+        function filtrarPorTab(filtro) {
+            filtroActual = filtro;
+            
+            // Actualizar tabs activos
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.filter === filtro);
+            });
+
+            renderizarDestinatarios();
+        }
+
+        function toggleFavorite(id) {
+            const dest = destinatarios.find(d => d.id === id);
+            if (dest) {
+                dest.isFavorite = !dest.isFavorite;
+                renderizarDestinatarios();
+                // TODO: Guardar en backend
+            }
+        }
+
+        function seleccionarDestinatario(id) {
+            // Si viene del flujo de envío
+            const returnTo = sessionStorage.getItem('selectRecipientReturn');
+            if (returnTo) {
+                sessionStorage.setItem('selectedRecipientId', id);
+                sessionStorage.removeItem('selectRecipientReturn');
+                window.location.href = returnTo;
+            } else {
+                // Ir a editar
+                window.location.href = `destinatario-form.html?id=${id}`;
+            }
+        }
+
+        function agregarDestinatario() {
+            window.location.href = 'destinatario-form.html';
+        }
+    </script>
+</body>
+</html>

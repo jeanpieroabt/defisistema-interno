@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1974CE">
+    <title>Soporte - Defi Oracle</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .support-header {
+            background: var(--bg-white);
+            padding: var(--space-xl);
+            text-align: center;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .support-title {
+            font-size: var(--font-h1);
+            font-weight: var(--font-semibold);
+            margin-bottom: var(--space-xs);
+        }
+
+        .support-subtitle {
+            color: var(--neutral-gray);
+        }
+
+        .support-content {
+            padding: var(--space-xl);
+        }
+
+        /* Contact Cards */
+        .contact-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-xl);
+            padding: var(--space-xl);
+            display: flex;
+            align-items: center;
+            gap: var(--space-lg);
+            margin-bottom: var(--space-md);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .contact-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .contact-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .contact-icon.whatsapp {
+            background: #25D366;
+            color: white;
+        }
+
+        .contact-icon.email {
+            background: var(--secondary-blue);
+        }
+
+        .contact-icon.phone {
+            background: var(--accent-green);
+            color: white;
+        }
+
+        .contact-info h3 {
+            font-weight: var(--font-semibold);
+            margin-bottom: 2px;
+        }
+
+        .contact-info p {
+            color: var(--neutral-gray);
+            font-size: var(--font-small);
+        }
+
+        .contact-chevron {
+            color: var(--neutral-gray);
+            font-size: 20px;
+        }
+
+        /* FAQ Section */
+        .faq-section {
+            margin-top: var(--space-2xl);
+        }
+
+        .section-title {
+            font-size: var(--font-body);
+            font-weight: var(--font-semibold);
+            color: var(--neutral-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--space-md);
+        }
+
+        .faq-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: var(--space-sm);
+        }
+
+        .faq-question {
+            padding: var(--space-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            font-weight: var(--font-medium);
+        }
+
+        .faq-toggle {
+            font-size: 20px;
+            color: var(--neutral-gray);
+            transition: transform 0.3s;
+        }
+
+        .faq-card.open .faq-toggle {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            display: none;
+            padding: 0 var(--space-lg) var(--space-lg);
+            color: var(--neutral-gray);
+            font-size: var(--font-small);
+            line-height: 1.6;
+        }
+
+        .faq-card.open .faq-answer {
+            display: block;
+        }
+
+        /* Horario */
+        .horario-card {
+            background: var(--secondary-blue);
+            border-radius: var(--radius-xl);
+            padding: var(--space-xl);
+            text-align: center;
+            margin-top: var(--space-xl);
+        }
+
+        .horario-icon {
+            font-size: 40px;
+            margin-bottom: var(--space-md);
+        }
+
+        .horario-title {
+            font-weight: var(--font-semibold);
+            margin-bottom: var(--space-xs);
+        }
+
+        .horario-text {
+            color: var(--neutral-gray);
+            font-size: var(--font-small);
+        }
+
+        .horario-status {
+            display: inline-block;
+            margin-top: var(--space-md);
+            padding: var(--space-xs) var(--space-md);
+            border-radius: var(--radius-full);
+            font-size: var(--font-small);
+            font-weight: var(--font-medium);
+        }
+
+        .horario-status.online {
+            background: #D1FAE5;
+            color: #059669;
+        }
+
+        .horario-status.offline {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page">
+            <!-- Header -->
+            <header class="support-header">
+                <h1 class="support-title">¿Cómo te ayudamos?</h1>
+                <p class="support-subtitle">Estamos aquí para ti</p>
+            </header>
+
+            <!-- Content -->
+            <main class="support-content">
+                <!-- Contact Options -->
+                <a href="https://wa.me/56912345678" class="contact-card" target="_blank">
+                    <div class="contact-icon whatsapp">💬</div>
+                    <div class="contact-info">
+                        <h3>WhatsApp</h3>
+                        <p>Respuesta inmediata</p>
+                    </div>
+                    <span class="contact-chevron">›</span>
+                </a>
+
+                <a href="mailto:soporte@defioracle.cl" class="contact-card">
+                    <div class="contact-icon email">✉️</div>
+                    <div class="contact-info">
+                        <h3>Email</h3>
+                        <p>soporte@defioracle.cl</p>
+                    </div>
+                    <span class="contact-chevron">›</span>
+                </a>
+
+                <a href="tel:+56212345678" class="contact-card">
+                    <div class="contact-icon phone">📞</div>
+                    <div class="contact-info">
+                        <h3>Teléfono</h3>
+                        <p>+56 2 1234 5678</p>
+                    </div>
+                    <span class="contact-chevron">›</span>
+                </a>
+
+                <!-- Horario -->
+                <div class="horario-card">
+                    <div class="horario-icon">🕐</div>
+                    <h3 class="horario-title">Horario de atención</h3>
+                    <p class="horario-text">Lunes a Viernes: 9:00 - 19:00<br>Sábados: 10:00 - 14:00</p>
+                    <span class="horario-status" id="horarioStatus">En línea</span>
+                </div>
+
+                <!-- FAQs -->
+                <section class="faq-section">
+                    <h2 class="section-title">Preguntas frecuentes</h2>
+
+                    <div class="faq-card" onclick="toggleFaq(this)">
+                        <div class="faq-question">
+                            <span>¿Cuánto demora en llegar el dinero?</span>
+                            <span class="faq-toggle">▼</span>
+                        </div>
+                        <div class="faq-answer">
+                            El dinero llega en minutos una vez que confirmamos tu pago. Pago Móvil es instantáneo, y las transferencias bancarias pueden demorar hasta 24 horas hábiles dependiendo del banco de destino.
+                        </div>
+                    </div>
+
+                    <div class="faq-card" onclick="toggleFaq(this)">
+                        <div class="faq-question">
+                            <span>¿Cuál es la comisión por envío?</span>
+                            <span class="faq-toggle">▼</span>
+                        </div>
+                        <div class="faq-answer">
+                            ¡Nuestras transferencias no tienen comisión! El monto que envías es exactamente lo que pagamos a tu destinatario en Venezuela, calculado según la tasa de cambio del momento.
+                        </div>
+                    </div>
+
+                    <div class="faq-card" onclick="toggleFaq(this)">
+                        <div class="faq-question">
+                            <span>¿Cuál es el monto máximo que puedo enviar?</span>
+                            <span class="faq-toggle">▼</span>
+                        </div>
+                        <div class="faq-answer">
+                            Puedes enviar hasta $2.000.000 CLP por transacción y hasta $5.000.000 CLP mensuales. Para montos mayores, contáctanos para opciones personalizadas.
+                        </div>
+                    </div>
+
+                    <div class="faq-card" onclick="toggleFaq(this)">
+                        <div class="faq-question">
+                            <span>¿Es seguro usar Defi Oracle?</span>
+                            <span class="faq-toggle">▼</span>
+                        </div>
+                        <div class="faq-answer">
+                            Sí. Estamos registrados ante la UAF (Unidad de Análisis Financiero) y cumplimos con todas las regulaciones de prevención de lavado de activos. Tus datos están protegidos con encriptación de grado bancario.
+                        </div>
+                    </div>
+
+                    <div class="faq-card" onclick="toggleFaq(this)">
+                        <div class="faq-question">
+                            <span>¿Qué pasa si hay un problema con mi envío?</span>
+                            <span class="faq-toggle">▼</span>
+                        </div>
+                        <div class="faq-answer">
+                            Cada envío tiene un código de seguimiento. Si hay algún inconveniente, contáctanos por WhatsApp con tu código y lo resolveremos lo antes posible. Ofrecemos garantía de devolución si el dinero no llega.
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Tab Bar -->
+            <nav class="tab-bar">
+                <a href="home.html" class="tab-bar-item">
+                    <span class="icon">🏠</span>
+                    <span class="label">Inicio</span>
+                </a>
+                <a href="destinatarios.html" class="tab-bar-item">
+                    <span class="icon">👥</span>
+                    <span class="label">Destinatarios</span>
+                </a>
+                <a href="enviar.html" class="tab-bar-item tab-send">
+                    <div class="icon-wrapper">
+                        <span class="icon">💸</span>
+                    </div>
+                    <span class="label">Enviar</span>
+                </a>
+                <a href="soporte.html" class="tab-bar-item active">
+                    <span class="icon">💬</span>
+                    <span class="label">Soporte</span>
+                </a>
+                <a href="perfil.html" class="tab-bar-item">
+                    <span class="icon">👤</span>
+                    <span class="label">Perfil</span>
+                </a>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            verificarSesion();
+            verificarHorario();
+        });
+
+        function verificarSesion() {
+            const token = localStorage.getItem('clienteToken');
+            if (!token) {
+                window.location.href = 'login.html';
+            }
+        }
+
+        function verificarHorario() {
+            const now = new Date();
+            const day = now.getDay(); // 0=domingo, 6=sábado
+            const hour = now.getHours();
+            const status = document.getElementById('horarioStatus');
+
+            let isOnline = false;
+
+            if (day >= 1 && day <= 5) { // Lunes a Viernes
+                isOnline = hour >= 9 && hour < 19;
+            } else if (day === 6) { // Sábado
+                isOnline = hour >= 10 && hour < 14;
+            }
+
+            if (isOnline) {
+                status.textContent = '🟢 En línea';
+                status.className = 'horario-status online';
+            } else {
+                status.textContent = '🔴 Fuera de horario';
+                status.className = 'horario-status offline';
+            }
+        }
+
+        function toggleFaq(element) {
+            element.classList.toggle('open');
+        }
+    </script>
+</body>
+</html>

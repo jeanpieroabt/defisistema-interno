@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1974CE">
+    <title>Mi Perfil - Defi Oracle</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .profile-header {
+            background: linear-gradient(135deg, var(--primary-blue), #1565C0);
+            padding: var(--space-2xl);
+            text-align: center;
+            color: white;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: var(--radius-full);
+            background: white;
+            margin: 0 auto var(--space-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            overflow: hidden;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-name {
+            font-size: var(--font-h2);
+            font-weight: var(--font-semibold);
+            margin-bottom: var(--space-xs);
+        }
+
+        .profile-email {
+            opacity: 0.8;
+            font-size: var(--font-small);
+        }
+
+        .profile-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            margin-top: var(--space-md);
+            padding: var(--space-xs) var(--space-md);
+            background: rgba(255,255,255,0.2);
+            border-radius: var(--radius-full);
+            font-size: var(--font-small);
+        }
+
+        .profile-content {
+            padding: var(--space-xl);
+        }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+            margin-bottom: var(--space-xl);
+        }
+
+        .stat-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: var(--font-h1);
+            font-weight: var(--font-bold);
+            color: var(--primary-blue);
+        }
+
+        .stat-label {
+            font-size: var(--font-caption);
+            color: var(--neutral-gray);
+            margin-top: var(--space-xs);
+        }
+
+        /* Menu Items */
+        .menu-section {
+            margin-bottom: var(--space-xl);
+        }
+
+        .menu-title {
+            font-size: var(--font-small);
+            font-weight: var(--font-semibold);
+            color: var(--neutral-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--space-md);
+            padding-left: var(--space-sm);
+        }
+
+        .menu-card {
+            background: var(--bg-white);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: var(--space-lg);
+            border-bottom: 1px solid var(--border-light);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .menu-item:hover {
+            background: var(--light-bg);
+        }
+
+        .menu-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+            background: var(--secondary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-right: var(--space-md);
+        }
+
+        .menu-item-content {
+            flex: 1;
+        }
+
+        .menu-item-title {
+            font-weight: var(--font-medium);
+        }
+
+        .menu-item-desc {
+            font-size: var(--font-caption);
+            color: var(--neutral-gray);
+        }
+
+        .menu-chevron {
+            color: var(--neutral-gray);
+            font-size: 18px;
+        }
+
+        .menu-item.danger .menu-icon {
+            background: #FEE2E2;
+        }
+
+        .menu-item.danger .menu-item-title {
+            color: #DC2626;
+        }
+
+        /* Version Info */
+        .version-info {
+            text-align: center;
+            padding: var(--space-xl);
+            color: var(--neutral-gray);
+            font-size: var(--font-caption);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="page">
+            <!-- Header -->
+            <header class="profile-header">
+                <div class="profile-avatar" id="profileAvatar">
+                    👤
+                </div>
+                <h1 class="profile-name" id="profileName">Usuario</h1>
+                <p class="profile-email" id="profileEmail">correo@ejemplo.com</p>
+                <span class="profile-badge">
+                    ✓ Cuenta verificada
+                </span>
+            </header>
+
+            <!-- Content -->
+            <main class="profile-content">
+                <!-- Stats -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statEnvios">0</div>
+                        <div class="stat-label">Envíos realizados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTotal">$0</div>
+                        <div class="stat-label">Total enviado</div>
+                    </div>
+                </div>
+
+                <!-- Account Menu -->
+                <section class="menu-section">
+                    <h2 class="menu-title">Mi cuenta</h2>
+                    <div class="menu-card">
+                        <div class="menu-item" onclick="editarPerfil()">
+                            <div class="menu-icon">👤</div>
+                            <div class="menu-item-content">
+                                <p class="menu-item-title">Editar perfil</p>
+                                <p class="menu-item-desc">Nombre, teléfono, dirección</p>
+                            </div>
+                            <span class="menu-chevron">›</span>
+                        </div>
+                        <div class="menu-item" onclick="verHistorial()">
+                            <div class="menu-icon">📋</div>
+                            <div class="menu-item-content">
+                                <p class="menu-item-title">Historial de envíos</p>
+                                <p class="menu-item-desc">Ver todos tus envíos</p>
+                            </div>
+                            <span class="menu-chevron">›</span>
+                        </div>
+                        <div class="menu-item" onclick="verDocumentos()">
+                            <div class="menu-icon">📄</div>
+                            <div class="menu-item-content">
+                                <p class="menu-item-title">Mis documentos</p>
+                                <p class="menu-item-desc">Verificación de identidad</p>
+                            </div>
+                            <span class="menu-chevron">›</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Preferences Menu -->
+                <section class="menu-section">
+                    <h2 class="menu-title">Preferencias</h2>
+                    <div class="menu-card">
+                        <div class="menu-item" onclick="configurarNotificaciones()">
+                            <div class="menu-icon">🔔</div>
+                            <div class="menu-item-content">
+                                <p class="menu-item-title">Notificaciones</p>
+                                <p class="menu-item-desc">Email, push, WhatsApp</p>
+                            </div>
+                            <span class="menu-chevron">›</span>
+                        </div>
+                        <div class="menu-item" onclick="verSeguridad()">
+                            <div class="menu-icon">🔒</div>
+                            <div class="menu-item-content">
+                                <p class="menu-item-title">Seguridad</p>
+                                <p class="menu-item-desc">Contraseña, 2FA</p>
+                            </div>
+                            <span class="menu-chevron">›</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Legal Menu -->
+                <section class="menu-section">
+                    <h2 class="menu-title">Legal</h2>
+                    <div class="menu-card">
+                        <div class="menu-item" onclick="verTerminos()">
+                            <div class="menu-icon">📜</div>
+                            <div class="menu-item-content">
+                                <p class="menu-item-title">Términos y condiciones</p>
+                            </div>
+                            <span class="menu-chevron">›</span>
+                        </div>
+                        <div class="menu-item" onclick="verPrivacidad()">
+                            <div class="menu-icon">🛡️</div>
+                            <div class="menu-item-content">
+                                <p class="menu-item-title">Política de privacidad</p>
+                            </div>
+                            <span class="menu-chevron">›</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Logout -->
+                <section class="menu-section">
+                    <div class="menu-card">
+                        <div class="menu-item danger" onclick="cerrarSesion()">
+                            <div class="menu-icon">🚪</div>
+                            <div class="menu-item-content">
+                                <p class="menu-item-title">Cerrar sesión</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Version -->
+                <div class="version-info">
+                    Defi Oracle v1.0.0<br>
+                    © 2024 Defi Oracle SpA
+                </div>
+            </main>
+
+            <!-- Tab Bar -->
+            <nav class="tab-bar">
+                <a href="home.html" class="tab-bar-item">
+                    <span class="icon">🏠</span>
+                    <span class="label">Inicio</span>
+                </a>
+                <a href="destinatarios.html" class="tab-bar-item">
+                    <span class="icon">👥</span>
+                    <span class="label">Destinatarios</span>
+                </a>
+                <a href="enviar.html" class="tab-bar-item tab-send">
+                    <div class="icon-wrapper">
+                        <span class="icon">💸</span>
+                    </div>
+                    <span class="label">Enviar</span>
+                </a>
+                <a href="soporte.html" class="tab-bar-item">
+                    <span class="icon">💬</span>
+                    <span class="label">Soporte</span>
+                </a>
+                <a href="perfil.html" class="tab-bar-item active">
+                    <span class="icon">👤</span>
+                    <span class="label">Perfil</span>
+                </a>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            verificarSesion();
+            cargarPerfil();
+            cargarEstadisticas();
+        });
+
+        function verificarSesion() {
+            const token = localStorage.getItem('clienteToken');
+            if (!token) {
+                window.location.href = 'login.html';
+            }
+        }
+
+        async function cargarPerfil() {
+            const token = localStorage.getItem('clienteToken');
+            
+            try {
+                const response = await fetch('/api/cliente/perfil', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    mostrarPerfil(data);
+                } else {
+                    mostrarPerfilLocal();
+                }
+            } catch {
+                mostrarPerfilLocal();
+            }
+        }
+
+        function mostrarPerfil(data) {
+            document.getElementById('profileName').textContent = data.nombre || 'Usuario';
+            document.getElementById('profileEmail').textContent = data.email || '';
+            
+            if (data.foto_url) {
+                document.getElementById('profileAvatar').innerHTML = `<img src="${data.foto_url}" alt="Avatar">`;
+            } else if (data.nombre) {
+                const initials = data.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                document.getElementById('profileAvatar').textContent = initials;
+            }
+        }
+
+        function mostrarPerfilLocal() {
+            const userData = JSON.parse(localStorage.getItem('clienteData') || '{}');
+            document.getElementById('profileName').textContent = userData.nombre || 'Usuario';
+            document.getElementById('profileEmail').textContent = userData.email || '';
+            
+            if (userData.foto_url) {
+                document.getElementById('profileAvatar').innerHTML = `<img src="${userData.foto_url}" alt="Avatar">`;
+            }
+        }
+
+        async function cargarEstadisticas() {
+            const token = localStorage.getItem('clienteToken');
+            
+            try {
+                const response = await fetch('/api/cliente/estadisticas', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('statEnvios').textContent = data.total_envios || 0;
+                    document.getElementById('statTotal').textContent = `$${(data.total_enviado || 0).toLocaleString('es-CL')}`;
+                }
+            } catch {
+                // Valores por defecto
+                document.getElementById('statEnvios').textContent = '0';
+                document.getElementById('statTotal').textContent = '$0';
+            }
+        }
+
+        function editarPerfil() {
+            alert('Función de editar perfil próximamente');
+        }
+
+        function verHistorial() {
+            window.location.href = 'historico.html';
+        }
+
+        function verDocumentos() {
+            alert('Función de documentos próximamente');
+        }
+
+        function configurarNotificaciones() {
+            alert('Configuración de notificaciones próximamente');
+        }
+
+        function verSeguridad() {
+            alert('Configuración de seguridad próximamente');
+        }
+
+        function verTerminos() {
+            window.open('https://defioracle.cl/terminos', '_blank');
+        }
+
+        function verPrivacidad() {
+            window.open('https://defioracle.cl/privacidad', '_blank');
+        }
+
+        function cerrarSesion() {
+            if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+                localStorage.removeItem('clienteToken');
+                localStorage.removeItem('clienteData');
+                
+                // Revoke Google token if exists
+                if (typeof google !== 'undefined' && google.accounts) {
+                    google.accounts.id.disableAutoSelect();
+                }
+                
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+</html>
