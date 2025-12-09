@@ -936,6 +936,8 @@
     <script>
         // Permite configurar el backend en despliegue (window.API_BASE_URL) si no es el mismo dominio.
         const API_BASE = window.API_BASE_URL || '';
+        let tramosData = [];
+        let tasaDefecto = 0;
 
         document.addEventListener('DOMContentLoaded', async () => {
             const token = localStorage.getItem('clienteToken');
@@ -987,26 +989,40 @@
         async function cargarTasa() {
             try {
                 const response = await fetch(`${API_BASE}/api/cliente/tasa`);
+                if (!response.ok) throw new Error('Respuesta de tasas no válida');
+
                 const data = await response.json();
-                
-                const tasaDefault = data.tramos[2]?.tasa || data.tasaDefecto || 0;
-                document.getElementById('rateValue').textContent = tasaDefault.toFixed(4);
-                
-                if (data.tramos && data.tramos.length >= 3) {
-                    document.getElementById('rate1').textContent = data.tramos[0].tasa.toFixed(4);
-                    document.getElementById('rate2').textContent = data.tramos[1].tasa.toFixed(4);
-                    document.getElementById('rate3').textContent = data.tramos[2].tasa.toFixed(4);
-                    
-                    const cards = document.querySelectorAll('.tier-card');
-                    cards[0].dataset.tasa = data.tramos[0].tasa;
-                    cards[1].dataset.tasa = data.tramos[1].tasa;
-                    cards[2].dataset.tasa = data.tramos[2].tasa;
-                }
-                
+                tramosData = data.tramos || [];
+                tasaDefecto = data.tasaDefecto || tramosData[0]?.tasa || 0;
+
+                renderTramos(tramosData);
+
+                const activeCard = document.querySelector('.tier-card.active') || document.querySelector('.tier-card');
+                const tasaInicial = parseFloat(activeCard?.dataset?.tasa) || tasaDefecto;
+                document.getElementById('rateValue').textContent = Number.isFinite(tasaInicial) ? tasaInicial.toFixed(4) : '---';
+
             } catch (error) {
                 console.error('Error cargando tasa:', error);
                 document.getElementById('rateValue').textContent = '---';
             }
+        }
+
+        function renderTramos(tramos) {
+            const cards = document.querySelectorAll('.tier-card');
+            tramos.slice(0, cards.length).forEach((tramo, idx) => {
+                const card = cards[idx];
+                const minValue = tramo.minCLP ?? tramo.min ?? card.dataset.min ?? 0;
+
+                card.dataset.tasa = tramo.tasa;
+                card.dataset.min = minValue;
+
+                const amountEl = card.querySelector('.tramo-amount');
+                const rateEl = card.querySelector('.tramo-rate');
+
+                if (amountEl) amountEl.textContent = `Desde ${Number(minValue || 0).toLocaleString('es-CL')} CLP`;
+                if (rateEl && typeof tramo.tasa === 'number') rateEl.textContent = tramo.tasa.toFixed(4);
+                else if (rateEl) rateEl.textContent = '-';
+            });
         }
 
         document.querySelectorAll('.tier-card').forEach(card => {
@@ -1014,10 +1030,9 @@
                 document.querySelectorAll('.tier-card').forEach(c => c.classList.remove('active'));
                 this.classList.add('active');
                 
-                const tasa = parseFloat(this.dataset.tasa);
-                if (tasa) {
-                    document.getElementById('rateValue').textContent = tasa.toFixed(4);
-                }
+                const tasa = parseFloat(this.dataset.tasa || tasaDefecto);
+                const rateValueEl = document.getElementById('rateValue');
+                rateValueEl.textContent = Number.isFinite(tasa) ? tasa.toFixed(4) : '---';
             });
         });
 

@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+  </script>
   <style>
     :root {
       --primary: #1974CE;
@@ -769,6 +772,7 @@
   </div>
 
   <script>
+    const API_BASE = window.API_BASE_URL || '';
     let currentStep = 1;
     let tasa = 0.045;
     let tramos = [];
@@ -881,7 +885,7 @@
 
     async function cargarTasa() {
       try {
-        const r = await fetch('/api/cliente/tasa');
+        const r = await fetch(`${API_BASE}/api/cliente/tasa`);
         if (r.ok) {
           const data = await r.json();
           tramos = data.tramos || [];
@@ -910,7 +914,7 @@
     async function cargarDestinatarios() {
       const token = localStorage.getItem('clienteToken');
       try {
-        const r = await fetch('/api/cliente/beneficiarios', { headers: { 'Authorization': `Bearer ${token}` } });
+        const r = await fetch(`${API_BASE}/api/cliente/beneficiarios`, { headers: { 'Authorization': `Bearer ${token}` } });
         destinatarios = r.ok ? await r.json() : getMockDestinatarios();
       } catch { destinatarios = getMockDestinatarios(); }
       renderizarDestinatariosEnvio();
@@ -1078,7 +1082,7 @@
         tasa: tasa
       };
       try {
-        const r = await fetch('/api/cliente/solicitudes', {
+        const r = await fetch(`${API_BASE}/api/cliente/solicitudes`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(solicitud)

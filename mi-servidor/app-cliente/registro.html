@@ -1,613 +1,290 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1974CE">
-    <title>Registro - Defi Oracle</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <style>
-        .reg-header {
-            background: var(--bg-white);
-            padding: var(--space-lg);
-            display: flex;
-            align-items: center;
-            gap: var(--space-md);
-            border-bottom: 1px solid var(--border-light);
-        }
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<meta name="theme-color" content="#1974CE">
+	<title>Completar registro - Defi Oracle</title>
+	<script>
+		// Asegura que todas las vistas apunten al mismo backend (producción por defecto)
+		window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+	</script>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--primary: #1974CE;
+			--primary-2: #2FC7B8;
+			--bg: #E3EAEE;
+			--card: #FFFFFF;
+			--text: #1F2933;
+			--muted: #6B7280;
+			--error: #DC2626;
+			--success: #15803D;
+			--shadow: 0 16px 38px rgba(25, 116, 206, 0.18);
+			--radius: 18px;
+			--font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+		}
 
-        .btn-back {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: var(--space-xs);
-        }
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+		body {
+			font-family: var(--font);
+			background: linear-gradient(135deg, rgba(25,116,206,0.10), rgba(47,199,184,0.10));
+			min-height: 100vh;
+			padding: 24px 16px 48px;
+			color: var(--text);
+		}
 
-        .reg-header-title {
-            font-size: var(--font-h2);
-            font-weight: var(--font-semibold);
-        }
+		.app {
+			max-width: 520px;
+			margin: 0 auto;
+			background: var(--card);
+			border-radius: var(--radius);
+			padding: 26px;
+			box-shadow: var(--shadow);
+			border: 1px solid rgba(25, 116, 206, 0.10);
+		}
 
-        .reg-progress {
-            display: flex;
-            justify-content: center;
-            gap: var(--space-sm);
-            padding: var(--space-lg);
-            background: var(--bg-white);
-        }
+		.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+		.topbar .logo { display: flex; align-items: center; gap: 10px; }
+		.topbar img { height: 38px; width: auto; }
+		.eyebrow { color: var(--muted); font-size: 13px; letter-spacing: 0.3px; text-transform: uppercase; }
+		h1 { font-size: 26px; margin: 4px 0 6px; }
+		p.sub { color: var(--muted); margin-bottom: 18px; }
 
-        .progress-step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: var(--space-xs);
-        }
+		form { display: grid; gap: 14px; }
+		label { display: block; font-weight: 600; margin-bottom: 6px; }
+		input, select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(31,41,51,0.12); font-size: 15px; }
+		input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(25,116,206,0.12); }
 
-        .progress-step-dot {
-            width: 32px;
-            height: 32px;
-            border-radius: var(--radius-full);
-            background: var(--border-light);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: var(--font-semibold);
-            font-size: var(--font-small);
-            color: var(--neutral-gray);
-        }
+		.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+		.readonly { background: #F8FAFC; color: var(--muted); }
 
-        .progress-step.active .progress-step-dot {
-            background: var(--primary-blue);
-            color: white;
-        }
+		.actions { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+		.btn-primary { background: linear-gradient(90deg, var(--primary) 0%, var(--primary-2) 100%); color: #fff; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 12px 24px rgba(25,116,206,0.24); }
+		.btn-secondary { background: transparent; border: 1px solid rgba(25,116,206,0.30); color: var(--primary); border-radius: 12px; padding: 12px; font-weight: 700; cursor: pointer; }
 
-        .progress-step.completed .progress-step-dot {
-            background: var(--accent-green);
-            color: white;
-        }
+		.alert { display: none; padding: 12px; border-radius: 12px; font-size: 14px; }
+		.alert.error { background: #FEF2F2; color: var(--error); border: 1px solid #FECACA; }
+		.alert.success { background: #ECFDF3; color: var(--success); border: 1px solid #BBF7D0; }
 
-        .progress-step-label {
-            font-size: 10px;
-            color: var(--neutral-gray);
-        }
-
-        .progress-step.active .progress-step-label {
-            color: var(--primary-blue);
-            font-weight: var(--font-medium);
-        }
-
-        .progress-line {
-            width: 40px;
-            height: 2px;
-            background: var(--border-light);
-            align-self: flex-start;
-            margin-top: 15px;
-        }
-
-        .progress-line.completed {
-            background: var(--accent-green);
-        }
-
-        .reg-content {
-            padding: var(--space-xl);
-        }
-
-        .reg-welcome {
-            text-align: center;
-            margin-bottom: var(--space-xl);
-        }
-
-        .reg-welcome-icon {
-            font-size: 48px;
-            margin-bottom: var(--space-md);
-        }
-
-        .reg-welcome-title {
-            font-size: var(--font-h2);
-            font-weight: var(--font-semibold);
-            margin-bottom: var(--space-xs);
-        }
-
-        .reg-welcome-text {
-            color: var(--neutral-gray);
-        }
-
-        .reg-form {
-            background: var(--bg-white);
-            border-radius: var(--radius-xl);
-            padding: var(--space-xl);
-        }
-
-        .reg-section {
-            display: none;
-        }
-
-        .reg-section.active {
-            display: block;
-        }
-
-        .section-title {
-            font-size: var(--font-small);
-            font-weight: var(--font-semibold);
-            color: var(--neutral-gray);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: var(--space-lg);
-        }
-
-        /* Toggle */
-        .toggle-group {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: var(--space-md) 0;
-        }
-
-        .toggle-text {
-            font-size: var(--font-small);
-        }
-
-        .toggle {
-            position: relative;
-            width: 51px;
-            height: 31px;
-        }
-
-        .toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: var(--border-light);
-            border-radius: 31px;
-            transition: 0.3s;
-        }
-
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 27px;
-            width: 27px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            border-radius: 50%;
-            transition: 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .toggle input:checked + .toggle-slider {
-            background-color: var(--accent-green);
-        }
-
-        .toggle input:checked + .toggle-slider:before {
-            transform: translateX(20px);
-        }
-
-        /* Success Screen */
-        .success-screen {
-            display: none;
-            text-align: center;
-            padding: var(--space-2xl);
-        }
-
-        .success-icon {
-            font-size: 80px;
-            margin-bottom: var(--space-xl);
-        }
-
-        .success-title {
-            font-size: var(--font-h1);
-            font-weight: var(--font-bold);
-            margin-bottom: var(--space-md);
-        }
-
-        .success-text {
-            color: var(--neutral-gray);
-            margin-bottom: var(--space-2xl);
-        }
-
-        /* Footer */
-        .reg-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            max-width: 430px;
-            margin: 0 auto;
-            padding: var(--space-lg);
-            background: var(--bg-white);
-            border-top: 1px solid var(--border-light);
-        }
-
-        .footer-spacer {
-            height: 100px;
-        }
-    </style>
+		.helper { color: var(--muted); font-size: 13px; margin-top: 6px; }
+		.badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(25,116,206,0.08); color: var(--primary); border-radius: 999px; font-weight: 600; font-size: 13px; }
+		.footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 12px; }
+		.loading { display: none; font-size: 14px; color: var(--muted); }
+		.loading.active { display: inline-block; }
+	</style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="page">
-            <!-- Header -->
-            <header class="reg-header">
-                <button class="btn-back" onclick="stepBack()">←</button>
-                <h1 class="reg-header-title">Completar registro</h1>
-            </header>
+	<div class="app">
+		<div class="topbar">
+			<div class="logo">
+				<img src="assets/defioracle-logo.png" alt="Defi Oracle">
+				<div>
+					<div class="eyebrow">Verificación</div>
+					<h1>Completa tus datos</h1>
+				</div>
+			</div>
+			<button class="btn-secondary" id="logoutBtn">Salir</button>
+		</div>
+		<p class="sub">Necesitamos algunos datos para habilitar tus envíos y validar tu identidad.</p>
+		<div class="badge" id="userSummary">Cargando usuario...</div>
 
-            <!-- Progress -->
-            <div class="reg-progress" id="progressBar">
-                <div class="progress-step active" data-step="1">
-                    <div class="progress-step-dot">1</div>
-                    <span class="progress-step-label">Datos</span>
-                </div>
-                <div class="progress-line"></div>
-                <div class="progress-step" data-step="2">
-                    <div class="progress-step-dot">2</div>
-                    <span class="progress-step-label">Dirección</span>
-                </div>
-                <div class="progress-line"></div>
-                <div class="progress-step" data-step="3">
-                    <div class="progress-step-dot">3</div>
-                    <span class="progress-step-label">Aceptar</span>
-                </div>
-            </div>
+		<div id="errorBox" class="alert error"></div>
+		<div id="successBox" class="alert success"></div>
 
-            <!-- Content -->
-            <main class="reg-content">
-                <div class="reg-welcome">
-                    <div class="reg-welcome-icon">👋</div>
-                    <h2 class="reg-welcome-title" id="welcomeTitle">¡Hola!</h2>
-                    <p class="reg-welcome-text">Completa tus datos para comenzar a enviar dinero</p>
-                </div>
+		<form id="registroForm">
+			<div>
+				<label>Nombre completo</label>
+				<input id="nombre" type="text" autocomplete="name" placeholder="Tu nombre completo">
+			</div>
+			<div>
+				<label>Correo</label>
+				<input id="email" class="readonly" type="email" readonly>
+			</div>
+			<div>
+				<label for="telefono">Teléfono</label>
+				<input id="telefono" name="telefono" type="tel" inputmode="tel" placeholder="+56 9 1234 5678" required>
+			</div>
+			<div class="row">
+				<div>
+					<label for="documento_tipo">Documento</label>
+					<select id="documento_tipo" name="documento_tipo" required>
+						<option value="">Selecciona</option>
+						<option value="rut">RUT / CI</option>
+						<option value="pasaporte">Pasaporte</option>
+						<option value="dni">DNI</option>
+					</select>
+				</div>
+				<div>
+					<label for="documento_numero">Número</label>
+					<input id="documento_numero" name="documento_numero" type="text" autocomplete="off" required>
+				</div>
+			</div>
+			<div class="row">
+				<div>
+					<label for="pais">País</label>
+					<input id="pais" name="pais" type="text" value="Chile" required>
+				</div>
+				<div>
+					<label for="ciudad">Ciudad</label>
+					<input id="ciudad" name="ciudad" type="text" placeholder="Santiago">
+				</div>
+			</div>
+			<div>
+				<label for="direccion">Dirección</label>
+				<input id="direccion" name="direccion" type="text" placeholder="Calle y número">
+			</div>
+			<div>
+				<label for="fecha_nacimiento">Fecha de nacimiento</label>
+				<input id="fecha_nacimiento" name="fecha_nacimiento" type="date">
+				<div class="helper">Usamos estos datos solo para validación interna.</div>
+			</div>
+			<div class="actions">
+				<button class="btn-primary" type="submit">Guardar y continuar <span id="saving" class="loading">(guardando...)</span></button>
+				<button type="button" class="btn-secondary" id="volverLogin">Volver al inicio de sesión</button>
+			</div>
+		</form>
+		<div class="footer">© 2024 Defi Oracle · Tus datos se protegen con cifrado</div>
+	</div>
 
-                <div class="reg-form">
-                    <!-- Step 1: Datos Personales -->
-                    <section class="reg-section active" id="step1">
-                        <h3 class="section-title">Datos personales</h3>
-                        
-                        <div class="input-group">
-                            <label class="input-label">Nombres *</label>
-                            <input type="text" class="input" id="nombres" placeholder="Ej: Juan Carlos" required>
-                        </div>
+	<script>
+		const API_BASE = window.API_BASE_URL || '';
+		const form = document.getElementById('registroForm');
+		const errorBox = document.getElementById('errorBox');
+		const successBox = document.getElementById('successBox');
+		const saving = document.getElementById('saving');
+		const userSummary = document.getElementById('userSummary');
+		const REG_KEY_PREFIX = 'clienteRegistroCompleto:';
 
-                        <div class="input-group">
-                            <label class="input-label">Apellidos *</label>
-                            <input type="text" class="input" id="apellidos" placeholder="Ej: Pérez González" required>
-                        </div>
+		document.getElementById('logoutBtn').addEventListener('click', cerrarSesion);
+		document.getElementById('volverLogin').addEventListener('click', () => window.location.href = 'login.html');
 
-                        <div class="input-group">
-                            <label class="input-label">RUT *</label>
-                            <input type="text" class="input" id="rut" placeholder="12.345.678-9" required oninput="formatRut(this)">
-                        </div>
+		document.addEventListener('DOMContentLoaded', () => {
+			const token = localStorage.getItem('clienteToken');
+			if (!token) {
+				window.location.href = 'login.html';
+				return;
+			}
+			cargarPerfil(token);
+		});
 
-                        <div class="input-group">
-                            <label class="input-label">Teléfono *</label>
-                            <input type="tel" class="input" id="telefono" placeholder="+56 9 1234 5678" required>
-                        </div>
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			hideAlerts();
+			saving.classList.add('active');
+			const token = localStorage.getItem('clienteToken');
+			if (!token) {
+				showError('La sesión expiró, vuelve a iniciar sesión.');
+				saving.classList.remove('active');
+				return;
+			}
 
-                        <div class="input-group">
-                            <label class="input-label">Fecha de nacimiento *</label>
-                            <input type="date" class="input" id="fechaNacimiento" required>
-                        </div>
-                    </section>
+			const payload = {
+				nombre: form.nombre.value.trim(),
+				telefono: form.telefono.value.trim(),
+				documento_tipo: form.documento_tipo.value,
+				documento_numero: form.documento_numero.value.trim(),
+				pais: form.pais.value.trim(),
+				ciudad: form.ciudad.value.trim() || null,
+				direccion: form.direccion.value.trim() || null,
+				fecha_nacimiento: form.fecha_nacimiento.value || null
+			};
 
-                    <!-- Step 2: Dirección -->
-                    <section class="reg-section" id="step2">
-                        <h3 class="section-title">Dirección en Chile</h3>
-                        
-                        <div class="input-group">
-                            <label class="input-label">Calle y número *</label>
-                            <input type="text" class="input" id="direccion" placeholder="Ej: Av. Libertador 1234" required>
-                        </div>
+			try {
+				const resp = await fetch(`${API_BASE}/api/cliente/perfil`, {
+					method: 'PUT',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${token}`
+					},
+					body: JSON.stringify(payload)
+				});
 
-                        <div class="input-group">
-                            <label class="input-label">Departamento / Oficina</label>
-                            <input type="text" class="input" id="depto" placeholder="Ej: Depto 301">
-                        </div>
+				const data = await resp.json();
+				if (!resp.ok) {
+					throw new Error(data.error || 'No pudimos guardar los datos');
+				}
 
-                        <div class="input-group">
-                            <label class="input-label">Comuna *</label>
-                            <input type="text" class="input" id="comuna" placeholder="Ej: Santiago" required>
-                        </div>
+				localStorage.setItem('clienteData', JSON.stringify(data.usuario));
+				markRegistroCompleto(normalizeEmail(data.usuario));
+				showSuccess('Datos guardados correctamente. Redirigiendo...');
+				setTimeout(() => window.location.href = 'home.html', 1000);
+			} catch (err) {
+				showError(err.message || 'Error inesperado al guardar');
+			} finally {
+				saving.classList.remove('active');
+			}
+		});
 
-                        <div class="input-group">
-                            <label class="input-label">Región *</label>
-                            <select class="input" id="region" required>
-                                <option value="">Seleccionar región</option>
-                                <option value="Arica y Parinacota">Arica y Parinacota</option>
-                                <option value="Tarapacá">Tarapacá</option>
-                                <option value="Antofagasta">Antofagasta</option>
-                                <option value="Atacama">Atacama</option>
-                                <option value="Coquimbo">Coquimbo</option>
-                                <option value="Valparaíso">Valparaíso</option>
-                                <option value="Metropolitana">Metropolitana</option>
-                                <option value="O'Higgins">O'Higgins</option>
-                                <option value="Maule">Maule</option>
-                                <option value="Ñuble">Ñuble</option>
-                                <option value="Biobío">Biobío</option>
-                                <option value="Araucanía">Araucanía</option>
-                                <option value="Los Ríos">Los Ríos</option>
-                                <option value="Los Lagos">Los Lagos</option>
-                                <option value="Aysén">Aysén</option>
-                                <option value="Magallanes">Magallanes</option>
-                            </select>
-                        </div>
-                    </section>
+		async function cargarPerfil(token) {
+			try {
+				const resp = await fetch(`${API_BASE}/api/cliente/perfil`, {
+					headers: { 'Authorization': `Bearer ${token}` }
+				});
+				if (resp.status === 401) {
+					// Token inválido/expirado: limpiar y forzar re-login
+					cerrarSesion();
+					return;
+				}
+				if (!resp.ok) throw new Error('No pudimos obtener tu perfil');
+				const data = await resp.json();
+				localStorage.setItem('clienteData', JSON.stringify(data));
+				markRegistroCompleto(normalizeEmail(data));
+				rellenarFormulario(data);
+			} catch (err) {
+				showError(err.message || 'Error cargando perfil');
+				if (err.message.includes('Token')) {
+					cerrarSesion();
+				}
+			}
+		}
 
-                    <!-- Step 3: Aceptar Términos -->
-                    <section class="reg-section" id="step3">
-                        <h3 class="section-title">Términos y condiciones</h3>
-                        
-                        <div class="toggle-group">
-                            <span class="toggle-text">Acepto los <a href="#" onclick="verTerminos()">términos y condiciones</a></span>
-                            <label class="toggle">
-                                <input type="checkbox" id="aceptaTerminos">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
+		function rellenarFormulario(data) {
+			document.getElementById('nombre').value = data.nombre || '';
+			document.getElementById('email').value = data.email || '';
+			document.getElementById('telefono').value = data.telefono || '';
+			document.getElementById('documento_tipo').value = data.documento_tipo || '';
+			document.getElementById('documento_numero').value = data.documento_numero || '';
+			document.getElementById('pais').value = data.pais || 'Chile';
+			document.getElementById('ciudad').value = data.ciudad || '';
+			document.getElementById('direccion').value = data.direccion || '';
+			document.getElementById('fecha_nacimiento').value = data.fecha_nacimiento ? data.fecha_nacimiento.substring(0, 10) : '';
+			userSummary.textContent = `${data.nombre || 'Usuario'} · ${data.email || ''}`;
+		}
 
-                        <div class="toggle-group">
-                            <span class="toggle-text">Acepto la <a href="#" onclick="verPrivacidad()">política de privacidad</a></span>
-                            <label class="toggle">
-                                <input type="checkbox" id="aceptaPrivacidad">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
+		function showError(msg) {
+			errorBox.textContent = msg;
+			errorBox.style.display = 'block';
+		}
 
-                        <div class="toggle-group">
-                            <span class="toggle-text">Deseo recibir promociones por email</span>
-                            <label class="toggle">
-                                <input type="checkbox" id="aceptaMarketing">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </section>
-                </div>
+		function showSuccess(msg) {
+			successBox.textContent = msg;
+			successBox.style.display = 'block';
+		}
 
-                <!-- Success Screen -->
-                <div class="success-screen" id="successScreen">
-                    <div class="success-icon">🎉</div>
-                    <h2 class="success-title">¡Registro completado!</h2>
-                    <p class="success-text">Ya puedes comenzar a enviar dinero a Venezuela de forma rápida y segura.</p>
-                    <button class="btn btn-primary" onclick="irAHome()">Comenzar a enviar</button>
-                </div>
+		function hideAlerts() {
+			errorBox.style.display = 'none';
+			successBox.style.display = 'none';
+			errorBox.textContent = '';
+			successBox.textContent = '';
+		}
 
-                <div class="footer-spacer"></div>
-            </main>
+		function cerrarSesion() {
+			localStorage.removeItem('clienteToken');
+			localStorage.removeItem('clienteData');
+			window.location.href = 'login.html';
+		}
 
-            <!-- Footer -->
-            <footer class="reg-footer" id="regFooter">
-                <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Continuar</button>
-            </footer>
-        </div>
-    </div>
+		function normalizeEmail(usuario = {}) {
+			return (usuario.email || usuario.correo || '').trim().toLowerCase();
+		}
 
-    <script>
-        let currentStep = 1;
-        const totalSteps = 3;
-
-        document.addEventListener('DOMContentLoaded', () => {
-            verificarSesion();
-            cargarDatosGoogle();
-        });
-
-        function verificarSesion() {
-            const token = localStorage.getItem('clienteToken');
-            if (!token) {
-                window.location.href = 'login.html';
-            }
-        }
-
-        function cargarDatosGoogle() {
-            const clienteData = JSON.parse(localStorage.getItem('clienteData') || '{}');
-            
-            if (clienteData.nombre) {
-                const partes = clienteData.nombre.split(' ');
-                if (partes.length >= 2) {
-                    document.getElementById('nombres').value = partes[0];
-                    document.getElementById('apellidos').value = partes.slice(1).join(' ');
-                } else {
-                    document.getElementById('nombres').value = clienteData.nombre;
-                }
-                document.getElementById('welcomeTitle').textContent = `¡Hola, ${partes[0]}!`;
-            }
-        }
-
-        function formatRut(input) {
-            let value = input.value.replace(/[^0-9kK]/g, '');
-            if (value.length > 1) {
-                const dv = value.slice(-1);
-                let body = value.slice(0, -1);
-                body = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-                input.value = body + '-' + dv;
-            }
-        }
-
-        function updateProgress() {
-            document.querySelectorAll('.progress-step').forEach((step, index) => {
-                const stepNum = index + 1;
-                step.classList.remove('active', 'completed');
-                
-                if (stepNum < currentStep) {
-                    step.classList.add('completed');
-                    step.querySelector('.progress-step-dot').textContent = '✓';
-                } else if (stepNum === currentStep) {
-                    step.classList.add('active');
-                    step.querySelector('.progress-step-dot').textContent = stepNum;
-                } else {
-                    step.querySelector('.progress-step-dot').textContent = stepNum;
-                }
-            });
-
-            document.querySelectorAll('.progress-line').forEach((line, index) => {
-                line.classList.toggle('completed', index < currentStep - 1);
-            });
-        }
-
-        function showStep(step) {
-            document.querySelectorAll('.reg-section').forEach(s => s.classList.remove('active'));
-            document.getElementById(`step${step}`).classList.add('active');
-            currentStep = step;
-            updateProgress();
-            updateFooter();
-        }
-
-        function updateFooter() {
-            const btn = document.getElementById('btnNext');
-            if (currentStep === totalSteps) {
-                btn.textContent = 'Completar registro';
-            } else {
-                btn.textContent = 'Continuar';
-            }
-        }
-
-        function validarStep1() {
-            const nombres = document.getElementById('nombres').value.trim();
-            const apellidos = document.getElementById('apellidos').value.trim();
-            const rut = document.getElementById('rut').value.trim();
-            const telefono = document.getElementById('telefono').value.trim();
-            const fechaNacimiento = document.getElementById('fechaNacimiento').value;
-
-            if (!nombres || !apellidos || !rut || !telefono || !fechaNacimiento) {
-                alert('Por favor completa todos los campos obligatorios');
-                return false;
-            }
-
-            if (rut.length < 9) {
-                alert('Ingresa un RUT válido');
-                return false;
-            }
-
-            return true;
-        }
-
-        function validarStep2() {
-            const direccion = document.getElementById('direccion').value.trim();
-            const comuna = document.getElementById('comuna').value.trim();
-            const region = document.getElementById('region').value;
-
-            if (!direccion || !comuna || !region) {
-                alert('Por favor completa todos los campos obligatorios');
-                return false;
-            }
-
-            return true;
-        }
-
-        function validarStep3() {
-            const aceptaTerminos = document.getElementById('aceptaTerminos').checked;
-            const aceptaPrivacidad = document.getElementById('aceptaPrivacidad').checked;
-
-            if (!aceptaTerminos || !aceptaPrivacidad) {
-                alert('Debes aceptar los términos y la política de privacidad para continuar');
-                return false;
-            }
-
-            return true;
-        }
-
-        function nextStep() {
-            if (currentStep === 1 && !validarStep1()) return;
-            if (currentStep === 2 && !validarStep2()) return;
-            if (currentStep === 3 && !validarStep3()) return;
-
-            if (currentStep === totalSteps) {
-                completarRegistro();
-                return;
-            }
-
-            showStep(currentStep + 1);
-        }
-
-        function stepBack() {
-            if (currentStep === 1) {
-                if (confirm('¿Seguro que quieres salir? Perderás los datos ingresados.')) {
-                    cerrarSesion();
-                }
-            } else {
-                showStep(currentStep - 1);
-            }
-        }
-
-        async function completarRegistro() {
-            const token = localStorage.getItem('clienteToken');
-
-            const datos = {
-                nombres: document.getElementById('nombres').value.trim(),
-                apellidos: document.getElementById('apellidos').value.trim(),
-                rut: document.getElementById('rut').value.trim(),
-                telefono: document.getElementById('telefono').value.trim(),
-                fecha_nacimiento: document.getElementById('fechaNacimiento').value,
-                direccion: document.getElementById('direccion').value.trim(),
-                depto: document.getElementById('depto').value.trim(),
-                comuna: document.getElementById('comuna').value.trim(),
-                region: document.getElementById('region').value,
-                acepta_terminos: document.getElementById('aceptaTerminos').checked,
-                acepta_privacidad: document.getElementById('aceptaPrivacidad').checked,
-                acepta_marketing: document.getElementById('aceptaMarketing').checked
-            };
-
-            try {
-                const response = await fetch('/api/cliente/perfil/completar', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(datos)
-                });
-
-                if (response.ok) {
-                    mostrarExito();
-                } else {
-                    const error = await response.json();
-                    alert(error.error || 'Error al completar registro');
-                }
-            } catch (error) {
-                mostrarExito();
-            }
-        }
-
-        function mostrarExito() {
-            document.querySelector('.reg-form').style.display = 'none';
-            document.querySelector('.reg-welcome').style.display = 'none';
-            document.getElementById('successScreen').style.display = 'block';
-            document.getElementById('regFooter').style.display = 'none';
-            document.getElementById('progressBar').style.display = 'none';
-
-            const clienteData = JSON.parse(localStorage.getItem('clienteData') || '{}');
-            clienteData.registro_completo = true;
-            clienteData.nombre = `${document.getElementById('nombres').value} ${document.getElementById('apellidos').value}`;
-            localStorage.setItem('clienteData', JSON.stringify(clienteData));
-        }
-
-        function irAHome() {
-            window.location.href = 'home.html';
-        }
-
-        function verTerminos() {
-            window.open('https://defioracle.cl/terminos', '_blank');
-        }
-
-        function verPrivacidad() {
-            window.open('https://defioracle.cl/privacidad', '_blank');
-        }
-
-        function cerrarSesion() {
-            localStorage.removeItem('clienteToken');
-            localStorage.removeItem('clienteData');
-            window.location.href = 'login.html';
-        }
-    </script>
+		function markRegistroCompleto(email) {
+			if (!email) return;
+			localStorage.setItem(`${REG_KEY_PREFIX}${email}`, 'true');
+		}
+	</script>
 </body>
 </html>
