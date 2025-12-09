@@ -1,0 +1,132 @@
+Iniciando verificación de la estructura de la base de datos...
+SQLite conectado en: database.db
+✅ Tabla actividad_operadores verificada
+✅ Índices de actividad_operadores verificados
+✅ Tabla periodos_pago verificada
+✅ Tabla nomina verificada
+✅ Tabla atencion_rapida verificada
+✅ Índices de nómina verificados
+✅ Tabla clientes_app verificada
+✅ Tabla beneficiarios verificada
+✅ Tabla cuentas_pago verificada
+✅ Tabla solicitudes_transferencia verificada
+✅ Índices de app cliente verificados
+✅ Verificación de base de datos completada.
+🚀 Servidor corriendo en http://localhost:3000
+🤖 Sistema de monitoreo proactivo iniciado (cada 30 segundos)
+🧹 Sistema de limpieza de mensajes iniciado (cada 1 hora)
+📋 Sistema de generación automática de tareas iniciado (cada 24 horas)
+💹 Sistema de monitoreo de tasas P2P iniciado (cada 2 minutos)
+🔍 Ejecutando monitoreo proactivo...
+⏰ Verificando mensajes para master - Fecha local Venezuela: 2025-12-09
+📊 master - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ master - Clientes completos recientes: 0
+📋 Usuario master: 0 mensajes candidatos
+⏰ Verificando mensajes para lian - Fecha local Venezuela: 2025-12-09
+📊 lian - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ lian - Clientes completos recientes: 0
+📋 Usuario lian: 0 mensajes candidatos
+📋 Generando tareas automáticas desde alertas...
+💹 Verificando tasas VES: Manual vs Binance P2P...
+✅ No hay alertas pendientes para crear tareas
+✅ Mejor oferta CLP: 942.5 CLP/USDT
+✅ Mejor oferta VES: 415.3 VES/USDT (Bancamiga)
+📊 Tasa Manual (250K): 0.4200 VES/CLP
+📊 Tasa P2P Ajustada -4%: 0.4230 VES/CLP
+📊 Diferencia: -0.71% | Margen tolerancia: 2%
+✅ Tasas OK: Manual (0.4200) <= P2P (0.4230)
+🔍 Ejecutando monitoreo proactivo...
+⏰ Verificando mensajes para master - Fecha local Venezuela: 2025-12-09
+📊 master - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ master - Clientes completos recientes: 0
+📋 Usuario master: 0 mensajes candidatos
+⏰ Verificando mensajes para lian - Fecha local Venezuela: 2025-12-09
+📊 lian - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ lian - Clientes completos recientes: 0
+📋 Usuario lian: 0 mensajes candidatos
+🔍 Ejecutando monitoreo proactivo...
+⏰ Verificando mensajes para master - Fecha local Venezuela: 2025-12-09
+📊 master - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ master - Clientes completos recientes: 0
+📋 Usuario master: 0 mensajes candidatos
+⏰ Verificando mensajes para lian - Fecha local Venezuela: 2025-12-09
+📊 lian - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ lian - Clientes completos recientes: 0
+📋 Usuario lian: 0 mensajes candidatos
+🔍 Ejecutando monitoreo proactivo...
+⏰ Verificando mensajes para master - Fecha local Venezuela: 2025-12-09
+📊 master - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ master - Clientes completos recientes: 0
+📋 Usuario master: 0 mensajes candidatos
+⏰ Verificando mensajes para lian - Fecha local Venezuela: 2025-12-09
+📊 lian - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ lian - Clientes completos recientes: 0
+📋 Usuario lian: 0 mensajes candidatos
+💹 Verificando tasas VES: Manual vs Binance P2P...
+🔍 Ejecutando monitoreo proactivo...
+⏰ Verificando mensajes para master - Fecha local Venezuela: 2025-12-09
+📊 master - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ master - Clientes completos recientes: 0
+📋 Usuario master: 0 mensajes candidatos
+⏰ Verificando mensajes para lian - Fecha local Venezuela: 2025-12-09
+📊 lian - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ lian - Clientes completos recientes: 0
+📋 Usuario lian: 0 mensajes candidatos
+✅ Mejor oferta CLP: 942.5 CLP/USDT
+✅ Mejor oferta VES: 415.3 VES/USDT (Bancamiga)
+📊 Tasa Manual (250K): 0.4200 VES/CLP
+📊 Tasa P2P Ajustada -4%: 0.4230 VES/CLP
+📊 Diferencia: -0.71% | Margen tolerancia: 2%
+✅ Tasas OK: Manual (0.4200) <= P2P (0.4230)
+🔍 Ejecutando monitoreo proactivo...
+⏰ Verificando mensajes para master - Fecha local Venezuela: 2025-12-09
+📊 master - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ master - Clientes completos recientes: 0
+📋 Usuario master: 0 mensajes candidatos
+⏰ Verificando mensajes para lian - Fecha local Venezuela: 2025-12-09
+📊 lian - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ lian - Clientes completos recientes: 0
+📋 Usuario lian: 0 mensajes candidatos
+🔍 Ejecutando monitoreo proactivo...
+⏰ Verificando mensajes para master - Fecha local Venezuela: 2025-12-09
+📊 master - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ master - Clientes completos recientes: 0
+📋 Usuario master: 0 mensajes candidatos
+⏰ Verificando mensajes para lian - Fecha local Venezuela: 2025-12-09
+📊 lian - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ lian - Clientes completos recientes: 0
+📋 Usuario lian: 0 mensajes candidatos
+🔍 Ejecutando monitoreo proactivo...
+⏰ Verificando mensajes para master - Fecha local Venezuela: 2025-12-09
+📊 master - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ master - Clientes completos recientes: 0
+📋 Usuario master: 0 mensajes candidatos
+⏰ Verificando mensajes para lian - Fecha local Venezuela: 2025-12-09
+📊 lian - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ lian - Clientes completos recientes: 0
+📋 Usuario lian: 0 mensajes candidatos
+💹 Verificando tasas VES: Manual vs Binance P2P...
+🔍 Ejecutando monitoreo proactivo...
+⏰ Verificando mensajes para master - Fecha local Venezuela: 2025-12-09
+📊 master - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ master - Clientes completos recientes: 0
+📋 Usuario master: 0 mensajes candidatos
+⏰ Verificando mensajes para lian - Fecha local Venezuela: 2025-12-09
+📊 lian - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ lian - Clientes completos recientes: 0
+📋 Usuario lian: 0 mensajes candidatos
+✅ Mejor oferta VES: 415.3 VES/USDT (Bancamiga)
+✅ Mejor oferta CLP: 942.5 CLP/USDT
+📊 Tasa Manual (250K): 0.4200 VES/CLP
+📊 Tasa P2P Ajustada -4%: 0.4230 VES/CLP
+📊 Diferencia: -0.71% | Margen tolerancia: 2%
+✅ Tasas OK: Manual (0.4200) <= P2P (0.4230)
+🔍 Ejecutando monitoreo proactivo...
+⏰ Verificando mensajes para master - Fecha local Venezuela: 2025-12-09
+📊 master - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ master - Clientes completos recientes: 0
+📋 Usuario master: 0 mensajes candidatos
+⏰ Verificando mensajes para lian - Fecha local Venezuela: 2025-12-09
+📊 lian - Operaciones hoy (2025-12-09): { total: 0, volumen: null }
+✅ lian - Clientes completos recientes: 0
+📋 Usuario lian: 0 mensajes candidatos
