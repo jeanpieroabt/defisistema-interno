@@ -10,6 +10,7 @@ const session = require('express-session');
 const path = require('path');
 const axios = require('axios');
 const crypto = require('crypto');
+const cors = require('cors');
 
 // Clave secreta para tokens de la app cliente
 const JWT_SECRET = process.env.JWT_SECRET || 'defi-oracle-jwt-secret-key-' + crypto.randomBytes(16).toString('hex');
@@ -124,6 +125,16 @@ process.env.TZ = process.env.TZ || 'America/Caracas';
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('.'));
+// CORS para frontend (localhost y dominios render)
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://defi-app-cliente.onrender.com',
+    'https://def-app-cliente.onrender.com',
+    'https://defisistema-interno.onrender.com'
+];
+app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.options('*', cors());
 app.use(
   session({
     secret: 'defi-oracle-sesion-muy-larga-y-robusta',
