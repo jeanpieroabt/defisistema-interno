@@ -1,1091 +1,1250 @@
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1974CE">
-    <title>Inicio - Defi Oracle</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Defi Oracle - Inicio</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      position: relative;
+      overflow-x: hidden;
+    }
     
-    <!-- Google Fonts - Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script>
-        window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
-    </script>
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1000px;
+      height: 1000px;
+      background-image: url('logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.05;
+      z-index: 0;
+      pointer-events: none;
+    }
     
-    <style>
-        /* ============================================
-           DESIGN TOKENS - FINTECH PREMIUM
-           ============================================ */
-        :root {
-            --primary-blue: #1974CE;
-            --secondary-blue: #D8E2E9;
-            --accent-green: #5C8240;
-            --dark-slate: #211C10;
-            --neutral-gray: #9AA1A1;
-            --light-bg: #E3EAEE;
-            --brand-cyan: #2FC7B8;
-            --white: #FFFFFF;
-
-            --grad-brand-soft: linear-gradient(135deg, rgba(25,116,206,0.10), rgba(47,199,184,0.10));
-            --grad-brand-card: linear-gradient(135deg, #1974CE 0%, #1F7FDB 35%, #2FC7B8 100%);
-            --grad-brand-button: linear-gradient(90deg, #1974CE 0%, #2FC7B8 100%);
-
-            --radius-sm: 10px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 20px;
-            --radius-xxl: 24px;
-
-            --shadow-soft: 0 4px 12px rgba(15, 42, 84, 0.08);
-            --shadow-card: 0 8px 22px rgba(12, 60, 124, 0.12);
-            --shadow-button: 0 10px 18px rgba(25, 116, 206, 0.18);
-            --shadow-button-hover: 0 16px 26px rgba(25, 116, 206, 0.22);
-            --shadow-subtle: 0 2px 8px rgba(17, 38, 78, 0.06);
-
-            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            --font-xs: 11px;
-            --font-sm: 13px;
-            --font-base: 15px;
-            --font-lg: 17px;
-            --font-xl: 20px;
-            --font-2xl: 24px;
-            --font-3xl: 32px;
-            --font-4xl: 40px;
-
-            --space-xs: 4px;
-            --space-sm: 8px;
-            --space-md: 12px;
-            --space-lg: 16px;
-            --space-xl: 20px;
-            --space-2xl: 24px;
-            --space-3xl: 32px;
-            --space-4xl: 40px;
-        }
-
-        /* ============================================
-           BASE STYLES
-           ============================================ */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: var(--font-family);
-            background: var(--grad-brand-soft);
-            color: var(--dark-slate);
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-
-        .app-container {
-            max-width: 480px;
-            margin: 0 auto;
-            min-height: 100vh;
-            background: transparent;
-        }
-
-        .home-container {
-            background: var(--grad-brand-soft);
-        }
-
-        .page {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            padding-bottom: 120px;
-        }
-
-        .brand-banner {
-            display: flex;
-            align-items: center;
-            gap: var(--space-lg);
-            background: rgba(255, 255, 255, 0.92);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: var(--radius-xl);
-            padding: 14px var(--space-xl);
-            box-shadow: var(--shadow-soft);
-            backdrop-filter: blur(12px);
-        }
-
-        .brand-banner-logo {
-            width: 52px;
-            height: 52px;
-            border-radius: var(--radius-full);
-            background: rgba(25, 116, 206, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .brand-banner-logo img {
-            height: 28px;
-            width: auto;
-            display: block;
-        }
-
-        .brand-banner-content {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .brand-banner-title {
-            font-size: var(--font-lg);
-            font-weight: 600;
-            color: var(--dark-slate);
-        }
-
-        .brand-banner-sub {
-            font-size: var(--font-sm);
-            color: var(--neutral-gray);
-        }
-
-        @media (max-width: 420px) {
-            .brand-banner {
-                gap: var(--space-md);
-                padding: 12px 16px;
-            }
-
-            .brand-banner-logo {
-                width: 44px;
-                height: 44px;
-            }
-
-            .brand-banner-logo img {
-                height: 26px;
-            }
-        }
-
-        .defi-avatar {
-            display: inline-block;
-            border-radius: 50%;
-            border: 2px solid var(--secondary-blue);
-            background: linear-gradient(135deg, #FFFFFF 0%, var(--light-bg) 100%);
-            object-fit: contain;
-            overflow: hidden;
-            box-shadow: none;
-        }
-
-        .defi-avatar.with-shadow {
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.10);
-        }
-
-        .avatar-xs { width: 40px; height: 40px; }
-        .avatar-sm { width: 56px; height: 56px; }
-        .avatar-md { width: 80px; height: 80px; }
-        .avatar-lg { width: 120px; height: 120px; }
-        .avatar-xl { width: 160px; height: 160px; }
-
-        /* ============================================
-           MAIN CONTENT
-           ============================================ */
-        .page-content {
-            flex: 1;
-            padding: var(--space-3xl);
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-3xl);
-            background: rgba(255, 255, 255, 0.82);
-            border-radius: var(--radius-xxl);
-            box-shadow: var(--shadow-card);
-            border: 1px solid rgba(255, 255, 255, 0.45);
-            margin: var(--space-2xl);
-            margin-bottom: 0;
-            backdrop-filter: blur(18px);
-        }
-
-        @media (max-width: 420px) {
-            .page-content {
-                margin: var(--space-lg);
-                margin-bottom: 0;
-                padding: var(--space-2xl) var(--space-xl);
-            }
-        }
-
-        /* ============================================
-           RATE CARD
-           ============================================ */
-        .rate-wrapper {
-            background: rgba(255, 255, 255, 0.35);
-            backdrop-filter: blur(6px);
-            border-radius: var(--radius-xl);
-            padding: 10px;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .rate-card {
-            background: var(--grad-brand-card);
-            color: var(--white);
-            border-radius: 16px;
-            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.1);
-            padding: 18px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .rate-card::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(140deg, rgba(255,255,255,0.12), rgba(255,255,255,0));
-            pointer-events: none;
-        }
-
-        .rate-headline {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            position: relative;
-            z-index: 1;
-            margin-bottom: var(--space-lg);
-        }
-
-        .rate-meta {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .rate-label {
-            font-size: var(--font-sm);
-            font-weight: 600;
-            letter-spacing: 0.4px;
-            opacity: 0.92;
-        }
-
-        .rate-updated {
-            font-size: var(--font-xs);
-            opacity: 0.75;
-        }
-
-        .badge-live {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.18);
-            border: 1px solid rgba(255,255,255,0.25);
-            color: var(--white);
-            font-size: var(--font-xs);
-            font-weight: 600;
-        }
-
-        .badge-live .live-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #4ADE80;
-            box-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.65; transform: scale(0.9); }
-        }
-
-        .rate-value {
-            position: relative;
-            z-index: 1;
-        }
-
-        .rate-main {
-            font-size: var(--font-3xl);
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            text-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
-        }
-
-        .rate-main .rate-number {
-            font-variant-numeric: tabular-nums;
-        }
-
-        /* ============================================
-           TRAMOS - Segmented Cards
-           ============================================ */
-        .tramo-section {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-md);
-        }
-
-        .tramo-title {
-            font-size: var(--font-sm);
-            font-weight: 600;
-            color: var(--neutral-gray);
-        }
-
-        .tramo-grid {
-            display: flex;
-            gap: var(--space-sm);
-            flex-wrap: wrap;
-        }
-
-        .tramo-card,
-        .tier-card {
-            flex: 1;
-            min-width: 140px;
-            background: var(--white);
-            border-radius: 12px;
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            padding: var(--space-lg);
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-
-        .tramo-card:hover,
-        .tier-card:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(15, 42, 84, 0.08);
-        }
-
-        .tramo-card.active,
-        .tier-card.active {
-            border: 2px solid var(--primary-blue);
-            box-shadow: 0 0 0 3px rgba(25, 116, 206, 0.12);
-        }
-
-        .tramo-amount,
-        .tier-amount {
-            font-size: var(--font-lg);
-            font-weight: 700;
-            color: var(--dark-slate);
-            margin-bottom: 4px;
-        }
-
-        .tramo-card.active .tramo-amount,
-        .tier-card.active .tier-amount {
-            color: var(--primary-blue);
-        }
-
-        .tramo-rate,
-        .tier-rate {
-            font-size: var(--font-xs);
-            font-weight: 600;
-            color: var(--primary-blue);
-        }
-
-        /* ============================================
-           PRIMARY CTA BUTTON - Premium Style
-           ============================================ */
-        .primary-cta-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: var(--space-sm);
-        }
-
-        .btn-primary {
-            width: 100%;
-            height: 58px;
-            background: var(--grad-brand-button);
-            color: var(--white);
-            border-radius: 14px;
-            border: none;
-            font-size: var(--font-lg);
-            font-weight: 600;
-            font-family: var(--font-family);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-sm);
-            box-shadow: var(--shadow-button);
-            transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .btn-primary:hover {
-            filter: brightness(1.03);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-button-hover);
-        }
-
-        .btn-primary:active {
-            transform: translateY(0);
-            filter: brightness(0.98);
-        }
-
-        .btn-primary svg {
-            width: 22px;
-            height: 22px;
-        }
-
-        .cta-helper-text {
-            font-size: var(--font-xs);
-            color: var(--neutral-gray);
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .cta-helper-text svg {
-            width: 12px;
-            height: 12px;
-        }
-
-        /* ============================================
-           RECENT TRANSFERS LIST
-           ============================================ */
-        .recent-transfers-section {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-lg);
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .section-title {
-            font-size: var(--font-base);
-            font-weight: 700;
-            color: var(--dark-slate);
-        }
-
-        .section-link {
-            font-size: var(--font-sm);
-            font-weight: 600;
-            color: var(--primary-blue);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            transition: opacity 0.2s;
-        }
-
-        .section-link:hover {
-            opacity: 0.8;
-        }
-
-        .section-link svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        .transfers-list {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-sm);
-        }
-
-        .last-send-card {
-            background: var(--white);
-            border-radius: 14px;
-            border: 1px solid rgba(0, 0, 0, 0.04);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
-            padding: var(--space-lg);
-            display: flex;
-            align-items: center;
-            gap: var(--space-md);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            cursor: pointer;
-        }
-
-        .last-send-card:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 20px rgba(17, 42, 84, 0.08);
-        }
-
-        .last-avatar {
-            width: 46px;
-            height: 46px;
-            border-radius: 14px;
-            background: rgba(25, 116, 206, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            color: var(--primary-blue);
-        }
-
-        .last-info {
-            flex: 1;
-            min-width: 0;
-            display: grid;
-            gap: 4px;
-        }
-
-        .last-name {
-            font-weight: 600;
-            font-size: var(--font-base);
-            color: var(--dark-slate);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .last-meta {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: var(--font-xs);
-            color: var(--neutral-gray);
-        }
-
-        .micro-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 8px;
-            border-radius: 999px;
-            font-size: 10px;
-            font-weight: 600;
-        }
-
-        .micro-badge svg {
-            width: 10px;
-            height: 10px;
-        }
-
-        .micro-badge.success {
-            background: rgba(92, 130, 64, 0.16);
-            color: var(--accent-green);
-        }
-
-        .micro-badge.info {
-            background: rgba(25, 116, 206, 0.12);
-            color: var(--primary-blue);
-        }
-
-        .micro-badge.alert {
-            background: rgba(220, 53, 69, 0.12);
-            color: #DC3545;
-        }
-
-        .last-amounts {
-            text-align: right;
-            display: grid;
-            gap: 4px;
-            flex-shrink: 0;
-        }
-
-        .last-clp {
-            font-weight: 700;
-            font-size: var(--font-base);
-            color: var(--dark-slate);
-        }
-
-        .last-ves {
-            font-size: var(--font-xs);
-            color: var(--neutral-gray);
-            font-weight: 500;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: var(--space-4xl) var(--space-2xl);
-            background: var(--bg-white);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-subtle);
-        }
-
-        .empty-icon {
-            width: 64px;
-            height: 64px;
-            background: var(--secondary-blue);
-            border-radius: var(--radius-full);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto var(--space-lg);
-        }
-
-        .empty-icon svg {
-            width: 32px;
-            height: 32px;
-            color: var(--primary-blue);
-        }
-
-        .empty-title {
-            font-weight: 700;
-            font-size: var(--font-lg);
-            color: var(--dark-slate);
-            margin-bottom: var(--space-xs);
-        }
-
-        .empty-text {
-            color: var(--neutral-gray);
-            font-size: var(--font-sm);
-        }
-
-        /* ============================================
-           BOTTOM NAVIGATION - Glass Nav 2025
-           ============================================ */
-        .glass-nav {
-            position: fixed;
-            bottom: 18px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: calc(100% - 36px);
-            max-width: 420px;
-            padding: 14px 18px;
-            padding-bottom: calc(14px + env(safe-area-inset-bottom, 0));
-            border-radius: 22px;
-            background: rgba(255, 255, 255, 0.96);
-            backdrop-filter: blur(18px);
-            border: 1px solid rgba(255, 255, 255, 0.65);
-            box-shadow: 0 18px 36px rgba(20, 52, 102, 0.12);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            z-index: 120;
-        }
-
-        @media (max-width: 520px) {
-            .glass-nav {
-                bottom: clamp(12px, env(safe-area-inset-bottom, 0) + 6px, 20px);
-                width: calc(100% - 24px);
-                padding: 12px 14px;
-            }
-        }
-
-        .glass-nav-item {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            text-decoration: none;
-            color: #7E8A9D;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 4px 6px;
-            min-width: 56px;
-            transition: color 0.25s ease;
-        }
-
-        .glass-nav-item .icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: inherit;
-            background: transparent;
-            transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease, transform 0.25s ease;
-        }
-
-        .glass-nav-item .icon svg {
-            width: 20px;
-            height: 20px;
-            stroke-width: 1.7;
-        }
-
-        .glass-nav-item .label {
-            font-size: 11px;
-            letter-spacing: 0.25px;
-            color: inherit;
-        }
-
-        .glass-nav-item:hover:not(.active) {
-            color: var(--primary-blue);
-        }
-
-        .glass-nav-item:hover:not(.active) .icon {
-            color: var(--primary-blue);
-        }
-
-        .glass-nav-item.active {
-            color: var(--primary-blue);
-        }
-
-        .glass-nav-item.active .icon {
-            color: var(--white);
-            background: linear-gradient(120deg, var(--primary-blue) 0%, var(--brand-cyan) 100%);
-            box-shadow: 0 10px 22px rgba(25, 116, 206, 0.22);
-        }
-
-        .glass-nav-item.active .label {
-            color: var(--primary-blue);
-            text-shadow: 0 2px 6px rgba(25, 116, 206, 0.18);
-        }
-
-        .glass-nav-fab {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            text-decoration: none;
-            color: var(--primary-blue);
-            transform: translateY(-12px);
-        }
-
-        .glass-nav-fab-button {
-            width: 60px;
-            height: 60px;
-            border-radius: 30px;
-            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--brand-cyan) 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 20px 36px rgba(25, 116, 206, 0.26);
-            border: 3px solid rgba(255, 255, 255, 0.92);
-            transition: transform 0.25s ease, box-shadow 0.25s ease;
-        }
-
-        .glass-nav-fab-button svg {
-            width: 26px;
-            height: 26px;
-            color: #FFFFFF;
-            stroke-width: 1.8;
-        }
-
-        .glass-nav-fab-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 24px 40px rgba(25, 116, 206, 0.30);
-        }
-
-        .glass-nav-fab .label {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.25px;
-            color: var(--primary-blue);
-        }
-
-        /* ============================================
-           ANIMATIONS
-           ============================================ */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .animate-in {
-            animation: fadeInUp 0.5s ease-out forwards;
-        }
-
-        .delay-1 { animation-delay: 0.1s; }
-        .delay-2 { animation-delay: 0.2s; }
-        .delay-3 { animation-delay: 0.3s; }
-        .delay-4 { animation-delay: 0.4s; }
-    </style>
+    .home-container {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .home-header {
+      text-align: center;
+      color: white;
+      margin-bottom: 3rem;
+      padding: 2rem 0;
+    }
+    
+    .home-header img {
+      height: 80px;
+      width: auto;
+      margin-bottom: 1rem;
+      filter: brightness(0) invert(1);
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .home-header h1 {
+      margin: 0;
+      font-size: 3rem;
+      font-weight: 800;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      letter-spacing: -1px;
+    }
+    
+    .home-header p {
+      margin: 0.5rem 0 0 0;
+      font-size: 1.2rem;
+      opacity: 0.95;
+      font-weight: 500;
+    }
+    
+    .rendimiento-card {
+      background: rgba(255,255,255,0.95);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      display: none;
+    }
+    
+    .rendimiento-card h2 {
+      margin: 0 0 1.5rem 0;
+      color: #2D8CDB;
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .rendimiento-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    
+    .rendimiento-item {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      padding: 1.5rem;
+      border-radius: 12px;
+      text-align: center;
+    }
+    
+    .rendimiento-item .label {
+      font-size: 0.85rem;
+      color: #6c757d;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .rendimiento-item .value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #2D8CDB;
+      margin: 0;
+    }
+    
+    .rendimiento-item.highlight .value {
+      color: #2EC7A3;
+      font-size: 2.2rem;
+    }
+    
+    .user-info {
+      position: absolute;
+      top: 2rem;
+      right: 2rem;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      padding: 1rem 1.5rem;
+      border-radius: 50px;
+      color: white;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    
+    .notif-bell {
+      position: relative;
+      cursor: pointer;
+      font-size: 1.5rem;
+      padding: 0.3rem;
+      transition: transform 0.2s;
+    }
+    
+    .notif-bell:hover {
+      transform: scale(1.1);
+    }
+    
+    .notif-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #dc3545;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    
+    .user-info button {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    
+    .user-info button:hover {
+      background: rgba(255,255,255,0.3);
+      transform: scale(1.05);
+    }
+    
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    
+    .module-card {
+      background: white;
+      border-radius: 20px;
+      padding: 2.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .module-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      transform: scaleX(0);
+      transition: transform 0.3s;
+    }
+    
+    .module-card:hover::before {
+      transform: scaleX(1);
+    }
+    
+    .module-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 20px 60px rgba(45, 140, 219, 0.3);
+    }
+    
+    .module-icon {
+      font-size: 4rem;
+      margin-bottom: 0.5rem;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.1));
+    }
+    
+    .module-card h3 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1f2937;
+    }
+    
+    .module-card p {
+      margin: 0;
+      color: #6b7280;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    
+    .module-badge {
+      background: linear-gradient(135deg, #2D8CDB 0%, #1E73C7 100%);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .master-only {
+      border: 2px solid #fbbf24;
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    }
+    
+    .master-only .module-badge {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+    
+    /* Chatbot Proactivo Styles */
+    .chatbot-bubble {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 65px;
+      height: 65px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      z-index: 999;
+      transition: all 0.3s ease;
+      animation: bounce 2s infinite;
+    }
+
+    .chatbot-bubble:hover {
+      transform: scale(1.1);
+      box-shadow: 0 12px 40px rgba(102, 126, 234, 0.6);
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-10px); }
+      60% { transform: translateY(-5px); }
+    }
+
+    .chatbot-icon {
+      font-size: 32px;
+    }
+
+    .notification-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #ff4757;
+      color: white;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      border: 3px solid white;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+
+    /* Burbuja de pensamiento */
+    .chatbot-thought-bubble {
+      position: fixed;
+      bottom: 110px;
+      right: 30px;
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      max-width: 320px;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+      z-index: 998;
+      opacity: 0;
+      transform: translateY(20px) scale(0.9);
+      transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      pointer-events: none;
+    }
+
+    .chatbot-thought-bubble.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: all;
+    }
+
+    .chatbot-thought-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      right: 25px;
+      width: 0;
+      height: 0;
+      border-left: 15px solid transparent;
+      border-right: 15px solid transparent;
+      border-top: 15px solid white;
+    }
+
+    .thought-bubble-content {
+      font-size: 14px;
+      color: #2c3e50;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .thought-bubble-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .thought-bubble-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .thought-bubble-btn.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .thought-bubble-btn.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .thought-bubble-btn.secondary {
+      background: #f1f2f6;
+      color: #57606f;
+    }
+
+    .thought-bubble-btn.secondary:hover {
+      background: #dfe4ea;
+    }
+    /* Ventana del chatbot */
+    .chatbot-window {
+      position: fixed;
+      bottom: 120px;
+      right: 30px;
+      width: 400px;
+      height: 600px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+      display: none;
+      flex-direction: column;
+      z-index: 1000;
+      overflow: hidden;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    .chatbot-window.open {
+      display: flex;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .chatbot-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chatbot-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .chatbot-avatar {
+      width: 45px;
+      height: 45px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .chatbot-info h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .chatbot-info p {
+      margin: 0;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .chatbot-close {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .chatbot-close:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    .chatbot-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      background: #f8f9fa;
+    }
+
+    .chat-message {
+      margin-bottom: 16px;
+      display: flex;
+      gap: 10px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .chat-message.user {
+      flex-direction: row-reverse;
+    }
+
+    .chat-message-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .chat-message.bot .chat-message-avatar {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .chat-message.user .chat-message-avatar {
+      background: #3498db;
+      color: white;
+    }
+
+    .chat-message-content {
+      max-width: 75%;
+    }
+
+    .chat-message-bubble {
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+
+    .chat-message.bot .chat-message-bubble {
+      background: white;
+      border: 1px solid #e1e8ed;
+      border-radius: 16px 16px 16px 4px;
+    }
+
+    .chat-message.user .chat-message-bubble {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 16px 16px 4px 16px;
+    }
+
+    .chat-message-time {
+      font-size: 11px;
+      color: #95a5a6;
+      margin-top: 4px;
+      padding: 0 4px;
+    }
+
+    .chatbot-typing {
+      display: flex;
+      gap: 4px;
+      padding: 12px 16px;
+      background: white;
+      border-radius: 16px;
+      width: fit-content;
+      border: 1px solid #e1e8ed;
+    }
+
+    .typing-dot {
+      width: 8px;
+      height: 8px;
+      background: #95a5a6;
+      border-radius: 50%;
+      animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-10px); }
+    }
+
+    .chatbot-input-area {
+      padding: 16px;
+      border-top: 1px solid #e1e8ed;
+      background: white;
+    }
+
+    .chatbot-input-wrapper {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .chatbot-input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #e1e8ed;
+      border-radius: 24px;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .chatbot-input:focus {
+      border-color: #667eea;
+    }
+
+    .chatbot-send-btn {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      padding: 0;
+    }
+
+    .chatbot-send-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .chatbot-send-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: white;
+    }
+
+    @media (max-width: 768px) {
+      .chatbot-window {
+        width: calc(100vw - 40px);
+        height: 70vh;
+        right: 0;
+        left: 20px;
+      }
+      
+      .home-container {
+        padding: 1rem;
+      }
+      
+      .user-info {
+        position: relative;
+        top: auto;
+        right: auto;
+        margin: 0 0 1rem 0;
+        justify-content: center;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+      }
+      
+      .home-header img {
+        height: 60px;
+      }
+      
+      .home-header h1 {
+        font-size: 2rem;
+      }
+      
+      .home-header p {
+        font-size: 1rem;
+      }
+      
+      .modules-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+      
+      .module-card {
+        padding: 2rem 1.5rem;
+      }
+      
+      .module-icon {
+        font-size: 3rem;
+      }
+      
+      .module-card h3 {
+        font-size: 1.3rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="app-container home-container">
-        <div class="page">
-            <!-- Main Content -->
-            <main class="page-content">
-                
-                <!-- Brand Banner -->
-                <div class="brand-banner animate-in">
-                    <div class="brand-banner-logo">
-                        <img src="./assets/letra%202Recurso%2015@2x.png" alt="DefiOracle logo">
-                    </div>
-                    <div class="brand-banner-content">
-                        <p class="brand-banner-title">Tu envío rápido y seguro</p>
-                        <p class="brand-banner-sub">Tasa clara, sin sorpresas.</p>
-                    </div>
-                </div>
-
-                <!-- Rate Card -->
-                <div class="rate-wrapper animate-in">
-                    <div class="rate-card">
-                        <div class="rate-headline">
-                            <div class="rate-meta">
-                                <span class="rate-label">Tasa CLP → VES</span>
-                            </div>
-                            <span class="badge-live">
-                                <span class="live-dot"></span>
-                                En vivo
-                            </span>
-                        </div>
-                        <div class="rate-value">
-                            <span class="rate-main">1 CLP = <span class="rate-number" id="rateValue">0.00</span> VES</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tramo Selector -->
-                <div class="tramo-section animate-in delay-1">
-                    <p class="tramo-title">Tramos aplicados</p>
-                    <div class="tramo-grid" id="tierContainer">
-                        <div class="tier-card tramo-card" data-min="5000" data-tasa="">
-                            <span class="tramo-amount">Desde 5.000 CLP</span>
-                            <span class="tramo-rate" id="rate1">-</span>
-                        </div>
-                        <div class="tier-card tramo-card" data-min="100000" data-tasa="">
-                            <span class="tramo-amount">Desde 100.000 CLP</span>
-                            <span class="tramo-rate" id="rate2">-</span>
-                        </div>
-                        <div class="tier-card tramo-card active" data-min="250000" data-tasa="">
-                            <span class="tramo-amount">Desde 250.000 CLP</span>
-                            <span class="tramo-rate" id="rate3">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Primary CTA -->
-                <div class="primary-cta-section animate-in delay-2">
-                    <button class="btn-primary" onclick="irAEnviar()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="22" y1="2" x2="11" y2="13"></line>
-                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                        </svg>
-                        Enviar ahora
-                    </button>
-                    <p class="cta-helper-text">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                        </svg>
-                        Envíos rápidos y seguros
-                    </p>
-                </div>
-
-                <!-- Recent Transfers -->
-                <section class="recent-transfers-section animate-in delay-3">
-                    <div class="section-header">
-                        <h2 class="section-title">Últimos envíos</h2>
-                        <a href="historico.html" class="section-link">
-                            Ver todo
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                        </a>
-                    </div>
-
-                    <div class="transfers-list" id="historyList"></div>
-
-                    <div class="empty-state" id="emptyHistory" style="display: none;">
-                        <div class="empty-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                            </svg>
-                        </div>
-                        <p class="empty-title">Sin envíos aún</p>
-                        <p class="empty-text">Realiza tu primer envío a Venezuela</p>
-                    </div>
-                </section>
-
-            </main>
-
-            <!-- Tab Bar -->
-            <nav class="glass-nav">
-                <a href="home.html" class="glass-nav-item active">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                        </svg>
-                    </span>
-                    <span class="label">Inicio</span>
-                </a>
-                <a href="destinatarios.html" class="glass-nav-item">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                    </span>
-                    <span class="label">Destinatarios</span>
-                </a>
-                <a href="enviar.html" class="glass-nav-fab">
-                    <div class="glass-nav-fab-button">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="22" y1="2" x2="11" y2="13"></line>
-                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                        </svg>
-                    </div>
-                    <span class="label">Enviar</span>
-                </a>
-                <a href="soporte.html" class="glass-nav-item">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                    </span>
-                    <span class="label">Soporte</span>
-                </a>
-                <a href="perfil.html" class="glass-nav-item">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="12" cy="7" r="4"></circle>
-                        </svg>
-                    </span>
-                    <span class="label">Perfil</span>
-                </a>
-            </nav>
-        </div>
+  <div class="home-container">
+    <div class="user-info">
+      <div class="notif-bell" onclick="window.location.href='tareas.html'" title="Ver notificaciones y tareas">
+        🔔
+        <span class="notif-badge" id="notifCount" style="display: none;">0</span>
+      </div>
+      <span id="userDisplay">👤 Usuario</span>
+      <button onclick="logout()">Cerrar Sesión</button>
     </div>
+    
+    <div class="home-header">
+      <img src="logo.png" alt="Defi Oracle Logo">
+      <h1>Defi Oracle</h1>
+      <p>Sistema de Gestión de Envíos y Control Financiero</p>
+    </div>
+    
+    <!-- Rendimiento del Operador -->
+    <div class="rendimiento-card" id="rendimientoOperador">
+      <h2>📈 Mi Rendimiento del Mes</h2>
+      <div class="rendimiento-grid">
+        <div class="rendimiento-item">
+          <div class="label">Operaciones</div>
+          <div class="value" id="miTotalOps">0</div>
+        </div>
+        <div class="rendimiento-item">
+          <div class="label">Millones CLP</div>
+          <div class="value" id="miMillones">0</div>
+        </div>
+        <div class="rendimiento-item highlight">
+          <div class="label">Comisión USD</div>
+          <div class="value" id="miComision">$0</div>
+        </div>
+        <div class="rendimiento-item">
+          <div class="label">Clientes Únicos</div>
+          <div class="value" id="miClientes">0</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modules-grid">
+      <!-- Registro de Envíos -->
+      <a href="app.html" class="module-card">
+        <div class="module-icon">📦</div>
+        <h3>Registro de Envíos</h3>
+        <p>Registra nuevas operaciones de envío y consulta el historial del día</p>
+      </a>
+      
+      <!-- Gestión de Clientes -->
+      <a href="clientes.html" class="module-card">
+        <div class="module-icon">👥</div>
+        <h3>Gestión de Clientes</h3>
+        <p>Administra tu base de clientes, detecta duplicados y fusiona registros</p>
+      </a>
+      
+      <!-- Histórico de Envíos -->
+      <a href="historico.html" class="module-card">
+        <div class="module-icon">📊</div>
+        <h3>Histórico de Envíos</h3>
+        <p>Consulta el historial completo de envíos con filtros avanzados</p>
+      </a>
+      
+      <!-- Tareas y Notificaciones -->
+      <a href="tareas.html" class="module-card">
+        <div class="module-icon">✓</div>
+        <h3>Gestión de Tareas</h3>
+        <p>Administra tareas asignadas, actualiza estados y recibe notificaciones</p>
+      </a>
+      
+      <!-- P2P Tasas VES/CLP -->
+      <a href="p2p.html" class="module-card">
+        <div class="module-icon">💱</div>
+        <h3>Tasas de Envío a los Países</h3>
+        <p>Consulta tasas en tiempo real de Binance P2P con ajustes automáticos</p>
+      </a>
+      
+      <!-- Calculadora de Conversión -->
+      <a href="calculadora.html" class="module-card">
+        <div class="module-icon">🧮</div>
+        <h3>Calculadora de Conversión</h3>
+        <p>Calcula envíos CLP a cualquier moneda o viceversa con tasas manuales</p>
+      </a>
+      
+      <!-- Dashboard en Tiempo Real (Master) -->
+      <a href="dashboard.html" class="module-card master-only" id="dashboardCard" style="display:none">
+        <div class="module-icon">⚡</div>
+        <span class="module-badge">Master</span>
+        <h3>Dashboard en Tiempo Real</h3>
+        <p>Métricas financieras, tasas, capital e inventario actualizado</p>
+      </a>
+      
+      <!-- Analytics de Clientes (Master) -->
+      <a href="analytics.html" class="module-card master-only" id="analyticsCard" style="display:none">
+        <div class="module-icon">📈</div>
+        <span class="module-badge">Master</span>
+        <h3>Analytics de Clientes</h3>
+        <p>Análisis de comportamiento, alertas y métricas de rendimiento</p>
+      </a>
 
-    <script>
-        // Permite configurar el backend en despliegue (window.API_BASE_URL) si no es el mismo dominio.
-        const API_BASE = window.API_BASE_URL || '';
+      <!-- Análisis de Crecimiento (Master) -->
+      <a href="crecimiento.html" class="module-card master-only" id="crecimientoCard" style="display:none">
+        <div class="module-icon">📊</div>
+        <span class="module-badge">Master</span>
+        <h3>Análisis de Crecimiento</h3>
+        <p>Compara métricas día a día vs. mes anterior</p>
+      </a>
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const token = localStorage.getItem('clienteToken');
-            if (!token) {
-                window.location.href = 'login.html';
-                return;
-            }
+      <!-- Monitoreo de Actividad (Master) -->
+      <a href="monitoreo.html" class="module-card master-only" id="monitoreoCard" style="display:none">
+        <div class="module-icon">👥</div>
+        <span class="module-badge">Master</span>
+        <h3>Monitoreo de Actividad</h3>
+        <p>Seguimiento de horas online y productividad de operadores</p>
+      </a>
 
-            try {
-                const response = await fetch(`${API_BASE}/api/cliente/auth/verificar`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+      <!-- Nómina (Master) -->
+      <a href="nomina.html" class="module-card master-only" id="nominaCard" style="display:none">
+        <div class="module-icon">💰</div>
+        <span class="module-badge">Master</span>
+        <h3>Nómina Quincenal</h3>
+        <p>Gestión de pagos, bonos y comisiones por quincena</p>
+      </a>
+      
+      <!-- Administración (Master) -->
+      <a href="admin.html" class="module-card master-only" id="adminCard" style="display:none">
+        <div class="module-icon">⚙️</div>
+        <span class="module-badge">Master</span>
+        <h3>Administración</h3>
+        <p>Gestión de operadores, compras, metas y configuración del sistema</p>
+      </a>
+    </div>
+  </div>
 
-                if (!response.ok) {
-                    throw new Error('Sesión inválida');
-                }
+  <!-- Chatbot Proactivo -->
+  <div class="chatbot-bubble" onclick="toggleChatbot()">
+    <div class="chatbot-icon">🤖</div>
+    <span class="notification-badge" id="chatbotNotifBadge" style="display: none;">0</span>
+  </div>
 
-                const data = await response.json();
-                cargarDatosUsuario(data.usuario);
-                cargarTasa();
-                cargarHistorial();
+  <!-- Burbuja de pensamiento inicial -->
+  <div class="chatbot-thought-bubble" id="chatbotThoughtBubble">
+    <div class="thought-bubble-content" id="thoughtBubbleContent">
+      👋 ¡Hola! Aquí estoy contigo. ¿Quieres que te cuente las novedades?
+    </div>
+    <div class="thought-bubble-actions">
+      <button class="thought-bubble-btn primary" onclick="openChatbotWithGreeting()">Sí, dime 💬</button>
+      <button class="thought-bubble-btn secondary" onclick="dismissThoughtBubble()">Ahora no</button>
+    </div>
+  </div>
 
-            } catch (error) {
-                console.error('Error:', error);
-                localStorage.removeItem('clienteToken');
-                window.location.href = 'login.html';
-            }
-        });
+  <!-- Ventana del chatbot -->
+  <div class="chatbot-window" id="chatbotWindow">
+    <div class="chatbot-header">
+      <div class="chatbot-header-left">
+        <div class="chatbot-avatar">🤖</div>
+        <div class="chatbot-info">
+          <h3>Asistente Defi Oracle</h3>
+          <p>En línea</p>
+        </div>
+      </div>
+      <button class="chatbot-close" onclick="toggleChatbot()">×</button>
+    </div>
+    
+    <div class="chatbot-messages" id="chatbotMessages">
+      <!-- Mensajes se cargan aquí -->
+    </div>
+    
+    <div class="chatbot-input-area">
+      <div class="chatbot-input-wrapper">
+        <input 
+          type="text" 
+          class="chatbot-input" 
+          id="chatbotInput" 
+          placeholder="Escribe tu mensaje..."
+          onkeypress="if(event.key==='Enter') sendChatMessage()"
+        >
+        <button class="chatbot-send-btn" id="chatbotSendBtn" onclick="sendChatMessage()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
 
-        function cargarDatosUsuario(usuario) {
-            const nameEl = document.getElementById('userName');
-            const avatarEl = document.getElementById('userAvatar');
-            const greetingEl = document.getElementById('greetingTime');
-            if (!nameEl && !avatarEl && !greetingEl) return;
-
-            const nombre = usuario.nombre.split(' ')[0];
-            if (nameEl) nameEl.textContent = nombre;
-            if (avatarEl) avatarEl.textContent = nombre.charAt(0).toUpperCase();
-
-            if (greetingEl) {
-                const hora = new Date().getHours();
-                let saludo = 'Buenas noches';
-                if (hora >= 5 && hora < 12) saludo = 'Buenos días';
-                else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes';
-                greetingEl.textContent = saludo;
-            }
+  <script>
+    let user = {};
+    let chatbotOpen = false;
+    let thoughtBubbleShown = false;
+    let mensajesProactivosMostrados = new Set();
+    let mensajeProactivoActual = null;
+    let notificacionesActuales = [];
+    
+    async function fetchUser() {
+      try {
+        const r = await fetch('/api/user-info');
+        if (!r.ok) {
+          location.href = '/login.html';
+          return null;
         }
-
-        async function cargarTasa() {
-            try {
-                const response = await fetch(`${API_BASE}/api/cliente/tasa`);
-                const data = await response.json();
-                
-                const tasaDefault = data.tramos[2]?.tasa || data.tasaDefecto || 0;
-                document.getElementById('rateValue').textContent = tasaDefault.toFixed(4);
-                
-                if (data.tramos && data.tramos.length >= 3) {
-                    document.getElementById('rate1').textContent = data.tramos[0].tasa.toFixed(4);
-                    document.getElementById('rate2').textContent = data.tramos[1].tasa.toFixed(4);
-                    document.getElementById('rate3').textContent = data.tramos[2].tasa.toFixed(4);
-                    
-                    const cards = document.querySelectorAll('.tier-card');
-                    cards[0].dataset.tasa = data.tramos[0].tasa;
-                    cards[1].dataset.tasa = data.tramos[1].tasa;
-                    cards[2].dataset.tasa = data.tramos[2].tasa;
-                }
-                
-            } catch (error) {
-                console.error('Error cargando tasa:', error);
-                document.getElementById('rateValue').textContent = '---';
-            }
+        user = await r.json();
+        return user;
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        location.href = '/login.html';
+        return null;
+      }
+    }
+    
+    async function cargarMiRendimiento() {
+      try {
+        const r = await fetch('/api/mi-rendimiento');
+        if (!r.ok) return;
+        
+        const data = await r.json();
+        
+        // Actualizar valores
+        document.getElementById('miTotalOps').textContent = data.total_operaciones;
+        document.getElementById('miMillones').textContent = data.millones_comisionables;
+        document.getElementById('miComision').textContent = `$${data.bonificacion_usd} USD`;
+        document.getElementById('miClientes').textContent = data.clientes_unicos;
+        
+        // Mostrar la tarjeta
+        document.getElementById('rendimientoOperador').style.display = 'block';
+      } catch (error) {
+        console.error('Error cargando rendimiento:', error);
+      }
+    }
+    
+    function logout() {
+      if (confirm('¿Cerrar sesión?')) {
+        location.href = '/logout';
+      }
+    }
+    
+    (async () => {
+      await fetchUser();
+      if (!user) return;
+      
+      document.getElementById('userDisplay').textContent = `👤 ${user.username} (${user.role === 'master' ? 'Master' : 'Operador'})`;
+      
+      // Mostrar módulos de Master
+      if (user.role === 'master') {
+        document.getElementById('dashboardCard').style.display = 'flex';
+        document.getElementById('analyticsCard').style.display = 'flex';
+        document.getElementById('crecimientoCard').style.display = 'flex';
+        document.getElementById('monitoreoCard').style.display = 'flex';
+        document.getElementById('nominaCard').style.display = 'flex';
+        document.getElementById('adminCard').style.display = 'flex';
+      }
+      
+      // Cargar rendimiento para operadores (no master)
+      if (user.role !== 'master') {
+        await cargarMiRendimiento();
+      }
+      
+      // Cargar notificaciones
+      cargarNotificaciones();
+      setInterval(cargarNotificaciones, 30000);
+      
+      // Actualizar notificaciones cuando la página se vuelve visible
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          cargarNotificaciones();
         }
-
-        document.querySelectorAll('.tier-card').forEach(card => {
-            card.addEventListener('click', function() {
-                document.querySelectorAll('.tier-card').forEach(c => c.classList.remove('active'));
-                this.classList.add('active');
-                
-                const tasa = parseFloat(this.dataset.tasa);
-                if (tasa) {
-                    document.getElementById('rateValue').textContent = tasa.toFixed(4);
-                }
-            });
-        });
-
-        function cargarHistorial() {
-            const historial = [
-                { id: 1, nombre: 'María García', initials: 'MG', clp: 150000, ves: 6750, status: 'delivered' },
-                { id: 2, nombre: 'Carlos López', initials: 'CL', clp: 100000, ves: 4500, status: 'in-progress' },
-                { id: 3, nombre: 'Ana Martínez', initials: 'AM', clp: 250000, ves: 11250, status: 'delivered' }
-            ];
-
-            const container = document.getElementById('historyList');
-            const emptyState = document.getElementById('emptyHistory');
-
-            if (historial.length === 0) {
-                container.innerHTML = '';
-                emptyState.style.display = 'block';
-                return;
-            }
-
-            emptyState.style.display = 'none';
-            container.innerHTML = historial.map(item => `
-                <div class="last-send-card" onclick="verDetalle(${item.id})">
-                    <div class="last-avatar">${item.initials}</div>
-                    <div class="last-info">
-                        <span class="last-name">${item.nombre}</span>
-                        <div class="last-meta">
-                            ${getStatusChip(item.status)}
-                            <span>${new Date().toLocaleDateString('es-CL')}</span>
-                        </div>
-                    </div>
-                    <div class="last-amounts">
-                        <span class="last-clp">$${item.clp.toLocaleString('es-CL')}</span>
-                        <span class="last-ves">${item.ves.toLocaleString('es-VE')} VES</span>
-                    </div>
-                </div>
-            `).join('');
+      });
+    })();
+    
+    async function cargarNotificaciones() {
+      try {
+        const response = await fetch('/api/notificaciones/contador');
+        const data = await response.json();
+        const badge = document.getElementById('notifCount');
+        
+        if (data.count > 0) {
+          badge.textContent = data.count > 9 ? '9+' : data.count;
+          badge.style.display = 'flex';
+        } else {
+          badge.style.display = 'none';
         }
+      } catch (error) {
+        console.error('Error cargando notificaciones:', error);
+      }
+    }
+    
+    // Chatbot Proactivo - Inicializar al cargar la página
+    window.addEventListener('load', async () => {
+      // Esperar 3 segundos antes de la primera verificación
+      setTimeout(async () => {
+        await checkProactiveMessages();
+      }, 3000);
+      
+      // Revisar mensajes proactivos cada 30 segundos
+      setInterval(checkProactiveMessages, 30 * 1000);
+    });
 
-        function getStatusChip(status) {
-            const statusConfig = {
-                'delivered': {
-                    label: 'Entregado',
-                    class: 'micro-badge success',
-                    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>'
-                },
-                'in-progress': {
-                    label: 'En curso',
-                    class: 'micro-badge info',
-                    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
-                },
-                'cancelled': {
-                    label: 'Cancelado',
-                    class: 'micro-badge alert',
-                    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
-                }
-            };
+    async function checkProactiveMessages() {
+      try {
+        console.log('🔍 Verificando mensajes proactivos...');
+        // Primero verificar mensajes proactivos generados por el sistema
+        const proactiveResponse = await fetch('/api/chatbot/mensajes-proactivos');
+        const proactiveData = await proactiveResponse.json();
+        console.log('📨 Respuesta API:', proactiveData);
+        
+        if (proactiveData.mensajes && proactiveData.mensajes.length > 0) {
+          console.log(`✅ ${proactiveData.mensajes.length} mensajes encontrados`);
+          // Hay mensajes proactivos nuevos
+          const mensaje = proactiveData.mensajes[0]; // Mostrar el más importante
+          console.log('📬 Mostrando mensaje:', mensaje);
+          
+          // Guardar mensaje actual
+          mensajeProactivoActual = mensaje;
+          
+          // Actualizar badge
+          const badge = document.getElementById('chatbotNotifBadge');
+          badge.textContent = proactiveData.mensajes.length;
+          badge.style.display = 'flex';
+          
+          // Mostrar burbuja de pensamiento con el mensaje proactivo COMPLETO
+          const thoughtBubble = document.getElementById('chatbotThoughtBubble');
+          const content = document.getElementById('thoughtBubbleContent');
+          content.innerHTML = mensaje.mensaje; // ← Aquí se muestra el mensaje completo
+          thoughtBubble.classList.add('show');
+          thoughtBubbleShown = true;
+          
+          // NO marcar como mostrado aquí - se marca cuando el usuario abre el chat
+          
+          return; // Ya mostramos mensaje proactivo, no revisar notificaciones
+        }
+        
+        // Si no hay mensajes proactivos, verificar notificaciones normales
+        await checkInitialNotifications();
+        
+      } catch (error) {
+        console.error('Error verificando mensajes proactivos:', error);
+      }
+    }
+
+    async function checkInitialNotifications() {
+      try {
+        const response = await fetch('/api/notificaciones/no-leidas');
+        const notificaciones = await response.json();
+        
+        if (notificaciones.length > 0) {
+          // Guardar notificaciones actuales
+          notificacionesActuales = notificaciones;
+          
+          // Mostrar badge
+          const badge = document.getElementById('chatbotNotifBadge');
+          badge.textContent = notificaciones.length;
+          badge.style.display = 'flex';
+          
+          // Mostrar burbuja de pensamiento con el mensaje de la primera notificación
+          const primeraNoti = notificaciones[0];
+          const thoughtBubble = document.getElementById('chatbotThoughtBubble');
+          const content = document.getElementById('thoughtBubbleContent');
+          
+          // Mostrar el mensaje completo de la notificación
+          const emoji = primeraNoti.tipo === 'datos_incompletos' ? '⚠️' : '📢';
+          content.innerHTML = `${emoji} <strong>${primeraNoti.titulo}</strong><br>${primeraNoti.mensaje}`;
+          
+          thoughtBubble.classList.add('show');
+          thoughtBubbleShown = true;
+        }
+      } catch (error) {
+        console.error('Error verificando notificaciones:', error);
+      }
+    }
+    
+    // Chatbot Functions
+    function toggleChatbot() {
+      chatbotOpen = !chatbotOpen;
+      const window = document.getElementById('chatbotWindow');
+      window.classList.toggle('open', chatbotOpen);
+      
+      if (chatbotOpen) {
+        dismissThoughtBubble();
+        document.getElementById('chatbotInput').focus();
+      }
+    }
+
+    function dismissThoughtBubble() {
+      const thoughtBubble = document.getElementById('chatbotThoughtBubble');
+      thoughtBubble.classList.remove('show');
+      thoughtBubbleShown = false;
+    }
+
+    async function openChatbotWithGreeting() {
+      dismissThoughtBubble();
+      
+      // Abrir el chat si no está abierto
+      if (!chatbotOpen) {
+        toggleChatbot();
+      }
+      
+      // Si hay mensaje proactivo del chatbot, mostrarlo
+      if (mensajeProactivoActual) {
+        const mensajeId = mensajeProactivoActual.id;
+        const mensajeTexto = mensajeProactivoActual.mensaje;
+        
+        setTimeout(async () => {
+          // Mostrar el mensaje proactivo como mensaje del asistente
+          addChatMessage(mensajeTexto, 'assistant');
+          
+          // Marcar como mostrado en el servidor
+          await fetch(`/api/chatbot/mensajes-proactivos/${mensajeId}/mostrado`, {
+            method: 'POST'
+          });
+          
+          // Limpiar el mensaje actual
+          mensajeProactivoActual = null;
+          
+          // Actualizar badge
+          const badge = document.getElementById('chatbotNotifBadge');
+          badge.style.display = 'none';
+        }, 300);
+      }
+      // Si hay notificaciones normales, mostrarlas
+      else if (notificacionesActuales.length > 0) {
+        setTimeout(async () => {
+          // Mostrar todas las notificaciones como mensajes del asistente
+          for (const noti of notificacionesActuales) {
+            const emoji = noti.tipo === 'datos_incompletos' ? '⚠️' : '📢';
+            const mensaje = `${emoji} **${noti.titulo}**\n\n${noti.mensaje}`;
+            addChatMessage(mensaje, 'assistant');
             
-            const config = statusConfig[status] || statusConfig['in-progress'];
-            return `<span class="${config.class}">${config.icon} ${config.label}</span>`;
-        }
+            // Marcar como leída
+            await fetch(`/api/notificaciones/${noti.id}/marcar-leida`, {
+              method: 'POST'
+            });
+          }
+          
+          // Limpiar notificaciones
+          notificacionesActuales = [];
+          
+          // Ocultar badge
+          const badge = document.getElementById('chatbotNotifBadge');
+          badge.style.display = 'none';
+        }, 300);
+      }
+    }
+    
+    async function sendChatMessage() {
+      const input = document.getElementById('chatbotInput');
+      const message = input.value.trim();
+      
+      if (!message) return;
+      
+      // Mostrar mensaje del usuario
+      addChatMessage(message, 'user');
+      input.value = '';
+      
+      // Mostrar typing indicator
+      const typingId = addTypingIndicator();
+      
+      try {
+        const response = await fetch('/api/chatbot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        
+        // Remover typing indicator
+        removeTypingIndicator(typingId);
+        
+        // Mostrar respuesta del bot
+        addChatMessage(data.reply, 'bot');
+        
+        // Actualizar badge si hubo notificaciones
+        await updateNotificationBadge();
+        
+      } catch (error) {
+        removeTypingIndicator(typingId);
+        addChatMessage('Lo siento, ocurrió un error. Por favor intenta de nuevo.', 'bot');
+        console.error('Error en chatbot:', error);
+      }
+    }
 
-        function irAEnviar() {
-            window.location.href = 'enviar.html';
-        }
+    function addChatMessage(text, sender) {
+      const messagesContainer = document.getElementById('chatbotMessages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `chat-message ${sender}`;
+      
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+      
+      messageDiv.innerHTML = `
+        <div class="chat-message-avatar">${sender === 'bot' ? '🤖' : '👤'}</div>
+        <div class="chat-message-content">
+          <div class="chat-message-bubble">${text.replace(/\n/g, '<br>')}</div>
+          <div class="chat-message-time">${timeStr}</div>
+        </div>
+      `;
+      
+      messagesContainer.appendChild(messageDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
 
-        function verDetalle(id) {
-            window.location.href = `tracking.html?id=${id}`;
+    function addTypingIndicator() {
+      const messagesContainer = document.getElementById('chatbotMessages');
+      const typingDiv = document.createElement('div');
+      const id = 'typing-' + Date.now();
+      typingDiv.id = id;
+      typingDiv.className = 'chat-message bot';
+      typingDiv.innerHTML = `
+        <div class="chat-message-avatar">🤖</div>
+        <div class="chat-message-content">
+          <div class="chatbot-typing">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      `;
+      messagesContainer.appendChild(typingDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      return id;
+    }
+
+    function removeTypingIndicator(id) {
+      const typingDiv = document.getElementById(id);
+      if (typingDiv) typingDiv.remove();
+    }
+
+    async function updateNotificationBadge() {
+      try {
+        const response = await fetch('/api/notificaciones/no-leidas');
+        const notificaciones = await response.json();
+        const badge = document.getElementById('chatbotNotifBadge');
+        
+        if (notificaciones.length > 0) {
+          badge.textContent = notificaciones.length;
+          badge.style.display = 'flex';
+        } else {
+          badge.style.display = 'none';
         }
-    </script>
+      } catch (error) {
+        console.error('Error actualizando badge:', error);
+      }
+    }
+  </script>
+  <script src="heartbeat.js"></script>
 </body>
 </html>
