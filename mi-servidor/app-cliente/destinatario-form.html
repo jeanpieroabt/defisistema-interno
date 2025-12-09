@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -6,6 +6,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1974CE">
     <title>Agregar Destinatario - Defi Oracle</title>
+    <script>
+        // Usa el mismo backend configurado para toda la app (prod por defecto)
+        window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+    </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -603,6 +607,7 @@
     </div>
 
     <script>
+        const API_BASE = window.API_BASE_URL || '';
         let editando = false;
         let destinatarioId = null;
 
@@ -644,50 +649,40 @@
             const token = localStorage.getItem('clienteToken');
             
             try {
-                const response = await fetch(`/api/cliente/beneficiarios/${id}`, {
+                const response = await fetch(`${API_BASE}/api/cliente/beneficiarios/${id}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (response.ok) {
                     const data = await response.json();
                     llenarFormulario(data);
+                } else {
+                    console.error('Error cargando beneficiario', response.status);
                 }
-            } catch (error) {
-                // Mock para demostración
-                const mockData = {
-                    id: 1,
-                    nombres: 'María Elena',
-                    apellidos: 'García López',
-                    alias: 'Mamá',
-                    tipo_documento: 'V',
-                    numero_documento: '12345678',
-                    banco: '0102',
-                    numero_cuenta: '01020304050607080910',
-                    telefono: '04121234567',
-                    email: 'maria@ejemplo.com',
-                    isFavorite: true
-                };
-                llenarFormulario(mockData);
-            }
-        }
+            } catch (error) {\n                console.error('No se pudo cargar el beneficiario', error);\n            }\n\n                function llenarFormulario(data) {
+            const fullName = data.nombre_completo || '';
+            const parts = fullName.trim().split(/\s+/);
+            const apellidosInferidos = parts.length > 1 ? parts.slice(-1).join(' ') : '';
+            const nombresInferidos = parts.length > 1 ? parts.slice(0, -1).join(' ') : fullName;
 
-        function llenarFormulario(data) {
-            document.getElementById('nombres').value = data.nombres || '';
-            document.getElementById('apellidos').value = data.apellidos || '';
+            document.getElementById('nombres').value = data.nombres || nombresInferidos || '';
+            document.getElementById('apellidos').value = data.apellidos || apellidosInferidos || '';
             document.getElementById('alias').value = data.alias || '';
-            document.getElementById('numeroDoc').value = data.numero_documento || '';
+            document.getElementById('numeroDoc').value = data.documento_numero || data.numero_documento || '';
             document.getElementById('banco').value = data.banco || '';
             document.getElementById('numeroCuenta').value = data.numero_cuenta || '';
             document.getElementById('telefono').value = data.telefono || '';
             document.getElementById('email').value = data.email || '';
             document.getElementById('isFavorite').checked = data.isFavorite || false;
 
-            // Tipo documento
-            if (data.tipo_documento) {
-                const radio = document.getElementById(`doc${data.tipo_documento}`);
+            const docMap = { 'cedula': 'V', 'rut': 'J', 'pasaporte': 'P' };
+            const docCode = data.documento_tipo || data.tipo_documento;
+            const docRadio = docMap[docCode] || docCode;
+            if (docRadio) {
+                const radio = document.getElementById(doc);
                 if (radio) radio.checked = true;
             }
-        }
+        }        }
 
         function validarFormulario() {
             const nombres = document.getElementById('nombres').value.trim();
@@ -743,8 +738,8 @@
 
             try {
                 const url = editando 
-                    ? `/api/cliente/beneficiarios/${destinatarioId}` 
-                    : '/api/cliente/beneficiarios';
+                    ? `${API_BASE}/api/cliente/beneficiarios/${destinatarioId}` 
+                    : `${API_BASE}/api/cliente/beneficiarios`;
                 
                 const method = editando ? 'PUT' : 'POST';
 
@@ -776,7 +771,7 @@
             const token = localStorage.getItem('clienteToken');
 
             try {
-                const response = await fetch(`/api/cliente/beneficiarios/${destinatarioId}`, {
+                const response = await fetch(`${API_BASE}/api/cliente/beneficiarios/${destinatarioId}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -796,3 +791,7 @@
     </script>
 </body>
 </html>
+
+
+
+

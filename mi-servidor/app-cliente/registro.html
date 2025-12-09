@@ -6,8 +6,7 @@
 	<meta name="theme-color" content="#1974CE">
 	<title>Completar registro - Defi Oracle</title>
 	<script>
-		// Asegura que todas las vistas apunten al mismo backend (producción por defecto)
-		window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+		window.API_BASE_URL = window.API_BASE_URL || '';
 	</script>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -97,7 +96,7 @@
 		<form id="registroForm">
 			<div>
 				<label>Nombre completo</label>
-				<input id="nombre" type="text" autocomplete="name" placeholder="Tu nombre completo">
+				<input id="nombre" class="readonly" type="text" readonly>
 			</div>
 			<div>
 				<label>Correo</label>
@@ -156,7 +155,6 @@
 		const successBox = document.getElementById('successBox');
 		const saving = document.getElementById('saving');
 		const userSummary = document.getElementById('userSummary');
-		const REG_KEY_PREFIX = 'clienteRegistroCompleto:';
 
 		document.getElementById('logoutBtn').addEventListener('click', cerrarSesion);
 		document.getElementById('volverLogin').addEventListener('click', () => window.location.href = 'login.html');
@@ -182,7 +180,6 @@
 			}
 
 			const payload = {
-				nombre: form.nombre.value.trim(),
 				telefono: form.telefono.value.trim(),
 				documento_tipo: form.documento_tipo.value,
 				documento_numero: form.documento_numero.value.trim(),
@@ -194,7 +191,7 @@
 
 			try {
 				const resp = await fetch(`${API_BASE}/api/cliente/perfil`, {
-					method: 'PUT',
+	ok				method: 'PUT',
 					headers: {
 						'Content-Type': 'application/json',
 						'Authorization': `Bearer ${token}`
@@ -208,7 +205,6 @@
 				}
 
 				localStorage.setItem('clienteData', JSON.stringify(data.usuario));
-				markRegistroCompleto(normalizeEmail(data.usuario));
 				showSuccess('Datos guardados correctamente. Redirigiendo...');
 				setTimeout(() => window.location.href = 'home.html', 1000);
 			} catch (err) {
@@ -223,15 +219,11 @@
 				const resp = await fetch(`${API_BASE}/api/cliente/perfil`, {
 					headers: { 'Authorization': `Bearer ${token}` }
 				});
-				if (resp.status === 401) {
-					// Token inválido/expirado: limpiar y forzar re-login
-					cerrarSesion();
-					return;
+				if (!resp.ok) {
+					throw new Error('No pudimos obtener tu perfil');
 				}
-				if (!resp.ok) throw new Error('No pudimos obtener tu perfil');
 				const data = await resp.json();
 				localStorage.setItem('clienteData', JSON.stringify(data));
-				markRegistroCompleto(normalizeEmail(data));
 				rellenarFormulario(data);
 			} catch (err) {
 				showError(err.message || 'Error cargando perfil');
@@ -275,15 +267,6 @@
 			localStorage.removeItem('clienteToken');
 			localStorage.removeItem('clienteData');
 			window.location.href = 'login.html';
-		}
-
-		function normalizeEmail(usuario = {}) {
-			return (usuario.email || usuario.correo || '').trim().toLowerCase();
-		}
-
-		function markRegistroCompleto(email) {
-			if (!email) return;
-			localStorage.setItem(`${REG_KEY_PREFIX}${email}`, 'true');
 		}
 	</script>
 </body>

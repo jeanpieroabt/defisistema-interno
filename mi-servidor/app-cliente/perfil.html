@@ -450,6 +450,287 @@
             letter-spacing: 0.25px;
             color: var(--primary-blue);
         }
+
+        /* ============================================
+           Modal de edición de perfil
+           ============================================ */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            padding: var(--space-lg);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-container {
+            background: var(--white);
+            border-radius: var(--radius-xxl);
+            width: 100%;
+            max-width: 420px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+            transform: translateY(20px) scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-container {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal-header {
+            background: var(--grad-brand-card);
+            color: var(--white);
+            padding: var(--space-2xl);
+            border-radius: var(--radius-xxl) var(--radius-xxl) 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .modal-header::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(150deg, rgba(255,255,255,0.16), rgba(255,255,255,0));
+            border-radius: var(--radius-xxl) var(--radius-xxl) 0 0;
+        }
+
+        .modal-title {
+            font-size: var(--font-xl);
+            font-weight: 800;
+            position: relative;
+            z-index: 1;
+        }
+
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-full);
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: var(--white);
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: var(--space-2xl);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xl);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .form-label {
+            font-size: var(--font-sm);
+            font-weight: 700;
+            color: var(--dark-slate);
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .form-label-icon {
+            font-size: 16px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: var(--space-lg);
+            border: 2px solid var(--secondary-blue);
+            border-radius: var(--radius-md);
+            font-family: var(--font-family);
+            font-size: var(--font-base);
+            color: var(--dark-slate);
+            background: var(--white);
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 4px rgba(25, 116, 206, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--neutral-gray);
+        }
+
+        .form-input:disabled {
+            background: var(--light-bg);
+            color: var(--neutral-gray);
+            cursor: not-allowed;
+        }
+
+        .avatar-upload {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xl);
+        }
+
+        .avatar-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: var(--radius-full);
+            background: var(--grad-brand-card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--white);
+            overflow: hidden;
+            border: 3px solid var(--white);
+            box-shadow: var(--shadow-card);
+        }
+
+        .avatar-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-actions {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .btn-upload {
+            padding: var(--space-md) var(--space-lg);
+            background: var(--secondary-blue);
+            border: none;
+            border-radius: var(--radius-md);
+            font-family: var(--font-family);
+            font-size: var(--font-sm);
+            font-weight: 600;
+            color: var(--primary-blue);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-upload:hover {
+            background: var(--primary-blue);
+            color: var(--white);
+        }
+
+        .avatar-hint {
+            font-size: var(--font-xs);
+            color: var(--neutral-gray);
+        }
+
+        .modal-footer {
+            padding: 0 var(--space-2xl) var(--space-2xl);
+            display: flex;
+            gap: var(--space-md);
+        }
+
+        .btn-cancel {
+            flex: 1;
+            padding: var(--space-lg);
+            background: var(--light-bg);
+            border: none;
+            border-radius: var(--radius-md);
+            font-family: var(--font-family);
+            font-size: var(--font-base);
+            font-weight: 700;
+            color: var(--neutral-gray);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-cancel:hover {
+            background: var(--secondary-blue);
+            color: var(--dark-slate);
+        }
+
+        .btn-save {
+            flex: 2;
+            padding: var(--space-lg);
+            background: var(--grad-brand-button);
+            border: none;
+            border-radius: var(--radius-md);
+            font-family: var(--font-family);
+            font-size: var(--font-base);
+            font-weight: 700;
+            color: var(--white);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-button);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-button-hover);
+        }
+
+        .btn-save:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--dark-slate);
+            color: var(--white);
+            padding: var(--space-lg) var(--space-2xl);
+            border-radius: var(--radius-lg);
+            font-size: var(--font-sm);
+            font-weight: 600;
+            box-shadow: var(--shadow-card);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 300;
+        }
+
+        .toast.success {
+            background: var(--accent-green);
+        }
+
+        .toast.error {
+            background: #DC2626;
+        }
+
+        .toast.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -485,83 +766,17 @@
                     <h3 class="section-title">Mi cuenta</h3>
                     <div class="action-card">
                         <div class="action-item" onclick="editarPerfil()">
-                            <div class="action-icon">👤</div>
+                            <div class="action-icon">✏️</div>
                             <div class="action-text">
                                 <span class="action-title">Editar perfil</span>
                                 <span class="action-desc">Nombre, teléfono, dirección</span>
                             </div>
                             <span class="action-chevron">›</span>
                         </div>
-                        <div class="action-item" onclick="verHistorial()">
-                            <div class="action-icon">📋</div>
-                            <div class="action-text">
-                                <span class="action-title">Historial de envíos</span>
-                                <span class="action-desc">Ver todos tus envíos</span>
-                            </div>
-                            <span class="action-chevron">›</span>
-                        </div>
-                        <div class="action-item" onclick="verDocumentos()">
-                            <div class="action-icon">📄</div>
-                            <div class="action-text">
-                                <span class="action-title">Mis documentos</span>
-                                <span class="action-desc">Verificación de identidad</span>
-                            </div>
-                            <span class="action-chevron">›</span>
-                        </div>
-                    </div>
-                </section>
-
-                <section>
-                    <h3 class="section-title">Preferencias</h3>
-                    <div class="action-card">
-                        <div class="action-item" onclick="configurarNotificaciones()">
-                            <div class="action-icon">🔔</div>
-                            <div class="action-text">
-                                <span class="action-title">Notificaciones</span>
-                                <span class="action-desc">Email, push, WhatsApp</span>
-                            </div>
-                            <span class="action-chevron">›</span>
-                        </div>
-                        <div class="action-item" onclick="verSeguridad()">
-                            <div class="action-icon">🔒</div>
-                            <div class="action-text">
-                                <span class="action-title">Seguridad</span>
-                                <span class="action-desc">Contraseña, 2FA</span>
-                            </div>
-                            <span class="action-chevron">›</span>
-                        </div>
-                    </div>
-                </section>
-
-                <section>
-                    <h3 class="section-title">Legal</h3>
-                    <div class="action-card">
-                        <div class="action-item" onclick="verTerminos()">
-                            <div class="action-icon">📜</div>
-                            <div class="action-text">
-                                <span class="action-title">Términos y condiciones</span>
-                                <span class="action-desc">Documentación legal</span>
-                            </div>
-                            <span class="action-chevron">›</span>
-                        </div>
-                        <div class="action-item" onclick="verPrivacidad()">
-                            <div class="action-icon">🛡️</div>
-                            <div class="action-text">
-                                <span class="action-title">Política de privacidad</span>
-                                <span class="action-desc">Datos y seguridad</span>
-                            </div>
-                            <span class="action-chevron">›</span>
-                        </div>
-                    </div>
-                </section>
-
-                <section>
-                    <div class="action-card">
                         <div class="action-item danger" onclick="cerrarSesion()">
-                            <div class="action-icon">🚪</div>
+                            <div class="action-icon">⏻</div>
                             <div class="action-text">
                                 <span class="action-title">Cerrar sesión</span>
-                                <span class="action-desc">Salir y limpiar sesión</span>
                             </div>
                         </div>
                     </div>
@@ -621,6 +836,69 @@
                 </a>
             </nav>
         </div>
+
+        <!-- Modal Editar Perfil -->
+        <div class="modal-overlay" id="modalEditarPerfil">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h2 class="modal-title">Editar Perfil</h2>
+                    <button class="modal-close" onclick="cerrarModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-icon">📸</span>
+                            Foto de perfil
+                        </label>
+                        <div class="avatar-upload">
+                            <div class="avatar-preview" id="avatarPreview">👤</div>
+                            <div class="avatar-actions">
+                                <input type="file" id="inputFoto" accept="image/*" style="display: none;" onchange="previsualizarFoto(event)">
+                                <button class="btn-upload" onclick="document.getElementById('inputFoto').click()">
+                                    📷 Cambiar foto
+                                </button>
+                                <span class="avatar-hint">JPG, PNG. Máx 2MB</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-icon">👤</span>
+                            Nombre completo
+                        </label>
+                        <input type="text" class="form-input" id="inputNombre" placeholder="Tu nombre completo">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-icon">📧</span>
+                            Correo electrónico
+                        </label>
+                        <input type="email" class="form-input" id="inputEmail" placeholder="correo@ejemplo.com" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-icon">📱</span>
+                            Teléfono
+                        </label>
+                        <input type="tel" class="form-input" id="inputTelefono" placeholder="+56 9 1234 5678">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-icon">📍</span>
+                            Dirección
+                        </label>
+                        <input type="text" class="form-input" id="inputDireccion" placeholder="Tu dirección">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+                    <button class="btn-save" id="btnGuardar" onclick="guardarPerfil()">💾 Guardar cambios</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast notificación -->
+        <div class="toast" id="toast"></div>
     </div>
 
     <script>
@@ -728,33 +1006,169 @@
             }
         }
 
+        let fotoSeleccionada = null;
+
         function editarPerfil() {
-            alert('Función de editar perfil próximamente');
+            const modal = document.getElementById('modalEditarPerfil');
+            const userData = JSON.parse(localStorage.getItem('clienteData') || '{}');
+            
+            // Cargar datos actuales en el formulario
+            document.getElementById('inputNombre').value = userData.nombre || '';
+            document.getElementById('inputEmail').value = userData.email || '';
+            document.getElementById('inputTelefono').value = userData.telefono || '';
+            document.getElementById('inputDireccion').value = userData.direccion || '';
+            
+            // Actualizar avatar preview
+            const avatarPreview = document.getElementById('avatarPreview');
+            if (userData.foto_url) {
+                avatarPreview.innerHTML = `<img src="${userData.foto_url}" alt="Avatar">`;
+            } else if (userData.nombre) {
+                const initials = userData.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                avatarPreview.innerHTML = initials;
+            } else {
+                avatarPreview.innerHTML = '👤';
+            }
+            
+            fotoSeleccionada = null;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
         }
 
-        function verHistorial() {
-            window.location.href = 'historico.html';
+        function cerrarModal() {
+            const modal = document.getElementById('modalEditarPerfil');
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            fotoSeleccionada = null;
         }
 
-        function verDocumentos() {
-            alert('Función de documentos próximamente');
+        function previsualizarFoto(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validar tamaño (2MB máximo)
+            if (file.size > 2 * 1024 * 1024) {
+                mostrarToast('La imagen no puede superar 2MB', 'error');
+                return;
+            }
+
+            // Validar tipo
+            if (!file.type.startsWith('image/')) {
+                mostrarToast('Solo se permiten imágenes', 'error');
+                return;
+            }
+
+            fotoSeleccionada = file;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('avatarPreview').innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+            };
+            reader.readAsDataURL(file);
         }
 
-        function configurarNotificaciones() {
-            alert('Configuración de notificaciones próximamente');
+        async function guardarPerfil() {
+            const btn = document.getElementById('btnGuardar');
+            const token = localStorage.getItem('clienteToken');
+            
+            const nombre = document.getElementById('inputNombre').value.trim();
+            const telefono = document.getElementById('inputTelefono').value.trim();
+            const direccion = document.getElementById('inputDireccion').value.trim();
+
+            if (!nombre) {
+                mostrarToast('El nombre es requerido', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+
+            try {
+                const formData = new FormData();
+                formData.append('nombre', nombre);
+                formData.append('telefono', telefono);
+                formData.append('direccion', direccion);
+                
+                if (fotoSeleccionada) {
+                    formData.append('foto', fotoSeleccionada);
+                }
+
+                const response = await fetch(`${API_BASE}/api/cliente/perfil`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Actualizar localStorage
+                    const userData = JSON.parse(localStorage.getItem('clienteData') || '{}');
+                    userData.nombre = nombre;
+                    userData.telefono = telefono;
+                    userData.direccion = direccion;
+                    if (data.foto_url) {
+                        userData.foto_url = data.foto_url;
+                    }
+                    localStorage.setItem('clienteData', JSON.stringify(userData));
+                    
+                    // Actualizar vista
+                    mostrarPerfil(userData);
+                    cerrarModal();
+                    mostrarToast('Perfil actualizado correctamente', 'success');
+                } else {
+                    // Si el endpoint no existe, guardar solo localmente
+                    const userData = JSON.parse(localStorage.getItem('clienteData') || '{}');
+                    userData.nombre = nombre;
+                    userData.telefono = telefono;
+                    userData.direccion = direccion;
+                    localStorage.setItem('clienteData', JSON.stringify(userData));
+                    
+                    mostrarPerfil(userData);
+                    cerrarModal();
+                    mostrarToast('Perfil guardado localmente', 'success');
+                }
+            } catch (error) {
+                // Guardar localmente en caso de error
+                const userData = JSON.parse(localStorage.getItem('clienteData') || '{}');
+                userData.nombre = nombre;
+                userData.telefono = telefono;
+                userData.direccion = direccion;
+                localStorage.setItem('clienteData', JSON.stringify(userData));
+                
+                mostrarPerfil(userData);
+                cerrarModal();
+                mostrarToast('Perfil guardado localmente', 'success');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💾 Guardar cambios';
+            }
         }
 
-        function verSeguridad() {
-            alert('Configuración de seguridad próximamente');
+        function mostrarToast(mensaje, tipo = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = mensaje;
+            toast.className = 'toast ' + tipo;
+            toast.classList.add('active');
+            
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
         }
 
-        function verTerminos() {
-            window.open('https://defioracle.cl/terminos', '_blank');
-        }
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('modalEditarPerfil').addEventListener('click', function(e) {
+            if (e.target === this) {
+                cerrarModal();
+            }
+        });
 
-        function verPrivacidad() {
-            window.open('https://defioracle.cl/privacidad', '_blank');
-        }
+        // Cerrar modal con tecla Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                cerrarModal();
+            }
+        });
 
         function cerrarSesion() {
             if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
