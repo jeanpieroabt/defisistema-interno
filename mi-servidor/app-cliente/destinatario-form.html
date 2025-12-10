@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -341,7 +341,7 @@
         }
 
         .select-wrapper::after {
-            content: '';
+            content: ';
             position: absolute;
             right: 18px;
             top: 50%;
@@ -476,7 +476,7 @@
                 <main class="form-body">
                     <div class="toggle-group">
                         <div>
-                            <p class="toggle-label">⭐ Guardar como favorito</p>
+                            <p class="toggle-label">Guardar como favorito</p>
                             <p class="toggle-desc">Acceso directo y reconocimiento inmediato al enviar.</p>
                         </div>
                         <label class="toggle">
@@ -504,7 +504,7 @@
                         </div>
 
                         <div class="input-group">
-                            <label class="input-label">Tipo de documento *</label>
+                            <label class="input-label">Número de documento *</label>
                             <div class="radio-group">
                                 <div class="radio-option">
                                     <input type="radio" name="tipoDoc" id="docV" value="V" checked>
@@ -648,27 +648,22 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    llenarFormulario(data);
+                if (!response.ok) {
+                    manejarErrorCarga();
+                    return;
                 }
+
+                const data = await response.json();
+                llenarFormulario(data);
             } catch (error) {
-                // Mock para demostración
-                const mockData = {
-                    id: 1,
-                    nombres: 'María Elena',
-                    apellidos: 'García López',
-                    alias: 'Mamá',
-                    tipo_documento: 'V',
-                    numero_documento: '12345678',
-                    banco: '0102',
-                    numero_cuenta: '01020304050607080910',
-                    telefono: '04121234567',
-                    email: 'maria@ejemplo.com',
-                    isFavorite: true
-                };
-                llenarFormulario(mockData);
+                console.error('Error al cargar destinatario', error);
+                manejarErrorCarga();
             }
+        }
+
+                function manejarErrorCarga() {
+            alert('No pudimos cargar el destinatario. Intenta de nuevo.');
+            window.location.href = 'destinatarios.html';
         }
 
         function llenarFormulario(data) {
@@ -796,3 +791,13 @@
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+

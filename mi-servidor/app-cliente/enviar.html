@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#1974CE">
-  <title>Enviar dinero · Defi Oracle</title>
+  <title>Enviar dinero - Defi Oracle</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -74,7 +74,7 @@
       z-index: 10;
       backdrop-filter: blur(12px);
     }
-    .back-btn {
+      <button class="back-btn" onclick="goBack()">←</button>
       width: 42px;
       height: 42px;
       border-radius: 12px;
@@ -86,7 +86,7 @@
       cursor: pointer;
       transition: transform 0.15s ease, border-color 0.2s ease;
     }
-    .back-btn:hover { transform: translateY(-1px); border-color: var(--primary); }
+      <button class="back-btn" onclick="goBack()">←</button>
     .titles h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
     .titles p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
 
@@ -606,7 +606,7 @@
         <div class="input-shell">
           <div class="label-flag">
             <img class="flag-icon" alt="Chile" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='40' viewBox='0 0 60 40'%3E%3Cpath fill='%23fff' d='M0 0h60v20H0z'/%3E%3Cpath fill='%23d52b1e' d='M0 20h60v20H0z'/%3E%3Cpath fill='%2300399c' d='M0 0h20v20H0z'/%3E%3Cpath fill='%23fff' d='m10 3.5 1.175 3.613 3.787.013-3.05 2.19 1.161 3.618L10 10.68 6.927 12.94l1.16-3.618-3.05-2.19 3.788-.013z'/%3E%3C/svg%3E"/>
-            <span>CLP</span>
+            <span>🔍</span>
           </div>
           <div class="input-with-flag">
             <input type="text" id="montoCLP" placeholder="0" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
@@ -619,7 +619,7 @@
         <div class="input-shell">
           <div class="label-flag">
             <img class="flag-icon" alt="Venezuela" src="assets/BANDERAVENEZUELA.svg"/>
-            <span>VES</span>
+            <span>🔍</span>
           </div>
           <div class="input-with-flag">
             <input type="text" id="montoVES" placeholder="0" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
@@ -636,7 +636,7 @@
       <p class="card-sub">Elige cómo deseas entregar el dinero.</p>
       <div class="method-grid">
         <div class="method-card active" data-method="transferencia" onclick="selectMethod('transferencia')">
-          <div class="method-icon">🏦</div>
+          <div class="method-icon">📱</div>
           <div class="method-text">
             <h4>Transferencia bancaria</h4>
             <p>Depósito directo en cuenta</p>
@@ -699,11 +699,11 @@
         <div style="font-size:28px; margin-top:6px;" id="timerValue">30:00</div>
       </div>
       <div class="card pay-card" style="padding: var(--space-5); background: var(--panel); border:1px solid var(--border);">
-        <div class="detail"><div class="label">Banco</div><div class="value"><span>Banco Estado</span></div></div>
-        <div class="detail"><div class="label">Tipo de cuenta</div><div class="value"><span>Cuenta Corriente</span></div></div>
+        <div class="detail"><div class="label">Banco</div><div class="value"><span>🔍</span></div></div>
+        <div class="detail"><div class="label">Tipo de cuenta</div><div class="value"><span>🔍</span></div></div>
         <div class="detail"><div class="label">Número de cuenta</div><div class="value"><span id="paymentCuenta">12345678901</span><button class="copy" onclick="copiar('paymentCuenta')">Copiar</button></div></div>
         <div class="detail"><div class="label">RUT</div><div class="value"><span id="paymentRut">76.XXX.XXX-X</span><button class="copy" onclick="copiar('paymentRut')">Copiar</button></div></div>
-        <div class="detail"><div class="label">Nombre</div><div class="value"><span>Defi Oracle SpA</span></div></div>
+        <div class="detail"><div class="label">Nombre</div><div class="value"><span>🔍</span></div></div>
         <div class="detail"><div class="label">Monto a transferir</div><div class="value"><span id="paymentMonto">$0 CLP</span><button class="copy" onclick="copiar('paymentMonto')">Copiar</button></div></div>
         <div class="alert">⚠️ Asegúrate de transferir el monto exacto. Tu envío se procesará al recibir el pago.</div>
       </div>
@@ -712,25 +712,25 @@
     <!-- Paso 6: Tracking -->
     <section class="card" id="step6" style="display:none; text-align:center;">
       <div class="tracking">
-        <div class="big">✅</div>
+        <div class="big">✔</div>
         <h3 style="margin:0 0 6px;">¡Solicitud creada!</h3>
         <p style="color: var(--muted); margin:0 0 14px;">Te notificaremos cuando el dinero llegue.</p>
         <div class="track-code" id="trackingCode">TRX-000000</div>
         <div class="timeline">
           <div class="tl-item done">
-            <div class="dot">✓</div>
+            <div class="dot">⏳</div>
             <div class="tl-body"><p class="title">Solicitud creada</p><p class="time" id="timeCreated">-</p></div>
           </div>
           <div class="tl-item active" id="timelinePago">
-            <div class="dot">●</div>
+            <div class="dot">⏳</div>
             <div class="tl-body"><p class="title">Esperando tu pago</p><p class="time">En proceso</p></div>
           </div>
           <div class="tl-item" id="timelineProceso">
-            <div class="dot"></div>
+            <div class="dot">⏳</div>
             <div class="tl-body"><p class="title">Procesando envío</p><p class="time">Pendiente</p></div>
           </div>
           <div class="tl-item" id="timelineEntregado">
-            <div class="dot"></div>
+            <div class="dot">⏳</div>
             <div class="tl-body"><p class="title">Dinero entregado</p><p class="time">Pendiente</p></div>
           </div>
         </div>
@@ -749,8 +749,8 @@
       <p><strong>No se permiten transferencias desde cuentas de terceros o cuentas empresa.</strong></p>
       <p style="margin-top:-4px;">Si detectamos que el pago no proviene de una cuenta personal a tu nombre, la transacción se cancelará automáticamente.</p>
       <div class="actions">
-        <button class="btn-primary" style="height:52px;" onclick="confirmarCuentaPropia()">✓ Sí, es mi cuenta personal</button>
-        <button class="btn-secondary" style="height:52px;" onclick="mostrarNoEsMiCuenta()">✗ No es mi cuenta</button>
+        <button class="btn-primary" style="height:52px;" onclick="confirmarCuentaPropia()">✔ Sí, es mi cuenta personal</button>
+        <button class="btn-secondary" style="height:52px;" onclick="mostrarNoEsMiCuenta()">✖ No es mi cuenta</button>
       </div>
       <div id="noEsMiCuentaSection" style="display:none; margin-top:16px;">
         <div class="pill-danger">⚠️ Solo aceptamos pagos desde cuentas personales a nombre del usuario registrado.</div>
@@ -915,16 +915,12 @@
       const token = localStorage.getItem('clienteToken');
       try {
         const r = await fetch(`${API_BASE}/api/cliente/beneficiarios`, { headers: { 'Authorization': `Bearer ${token}` } });
-        destinatarios = r.ok ? await r.json() : getMockDestinatarios();
-      } catch { destinatarios = getMockDestinatarios(); }
+        destinatarios = r.ok ? await r.json() : [];
+      } catch (error) {
+        console.error('Error al cargar destinatarios', error);
+        destinatarios = [];
+      }
       renderizarDestinatariosEnvio();
-    }
-
-    function getMockDestinatarios() {
-      return [
-        { id: 1, alias: 'Mamá', nombre_completo: 'María García López', banco: 'Banco de Venezuela', codigo_banco: '0102', numero_cuenta: '01020304050607080910', telefono: '04121234567' },
-        { id: 2, alias: 'Hermano', nombre_completo: 'Carlos García López', banco: 'Banesco', codigo_banco: '0134', numero_cuenta: '01340987654321098765', telefono: '04241234567' }
-      ];
     }
 
     function checkPreselection() {
@@ -942,6 +938,10 @@
       const search = (document.getElementById('searchRecipient')?.value || '').toLowerCase();
       let filtrados = destinatarios;
       if (search) filtrados = filtrados.filter(d => d.nombre_completo.toLowerCase().includes(search) || (d.alias||'').toLowerCase().includes(search));
+      if (filtrados.length === 0) {
+        container.innerHTML = `<div class=\"add-recipient\" onclick=\"agregarNuevoDestinatario()\">No tienes destinatarios guardados. Agrega uno nuevo.</div>`;
+        return;
+      }
       container.innerHTML = filtrados.map(d => {
         const active = envio.destinatario?.id === d.id;
         return `<div class="recipient-card ${active ? 'active' : ''}" onclick="selectDestinatario(${d.id})">
@@ -1022,14 +1022,14 @@
       document.getElementById('resumenRecibe').textContent = `Bs. ${fmtVES.format(recibe)}`;
     }
 
-    function confirmarCuentaPropia() {
+        <button class="btn-primary" style="height:52px;" onclick="confirmarCuentaPropia()">✔ Sí, es mi cuenta personal</button>
       document.getElementById('complianceModal').style.display = 'none';
       showStep(5);
     }
-    function mostrarNoEsMiCuenta() {
+        <button class="btn-secondary" style="height:52px;" onclick="mostrarNoEsMiCuenta()">✖ No es mi cuenta</button>
       document.getElementById('noEsMiCuentaSection').style.display = 'block';
     }
-    function volverVerificacion() { document.getElementById('noEsMiCuentaSection').style.display = 'none'; }
+          <button class="btn-secondary" onclick="volverVerificacion()">← Volver</button>
     function cancelarPorCuenta() {
       const motivo = document.getElementById('motivoNoCuenta').value;
       const detalle = document.getElementById('detalleNoCuenta').value;
@@ -1109,3 +1109,11 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+
+
+

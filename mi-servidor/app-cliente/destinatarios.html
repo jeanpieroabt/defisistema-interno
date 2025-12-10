@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -647,11 +647,11 @@
                 <section class="dest-tabs">
                     <div class="tabs">
                         <button class="tab active" data-filter="favoritos" onclick="filtrarPorTab('favoritos')">
-                            <span class="tab-icon">⭐</span>
+                            <span class="tab-icon">★</span>
                             <span>Favoritos</span>
                         </button>
                         <button class="tab" data-filter="todos" onclick="filtrarPorTab('todos')">
-                            <span class="tab-icon">👥</span>
+                            <span class="tab-icon">★</span>
                             <span>Todos</span>
                         </button>
                     </div>
@@ -766,24 +766,14 @@
                 if (response.ok) {
                     destinatarios = await response.json();
                 } else {
-                    // Mock data si no hay backend
-                    destinatarios = getMockData();
+                    destinatarios = [];
                 }
             } catch (error) {
-                // Mock data para demostración
-                destinatarios = getMockData();
+                console.error('Error al cargar destinatarios', error);
+                destinatarios = [];
             }
 
             renderizarDestinatarios();
-        }
-
-        function getMockData() {
-            return [
-                { id: 1, alias: 'Mamá', nombre_completo: 'María García López', banco: 'Banco de Venezuela', numero_cuenta: '01020304050607080910', isFavorite: true },
-                { id: 2, alias: 'Hermano', nombre_completo: 'Carlos García López', banco: 'Banesco', numero_cuenta: '01340987654321098765', isFavorite: true },
-                { id: 3, alias: null, nombre_completo: 'Ana Martínez', banco: 'Mercantil', numero_cuenta: '01050011223344556677', isFavorite: false },
-                { id: 4, alias: 'Tía Rosa', nombre_completo: 'Rosa Pérez', banco: 'Provincial', numero_cuenta: '01080098765432109876', isFavorite: false }
-            ];
         }
 
         function renderizarDestinatarios() {
@@ -888,3 +878,6 @@
     </script>
 </body>
 </html>
+
+
+
