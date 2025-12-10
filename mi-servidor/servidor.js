@@ -6775,6 +6775,9 @@ const clienteAuth = async (req, res, next) => {
 
 // Servir archivos estáticos de la app cliente
 app.use('/app-cliente', express.static(path.join(__dirname, 'app-cliente')));
+app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'app-cliente', 'assets', 'defioracle-logo.png'));
+});
 
 // POST /api/cliente/auth/google - Autenticación con Google
 app.post('/api/cliente/auth/google', async (req, res) => {
@@ -6965,6 +6968,42 @@ app.get('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
     }
 });
 
+// GET /api/cliente/beneficiarios/:id - Obtener un beneficiario concreto
+app.get('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const beneficiario = await dbGet(
+            'SELECT * FROM beneficiarios WHERE id = ? AND cliente_app_id = ? AND activo = 1',
+            [id, req.clienteApp.id]
+        );
+
+        if (!beneficiario) {
+            return res.status(404).json({ error: 'Beneficiario no encontrado', payload: null });
+        }
+
+        // Derivar nombres / apellidos a partir de nombre_completo para compatibilidad con el front
+        const nombreCompleto = (beneficiario.nombre_completo || '').trim();
+        const partesNombre = nombreCompleto.split(/\s+/);
+        const nombres = partesNombre.shift() || nombreCompleto;
+        const apellidos = partesNombre.join(' ');
+
+        const payload = {
+            ...beneficiario,
+            nombres,
+            apellidos,
+            numero_documento: beneficiario.documento_numero,
+            tipo_documento: beneficiario.documento_tipo,
+            isFavorite: beneficiario.isFavorite === 1 || beneficiario.isFavorite === true
+        };
+
+        res.json({ ...payload, payload });
+    } catch (error) {
+        console.error('Error obteniendo beneficiario:', error);
+        res.status(500).json({ error: 'Error al obtener beneficiario', payload: null });
+    }
+});
+
 // POST /api/cliente/beneficiarios - Agregar beneficiario
 app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
     try {
@@ -6986,7 +7025,8 @@ app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
         
         res.json({
             mensaje: 'Beneficiario agregado exitosamente',
-            beneficiario
+            beneficiario,
+            payload: beneficiario
         });
     } catch (error) {
         console.error('Error agregando beneficiario:', error);
@@ -7024,7 +7064,8 @@ app.put('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
         
         res.json({
             mensaje: 'Beneficiario actualizado exitosamente',
-            beneficiario: beneficiarioActualizado
+            beneficiario: beneficiarioActualizado,
+            payload: beneficiarioActualizado
         });
     } catch (error) {
         console.error('Error actualizando beneficiario:', error);
