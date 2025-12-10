@@ -764,7 +764,13 @@
                 });
 
                 if (response.ok) {
-                    destinatarios = await response.json();
+                    const texto = await response.text();
+                    try {
+                        destinatarios = JSON.parse(texto);
+                    } catch (parseError) {
+                        console.error('Respuesta no es JSON, se vacía la lista:', texto.slice(0, 120));
+                        destinatarios = [];
+                    }
                 } else {
                     destinatarios = [];
                 }
