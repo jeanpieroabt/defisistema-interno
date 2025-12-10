@@ -535,11 +535,14 @@ const runMigrations = async () => {
         pais TEXT NOT NULL,
         telefono TEXT,
         email TEXT,
+        isFavorite INTEGER DEFAULT 0,
         activo INTEGER DEFAULT 1,
         fecha_creacion TEXT NOT NULL,
         fecha_actualizacion TEXT,
         FOREIGN KEY (cliente_app_id) REFERENCES clientes_app(id)
     )`);
+    // Asegurar columna isFavorite si la tabla ya existía
+    await dbRun(`ALTER TABLE beneficiarios ADD COLUMN isFavorite INTEGER DEFAULT 0`).catch(() => {});
     console.log('✅ Tabla beneficiarios verificada');
 
     // Tabla de cuentas de pago (donde recibe dinero la empresa)
@@ -7007,7 +7010,7 @@ app.get('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
 // POST /api/cliente/beneficiarios - Agregar beneficiario
 app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
     try {
-        const { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email } = req.body;
+        const { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, isFavorite } = req.body;
         
         if (!alias || !nombre_completo || !banco || !numero_cuenta || !pais) {
             return res.status(400).json({ error: 'Faltan campos obligatorios' });
@@ -7016,9 +7019,9 @@ app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
         const ahora = new Date().toISOString();
         
         const result = await dbRun(
-            `INSERT INTO beneficiarios (cliente_app_id, alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, fecha_creacion)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [req.clienteApp.id, alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, ahora]
+            `INSERT INTO beneficiarios (cliente_app_id, alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, isFavorite, fecha_creacion)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [req.clienteApp.id, alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, isFavorite ? 1 : 0, ahora]
         );
         
         const beneficiario = await dbGet('SELECT * FROM beneficiarios WHERE id = ?', [result.lastID]);
@@ -7038,7 +7041,7 @@ app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
 app.put('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email } = req.body;
+        const { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, isFavorite } = req.body;
         
         // Verificar que el beneficiario pertenezca al cliente
         const beneficiario = await dbGet(
@@ -7055,9 +7058,9 @@ app.put('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
         await dbRun(
             `UPDATE beneficiarios SET 
                 alias = ?, nombre_completo = ?, documento_tipo = ?, documento_numero = ?, 
-                banco = ?, tipo_cuenta = ?, numero_cuenta = ?, pais = ?, telefono = ?, email = ?, fecha_actualizacion = ?
+                banco = ?, tipo_cuenta = ?, numero_cuenta = ?, pais = ?, telefono = ?, email = ?, isFavorite = ?, fecha_actualizacion = ?
              WHERE id = ?`,
-            [alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, ahora, id]
+            [alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, isFavorite ? 1 : 0, ahora, id]
         );
         
         const beneficiarioActualizado = await dbGet('SELECT * FROM beneficiarios WHERE id = ?', [id]);
@@ -7070,6 +7073,30 @@ app.put('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
     } catch (error) {
         console.error('Error actualizando beneficiario:', error);
         res.status(500).json({ error: 'Error al actualizar beneficiario' });
+    }
+});
+
+// PUT /api/cliente/beneficiarios/:id/favorito - Marcar/desmarcar favorito
+app.put('/api/cliente/beneficiarios/:id/favorito', clienteAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isFavorite } = req.body;
+
+        const beneficiario = await dbGet(
+            'SELECT * FROM beneficiarios WHERE id = ? AND cliente_app_id = ?',
+            [id, req.clienteApp.id]
+        );
+
+        if (!beneficiario) {
+            return res.status(404).json({ error: 'Beneficiario no encontrado' });
+        }
+
+        await dbRun('UPDATE beneficiarios SET isFavorite = ? WHERE id = ?', [isFavorite ? 1 : 0, id]);
+        const actualizado = await dbGet('SELECT * FROM beneficiarios WHERE id = ?', [id]);
+        res.json({ mensaje: 'Favorito actualizado', beneficiario: actualizado, payload: actualizado });
+    } catch (error) {
+        console.error('Error actualizando favorito:', error);
+        res.status(500).json({ error: 'Error al actualizar favorito' });
     }
 });
 
