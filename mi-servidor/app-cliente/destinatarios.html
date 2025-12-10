@@ -763,13 +763,20 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+
+                const contentType = response.headers.get('content-type') || '';
+
                 if (response.ok) {
-                    const texto = await response.text();
-                    try {
-                        destinatarios = JSON.parse(texto);
-                    } catch (parseError) {
-                        console.error('Respuesta no es JSON, se vacía la lista:', texto.slice(0, 120));
+                    if (!contentType.includes('application/json')) {
+                        const texto = await response.text();
+                        console.error('Respuesta no es JSON, se vacía la lista:', texto.slice(0, 200));
                         destinatarios = [];
+                    } else {
+                        destinatarios = await response.json();
                     }
                 } else {
                     destinatarios = [];
