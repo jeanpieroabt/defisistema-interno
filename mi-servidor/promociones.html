@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Códigos Promocionales - Sistema Interno</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background-image: url('logo.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.03;
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .page-header {
+            background: linear-gradient(135deg, #9333EA 0%, #EC4899 100%);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(147, 51, 234, 0.2);
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        
+        .page-header .logo {
+            height: 60px;
+            width: auto;
+            filter: brightness(0) invert(1) drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        
+        .page-header .header-content {
+            flex: 1;
+        }
+        
+        .page-header h1 {
+            margin: 0 0 0.5rem 0;
+            color: white;
+            font-size: 2rem;
+            font-weight: 800;
+        }
+        
+        .page-header p {
+            margin: 0;
+            color: rgba(255,255,255,0.95);
+            font-size: 1rem;
+        }
+        
+        .breadcrumb {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            font-size: 0.9rem;
+            color: var(--medium-grey);
+            margin-bottom: 1rem;
+        }
+        
+        .breadcrumb a {
+            color: #9333EA;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        
+        .breadcrumb a:hover {
+            color: #7C3AED;
+        }
+        
+        .btn-back {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+        
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .actions-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #9333EA 0%, #EC4899 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(147, 51, 234, 0.4);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card .value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        
+        .stat-card.purple .value { color: #9333EA; }
+        .stat-card.pink .value { color: #EC4899; }
+        .stat-card.green .value { color: #10B981; }
+        .stat-card.gray .value { color: #6B7280; }
+        
+        .codes-table {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        
+        .codes-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .codes-table th {
+            background: #f8f9fa;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .codes-table td {
+            padding: 1rem;
+            border-top: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+        
+        .codes-table tr:hover {
+            background: #fafafa;
+        }
+        
+        .code-badge {
+            background: linear-gradient(135deg, #9333EA 0%, #EC4899 100%);
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-family: monospace;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+        
+        .tasa-badge {
+            background: #E0F2FE;
+            color: #0369A1;
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .status-badge {
+            padding: 0.35rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .status-badge.activo {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+        
+        .status-badge.inactivo {
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+        
+        .status-badge.expirado {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+        
+        .usos-info {
+            font-size: 0.85rem;
+            color: #6B7280;
+        }
+        
+        .usos-info strong {
+            color: #374151;
+        }
+        
+        .actions-cell {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .btn-icon.edit {
+            background: #EEF2FF;
+            color: #4F46E5;
+        }
+        
+        .btn-icon.edit:hover {
+            background: #E0E7FF;
+        }
+        
+        .btn-icon.delete {
+            background: #FEF2F2;
+            color: #DC2626;
+        }
+        
+        .btn-icon.delete:hover {
+            background: #FEE2E2;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #6B7280;
+        }
+        
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 1rem;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-overlay.active {
+            display: flex !important;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+            transform: scale(1) !important;
+            opacity: 1 !important;
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.25rem;
+            color: #1a1a1a;
+        }
+        
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: none;
+            background: #f5f5f5;
+            cursor: pointer;
+            font-size: 1.25rem;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-close:hover {
+            background: #eee;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #9333EA;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        .form-group.checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .form-group.checkbox input {
+            width: auto;
+            height: 20px;
+            width: 20px;
+            accent-color: #9333EA;
+        }
+        
+        .form-group.checkbox label {
+            margin: 0;
+        }
+        
+        .form-hint {
+            font-size: 0.8rem;
+            color: #6B7280;
+            margin-top: 0.35rem;
+        }
+        
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .btn-cancel {
+            background: #f5f5f5;
+            color: #666;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .btn-cancel:hover {
+            background: #eee;
+        }
+        
+        .btn-save {
+            background: linear-gradient(135deg, #9333EA 0%, #EC4899 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(147, 51, 234, 0.3);
+        }
+        
+        .btn-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(147, 51, 234, 0.4);
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                text-align: center;
+                padding: 1.5rem;
+            }
+            
+            .codes-table {
+                overflow-x: auto;
+            }
+            
+            .codes-table table {
+                min-width: 700px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <nav class="breadcrumb">
+            <a href="home.html">🏠 Inicio</a>
+            <span>›</span>
+            <span>Códigos Promocionales</span>
+        </nav>
+        
+        <header class="page-header">
+            <img src="logo.png" alt="Logo" class="logo">
+            <div class="header-content">
+                <h1>🎟️ Códigos Promocionales</h1>
+                <p>Gestiona tasas especiales para campañas y promociones</p>
+            </div>
+            <a href="home.html" class="btn-back">
+                ← Volver
+            </a>
+        </header>
+        
+        <div class="stats-grid">
+            <div class="stat-card purple">
+                <div class="label">Total Códigos</div>
+                <div class="value" id="totalCodigos">0</div>
+            </div>
+            <div class="stat-card green">
+                <div class="label">Códigos Activos</div>
+                <div class="value" id="codigosActivos">0</div>
+            </div>
+            <div class="stat-card pink">
+                <div class="label">Total Usos</div>
+                <div class="value" id="totalUsos">0</div>
+            </div>
+        </div>
+        
+        <div class="actions-bar">
+            <h2 style="margin:0; color:#1a1a1a;">Lista de Códigos</h2>
+            <button class="btn-primary" onclick="abrirModalNuevo()">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                Nuevo Código
+            </button>
+        </div>
+        
+        <div class="codes-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descripción</th>
+                        <th>Tasa Especial</th>
+                        <th>Usos</th>
+                        <th>Vigencia</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="codigosBody">
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+                                </svg>
+                                <p>No hay códigos promocionales</p>
+                                <p>Crea tu primer código para comenzar</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Modal Crear/Editar -->
+    <div class="modal-overlay" id="modalCodigo">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitulo">Nuevo Código Promocional</h2>
+                <button class="modal-close" onclick="cerrarModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="formCodigo">
+                    <input type="hidden" id="codigoId">
+                    
+                    <div class="form-group">
+                        <label for="codigo">Código *</label>
+                        <input type="text" id="codigo" placeholder="Ej: PRIMERENVIO" required style="text-transform: uppercase;">
+                        <p class="form-hint">Sin espacios ni caracteres especiales</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="descripcion">Descripción</label>
+                        <input type="text" id="descripcion" placeholder="Ej: 10% extra para nuevos usuarios">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="tasaEspecial">Tasa Especial (CLP a VES) *</label>
+                        <input type="number" id="tasaEspecial" step="0.0001" placeholder="Ej: 0.4500" required>
+                        <p class="form-hint">La tasa que se aplicará cuando usen este código</p>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="usosMaximos">Usos Máximos</label>
+                            <input type="number" id="usosMaximos" placeholder="Sin límite">
+                            <p class="form-hint">Dejar vacío = ilimitado</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="activo">Estado</label>
+                            <select id="activo">
+                                <option value="1">Activo</option>
+                                <option value="0">Inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fechaInicio">Fecha Inicio</label>
+                            <input type="date" id="fechaInicio">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="fechaExpiracion">Fecha Expiración</label>
+                            <input type="date" id="fechaExpiracion">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="soloPrimerEnvio">
+                        <label for="soloPrimerEnvio">Solo para primer envío del cliente</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+                <button class="btn-save" onclick="guardarCodigo()">Guardar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '';
+        let codigos = [];
+        let editandoId = null;
+        
+        // Verificar autenticación via sesión
+        async function verificarSesion() {
+            try {
+                const response = await fetch('/api/user-info', { credentials: 'include' });
+                if (!response.ok) {
+                    window.location.href = 'login.html';
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                window.location.href = 'login.html';
+                return false;
+            }
+        }
+        
+        async function cargarCodigos() {
+            try {
+                const response = await fetch(`${API_BASE}/api/codigos-promocionales`, {
+                    credentials: 'include'
+                });
+                
+                if (response.status === 401 || response.status === 403) {
+                    alert('Sesión expirada. Por favor inicia sesión nuevamente.');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                if (!response.ok) throw new Error('Error al cargar códigos');
+                
+                codigos = await response.json();
+                renderizarCodigos();
+                actualizarStats();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al cargar los códigos promocionales. Verifica tu conexión.');
+            }
+        }
+        
+        function renderizarCodigos() {
+            const tbody = document.getElementById('codigosBody');
+            
+            if (codigos.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+                                </svg>
+                                <p>No hay códigos promocionales</p>
+                                <p>Crea tu primer código para comenzar</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = codigos.map(c => {
+                const estado = obtenerEstado(c);
+                const usosText = c.usos_maximos 
+                    ? `<strong>${c.usos_actuales}</strong> / ${c.usos_maximos}`
+                    : `<strong>${c.usos_actuales}</strong> (ilimitado)`;
+                
+                const vigencia = formatearVigencia(c);
+                
+                return `
+                    <tr>
+                        <td><span class="code-badge">${c.codigo}</span></td>
+                        <td>${c.descripcion || '<em style="color:#999">Sin descripción</em>'}</td>
+                        <td><span class="tasa-badge">${c.tasa_especial.toFixed(4)}</span></td>
+                        <td><span class="usos-info">${usosText}</span></td>
+                        <td style="font-size:0.85rem; color:#666">${vigencia}</td>
+                        <td><span class="status-badge ${estado.clase}">${estado.texto}</span></td>
+                        <td>
+                            <div class="actions-cell">
+                                <button class="btn-icon edit" onclick="editarCodigo(${c.id})" title="Editar">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                    </svg>
+                                </button>
+                                <button class="btn-icon delete" onclick="eliminarCodigo(${c.id})" title="Eliminar">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function obtenerEstado(codigo) {
+            if (!codigo.activo) {
+                return { clase: 'inactivo', texto: 'Inactivo' };
+            }
+            
+            const ahora = new Date();
+            
+            if (codigo.fecha_expiracion && new Date(codigo.fecha_expiracion) < ahora) {
+                return { clase: 'expirado', texto: 'Expirado' };
+            }
+            
+            if (codigo.fecha_inicio && new Date(codigo.fecha_inicio) > ahora) {
+                return { clase: 'inactivo', texto: 'Programado' };
+            }
+            
+            if (codigo.usos_maximos && codigo.usos_actuales >= codigo.usos_maximos) {
+                return { clase: 'expirado', texto: 'Agotado' };
+            }
+            
+            return { clase: 'activo', texto: 'Activo' };
+        }
+        
+        function formatearVigencia(codigo) {
+            const partes = [];
+            
+            if (codigo.fecha_inicio) {
+                partes.push(`Desde: ${formatearFecha(codigo.fecha_inicio)}`);
+            }
+            
+            if (codigo.fecha_expiracion) {
+                partes.push(`Hasta: ${formatearFecha(codigo.fecha_expiracion)}`);
+            }
+            
+            if (codigo.solo_primer_envio) {
+                partes.push('🎁 Solo 1er envío');
+            }
+            
+            return partes.length > 0 ? partes.join('<br>') : 'Sin límite de tiempo';
+        }
+        
+        function formatearFecha(fecha) {
+            return new Date(fecha).toLocaleDateString('es-CL', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+        
+        function actualizarStats() {
+            const ahora = new Date();
+            const activos = codigos.filter(c => {
+                if (!c.activo) return false;
+                if (c.fecha_expiracion && new Date(c.fecha_expiracion) < ahora) return false;
+                if (c.usos_maximos && c.usos_actuales >= c.usos_maximos) return false;
+                return true;
+            });
+            
+            const totalUsos = codigos.reduce((sum, c) => sum + (c.usos_actuales || 0), 0);
+            
+            document.getElementById('totalCodigos').textContent = codigos.length;
+            document.getElementById('codigosActivos').textContent = activos.length;
+            document.getElementById('totalUsos').textContent = totalUsos;
+        }
+        
+        function abrirModalNuevo() {
+            editandoId = null;
+            document.getElementById('modalTitulo').textContent = 'Nuevo Código Promocional';
+            document.getElementById('formCodigo').reset();
+            document.getElementById('codigoId').value = '';
+            document.getElementById('activo').value = '1';
+            document.getElementById('codigo').disabled = false;
+            document.getElementById('modalCodigo').classList.add('active');
+        }
+        
+        function editarCodigo(id) {
+            const codigo = codigos.find(c => c.id === id);
+            if (!codigo) return;
+            
+            editandoId = id;
+            document.getElementById('modalTitulo').textContent = 'Editar Código Promocional';
+            document.getElementById('codigoId').value = id;
+            document.getElementById('codigo').value = codigo.codigo;
+            document.getElementById('codigo').disabled = true; // No permitir cambiar el código
+            document.getElementById('descripcion').value = codigo.descripcion || '';
+            document.getElementById('tasaEspecial').value = codigo.tasa_especial;
+            document.getElementById('usosMaximos').value = codigo.usos_maximos || '';
+            document.getElementById('activo').value = codigo.activo ? '1' : '0';
+            document.getElementById('fechaInicio').value = codigo.fecha_inicio ? codigo.fecha_inicio.split('T')[0] : '';
+            document.getElementById('fechaExpiracion').value = codigo.fecha_expiracion ? codigo.fecha_expiracion.split('T')[0] : '';
+            document.getElementById('soloPrimerEnvio').checked = codigo.solo_primer_envio;
+            
+            document.getElementById('modalCodigo').classList.add('active');
+        }
+        
+        function cerrarModal() {
+            document.getElementById('modalCodigo').classList.remove('active');
+            editandoId = null;
+        }
+        
+        async function guardarCodigo() {
+            const data = {
+                codigo: document.getElementById('codigo').value.toUpperCase().trim(),
+                descripcion: document.getElementById('descripcion').value.trim() || null,
+                tasa_especial: parseFloat(document.getElementById('tasaEspecial').value),
+                usos_maximos: document.getElementById('usosMaximos').value ? parseInt(document.getElementById('usosMaximos').value) : null,
+                activo: document.getElementById('activo').value === '1',
+                fecha_inicio: document.getElementById('fechaInicio').value || null,
+                fecha_expiracion: document.getElementById('fechaExpiracion').value || null,
+                solo_primer_envio: document.getElementById('soloPrimerEnvio').checked
+            };
+            
+            if (!data.codigo || !data.tasa_especial) {
+                alert('Código y tasa especial son requeridos');
+                return;
+            }
+            
+            try {
+                const url = editandoId 
+                    ? `${API_BASE}/api/codigos-promocionales/${editandoId}`
+                    : `${API_BASE}/api/codigos-promocionales`;
+                
+                const method = editandoId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Error al guardar');
+                }
+                
+                cerrarModal();
+                cargarCodigos();
+                alert(editandoId ? 'Código actualizado correctamente' : 'Código creado correctamente');
+            } catch (error) {
+                console.error('Error:', error);
+                alert(error.message || 'Error al guardar el código');
+            }
+        }
+        
+        async function eliminarCodigo(id) {
+            const codigo = codigos.find(c => c.id === id);
+            if (!codigo) return;
+            
+            if (!confirm(`¿Eliminar el código "${codigo.codigo}"?\n\nEsta acción no se puede deshacer.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/codigos-promocionales/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) throw new Error('Error al eliminar');
+                
+                cargarCodigos();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al eliminar el código');
+            }
+        }
+        
+        // Cerrar modal con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') cerrarModal();
+        });
+        
+        // Cerrar modal al hacer clic fuera
+        document.getElementById('modalCodigo').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('modalCodigo')) {
+                cerrarModal();
+            }
+        });
+        
+        // Cargar al iniciar (verificar sesión primero)
+        verificarSesion().then(ok => {
+            if (ok) cargarCodigos();
+        });
+    </script>
+</body>
+</html>

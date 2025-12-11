@@ -821,6 +821,38 @@ const runMigrations = async () => {
     )`);
     console.log('âœ… Tabla solicitudes_transferencia verificada');
 
+
+    // Tabla de codigos promocionales
+    await dbRun(`CREATE TABLE IF NOT EXISTS codigos_promocionales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo TEXT UNIQUE NOT NULL,
+        descripcion TEXT,
+        tasa_especial REAL NOT NULL,
+        activo INTEGER DEFAULT 1,
+        usos_maximos INTEGER DEFAULT NULL,
+        usos_actuales INTEGER DEFAULT 0,
+        fecha_inicio TEXT,
+        fecha_expiracion TEXT,
+        solo_primer_envio INTEGER DEFAULT 0,
+        creado_por INTEGER,
+        fecha_creacion TEXT NOT NULL,
+        FOREIGN KEY (creado_por) REFERENCES usuarios(id)
+    )`);
+    console.log('Tabla codigos_promocionales verificada');
+
+    // Tabla de uso de codigos promocionales
+    await dbRun(`CREATE TABLE IF NOT EXISTS uso_codigos_promocionales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo_id INTEGER NOT NULL,
+        cliente_app_id INTEGER NOT NULL,
+        solicitud_id INTEGER,
+        fecha_uso TEXT NOT NULL,
+        FOREIGN KEY (codigo_id) REFERENCES codigos_promocionales(id),
+        FOREIGN KEY (cliente_app_id) REFERENCES clientes_app(id),
+        FOREIGN KEY (solicitud_id) REFERENCES solicitudes_transferencia(id),
+        UNIQUE(codigo_id, cliente_app_id)
+    )`);
+    console.log('Tabla uso_codigos_promocionales verificada');
     // Ãndices para app cliente
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_clientes_app_google ON clientes_app(google_id)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_clientes_app_email ON clientes_app(email)`);
@@ -7960,6 +7992,184 @@ app.put('/api/clientes-app/:id/verificacion', apiAuth, async (req, res) => {
         res.json({ success: true, estado: nuevoEstado });
     } catch (error) {
         res.status(500).json({ error: 'Error al actualizar verificacion' });
+    }
+});
+
+// =================================================================
+// ENDPOINTS DE CÓDIGOS PROMOCIONALES
+// =================================================================
+
+// GET /api/codigos-promocionales - Listar todos los códigos (admin)
+app.get('/api/codigos-promocionales', apiAuth, async (req, res) => {
+    try {
+        const codigos = await dbAll(`
+            SELECT cp.*, u.username as creado_por_nombre
+            FROM codigos_promocionales cp
+            LEFT JOIN usuarios u ON cp.creado_por = u.id
+            ORDER BY cp.fecha_creacion DESC
+        `);
+        res.json(codigos);
+    } catch (error) {
+        console.error('Error listando codigos:', error);
+        res.status(500).json({ error: 'Error al listar códigos promocionales' });
+    }
+});
+
+// POST /api/codigos-promocionales - Crear código (admin)
+app.post('/api/codigos-promocionales', apiAuth, async (req, res) => {
+    try {
+        const { codigo, descripcion, tasa_especial, usos_maximos, fecha_inicio, fecha_expiracion, solo_primer_envio } = req.body;
+        
+        if (!codigo || !tasa_especial) {
+            return res.status(400).json({ error: 'Código y tasa especial son requeridos' });
+        }
+
+        // Verificar que el código no exista
+        const existe = await dbGet('SELECT id FROM codigos_promocionales WHERE UPPER(codigo) = UPPER(?)', [codigo]);
+        if (existe) {
+            return res.status(400).json({ error: 'El código ya existe' });
+        }
+
+        const result = await dbRun(`
+            INSERT INTO codigos_promocionales (codigo, descripcion, tasa_especial, usos_maximos, fecha_inicio, fecha_expiracion, solo_primer_envio, creado_por, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        `, [codigo.toUpperCase(), descripcion || null, tasa_especial, usos_maximos || null, fecha_inicio || null, fecha_expiracion || null, solo_primer_envio ? 1 : 0, req.userId]);
+
+        res.json({ success: true, id: result.lastID });
+    } catch (error) {
+        console.error('Error creando codigo:', error);
+        res.status(500).json({ error: 'Error al crear código promocional' });
+    }
+});
+
+// PUT /api/codigos-promocionales/:id - Actualizar código (admin)
+app.put('/api/codigos-promocionales/:id', apiAuth, async (req, res) => {
+    try {
+        const { descripcion, tasa_especial, activo, usos_maximos, fecha_inicio, fecha_expiracion, solo_primer_envio } = req.body;
+        
+        await dbRun(`
+            UPDATE codigos_promocionales 
+            SET descripcion = ?, tasa_especial = ?, activo = ?, usos_maximos = ?, fecha_inicio = ?, fecha_expiracion = ?, solo_primer_envio = ?
+            WHERE id = ?
+        `, [descripcion, tasa_especial, activo ? 1 : 0, usos_maximos || null, fecha_inicio || null, fecha_expiracion || null, solo_primer_envio ? 1 : 0, req.params.id]);
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error actualizando codigo:', error);
+        res.status(500).json({ error: 'Error al actualizar código promocional' });
+    }
+});
+
+// DELETE /api/codigos-promocionales/:id - Eliminar código (admin)
+app.delete('/api/codigos-promocionales/:id', apiAuth, async (req, res) => {
+    try {
+        await dbRun('DELETE FROM codigos_promocionales WHERE id = ?', [req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error eliminando codigo:', error);
+        res.status(500).json({ error: 'Error al eliminar código promocional' });
+    }
+});
+
+// POST /api/cliente/validar-codigo - Validar código promocional (cliente app)
+app.post('/api/cliente/validar-codigo', clienteAuth, async (req, res) => {
+    try {
+        const { codigo } = req.body;
+        const clienteId = req.clienteId;
+
+        if (!codigo) {
+            return res.status(400).json({ error: 'Código requerido' });
+        }
+
+        // Buscar el código
+        const codigoPromo = await dbGet(`
+            SELECT * FROM codigos_promocionales 
+            WHERE UPPER(codigo) = UPPER(?) AND activo = 1
+        `, [codigo]);
+
+        if (!codigoPromo) {
+            return res.json({ valido: false, mensaje: 'Código no válido o inactivo' });
+        }
+
+        // Verificar fecha de inicio
+        if (codigoPromo.fecha_inicio) {
+            const inicio = new Date(codigoPromo.fecha_inicio);
+            if (new Date() < inicio) {
+                return res.json({ valido: false, mensaje: 'El código aún no está activo' });
+            }
+        }
+
+        // Verificar fecha de expiración
+        if (codigoPromo.fecha_expiracion) {
+            const expira = new Date(codigoPromo.fecha_expiracion);
+            if (new Date() > expira) {
+                return res.json({ valido: false, mensaje: 'El código ha expirado' });
+            }
+        }
+
+        // Verificar usos máximos globales
+        if (codigoPromo.usos_maximos && codigoPromo.usos_actuales >= codigoPromo.usos_maximos) {
+            return res.json({ valido: false, mensaje: 'El código ha alcanzado el límite de usos' });
+        }
+
+        // Verificar si el cliente ya usó este código
+        const yaUsado = await dbGet(`
+            SELECT id FROM uso_codigos_promocionales 
+            WHERE codigo_id = ? AND cliente_app_id = ?
+        `, [codigoPromo.id, clienteId]);
+
+        if (yaUsado) {
+            return res.json({ valido: false, mensaje: 'Ya has utilizado este código' });
+        }
+
+        // Si es solo_primer_envio, verificar que el cliente no tenga envíos previos
+        if (codigoPromo.solo_primer_envio) {
+            const enviosPrevios = await dbGet(`
+                SELECT COUNT(*) as total FROM solicitudes_transferencia 
+                WHERE cliente_app_id = ? AND estado IN ('completada', 'procesando', 'pendiente')
+            `, [clienteId]);
+
+            if (enviosPrevios && enviosPrevios.total > 0) {
+                return res.json({ valido: false, mensaje: 'Este código es solo para el primer envío' });
+            }
+        }
+
+        // Código válido
+        res.json({
+            valido: true,
+            codigo_id: codigoPromo.id,
+            tasa_especial: codigoPromo.tasa_especial,
+            descripcion: codigoPromo.descripcion,
+            mensaje: codigoPromo.descripcion || '¡Código aplicado!'
+        });
+
+    } catch (error) {
+        console.error('Error validando codigo:', error);
+        res.status(500).json({ error: 'Error al validar código' });
+    }
+});
+
+// POST /api/cliente/usar-codigo - Registrar uso de código al crear solicitud
+app.post('/api/cliente/usar-codigo', clienteAuth, async (req, res) => {
+    try {
+        const { codigo_id, solicitud_id } = req.body;
+        const clienteId = req.clienteId;
+
+        // Registrar el uso
+        await dbRun(`
+            INSERT INTO uso_codigos_promocionales (codigo_id, cliente_app_id, solicitud_id, fecha_uso)
+            VALUES (?, ?, ?, datetime('now'))
+        `, [codigo_id, clienteId, solicitud_id]);
+
+        // Incrementar contador de usos
+        await dbRun(`
+            UPDATE codigos_promocionales SET usos_actuales = usos_actuales + 1 WHERE id = ?
+        `, [codigo_id]);
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error registrando uso de codigo:', error);
+        res.status(500).json({ error: 'Error al registrar uso del código' });
     }
 });
 
