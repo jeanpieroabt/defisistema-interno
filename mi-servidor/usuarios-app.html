@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Defi Oracle - Usuarios App</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      background: white;
+      padding: 1.5rem 2rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .page-header h1 {
+      margin: 0;
+      color: #2D8CDB;
+      font-size: 1.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .back-btn {
+      background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.3s;
+      text-decoration: none;
+    }
+
+    .back-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    /* Tarjetas de estadísticas */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .stat-card .icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #2D8CDB;
+      margin: 0;
+    }
+
+    .stat-card .label {
+      font-size: 0.85rem;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 0.25rem;
+    }
+
+    .stat-card.pendientes .value {
+      color: #f59e0b;
+    }
+
+    .stat-card.verificados .value {
+      color: #10b981;
+    }
+
+    .stat-card.rechazados .value {
+      color: #ef4444;
+    }
+
+    /* Panel principal */
+    .main-panel {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .filters {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-input {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      min-width: 200px;
+    }
+
+    .filter-select {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    /* Tabla de usuarios */
+    .users-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .users-table th,
+    .users-table td {
+      padding: 1rem 1.5rem;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .users-table th {
+      background: #f8fafc;
+      font-weight: 700;
+      color: #374151;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .users-table tbody tr {
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+
+    .users-table tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    .user-info-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .user-name {
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .user-email {
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+
+    .estado-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .estado-badge.no_verificado {
+      background: #e5e7eb;
+      color: #6b7280;
+    }
+
+    .estado-badge.pendiente {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .estado-badge.verificado {
+      background: #d1fae5;
+      color: #047857;
+    }
+
+    .estado-badge.rechazado {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .action-btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .action-btn.ver {
+      background: #e0f2fe;
+      color: #0284c7;
+    }
+
+    .action-btn.ver:hover {
+      background: #0284c7;
+      color: white;
+    }
+
+    /* Paginación */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1.5rem;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .page-btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid #e5e7eb;
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      background: #2D8CDB;
+      color: white;
+      border-color: #2D8CDB;
+    }
+
+    .page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .page-btn.active {
+      background: #2D8CDB;
+      color: white;
+      border-color: #2D8CDB;
+    }
+
+    .page-info {
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+
+    /* Modal de detalle */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 2rem;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 20px;
+      max-width: 800px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    }
+
+    .modal-header {
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: #1f2937;
+      font-size: 1.5rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #6b7280;
+      padding: 0.5rem;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: #1f2937;
+    }
+
+    .modal-body {
+      padding: 2rem;
+    }
+
+    .user-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .detail-item {
+      background: #f8fafc;
+      padding: 1rem;
+      border-radius: 12px;
+    }
+
+    .detail-item .label {
+      font-size: 0.8rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    .detail-item .value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .docs-section {
+      margin-top: 2rem;
+    }
+
+    .docs-section h3 {
+      margin: 0 0 1rem 0;
+      color: #1f2937;
+      font-size: 1.1rem;
+    }
+
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+
+    .doc-card {
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .doc-card .doc-label {
+      background: #f8fafc;
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      color: #374151;
+      font-size: 0.9rem;
+    }
+
+    .doc-card .doc-image {
+      position: relative;
+      background: #1f2937;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .doc-card .doc-image img {
+      max-width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+    }
+
+    .doc-card .doc-image .no-doc {
+      color: #6b7280;
+      font-style: italic;
+    }
+
+    .doc-card .doc-image a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+
+    .doc-card .doc-image a:hover {
+      text-decoration: underline;
+    }
+
+    /* Acciones de verificación */
+    .verification-actions {
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .verification-actions h3 {
+      margin: 0 0 1rem 0;
+      color: #1f2937;
+      font-size: 1.1rem;
+    }
+
+    .notes-input {
+      width: 100%;
+      padding: 1rem;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      resize: vertical;
+      min-height: 80px;
+      margin-bottom: 1rem;
+      font-family: inherit;
+    }
+
+    .notes-input:focus {
+      outline: none;
+      border-color: #2D8CDB;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .verify-btn {
+      flex: 1;
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .verify-btn.approve {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+    }
+
+    .verify-btn.approve:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(16,185,129,0.4);
+    }
+
+    .verify-btn.reject {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+    }
+
+    .verify-btn.reject:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(239,68,68,0.4);
+    }
+
+    .verify-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Stats en modal */
+    .user-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .user-stat {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      padding: 1.25rem;
+      border-radius: 12px;
+      text-align: center;
+      color: white;
+    }
+
+    .user-stat .stat-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin: 0;
+    }
+
+    .user-stat .stat-label {
+      font-size: 0.8rem;
+      opacity: 0.9;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: #6b7280;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #2D8CDB;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #6b7280;
+    }
+
+    .empty-state .icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .page-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+
+      .panel-header {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .filters {
+        width: 100%;
+        flex-direction: column;
+      }
+
+      .filter-input,
+      .filter-select {
+        width: 100%;
+      }
+
+      .users-table {
+        display: block;
+        overflow-x: auto;
+      }
+
+      .user-detail-grid,
+      .docs-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .modal {
+        margin: 1rem;
+        max-height: calc(100vh - 2rem);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="page-header">
+      <h1>📱 Usuarios de la App</h1>
+      <a href="home.html" class="back-btn">
+        <span>←</span> Volver al Inicio
+      </a>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="icon">👥</div>
+        <p class="value" id="totalUsers">-</p>
+        <div class="label">Total Usuarios</div>
+      </div>
+      <div class="stat-card pendientes">
+        <div class="icon">⏳</div>
+        <p class="value" id="pendientesCount">-</p>
+        <div class="label">Pendientes</div>
+      </div>
+      <div class="stat-card verificados">
+        <div class="icon">✅</div>
+        <p class="value" id="verificadosCount">-</p>
+        <div class="label">Verificados</div>
+      </div>
+      <div class="stat-card rechazados">
+        <div class="icon">❌</div>
+        <p class="value" id="rechazadosCount">-</p>
+        <div class="label">Rechazados</div>
+      </div>
+    </div>
+
+    <!-- Panel principal -->
+    <div class="main-panel">
+      <div class="panel-header">
+        <h2>📋 Listado de Usuarios</h2>
+        <div class="filters">
+          <input type="text" class="filter-input" id="searchInput" placeholder="🔍 Buscar por nombre, email o documento...">
+          <select class="filter-select" id="estadoFilter">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">⏳ Pendientes</option>
+            <option value="verificado">✅ Verificados</option>
+            <option value="rechazado">❌ Rechazados</option>
+            <option value="no_verificado">⚪ Sin solicitar</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="tableContainer">
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          <p>Cargando usuarios...</p>
+        </div>
+      </div>
+
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+  <!-- Modal de detalle -->
+  <div class="modal-overlay" id="userModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">Detalle de Usuario</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Contenido cargado dinámicamente -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentPage = 1;
+    const limit = 20;
+    let searchTimeout;
+    let currentUserId = null;
+
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', async () => {
+      await checkAuth();
+      await loadStats();
+      await loadUsers();
+
+      // Event listeners
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          currentPage = 1;
+          loadUsers();
+        }, 300);
+      });
+
+      document.getElementById('estadoFilter').addEventListener('change', () => {
+        currentPage = 1;
+        loadUsers();
+      });
+    });
+
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/user-info');
+        if (!res.ok) {
+          window.location.href = 'login.html';
+          return;
+        }
+        const data = await res.json();
+        if (data.username !== 'master') {
+          alert('Acceso denegado. Solo el usuario master puede ver esta página.');
+          window.location.href = 'home.html';
+        }
+      } catch (error) {
+        window.location.href = 'login.html';
+      }
+    }
+
+    async function loadStats() {
+      try {
+        // Total usuarios
+        const resAll = await fetch('/api/clientes-app?limit=1');
+        const dataAll = await resAll.json();
+        document.getElementById('totalUsers').textContent = dataAll.total || 0;
+
+        // Pendientes
+        const resPend = await fetch('/api/clientes-app/pendientes/count');
+        const dataPend = await resPend.json();
+        document.getElementById('pendientesCount').textContent = dataPend.count || 0;
+
+        // Verificados
+        const resVerif = await fetch('/api/clientes-app?estado=verificado&limit=1');
+        const dataVerif = await resVerif.json();
+        document.getElementById('verificadosCount').textContent = dataVerif.total || 0;
+
+        // Rechazados
+        const resRech = await fetch('/api/clientes-app?estado=rechazado&limit=1');
+        const dataRech = await resRech.json();
+        document.getElementById('rechazadosCount').textContent = dataRech.total || 0;
+      } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+      }
+    }
+
+    async function loadUsers() {
+      const container = document.getElementById('tableContainer');
+      container.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Cargando usuarios...</p></div>';
+
+      try {
+        const search = document.getElementById('searchInput').value;
+        const estado = document.getElementById('estadoFilter').value;
+
+        const params = new URLSearchParams({
+          page: currentPage,
+          limit: limit
+        });
+        if (search) params.append('search', search);
+        if (estado) params.append('estado', estado);
+
+        const res = await fetch(`/api/clientes-app?${params}`);
+        const data = await res.json();
+
+        if (!data.clientes || data.clientes.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="icon">📭</div>
+              <h3>No hay usuarios</h3>
+              <p>No se encontraron usuarios con los filtros aplicados</p>
+            </div>
+          `;
+          document.getElementById('pagination').innerHTML = '';
+          return;
+        }
+
+        container.innerHTML = `
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Documento</th>
+                <th>Teléfono</th>
+                <th>Estado</th>
+                <th>Fecha Registro</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.clientes.map(u => `
+                <tr onclick="openUserDetail(${u.id})">
+                  <td>
+                    <div class="user-info-cell">
+                      <span class="user-name">${escapeHtml(u.nombre || '-')}</span>
+                      <span class="user-email">${escapeHtml(u.email || '-')}</span>
+                    </div>
+                  </td>
+                  <td>${formatDocumento(u.documento_tipo, u.documento_numero)}</td>
+                  <td>${escapeHtml(u.telefono || '-')}</td>
+                  <td>${getEstadoBadge(u.verificacion_estado)}</td>
+                  <td>${formatDate(u.fecha_registro)}</td>
+                  <td>
+                    <button class="action-btn ver" onclick="event.stopPropagation(); openUserDetail(${u.id})">
+                      👁️ Ver
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+
+        renderPagination(data.page, data.totalPages, data.total);
+      } catch (error) {
+        console.error('Error cargando usuarios:', error);
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">⚠️</div>
+            <h3>Error</h3>
+            <p>No se pudieron cargar los usuarios. Intenta de nuevo.</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderPagination(page, totalPages, total) {
+      const container = document.getElementById('pagination');
+      if (totalPages <= 1) {
+        container.innerHTML = `<span class="page-info">${total} usuario(s)</span>`;
+        return;
+      }
+
+      let html = `
+        <button class="page-btn" onclick="goToPage(1)" ${page === 1 ? 'disabled' : ''}>«</button>
+        <button class="page-btn" onclick="goToPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>
+      `;
+
+      const start = Math.max(1, page - 2);
+      const end = Math.min(totalPages, page + 2);
+
+      for (let i = start; i <= end; i++) {
+        html += `<button class="page-btn ${i === page ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+      }
+
+      html += `
+        <button class="page-btn" onclick="goToPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>
+        <button class="page-btn" onclick="goToPage(${totalPages})" ${page === totalPages ? 'disabled' : ''}>»</button>
+        <span class="page-info">Página ${page} de ${totalPages} (${total} usuarios)</span>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      loadUsers();
+    }
+
+    async function openUserDetail(id) {
+      currentUserId = id;
+      const modal = document.getElementById('userModal');
+      const modalBody = document.getElementById('modalBody');
+      
+      modal.classList.add('active');
+      modalBody.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Cargando datos...</p></div>';
+
+      try {
+        const res = await fetch(`/api/clientes-app/${id}`);
+        const user = await res.json();
+
+        document.getElementById('modalTitle').textContent = user.nombre || 'Usuario sin nombre';
+
+        const canVerify = user.verificacion_estado === 'pendiente';
+        const estadoText = {
+          'no_verificado': 'Sin solicitar verificación',
+          'pendiente': 'Pendiente de revisión',
+          'verificado': 'Cuenta verificada',
+          'rechazado': 'Verificación rechazada'
+        };
+
+        modalBody.innerHTML = `
+          <!-- Stats -->
+          <div class="user-stats">
+            <div class="user-stat">
+              <p class="stat-value">${user.estadisticas?.total_envios || 0}</p>
+              <div class="stat-label">Envíos Completados</div>
+            </div>
+            <div class="user-stat">
+              <p class="stat-value">${formatMoney(user.estadisticas?.total_enviado || 0)}</p>
+              <div class="stat-label">Total Enviado (CLP)</div>
+            </div>
+          </div>
+
+          <!-- Información -->
+          <div class="user-detail-grid">
+            <div class="detail-item">
+              <div class="label">Nombre Completo</div>
+              <div class="value">${escapeHtml(user.nombre || '-')}</div>
+            </div>
+            <div class="detail-item">
+              <div class="label">Email</div>
+              <div class="value">${escapeHtml(user.email || '-')}</div>
+            </div>
+            <div class="detail-item">
+              <div class="label">Teléfono</div>
+              <div class="value">${escapeHtml(user.telefono || '-')}</div>
+            </div>
+            <div class="detail-item">
+              <div class="label">Documento</div>
+              <div class="value">${formatDocumento(user.documento_tipo, user.documento_numero)}</div>
+            </div>
+            <div class="detail-item">
+              <div class="label">Estado de Verificación</div>
+              <div class="value">${getEstadoBadge(user.verificacion_estado)}</div>
+            </div>
+            <div class="detail-item">
+              <div class="label">Fecha de Registro</div>
+              <div class="value">${formatDateTime(user.fecha_registro)}</div>
+            </div>
+            ${user.verificacion_fecha_solicitud ? `
+            <div class="detail-item">
+              <div class="label">Fecha de Solicitud</div>
+              <div class="value">${formatDateTime(user.verificacion_fecha_solicitud)}</div>
+            </div>
+            ` : ''}
+            ${user.verificacion_fecha_respuesta ? `
+            <div class="detail-item">
+              <div class="label">Fecha de Respuesta</div>
+              <div class="value">${formatDateTime(user.verificacion_fecha_respuesta)}</div>
+            </div>
+            ` : ''}
+          </div>
+
+          ${user.verificacion_notas ? `
+          <div class="detail-item" style="margin-bottom: 1rem;">
+            <div class="label">Notas de Verificación</div>
+            <div class="value">${escapeHtml(user.verificacion_notas)}</div>
+          </div>
+          ` : ''}
+
+          <!-- Documentos -->
+          <div class="docs-section">
+            <h3>📄 Documentos de Verificación</h3>
+            <div class="docs-grid">
+              <div class="doc-card">
+                <div class="doc-label">Frente del Documento</div>
+                <div class="doc-image">
+                  ${user.verificacion_doc_frente 
+                    ? `<a href="${user.verificacion_doc_frente}" target="_blank"><img src="${user.verificacion_doc_frente}" alt="Documento Frente"></a>`
+                    : '<span class="no-doc">No subido</span>'
+                  }
+                </div>
+              </div>
+              <div class="doc-card">
+                <div class="doc-label">Reverso del Documento</div>
+                <div class="doc-image">
+                  ${user.verificacion_doc_reverso 
+                    ? `<a href="${user.verificacion_doc_reverso}" target="_blank"><img src="${user.verificacion_doc_reverso}" alt="Documento Reverso"></a>`
+                    : '<span class="no-doc">No subido</span>'
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Acciones de verificación -->
+          ${canVerify ? `
+          <div class="verification-actions">
+            <h3>✅ Acciones de Verificación</h3>
+            <textarea class="notes-input" id="verificationNotes" placeholder="Notas (opcional) - Motivo del rechazo si aplica..."></textarea>
+            <div class="action-buttons">
+              <button class="verify-btn approve" onclick="handleVerification('aprobar')">
+                ✅ Aprobar Verificación
+              </button>
+              <button class="verify-btn reject" onclick="handleVerification('rechazar')">
+                ❌ Rechazar Verificación
+              </button>
+            </div>
+          </div>
+          ` : ''}
+        `;
+      } catch (error) {
+        console.error('Error cargando detalle:', error);
+        modalBody.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">⚠️</div>
+            <h3>Error</h3>
+            <p>No se pudo cargar el detalle del usuario</p>
+          </div>
+        `;
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('userModal').classList.remove('active');
+      currentUserId = null;
+    }
+
+    async function handleVerification(accion) {
+      if (!currentUserId) return;
+
+      const confirmMsg = accion === 'aprobar' 
+        ? '¿Estás seguro de aprobar la verificación de este usuario?' 
+        : '¿Estás seguro de rechazar la verificación de este usuario?';
+      
+      if (!confirm(confirmMsg)) return;
+
+      const notas = document.getElementById('verificationNotes')?.value || '';
+
+      // Deshabilitar botones
+      const buttons = document.querySelectorAll('.verify-btn');
+      buttons.forEach(btn => btn.disabled = true);
+
+      try {
+        const res = await fetch(`/api/clientes-app/${currentUserId}/verificacion`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accion, notas })
+        });
+
+        const data = await res.json();
+        
+        if (data.success) {
+          alert(`Verificación ${accion === 'aprobar' ? 'aprobada' : 'rechazada'} correctamente`);
+          closeModal();
+          await loadStats();
+          await loadUsers();
+        } else {
+          alert('Error: ' + (data.error || 'No se pudo procesar'));
+          buttons.forEach(btn => btn.disabled = false);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
+        buttons.forEach(btn => btn.disabled = false);
+      }
+    }
+
+    // Helpers
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function formatDocumento(tipo, numero) {
+      if (!numero) return '-';
+      const tipoMap = {
+        'rut': 'RUT',
+        'dni': 'DNI',
+        'pasaporte': 'Pasaporte',
+        'cedula': 'Cédula'
+      };
+      return `${tipoMap[tipo] || tipo || ''} ${numero}`;
+    }
+
+    function getEstadoBadge(estado) {
+      const badges = {
+        'no_verificado': '<span class="estado-badge no_verificado">⚪ Sin solicitar</span>',
+        'pendiente': '<span class="estado-badge pendiente">⏳ Pendiente</span>',
+        'verificado': '<span class="estado-badge verificado">✅ Verificado</span>',
+        'rechazado': '<span class="estado-badge rechazado">❌ Rechazado</span>'
+      };
+      return badges[estado] || badges['no_verificado'];
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('es-CL');
+    }
+
+    function formatDateTime(dateStr) {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('es-CL') + ' ' + date.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function formatMoney(amount) {
+      return new Intl.NumberFormat('es-CL').format(Math.round(amount));
+    }
+
+    // Cerrar modal con ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('userModal').addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) closeModal();
+    });
+  </script>
+</body>
+</html>

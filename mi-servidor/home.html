@@ -832,6 +832,15 @@
         <h3>Administración</h3>
         <p>Gestión de operadores, compras, metas y configuración del sistema</p>
       </a>
+
+      <!-- Usuarios App (Master) -->
+      <a href="usuarios-app.html" class="module-card master-only" id="usuariosAppCard" style="display:none">
+        <div class="module-icon">📱</div>
+        <span class="module-badge">Master</span>
+        <h3>Usuarios App</h3>
+        <p>Gestión de usuarios de la app móvil y verificaciones de cuentas</p>
+        <span class="pending-badge" id="pendingVerificationBadge" style="display:none;background:#f59e0b;color:white;padding:0.25rem 0.5rem;border-radius:12px;font-size:0.75rem;font-weight:bold;">0 pendientes</span>
+      </a>
     </div>
   </div>
 
@@ -951,6 +960,9 @@
         document.getElementById('monitoreoCard').style.display = 'flex';
         document.getElementById('nominaCard').style.display = 'flex';
         document.getElementById('adminCard').style.display = 'flex';
+        document.getElementById('usuariosAppCard').style.display = 'flex';
+        // Cargar badge de verificaciones pendientes
+        cargarPendientesVerificacion();
       }
       
       // Cargar rendimiento para operadores (no master)
@@ -984,6 +996,23 @@
         }
       } catch (error) {
         console.error('Error cargando notificaciones:', error);
+      }
+    }
+
+    async function cargarPendientesVerificacion() {
+      try {
+        const response = await fetch('/api/clientes-app/pendientes/count');
+        const data = await response.json();
+        const badge = document.getElementById('pendingVerificationBadge');
+        
+        if (data.count > 0) {
+          badge.textContent = data.count + ' pendiente' + (data.count > 1 ? 's' : '');
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Error cargando pendientes verificación:', error);
       }
     }
     

@@ -866,6 +866,8 @@
     let tramos = [];
     let destinatarios = [];
     let timerInterval = null;
+    let verificacionEstado = 'no_verificado'; // Estado de verificacion del usuario
+    let totalEnviosCompletados = 0; // Contador de envios completados
     const envio = { montoCLP: 0, montoVES: 0, metodo: 'transferencia', destinatario: null };
     const fmtCLP = new Intl.NumberFormat('es-CL');
     const fmtVES = new Intl.NumberFormat('es-VE');
@@ -908,7 +910,7 @@
       document.body.insertAdjacentHTML('beforeend', modalHtml);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       // Verificar horario de atención
       if (!estaEnHorario()) {
         mostrarFueraDeHorario();
@@ -916,6 +918,10 @@
       }
       
       verificarSesion();
+      
+      // Verificar estado de verificación del usuario
+      await verificarEstadoVerificacion();
+      
       cargarTasa();
       cargarDestinatarios();
       bindAmountInputs();
@@ -924,6 +930,77 @@
       updateProgressUI();
       showStep(1);
     });
+
+    // Verificar si el usuario necesita verificación para enviar
+    async function verificarEstadoVerificacion() {
+      const token = localStorage.getItem('clienteToken');
+      if (!token) return;
+
+      try {
+        // Obtener estado de verificación
+        const respVerif = await fetch(`${API_BASE}/api/cliente/verificacion/estado`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (respVerif.ok) {
+          const data = await respVerif.json();
+          verificacionEstado = data.estado || 'no_verificado';
+        }
+
+        // Obtener estadísticas (envíos completados)
+        const respStats = await fetch(`${API_BASE}/api/cliente/estadisticas`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (respStats.ok) {
+          const stats = await respStats.json();
+          totalEnviosCompletados = stats.total_envios || 0;
+        }
+
+        // Si tiene envíos completados y no está verificado, mostrar bloqueo
+        if (totalEnviosCompletados > 0 && verificacionEstado !== 'verificado') {
+          mostrarRequiereVerificacion();
+        }
+      } catch (error) {
+        console.error('Error verificando estado:', error);
+      }
+    }
+
+    // Mostrar modal de bloqueo por verificación pendiente
+    function mostrarRequiereVerificacion() {
+      let mensaje = '';
+      let botonTexto = 'Ir a verificar mi cuenta';
+
+      if (verificacionEstado === 'pendiente') {
+        mensaje = 'Tu solicitud de verificación está siendo revisada. Te notificaremos cuando sea aprobada.';
+        botonTexto = 'Volver al inicio';
+      } else if (verificacionEstado === 'rechazado') {
+        mensaje = 'Tu verificación fue rechazada. Por favor, sube nuevamente tus documentos para poder continuar enviando.';
+      } else {
+        mensaje = 'Para continuar realizando envíos, necesitas verificar tu cuenta subiendo tu documento de identidad.';
+      }
+
+      const modalHtml = `
+        <div id="verificacionRequiredModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;">
+          <div style="background:white;border-radius:24px;max-width:380px;width:100%;padding:32px;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.25);">
+            <div style="width:80px;height:80px;margin:0 auto 20px;background:linear-gradient(135deg,rgba(25,116,206,0.1),rgba(35,198,184,0.1));border-radius:50%;display:flex;align-items:center;justify-content:center;">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1974CE" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <path d="M12 8v4"></path>
+                <circle cx="12" cy="16" r="1"></circle>
+              </svg>
+            </div>
+            <h3 style="margin:0 0 12px;color:#211C10;font-size:22px;font-weight:700;">Verificación requerida</h3>
+            <p style="margin:0 0 24px;color:#64748B;font-size:15px;line-height:1.5;">${mensaje}</p>
+            <button onclick="${verificacionEstado === 'pendiente' ? "window.location.href='home.html'" : "window.location.href='perfil.html'"}" style="width:100%;padding:16px;background:linear-gradient(135deg,#1974CE,#145DA6);color:white;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px rgba(25,116,206,0.3);">
+              ${botonTexto}
+            </button>
+            <button onclick="window.location.href='home.html'" style="width:100%;padding:14px;background:transparent;color:#64748B;border:none;font-size:14px;font-weight:500;cursor:pointer;margin-top:12px;">
+              Volver al inicio
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
 
     function verificarSesion() {
       const token = localStorage.getItem('clienteToken');
@@ -1217,6 +1294,12 @@
     }
 
     async function crearSolicitud() {
+      // Verificar que el usuario puede enviar (si tiene envíos previos, debe estar verificado)
+      if (totalEnviosCompletados > 0 && verificacionEstado !== 'verificado') {
+        mostrarRequiereVerificacion();
+        return;
+      }
+
       if (timerInterval) clearInterval(timerInterval);
       const token = localStorage.getItem('clienteToken');
       const tasaAplicada = obtenerTasaPorMonto(envio.montoCLP);

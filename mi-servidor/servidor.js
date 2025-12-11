@@ -11,6 +11,21 @@ const path = require('path');
 const axios = require('axios');
 const crypto = require('crypto');
 const cors = require('cors');
+const fs = require('fs');
+const multer = require('multer');
+
+// Configuracion de multer para uploads
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Solo se permiten imagenes'));
+        }
+    }
+});
 
 // Clave secreta para tokens de la app cliente
 const JWT_SECRET = process.env.JWT_SECRET || 'defi-oracle-jwt-secret-key-' + crypto.randomBytes(16).toString('hex');
@@ -326,6 +341,7 @@ process.env.TZ = process.env.TZ || 'America/Caracas';
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('.'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // CORS para frontend (localhost y dominios render)
 const allowedOrigins = [
     'http://localhost:3000',
@@ -718,8 +734,21 @@ const runMigrations = async () => {
         token_sesion TEXT,
         fecha_registro TEXT NOT NULL,
         ultimo_acceso TEXT,
+        verificacion_estado TEXT DEFAULT 'no_verificado' CHECK(verificacion_estado IN ('no_verificado', 'pendiente', 'verificado', 'rechazado')),
+        verificacion_doc_frente TEXT,
+        verificacion_doc_reverso TEXT,
+        verificacion_fecha_solicitud TEXT,
+        verificacion_fecha_respuesta TEXT,
+        verificacion_notas TEXT,
         UNIQUE(documento_tipo, documento_numero)
     )`);
+    // Agregar columnas de verificacion si no existen
+    await dbRun(`ALTER TABLE clientes_app ADD COLUMN verificacion_estado TEXT DEFAULT 'no_verificado'`).catch(() => {});
+    await dbRun(`ALTER TABLE clientes_app ADD COLUMN verificacion_doc_frente TEXT`).catch(() => {});
+    await dbRun(`ALTER TABLE clientes_app ADD COLUMN verificacion_doc_reverso TEXT`).catch(() => {});
+    await dbRun(`ALTER TABLE clientes_app ADD COLUMN verificacion_fecha_solicitud TEXT`).catch(() => {});
+    await dbRun(`ALTER TABLE clientes_app ADD COLUMN verificacion_fecha_respuesta TEXT`).catch(() => {});
+    await dbRun(`ALTER TABLE clientes_app ADD COLUMN verificacion_notas TEXT`).catch(() => {});
     console.log('âœ… Tabla clientes_app verificada');
 
     // Tabla de beneficiarios de transferencias
@@ -7167,6 +7196,119 @@ app.get('/api/cliente/perfil', clienteAuth, (req, res) => {
     });
 });
 
+// GET /api/cliente/estadisticas - Obtener estadisticas del cliente
+app.get('/api/cliente/estadisticas', clienteAuth, async (req, res) => {
+    try {
+        const clienteId = req.clienteApp.id;
+        
+        // Contar total de envios completados
+        const stats = await dbGet(`
+            SELECT 
+                COUNT(*) as total_envios,
+                COALESCE(SUM(monto_origen), 0) as total_enviado
+            FROM solicitudes_transferencia 
+            WHERE cliente_app_id = ? AND estado = 'completada'
+        `, [clienteId]);
+        
+        res.json({
+            total_envios: stats?.total_envios || 0,
+            total_enviado: stats?.total_enviado || 0
+        });
+    } catch (error) {
+        console.error('Error obteniendo estadisticas:', error);
+        res.status(500).json({ error: 'Error al obtener estadisticas' });
+    }
+});
+
+// =================================================================
+// APP CLIENTE - VERIFICACION DE CUENTA
+// =================================================================
+
+// GET /api/cliente/verificacion/estado - Obtener estado de verificacion
+app.get('/api/cliente/verificacion/estado', clienteAuth, async (req, res) => {
+    try {
+        const cliente = await dbGet(
+            'SELECT verificacion_estado, verificacion_fecha_solicitud, verificacion_fecha_respuesta, verificacion_notas FROM clientes_app WHERE id = ?',
+            [req.clienteApp.id]
+        );
+        
+        res.json({
+            estado: cliente?.verificacion_estado || 'no_verificado',
+            fecha_solicitud: cliente?.verificacion_fecha_solicitud,
+            fecha_respuesta: cliente?.verificacion_fecha_respuesta,
+            notas: cliente?.verificacion_notas
+        });
+    } catch (error) {
+        console.error('Error obteniendo estado verificacion:', error);
+        res.status(500).json({ error: 'Error al obtener estado de verificacion' });
+    }
+});
+
+// POST /api/cliente/verificacion/solicitar - Solicitar verificacion con documentos
+app.post('/api/cliente/verificacion/solicitar', clienteAuth, upload.fields([
+    { name: 'doc_frente', maxCount: 1 },
+    { name: 'doc_reverso', maxCount: 1 }
+]), async (req, res) => {
+    try {
+        const clienteId = req.clienteApp.id;
+        
+        // Verificar que se enviaron ambos documentos
+        if (!req.files || !req.files['doc_frente'] || !req.files['doc_reverso']) {
+            return res.status(400).json({ error: 'Debes enviar ambas caras del documento' });
+        }
+
+        const docFrente = req.files['doc_frente'][0];
+        const docReverso = req.files['doc_reverso'][0];
+
+        // Guardar archivos en carpeta uploads
+        const uploadsDir = path.join(__dirname, 'uploads', 'verificaciones', clienteId.toString());
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        const frenteFilename = `frente_${Date.now()}${path.extname(docFrente.originalname)}`;
+        const reversoFilename = `reverso_${Date.now()}${path.extname(docReverso.originalname)}`;
+
+        fs.writeFileSync(path.join(uploadsDir, frenteFilename), docFrente.buffer);
+        fs.writeFileSync(path.join(uploadsDir, reversoFilename), docReverso.buffer);
+
+        const frenteUrl = `/uploads/verificaciones/${clienteId}/${frenteFilename}`;
+        const reversoUrl = `/uploads/verificaciones/${clienteId}/${reversoFilename}`;
+
+        // Actualizar estado en BD
+        await dbRun(`
+            UPDATE clientes_app SET 
+                verificacion_estado = 'pendiente',
+                verificacion_doc_frente = ?,
+                verificacion_doc_reverso = ?,
+                verificacion_fecha_solicitud = datetime('now')
+            WHERE id = ?
+        `, [frenteUrl, reversoUrl, clienteId]);
+
+        // Obtener datos del cliente para notificar
+        const cliente = await dbGet('SELECT nombre, email, documento_tipo, documento_numero, telefono FROM clientes_app WHERE id = ?', [clienteId]);
+
+        // Notificar a Telegram
+        const mensaje = `🔐 <b>SOLICITUD DE VERIFICACION</b>\n\n` +
+            `👤 <b>Cliente:</b> ${cliente.nombre}\n` +
+            `📧 <b>Email:</b> ${cliente.email}\n` +
+            `📱 <b>Telefono:</b> ${cliente.telefono || 'No registrado'}\n` +
+            `🪪 <b>Documento:</b> ${cliente.documento_tipo?.toUpperCase() || 'N/A'} ${cliente.documento_numero || 'N/A'}\n\n` +
+            `📄 Documentos cargados y pendientes de revision.\n` +
+            `🔗 Ver en: ${process.env.BASE_URL || 'http://localhost:3000'}/home.html`;
+
+        await enviarNotificacionTelegram(mensaje);
+
+        res.json({ 
+            success: true, 
+            message: 'Documentos enviados correctamente. Te notificaremos cuando sean revisados.' 
+        });
+    } catch (error) {
+        console.error('Error solicitando verificacion:', error);
+        res.status(500).json({ error: 'Error al enviar documentos' });
+    }
+});
+
 // =================================================================
 // APP CLIENTE - BENEFICIARIOS
 // =================================================================
@@ -7721,6 +7863,97 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
 // =================================================================
 
 // Iniciar el servidor solo despuÃ©s de que las migraciones se hayan completado
+
+// =================================================================
+// ENDPOINTS PARA USUARIOS APP CLIENTE (ADMIN)
+// =================================================================
+
+// GET /api/clientes-app - Listar usuarios de la app cliente
+app.get('/api/clientes-app', apiAuth, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page || '1', 10);
+        const limit = parseInt(req.query.limit || '50', 10);
+        const search = req.query.search || '';
+        const estado = req.query.estado || '';
+        const offset = (page - 1) * limit;
+
+        let whereClause = 'WHERE 1=1';
+        const params = [];
+
+        if (search) {
+            whereClause += ' AND (nombre LIKE ? OR email LIKE ? OR documento_numero LIKE ?)';
+            params.push('%' + search + '%', '%' + search + '%', '%' + search + '%');
+        }
+
+        if (estado) {
+            whereClause += ' AND verificacion_estado = ?';
+            params.push(estado);
+        }
+
+        const countResult = await dbGet('SELECT COUNT(*) as total FROM clientes_app ' + whereClause, params);
+        const total = countResult?.total || 0;
+
+        const clientes = await dbAll(
+            'SELECT * FROM clientes_app ' + whereClause + ' ORDER BY CASE WHEN verificacion_estado = \'pendiente\' THEN 0 ELSE 1 END, fecha_registro DESC LIMIT ? OFFSET ?',
+            [...params, limit, offset]
+        );
+
+        res.json({ clientes, total, page, limit, totalPages: Math.ceil(total / limit) });
+    } catch (error) {
+        console.error('Error listando clientes app:', error);
+        res.status(500).json({ error: 'Error al listar clientes de la app' });
+    }
+});
+
+// GET /api/clientes-app/pendientes/count
+app.get('/api/clientes-app/pendientes/count', apiAuth, async (req, res) => {
+    try {
+        const result = await dbGet("SELECT COUNT(*) as count FROM clientes_app WHERE verificacion_estado = 'pendiente'");
+        res.json({ count: result?.count || 0 });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al contar pendientes' });
+    }
+});
+
+// GET /api/clientes-app/:id
+app.get('/api/clientes-app/:id', apiAuth, async (req, res) => {
+    try {
+        const cliente = await dbGet('SELECT * FROM clientes_app WHERE id = ?', [req.params.id]);
+        if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+        const stats = await dbGet(
+            "SELECT COUNT(*) as total_envios, COALESCE(SUM(monto_origen), 0) as total_enviado FROM solicitudes_transferencia WHERE cliente_app_id = ? AND estado = 'completada'",
+            [req.params.id]
+        );
+
+        res.json({ ...cliente, estadisticas: stats });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener cliente' });
+    }
+});
+
+// PUT /api/clientes-app/:id/verificacion
+app.put('/api/clientes-app/:id/verificacion', apiAuth, async (req, res) => {
+    try {
+        const { accion, notas } = req.body;
+        if (!['aprobar', 'rechazar'].includes(accion)) {
+            return res.status(400).json({ error: 'Accion invalida' });
+        }
+
+        const nuevoEstado = accion === 'aprobar' ? 'verificado' : 'rechazado';
+
+        await dbRun(
+            "UPDATE clientes_app SET verificacion_estado = ?, verificacion_fecha_respuesta = datetime('now'), verificacion_notas = ? WHERE id = ?",
+            [nuevoEstado, notas || null, req.params.id]
+        );
+
+        res.json({ success: true, estado: nuevoEstado });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al actualizar verificacion' });
+    }
+});
+
+
 runMigrations()
     .then(() => {
         app.listen(PORT, () => {
