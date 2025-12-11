@@ -348,7 +348,9 @@ const allowedOrigins = [
     'http://127.0.0.1:3000',
     'https://defi-app-cliente.onrender.com',
     'https://def-app-cliente.onrender.com',
-    'https://defisistema-interno.onrender.com'
+    'https://defisistema-interno.onrender.com',
+    'https://defioracleapp.com',
+    'https://www.defioracleapp.com'
 ];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.options('*', cors());
