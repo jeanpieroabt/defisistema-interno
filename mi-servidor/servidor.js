@@ -7700,7 +7700,11 @@ app.get('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
         const clienteId = req.clienteId;
         
         const solicitudes = await dbAll(
-            `SELECT s.*, b.alias, b.nombre_completo as beneficiario_nombre, b.banco
+            `SELECT s.*, 
+                    s.fecha_solicitud as fecha_creacion,
+                    b.alias, 
+                    b.nombre_completo as beneficiario_nombre, 
+                    b.banco as beneficiario_banco
              FROM solicitudes_transferencia s
              JOIN beneficiarios b ON s.beneficiario_id = b.id
              WHERE s.cliente_app_id = ?
@@ -7723,8 +7727,12 @@ app.get('/api/cliente/solicitudes/:id', clienteAuth, async (req, res) => {
         const clienteId = req.clienteId;
 
         const solicitud = await dbGet(
-            `SELECT s.*, b.alias, b.nombre_completo as beneficiario_nombre, 
-                    b.banco, b.numero_cuenta as beneficiario_cuenta,
+            `SELECT s.*, 
+                    s.fecha_solicitud as fecha_creacion,
+                    b.alias, 
+                    b.nombre_completo as beneficiario_nombre, 
+                    b.banco as beneficiario_banco, 
+                    b.numero_cuenta as beneficiario_cuenta,
                     cp.banco as cuenta_pago_banco, cp.numero_cuenta as cuenta_pago_numero,
                     cp.titular as cuenta_pago_titular, cp.rut_titular as cuenta_pago_rut
              FROM solicitudes_transferencia s

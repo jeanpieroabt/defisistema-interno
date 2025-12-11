@@ -27,10 +27,7 @@
 
         body {
             font-family: "Poppins", "Inter", sans-serif;
-            background:
-                radial-gradient(circle at 10% 0%, rgba(44, 136, 218, 0.18), transparent 45%),
-                radial-gradient(circle at 90% 100%, rgba(48, 193, 171, 0.18), transparent 50%),
-                linear-gradient(180deg, #F2F9FF 0%, #EEF6F7 50%, #F3F7FA 100%);
+            background: linear-gradient(135deg, rgba(25,116,206,0.10), rgba(47,199,184,0.10));
             margin: 0;
             color: var(--deep-charcoal);
         }
@@ -39,6 +36,7 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            background: transparent;
         }
 
         .support-shell {
@@ -512,64 +510,24 @@
         <div class="support-shell">
             <header class="support-hero animate-slide-up">
                 <div class="hero-pill">Soporte</div>
-                <h1 class="support-title">Â¿CÃ³mo te ayudamos?</h1>
-                <p class="support-subtitle">Estamos aquÃ­ para ti. EscrÃ­benos y resolvemos tus dudas de envÃ­os CLP a VES con el mismo equipo que respalda tu cuenta.</p>
+                <h1 class="support-title">Como te ayudamos?</h1>
+                <p class="support-subtitle">Estamos aqui para ti. Escribenos y resolvemos tus dudas de envios CLP a VES con el mismo equipo que respalda tu cuenta.</p>
                 <div class="hero-actions">
                     <a class="btn btn-primary" href="https://wa.me/56954450213" target="_blank" rel="noopener">Hablar por WhatsApp</a>
                     <a class="btn btn-secondary" href="mailto:soporte@defioracle.cl">Enviar correo</a>
                 </div>
                 <div class="hero-meta">
                     <span class="meta-item"><span class="dot online"></span>Respuesta promedio en minutos</span>
-                    <span class="meta-sep">â€¢</span>
-                    <span class="meta-item"><span class="dot shield"></span>OperaciÃ³n segura y registrada UAF</span>
+                    <span class="meta-sep">|</span>
+                    <span class="meta-item"><span class="dot shield"></span>Operacion segura y registrada UAF</span>
                 </div>
             </header>
 
             <main class="support-main animate-slide-up">
-                <section class="panel contact-panel">
-                    <div class="panel-header">
-                        <div>
-                            <p class="eyebrow">ContÃ¡ctanos</p>
-                            <h2>Canales directos</h2>
-                            <p class="panel-desc">Elige cÃ³mo prefieres hablar con nosotros.</p>
-                        </div>
-                        <div class="status-pill" id="horarioStatus">En lÃ­nea</div>
-                    </div>
-
-                    <div class="contact-grid">
-                        <a href="https://wa.me/56954450213" class="contact-card" target="_blank" rel="noopener">
-                            <span class="contact-icon whatsapp" aria-hidden="true">WA</span>
-                            <div class="contact-info">
-                                <h3>WhatsApp</h3>
-                                <p>Respuesta inmediata y seguimiento de envÃ­os</p>
-                            </div>
-                            <span class="contact-chevron" aria-hidden="true">&rsaquo;</span>
-                        </a>
-
-                        <a href="mailto:soporte@defioracle.cl" class="contact-card">
-                            <span class="contact-icon email" aria-hidden="true">@</span>
-                            <div class="contact-info">
-                                <h3>Email</h3>
-                                <p>soporte@defioracle.cl</p>
-                            </div>
-                            <span class="contact-chevron" aria-hidden="true">&rsaquo;</span>
-                        </a>
-
-                        <a href="tel:+56954450213" class="contact-card">
-                            <span class="contact-icon phone" aria-hidden="true">TEL</span>
-                            <div class="contact-info">
-                                <h3>TelÃ©fono</h3>
-                                <p>+56 9 5445 0213</p>
-                            </div>
-                            <span class="contact-chevron" aria-hidden="true">&rsaquo;</span>
-                        </a>
-                    </div>
-                </section>
-
                 <section class="panel faq-panel">
                     <div class="panel-header">
                         <div>
-                            <p class="eyebrow">Ayuda rÃ¡pida</p>
+                            <p class="eyebrow">Ayuda rapida</p>
                             <h2>Preguntas frecuentes</h2>
                         </div>
                     </div>
@@ -577,58 +535,58 @@
                     <div class="faq-list">
                         <div class="faq-card" onclick="toggleFaq(this)">
                             <div class="faq-question">
-                                <span>Â¿CuÃ¡nto demora en llegar el dinero?</span>
+                                <span>Cuanto demora en llegar el dinero?</span>
                                 <span class="faq-toggle">+</span>
                             </div>
                             <div class="faq-answer">
-                                El dinero llega en minutos una vez que confirmamos tu pago. Pago MÃ³vil es instantÃ¡neo y las transferencias bancarias pueden demorar hasta 24 horas hÃ¡biles dependiendo del banco de destino.
+                                El dinero llega en pocos minutos una vez que confirmamos tu pago. Los pagos por Pago Movil y transferencias bancarias pueden demorar hasta 20 minutos. Cuando tu solicitud este completada, el dinero deberia estar abonado en la cuenta del destinatario.
                             </div>
                         </div>
 
                         <div class="faq-card" onclick="toggleFaq(this)">
                             <div class="faq-question">
-                                <span>Â¿CuÃ¡l es la comisiÃ³n por envÃ­o?</span>
+                                <span>Cual es la comision por envio?</span>
                                 <span class="faq-toggle">+</span>
                             </div>
                             <div class="faq-answer">
-                                Nuestras transferencias no tienen comisiÃ³n. El monto que envÃ­as es exactamente lo que recibe tu destinatario en Venezuela, calculado segÃºn la tasa de cambio del momento.
+                                Nuestras transferencias no tienen comision. El monto que envias es exactamente lo que recibe tu destinatario en Venezuela, calculado segun la tasa de cambio del momento.
                             </div>
                         </div>
 
                         <div class="faq-card" onclick="toggleFaq(this)">
                             <div class="faq-question">
-                                <span>Â¿CuÃ¡l es el monto mÃ¡ximo que puedo enviar?</span>
+                                <span>Cual es el monto maximo que puedo enviar?</span>
                                 <span class="faq-toggle">+</span>
                             </div>
                             <div class="faq-answer">
-                                Puedes enviar hasta $2.000.000 CLP por transacciÃ³n y hasta $5.000.000 CLP mensuales. Para montos mayores, contÃ¡ctanos para opciones personalizadas.
+                                Puedes enviar hasta $2.000.000 CLP por transaccion y hasta $5.000.000 CLP mensuales. Para montos mayores, contactanos para opciones personalizadas.
                             </div>
                         </div>
 
                         <div class="faq-card" onclick="toggleFaq(this)">
                             <div class="faq-question">
-                                <span>Â¿Es seguro usar Defi Oracle?</span>
+                                <span>Es seguro usar Defi Oracle?</span>
                                 <span class="faq-toggle">+</span>
                             </div>
                             <div class="faq-answer">
-                                SÃ­. Estamos registrados ante la UAF (Unidad de AnÃ¡lisis Financiero) y cumplimos con las regulaciones de prevenciÃ³n de lavado de activos. Tus datos estÃ¡n protegidos con encriptaciÃ³n de grado bancario.
+                                Si. Estamos registrados ante la UAF (Unidad de Analisis Financiero) y cumplimos con las regulaciones de prevencion de lavado de activos. Tus datos estan protegidos con encriptacion de grado bancario.
                             </div>
                         </div>
 
                         <div class="faq-card" onclick="toggleFaq(this)">
                             <div class="faq-question">
-                                <span>Â¿QuÃ© pasa si hay un problema con mi envÃ­o?</span>
+                                <span>Que pasa si hay un problema con mi envio?</span>
                                 <span class="faq-toggle">+</span>
                             </div>
                             <div class="faq-answer">
-                                Cada envÃ­o tiene un cÃ³digo de seguimiento. Si hay algÃºn inconveniente, contÃ¡ctanos por WhatsApp con tu cÃ³digo y lo resolveremos lo antes posible. Ofrecemos garantÃ­a de devoluciÃ³n si el dinero no llega.
+                                Cada envio tiene un codigo de seguimiento. Si hay algun inconveniente, contactanos por WhatsApp con tu codigo y lo resolveremos lo antes posible. Ofrecemos garantia de devolucion si el dinero no llega.
                             </div>
                         </div>
                     </div>
                 </section>
             </main>
 
-                        <nav class="glass-nav">
+            <nav class="glass-nav">
                 <a href="home.html" class="glass-nav-item">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -694,7 +652,7 @@
 
         function verificarHorario() {
             const now = new Date();
-            const day = now.getDay(); // 0=domingo, 6=sÃ¡bado
+            const day = now.getDay(); // 0=domingo, 6=sabado
             const hour = now.getHours();
             const status = document.getElementById('horarioStatus');
 
@@ -702,12 +660,12 @@
 
             if (day >= 1 && day <= 5) { // Lunes a Viernes
                 isOnline = hour >= 9 && hour < 19;
-            } else if (day === 6) { // SÃ¡bado
+            } else if (day === 6) { // Sabado
                 isOnline = hour >= 10 && hour < 14;
             }
 
             if (isOnline) {
-                status.textContent = 'En lÃ­nea';
+                status.textContent = 'En linea';
                 status.className = 'status-pill';
             } else {
                 status.textContent = 'Fuera de horario';

@@ -61,7 +61,7 @@
     body {
       margin: 0;
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background: var(--bg);
+      background: linear-gradient(135deg, rgba(25,116,206,0.10), rgba(47,199,184,0.10));
       color: var(--text);
       min-height: 100vh;
     }
@@ -72,6 +72,7 @@
       display: flex;
       flex-direction: column;
       padding: var(--space-5) var(--space-5) 110px;
+      background: transparent;
     }
     header.topbar {
       display: flex;
@@ -557,10 +558,10 @@
       min-width: 0;
     }
     .eta-title {
-      font-size: 11px;
-      opacity: 0.9;
-      margin: 0 0 2px 0;
-      font-weight: 500;
+      font-size: 14px;
+      opacity: 1;
+      margin: 0 0 4px 0;
+      font-weight: 600;
     }
     .eta-time {
       font-size: 16px;
@@ -677,7 +678,6 @@
         <div class="input-shell">
           <div class="label-flag">
             <img class="flag-icon" alt="Chile" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='40' viewBox='0 0 60 40'%3E%3Cpath fill='%23fff' d='M0 0h60v20H0z'/%3E%3Cpath fill='%23d52b1e' d='M0 20h60v20H0z'/%3E%3Cpath fill='%2300399c' d='M0 0h20v20H0z'/%3E%3Cpath fill='%23fff' d='m10 3.5 1.175 3.613 3.787.013-3.05 2.19 1.161 3.618L10 10.68 6.927 12.94l1.16-3.618-3.05-2.19 3.788-.013z'/%3E%3C/svg%3E"/>
-            <span>🔍</span>
           </div>
           <div class="input-with-flag">
             <input type="text" id="montoCLP" placeholder="0" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
@@ -690,7 +690,6 @@
         <div class="input-shell">
           <div class="label-flag">
             <img class="flag-icon" alt="Venezuela" src="assets/BANDERAVENEZUELA.svg"/>
-            <span>🔍</span>
           </div>
           <div class="input-with-flag">
             <input type="text" id="montoVES" placeholder="0" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
@@ -718,7 +717,6 @@
           <div class="method-icon">📱</div>
           <div class="method-text">
             <h4>Pago Móvil</h4>
-            <p>Llega en minutos a bancos VZLA</p>
           </div>
         </div>
       </div>
@@ -770,13 +768,12 @@
         <div style="font-size:28px; margin-top:6px;" id="timerValue">30:00</div>
       </div>
       <div class="card pay-card" style="padding: var(--space-5); background: var(--panel); border:1px solid var(--border);">
-        <div class="detail"><div class="label">Banco</div><div class="value"><span>🔍</span></div></div>
-        <div class="detail"><div class="label">Tipo de cuenta</div><div class="value"><span>🔍</span></div></div>
-        <div class="detail"><div class="label">Número de cuenta</div><div class="value"><span id="paymentCuenta">12345678901</span><button class="copy" onclick="copiar('paymentCuenta')">Copiar</button></div></div>
-        <div class="detail"><div class="label">RUT</div><div class="value"><span id="paymentRut">76.XXX.XXX-X</span><button class="copy" onclick="copiar('paymentRut')">Copiar</button></div></div>
-        <div class="detail"><div class="label">Nombre</div><div class="value"><span>🔍</span></div></div>
+        <div class="detail"><div class="label">Banco</div><div class="value"><span>BANCO ESTADO</span></div></div>
+        <div class="detail"><div class="label">Tipo de cuenta</div><div class="value"><span>CUENTA VISTA O PRO</span></div></div>
+        <div class="detail"><div class="label">Numero de cuenta</div><div class="value"><span id="paymentCuenta">31670327933</span><button class="copy" onclick="copiar('paymentCuenta')">Copiar</button></div></div>
+        <div class="detail"><div class="label">RUT</div><div class="value"><span id="paymentRut">77.354.262-7</span><button class="copy" onclick="copiar('paymentRut')">Copiar</button></div></div>
         <div class="detail"><div class="label">Monto a transferir</div><div class="value"><span id="paymentMonto">$0 CLP</span><button class="copy" onclick="copiar('paymentMonto')">Copiar</button></div></div>
-        <div class="alert">⚠️ Asegúrate de transferir el monto exacto. Tu envío se procesará al recibir el pago.</div>
+        <div class="alert">⚠️ Asegurate de transferir el monto exacto. Tu envio se procesara al recibir el pago.</div>
       </div>
     </section>
 
@@ -793,7 +790,7 @@
           <div class="eta-icon">🚀</div>
           <div class="eta-content">
             <p class="eta-title">Tiempo estimado de entrega</p>
-            <p class="eta-time" id="etaTime">~15 min</p>
+            <p class="eta-time" id="etaTime">15 min</p>
             <div class="eta-progress-container">
               <div class="eta-progress-bar" id="etaProgressBar"></div>
             </div>
@@ -1039,9 +1036,18 @@
       if (clpInput) {
         clpInput.addEventListener('input', e => {
           const val = sanitizeInteger(e.target.value);
+          const cursorPos = e.target.selectionStart;
+          const oldLen = e.target.value.length;
+          e.target.value = val ? fmtCLP.format(val) : '';
+          const newLen = e.target.value.length;
+          const newPos = Math.max(0, cursorPos + (newLen - oldLen));
+          e.target.setSelectionRange(newPos, newPos);
           updateFromCLP(val, { source: 'input' });
         });
-        clpInput.addEventListener('focus', e => e.target.value = sanitizeInteger(e.target.value) || '');
+        clpInput.addEventListener('focus', e => {
+          const val = sanitizeInteger(e.target.value);
+          e.target.value = val ? fmtCLP.format(val) : '';
+        });
         clpInput.addEventListener('blur', e => {
           const val = sanitizeInteger(e.target.value);
           e.target.value = val ? fmtCLP.format(val) : '';
@@ -1052,9 +1058,18 @@
       if (vesInput) {
         vesInput.addEventListener('input', e => {
           const val = sanitizeInteger(e.target.value);
+          const cursorPos = e.target.selectionStart;
+          const oldLen = e.target.value.length;
+          e.target.value = val ? fmtVES.format(val) : '';
+          const newLen = e.target.value.length;
+          const newPos = Math.max(0, cursorPos + (newLen - oldLen));
+          e.target.setSelectionRange(newPos, newPos);
           updateFromVES(val, { source: 'input', element: vesInput });
         });
-        vesInput.addEventListener('focus', e => e.target.value = sanitizeInteger(e.target.value) || '');
+        vesInput.addEventListener('focus', e => {
+          const val = sanitizeInteger(e.target.value);
+          e.target.value = val ? fmtVES.format(val) : '';
+        });
         vesInput.addEventListener('blur', e => {
           const val = sanitizeInteger(e.target.value);
           e.target.value = val ? fmtVES.format(val) : '';
@@ -1071,13 +1086,13 @@
     function setCLPInputValue(value) {
       const input = document.getElementById('montoCLP');
       if (!input) return;
-      input.value = document.activeElement === input ? (value ? String(value) : '') : (value ? fmtCLP.format(value) : '');
+      input.value = value ? fmtCLP.format(value) : '';
     }
 
     function setVESInputValue(value) {
       const input = document.getElementById('montoVES');
       if (!input) return;
-      input.value = document.activeElement === input ? (value ? String(value) : '') : (value ? fmtVES.format(value) : '');
+      input.value = value ? fmtVES.format(value) : '';
     }
 
     function obtenerTasaPorMonto(montoCLP) {
