@@ -1,291 +1,338 @@
 ﻿<!DOCTYPE html>
 <html lang="es">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-	<meta name="theme-color" content="#1974CE">
-	<title>Completar registro - Defi Oracle</title>
-	<script>
-		// Asegura que todas las vistas apunten al mismo backend (producciÃ³n por defecto)
-		window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
-	</script>
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
-	<style>
-		:root {
-			--primary: #1974CE;
-			--primary-2: #2FC7B8;
-			--bg: #E3EAEE;
-			--card: #FFFFFF;
-			--text: #1F2933;
-			--muted: #6B7280;
-			--error: #DC2626;
-			--success: #15803D;
-			--shadow: 0 16px 38px rgba(25, 116, 206, 0.18);
-			--radius: 18px;
-			--font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-		}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1974CE">
+    <title>Completar registro - Defi Oracle</title>
+    <script>
+        (function() {
+            const stored = localStorage.getItem('apiBaseUrlOverride');
+            const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
+            if (isLocal) {
+                window.API_BASE_URL = location.origin || 'http://localhost:3000';
+                localStorage.setItem('apiBaseUrlOverride', window.API_BASE_URL);
+                return;
+            }
+            if (stored) {
+                window.API_BASE_URL = stored;
+                return;
+            }
+            window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1974CE;
+            --primary-2: #2FC7B8;
+            --bg: #E3EAEE;
+            --card: #FFFFFF;
+            --text: #1F2933;
+            --muted: #6B7280;
+            --error: #DC2626;
+            --success: #15803D;
+            --shadow: 0 16px 38px rgba(25, 116, 206, 0.18);
+            --radius: 18px;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
 
-		* { box-sizing: border-box; margin: 0; padding: 0; }
-		body {
-			font-family: var(--font);
-			background: linear-gradient(135deg, rgba(25,116,206,0.10), rgba(47,199,184,0.10));
-			min-height: 100vh;
-			padding: 24px 16px 48px;
-			color: var(--text);
-		}
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font);
+            background: linear-gradient(135deg, rgba(25,116,206,0.10), rgba(47,199,184,0.10));
+            min-height: 100vh;
+            padding: 24px 16px 48px;
+            color: var(--text);
+        }
 
-		.app {
-			max-width: 520px;
-			margin: 0 auto;
-			background: var(--card);
-			border-radius: var(--radius);
-			padding: 26px;
-			box-shadow: var(--shadow);
-			border: 1px solid rgba(25, 116, 206, 0.10);
-		}
+        .app {
+            max-width: 520px;
+            margin: 0 auto;
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 26px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(25, 116, 206, 0.10);
+        }
 
-		.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-		.topbar .logo { display: flex; align-items: center; gap: 10px; }
-		.topbar img { height: 38px; width: auto; }
-		.eyebrow { color: var(--muted); font-size: 13px; letter-spacing: 0.3px; text-transform: uppercase; }
-		h1 { font-size: 26px; margin: 4px 0 6px; }
-		p.sub { color: var(--muted); margin-bottom: 18px; }
+        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .topbar .logo { display: flex; align-items: center; gap: 10px; }
+        .topbar img { height: 38px; width: auto; }
+        .eyebrow { color: var(--muted); font-size: 13px; letter-spacing: 0.3px; text-transform: uppercase; }
+        h1 { font-size: 26px; margin: 4px 0 6px; }
+        p.sub { color: var(--muted); margin-bottom: 18px; }
 
-		form { display: grid; gap: 14px; }
-		label { display: block; font-weight: 600; margin-bottom: 6px; }
-		input, select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(31,41,51,0.12); font-size: 15px; }
-		input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(25,116,206,0.12); }
+        form { display: grid; gap: 14px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; }
+        input, select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(31,41,51,0.12); font-size: 15px; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(25,116,206,0.12); }
 
-		.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-		.readonly { background: #F8FAFC; color: var(--muted); }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .readonly { background: #F8FAFC; color: var(--muted); }
 
-		.actions { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
-		.btn-primary { background: linear-gradient(90deg, var(--primary) 0%, var(--primary-2) 100%); color: #fff; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 12px 24px rgba(25,116,206,0.24); }
-		.btn-secondary { background: transparent; border: 1px solid rgba(25,116,206,0.30); color: var(--primary); border-radius: 12px; padding: 12px; font-weight: 700; cursor: pointer; }
+        .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+        .btn-primary { background: linear-gradient(90deg, var(--primary) 0%, var(--primary-2) 100%); color: #fff; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 12px 24px rgba(25,116,206,0.24); }
+        .btn-secondary { background: transparent; border: 1px solid rgba(25,116,206,0.30); color: var(--primary); border-radius: 12px; padding: 12px; font-weight: 700; cursor: pointer; }
 
-		.alert { display: none; padding: 12px; border-radius: 12px; font-size: 14px; }
-		.alert.error { background: #FEF2F2; color: var(--error); border: 1px solid #FECACA; }
-		.alert.success { background: #ECFDF3; color: var(--success); border: 1px solid #BBF7D0; }
+        .alert { display: none; padding: 12px; border-radius: 12px; font-size: 14px; margin-bottom: 14px; }
+        .alert.error { background: #FEF2F2; color: var(--error); border: 1px solid #FECACA; }
+        .alert.success { background: #ECFDF3; color: var(--success); border: 1px solid #BBF7D0; }
 
-		.helper { color: var(--muted); font-size: 13px; margin-top: 6px; }
-		.badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(25,116,206,0.08); color: var(--primary); border-radius: 999px; font-weight: 600; font-size: 13px; }
-		.footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 12px; }
-		.loading { display: none; font-size: 14px; color: var(--muted); }
-		.loading.active { display: inline-block; }
-	</style>
+        .helper { color: var(--muted); font-size: 13px; margin-top: 6px; }
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(25,116,206,0.08); color: var(--primary); border-radius: 999px; font-weight: 600; font-size: 13px; margin-bottom: 14px; }
+        .footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 12px; }
+        .loading { display: none; font-size: 14px; color: var(--muted); }
+        .loading.active { display: inline-block; }
+    </style>
 </head>
 <body>
-	<div class="app">
-		<div class="topbar">
-			<div class="logo">
-				<img src="assets/defioracle-logo.png" alt="Defi Oracle">
-				<div>
-					<div class="eyebrow">VerificaciÃ³n</div>
-					<h1>Completa tus datos</h1>
-				</div>
-			</div>
-			<button class="btn-secondary" id="logoutBtn">Salir</button>
-		</div>
-		<p class="sub">Necesitamos algunos datos para habilitar tus envÃ­os y validar tu identidad.</p>
-		<div class="badge" id="userSummary">Cargando usuario...</div>
+    <div class="app">
+        <div class="topbar">
+            <div class="logo">
+                <img src="assets/defioracle-logo.png" alt="Defi Oracle">
+                <div>
+                    <div class="eyebrow">Verificacion</div>
+                    <h1>Completa tus datos</h1>
+                </div>
+            </div>
+            <button class="btn-secondary" id="logoutBtn">Salir</button>
+        </div>
+        <p class="sub">Necesitamos algunos datos para habilitar tus envios y validar tu identidad.</p>
+        <div class="badge" id="userSummary">Cargando usuario...</div>
 
-		<div id="errorBox" class="alert error"></div>
-		<div id="successBox" class="alert success"></div>
+        <div id="errorBox" class="alert error"></div>
+        <div id="successBox" class="alert success"></div>
 
-		<form id="registroForm">
-			<div>
-				<label>Nombre completo</label>
-				<input id="nombre" type="text" autocomplete="name" placeholder="Tu nombre completo">
-			</div>
-			<div>
-				<label>Correo</label>
-				<input id="email" class="readonly" type="email" readonly>
-			</div>
-			<div>
-				<label for="telefono">TelÃ©fono</label>
-				<input id="telefono" name="telefono" type="tel" inputmode="tel" placeholder="+56 9 1234 5678" required>
-			</div>
-			<div class="row">
-				<div>
-					<label for="documento_tipo">Documento</label>
-					<select id="documento_tipo" name="documento_tipo" required>
-						<option value="">Selecciona</option>
-						<option value="rut">RUT / CI</option>
-						<option value="pasaporte">Pasaporte</option>
-						<option value="dni">DNI</option>
-					</select>
-				</div>
-				<div>
-					<label for="documento_numero">NÃºmero</label>
-					<input id="documento_numero" name="documento_numero" type="text" autocomplete="off" required>
-				</div>
-			</div>
-			<div class="row">
-				<div>
-					<label for="pais">PaÃ­s</label>
-					<input id="pais" name="pais" type="text" value="Chile" required>
-				</div>
-				<div>
-					<label for="ciudad">Ciudad</label>
-					<input id="ciudad" name="ciudad" type="text" placeholder="Santiago">
-				</div>
-			</div>
-			<div>
-				<label for="direccion">DirecciÃ³n</label>
-				<input id="direccion" name="direccion" type="text" placeholder="Calle y nÃºmero">
-			</div>
-			<div>
-				<label for="fecha_nacimiento">Fecha de nacimiento</label>
-				<input id="fecha_nacimiento" name="fecha_nacimiento" type="date">
-				<div class="helper">Usamos estos datos solo para validaciÃ³n interna.</div>
-			</div>
-			<div class="actions">
-				<button class="btn-primary" type="submit">Guardar y continuar <span id="saving" class="loading">(guardando...)</span></button>
-				<button type="button" class="btn-secondary" id="volverLogin">Volver al inicio de sesiÃ³n</button>
-			</div>
-		</form>
-		<div class="footer">Â© 2024 Defi Oracle Â· Tus datos se protegen con cifrado</div>
-	</div>
+        <form id="registroForm">
+            <div>
+                <label>Nombre completo *</label>
+                <input id="nombre" type="text" autocomplete="name" placeholder="Tu nombre completo" required>
+            </div>
+            <div>
+                <label>Correo</label>
+                <input id="email" class="readonly" type="email" readonly>
+            </div>
+            <div>
+                <label for="telefono">Telefono *</label>
+                <input id="telefono" name="telefono" type="tel" inputmode="tel" placeholder="+56 9 1234 5678" required>
+            </div>
+            <div class="row">
+                <div>
+                    <label for="documento_tipo">Documento *</label>
+                    <select id="documento_tipo" name="documento_tipo" required>
+                        <option value="">Selecciona</option>
+                        <option value="rut">RUT (Chile)</option>
+                        <option value="dni">DNI</option>
+                        <option value="pasaporte">Pasaporte</option>
+                        <option value="cedula">Cedula</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="documento_numero">Numero *</label>
+                    <input id="documento_numero" name="documento_numero" type="text" autocomplete="off" placeholder="12.345.678-9" required>
+                </div>
+            </div>
+            <div class="row">
+                <div>
+                    <label for="pais">Pais *</label>
+                    <select id="pais" name="pais" required>
+                        <option value="">Selecciona</option>
+                        <option value="Chile" selected>Chile</option>
+                        <option value="Venezuela">Venezuela</option>
+                        <option value="Peru">Peru</option>
+                        <option value="Colombia">Colombia</option>
+                        <option value="Argentina">Argentina</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="ciudad">Ciudad</label>
+                    <input id="ciudad" name="ciudad" type="text" placeholder="Santiago">
+                </div>
+            </div>
+            <div>
+                <label for="direccion">Direccion</label>
+                <input id="direccion" name="direccion" type="text" placeholder="Calle y numero">
+            </div>
+            <div>
+                <label for="fecha_nacimiento">Fecha de nacimiento</label>
+                <input id="fecha_nacimiento" name="fecha_nacimiento" type="date">
+                <div class="helper">Usamos estos datos solo para validacion interna.</div>
+            </div>
+            <div class="actions">
+                <button class="btn-primary" type="submit">Guardar y continuar <span id="saving" class="loading">(guardando...)</span></button>
+                <button type="button" class="btn-secondary" id="volverLogin">Volver al inicio de sesion</button>
+            </div>
+        </form>
+        <div class="footer">© 2024 Defi Oracle - Tus datos se protegen con cifrado</div>
+    </div>
 
-	<script>
-		const API_BASE = window.API_BASE_URL || '';
-		const form = document.getElementById('registroForm');
-		const errorBox = document.getElementById('errorBox');
-		const successBox = document.getElementById('successBox');
-		const saving = document.getElementById('saving');
-		const userSummary = document.getElementById('userSummary');
-		const REG_KEY_PREFIX = 'clienteRegistroCompleto:';
+    <script>
+        const API_BASE = (window.API_BASE_URL || '').replace(/\/$/, '');
+        const form = document.getElementById('registroForm');
+        const errorBox = document.getElementById('errorBox');
+        const successBox = document.getElementById('successBox');
+        const saving = document.getElementById('saving');
+        const userSummary = document.getElementById('userSummary');
+        const REG_KEY_PREFIX = 'clienteRegistroCompleto:';
 
-		document.getElementById('logoutBtn').addEventListener('click', cerrarSesion);
-		document.getElementById('volverLogin').addEventListener('click', () => window.location.href = 'login.html');
+        document.getElementById('logoutBtn').addEventListener('click', cerrarSesion);
+        document.getElementById('volverLogin').addEventListener('click', () => window.location.href = 'login.html');
 
-		document.addEventListener('DOMContentLoaded', () => {
-			const token = localStorage.getItem('clienteToken');
-			if (!token) {
-				window.location.href = 'login.html';
-				return;
-			}
-			cargarPerfil(token);
-		});
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('clienteToken');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+            cargarPerfil(token);
+        });
 
-		form.addEventListener('submit', async (e) => {
-			e.preventDefault();
-			hideAlerts();
-			saving.classList.add('active');
-			const token = localStorage.getItem('clienteToken');
-			if (!token) {
-				showError('La sesiÃ³n expirÃ³, vuelve a iniciar sesiÃ³n.');
-				saving.classList.remove('active');
-				return;
-			}
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlerts();
+            saving.classList.add('active');
+            const token = localStorage.getItem('clienteToken');
+            if (!token) {
+                showError('La sesion expiro, vuelve a iniciar sesion.');
+                saving.classList.remove('active');
+                return;
+            }
 
-			const payload = {
-				nombre: form.nombre.value.trim(),
-				telefono: form.telefono.value.trim(),
-				documento_tipo: form.documento_tipo.value,
-				documento_numero: form.documento_numero.value.trim(),
-				pais: form.pais.value.trim(),
-				ciudad: form.ciudad.value.trim() || null,
-				direccion: form.direccion.value.trim() || null,
-				fecha_nacimiento: form.fecha_nacimiento.value || null
-			};
+            const payload = {
+                nombre: form.nombre.value.trim(),
+                telefono: form.telefono.value.trim(),
+                documento_tipo: form.documento_tipo.value,
+                documento_numero: form.documento_numero.value.trim(),
+                pais: form.pais.value,
+                ciudad: form.ciudad.value.trim() || null,
+                direccion: form.direccion.value.trim() || null,
+                fecha_nacimiento: form.fecha_nacimiento.value || null
+            };
 
-			try {
-				const resp = await fetch(`${API_BASE}/api/cliente/perfil`, {
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json',
-						'Authorization': `Bearer ${token}`
-					},
-					body: JSON.stringify(payload)
-				});
+            // Validaciones
+            if (!payload.nombre) {
+                showError('El nombre es obligatorio');
+                saving.classList.remove('active');
+                return;
+            }
+            if (!payload.telefono) {
+                showError('El telefono es obligatorio');
+                saving.classList.remove('active');
+                return;
+            }
+            if (!payload.documento_tipo) {
+                showError('Selecciona el tipo de documento');
+                saving.classList.remove('active');
+                return;
+            }
+            if (!payload.documento_numero) {
+                showError('El numero de documento es obligatorio');
+                saving.classList.remove('active');
+                return;
+            }
+            if (!payload.pais) {
+                showError('Selecciona tu pais');
+                saving.classList.remove('active');
+                return;
+            }
 
-				const data = await resp.json();
-				if (!resp.ok) {
-					throw new Error(data.error || 'No pudimos guardar los datos');
-				}
+            try {
+                const resp = await fetch(`${API_BASE}/api/cliente/perfil`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
 
-				localStorage.setItem('clienteData', JSON.stringify(data.usuario));
-				markRegistroCompleto(normalizeEmail(data.usuario));
-				showSuccess('Datos guardados correctamente. Redirigiendo...');
-				setTimeout(() => window.location.href = 'home.html', 1000);
-			} catch (err) {
-				showError(err.message || 'Error inesperado al guardar');
-			} finally {
-				saving.classList.remove('active');
-			}
-		});
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.error || 'No pudimos guardar los datos');
+                }
 
-		async function cargarPerfil(token) {
-			try {
-				const resp = await fetch(`${API_BASE}/api/cliente/perfil`, {
-					headers: { 'Authorization': `Bearer ${token}` }
-				});
-				if (resp.status === 401) {
-					// Token invÃ¡lido/expirado: limpiar y forzar re-login
-					cerrarSesion();
-					return;
-				}
-				if (!resp.ok) throw new Error('No pudimos obtener tu perfil');
-				const data = await resp.json();
-				localStorage.setItem('clienteData', JSON.stringify(data));
-				markRegistroCompleto(normalizeEmail(data));
-				rellenarFormulario(data);
-			} catch (err) {
-				showError(err.message || 'Error cargando perfil');
-				if (err.message.includes('Token')) {
-					cerrarSesion();
-				}
-			}
-		}
+                localStorage.setItem('clienteData', JSON.stringify(data.usuario));
+                markRegistroCompleto(normalizeEmail(data.usuario));
+                showSuccess('Datos guardados correctamente. Redirigiendo...');
+                setTimeout(() => window.location.href = 'home.html', 1000);
+            } catch (err) {
+                showError(err.message || 'Error inesperado al guardar');
+            } finally {
+                saving.classList.remove('active');
+            }
+        });
 
-		function rellenarFormulario(data) {
-			document.getElementById('nombre').value = data.nombre || '';
-			document.getElementById('email').value = data.email || '';
-			document.getElementById('telefono').value = data.telefono || '';
-			document.getElementById('documento_tipo').value = data.documento_tipo || '';
-			document.getElementById('documento_numero').value = data.documento_numero || '';
-			document.getElementById('pais').value = data.pais || 'Chile';
-			document.getElementById('ciudad').value = data.ciudad || '';
-			document.getElementById('direccion').value = data.direccion || '';
-			document.getElementById('fecha_nacimiento').value = data.fecha_nacimiento ? data.fecha_nacimiento.substring(0, 10) : '';
-			userSummary.textContent = `${data.nombre || 'Usuario'} Â· ${data.email || ''}`;
-		}
+        async function cargarPerfil(token) {
+            try {
+                const resp = await fetch(`${API_BASE}/api/cliente/perfil`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (resp.status === 401) {
+                    cerrarSesion();
+                    return;
+                }
+                if (!resp.ok) throw new Error('No pudimos obtener tu perfil');
+                const data = await resp.json();
+                localStorage.setItem('clienteData', JSON.stringify(data));
+                markRegistroCompleto(normalizeEmail(data));
+                rellenarFormulario(data);
+            } catch (err) {
+                showError(err.message || 'Error cargando perfil');
+                if (err.message.includes('Token')) {
+                    cerrarSesion();
+                }
+            }
+        }
 
-		function showError(msg) {
-			errorBox.textContent = msg;
-			errorBox.style.display = 'block';
-		}
+        function rellenarFormulario(data) {
+            document.getElementById('nombre').value = data.nombre || '';
+            document.getElementById('email').value = data.email || '';
+            document.getElementById('telefono').value = data.telefono || '';
+            document.getElementById('documento_tipo').value = data.documento_tipo || '';
+            document.getElementById('documento_numero').value = data.documento_numero || '';
+            document.getElementById('pais').value = data.pais || 'Chile';
+            document.getElementById('ciudad').value = data.ciudad || '';
+            document.getElementById('direccion').value = data.direccion || '';
+            document.getElementById('fecha_nacimiento').value = data.fecha_nacimiento ? data.fecha_nacimiento.substring(0, 10) : '';
+            userSummary.textContent = `${data.nombre || 'Usuario'} - ${data.email || ''}`;
+        }
 
-		function showSuccess(msg) {
-			successBox.textContent = msg;
-			successBox.style.display = 'block';
-		}
+        function showError(msg) {
+            errorBox.textContent = msg;
+            errorBox.style.display = 'block';
+        }
 
-		function hideAlerts() {
-			errorBox.style.display = 'none';
-			successBox.style.display = 'none';
-			errorBox.textContent = '';
-			successBox.textContent = '';
-		}
+        function showSuccess(msg) {
+            successBox.textContent = msg;
+            successBox.style.display = 'block';
+        }
 
-		function cerrarSesion() {
-			localStorage.removeItem('clienteToken');
-			localStorage.removeItem('clienteData');
-			window.location.href = 'login.html';
-		}
+        function hideAlerts() {
+            errorBox.style.display = 'none';
+            successBox.style.display = 'none';
+            errorBox.textContent = '';
+            successBox.textContent = '';
+        }
 
-		function normalizeEmail(usuario = {}) {
-			return (usuario.email || usuario.correo || '').trim().toLowerCase();
-		}
+        function cerrarSesion() {
+            localStorage.removeItem('clienteToken');
+            localStorage.removeItem('clienteData');
+            window.location.href = 'login.html';
+        }
 
-		function markRegistroCompleto(email) {
-			if (!email) return;
-			localStorage.setItem(`${REG_KEY_PREFIX}${email}`, 'true');
-		}
-	</script>
+        function normalizeEmail(usuario = {}) {
+            return (usuario.email || usuario.correo || '').trim().toLowerCase();
+        }
+
+        function markRegistroCompleto(email) {
+            if (!email) return;
+            localStorage.setItem(`${REG_KEY_PREFIX}${email}`, 'true');
+        }
+    </script>
 </body>
 </html>
 

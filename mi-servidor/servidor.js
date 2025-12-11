@@ -7052,10 +7052,12 @@ app.post('/api/cliente/auth/google', async (req, res) => {
         let nuevoUsuario = false;
         
         if (cliente) {
-            // Usuario existente - actualizar token y Ãºltimo acceso
+            // Usuario existente - actualizar token y último acceso
+            // NO sobrescribir nombre si el usuario ya lo editó manualmente
+            // Solo actualizar foto si no tiene una personalizada
             await dbRun(
-                'UPDATE clientes_app SET token_sesion = ?, ultimo_acceso = ?, nombre = ?, foto_url = ? WHERE id = ?',
-                [token, ahora, googleUser.nombre, googleUser.foto_url, cliente.id]
+                'UPDATE clientes_app SET token_sesion = ?, ultimo_acceso = ? WHERE id = ?',
+                [token, ahora, cliente.id]
             );
             cliente = await dbGet('SELECT * FROM clientes_app WHERE id = ?', [cliente.id]);
         } else {
