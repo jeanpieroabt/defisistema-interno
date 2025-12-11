@@ -5,7 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1974CE">
-    <title>Agregar Destinatario - Defi Oracle</title>
+    <title>Destinatario - Defi Oracle</title>
+
+    <script>
+        (function() {
+            const stored = localStorage.getItem('apiBaseUrlOverride');
+            const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
+            if (isLocal) {
+                window.API_BASE_URL = location.origin || 'http://localhost:3000';
+                localStorage.setItem('apiBaseUrlOverride', window.API_BASE_URL);
+                return;
+            }
+            if (stored) {
+                window.API_BASE_URL = stored;
+                return;
+            }
+            window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+        })();
+    </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,71 +31,40 @@
     <style>
         :root {
             --primary-blue: #1974CE;
-            --secondary-blue: #D8E2E9;
-            --accent-green: #5C8240;
-            --danger-red: #EF4444;
-            --dark-slate: #211C10;
-            --neutral-gray: #9AA1A1;
-            --light-bg: #E3EAEE;
-            --brand-cyan: #2FC7B8;
-            --white: #FFFFFF;
+            --accent-green: #23C6B8;
+            --dark-slate: #121826;
+            --neutral-gray: #7C8899;
+            --muted: #A3ACB9;
+            --panel: #FFFFFF;
+            --danger: #EF4444;
 
-            --grad-brand-soft: linear-gradient(135deg, rgba(25, 116, 206, 0.10), rgba(47, 199, 184, 0.10));
-            --grad-brand-button: linear-gradient(90deg, #1974CE 0%, #2FC7B8 100%);
+            --grad-surface: linear-gradient(135deg, rgba(25, 116, 206, 0.12), rgba(35, 198, 184, 0.10));
+            --grad-button: linear-gradient(120deg, #1974CE 0%, #23C6B8 100%);
 
             --radius-sm: 10px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 20px;
-            --radius-xxl: 24px;
+            --radius-md: 14px;
+            --radius-lg: 18px;
+            --radius-xl: 22px;
             --radius-full: 999px;
 
-            --shadow-soft: 0 12px 32px rgba(15, 42, 84, 0.14);
-            --shadow-card: 0 16px 38px rgba(12, 60, 124, 0.16);
+            --shadow-card: 0 16px 38px rgba(13, 54, 112, 0.16);
             --shadow-subtle: 0 6px 16px rgba(17, 38, 78, 0.10);
-            --shadow-button: 0 18px 36px rgba(25, 116, 206, 0.24);
-            --shadow-button-hover: 0 22px 44px rgba(25, 116, 206, 0.28);
-
-            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            --font-xs: 11px;
-            --font-sm: 13px;
-            --font-base: 15px;
-            --font-lg: 17px;
-            --font-xl: 20px;
-            --font-2xl: 24px;
-
-            --space-xs: 4px;
-            --space-sm: 8px;
-            --space-md: 12px;
-            --space-lg: 16px;
-            --space-xl: 20px;
-            --space-2xl: 24px;
-            --space-3xl: 32px;
-            --space-4xl: 40px;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: var(--font-family);
-            background: var(--grad-brand-soft);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--grad-surface);
             color: var(--dark-slate);
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
         }
 
-        button,
-        input,
-        select {
-            font-family: inherit;
-        }
+        button, input, select { font-family: inherit; }
 
         .app-container {
-            max-width: 480px;
+            max-width: 520px;
             margin: 0 auto;
             min-height: 100vh;
             position: relative;
@@ -88,40 +74,32 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            padding: var(--space-3xl) var(--space-3xl) 240px;
-            gap: var(--space-2xl);
+            padding: 32px 26px 240px;
+            gap: 20px;
         }
 
         @media (max-width: 420px) {
-            .page {
-                padding: var(--space-2xl) var(--space-lg) 240px;
-            }
+            .page { padding: 26px 16px 240px; }
         }
 
         .page-content {
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: var(--space-2xl);
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: var(--radius-xxl);
+            gap: 20px;
+            background: rgba(255, 255, 255, 0.94);
+            border-radius: var(--radius-xl);
             border: 1px solid rgba(255, 255, 255, 0.65);
             box-shadow: var(--shadow-card);
-            padding: var(--space-3xl);
+            padding: 24px 24px 10px;
             backdrop-filter: blur(18px);
         }
 
         @media (max-width: 420px) {
-            .page-content {
-                padding: var(--space-2xl) var(--space-xl);
-            }
+            .page-content { padding: 22px 16px 12px; }
         }
 
-        .form-header {
-            display: flex;
-            align-items: flex-start;
-            gap: var(--space-lg);
-        }
+        .form-header { display: flex; align-items: flex-start; gap: 14px; }
 
         .btn-back {
             width: 44px;
@@ -130,191 +108,67 @@
             border: 1px solid rgba(25, 116, 206, 0.20);
             background: rgba(25, 116, 206, 0.08);
             color: var(--primary-blue);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: grid;
+            place-items: center;
             cursor: pointer;
             transition: all 0.2s ease;
         }
+        .btn-back svg { width: 20px; height: 20px; stroke-width: 2.2; }
+        .btn-back:hover { box-shadow: 0 12px 24px rgba(25, 116, 206, 0.22); transform: translateY(-1px); }
 
-        .btn-back svg {
-            width: 20px;
-            height: 20px;
-            stroke-width: 2.2;
-        }
+        .form-header-copy { display: flex; flex-direction: column; gap: 6px; }
+        .form-header-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--neutral-gray); }
+        .form-header-title { font-size: 24px; font-weight: 800; letter-spacing: -0.2px; }
+        .form-header-subtitle { font-size: 14px; color: var(--muted); max-width: 340px; }
 
-        .btn-back:hover {
-            box-shadow: 0 12px 24px rgba(25, 116, 206, 0.22);
-            transform: translateY(-1px);
-        }
-
-        .btn-back:active {
-            transform: translateY(0);
-            filter: brightness(0.96);
-        }
-
-        .form-header-copy {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-sm);
-        }
-
-        .form-header-eyebrow {
-            font-size: var(--font-xs);
-            font-weight: 600;
-            letter-spacing: 0.4px;
-            text-transform: uppercase;
-            color: var(--neutral-gray);
-        }
-
-        .form-header-title {
-            font-size: var(--font-2xl);
-            font-weight: 700;
-            letter-spacing: -0.2px;
-        }
-
-        .form-header-subtitle {
-            font-size: var(--font-sm);
-            color: var(--neutral-gray);
-            max-width: 320px;
-        }
-
-        .form-body {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-2xl);
-        }
-
-        .toggle-group {
+        .status-banner {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: var(--space-xl) var(--space-2xl);
-            border-radius: var(--radius-xl);
-            background: rgba(255, 255, 255, 0.94);
-            border: 1px solid rgba(25, 116, 206, 0.12);
-            box-shadow: var(--shadow-subtle);
-        }
-
-        .toggle-label {
-            font-weight: 600;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(25, 116, 206, 0.14);
+            background: rgba(25, 116, 206, 0.08);
             color: var(--dark-slate);
         }
+        .status-banner.danger { border-color: rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08); color: #991B1B; }
+        .status-banner.success { border-color: rgba(35, 198, 184, 0.30); background: rgba(35, 198, 184, 0.10); color: #0f766e; }
 
-        .toggle-desc {
-            font-size: var(--font-xs);
-            color: var(--neutral-gray);
-            margin-top: 4px;
-        }
-
-        .toggle {
-            position: relative;
-            width: 52px;
-            height: 30px;
-        }
-
-        .toggle input {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            cursor: pointer;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            inset: 0;
-            border-radius: 18px;
-            background: rgba(25, 116, 206, 0.18);
-            transition: all 0.3s ease;
-        }
-
-        .toggle-slider::before {
-            content: "";
-            position: absolute;
-            width: 26px;
-            height: 26px;
-            left: 2px;
-            top: 2px;
-            border-radius: 50%;
-            background: #FFFFFF;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
-            transition: transform 0.3s ease;
-        }
-
-        .toggle input:checked + .toggle-slider {
-            background: linear-gradient(120deg, var(--primary-blue), var(--brand-cyan));
-        }
-
-        .toggle input:checked + .toggle-slider::before {
-            transform: translateX(22px);
-        }
+        .form-body { display: flex; flex-direction: column; gap: 18px; }
 
         .form-section {
             display: flex;
             flex-direction: column;
-            gap: var(--space-lg);
-            padding: var(--space-2xl);
-            background: rgba(255, 255, 255, 0.94);
-            border-radius: var(--radius-xl);
+            gap: 14px;
+            padding: 18px;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: var(--radius-lg);
             border: 1px solid rgba(25, 116, 206, 0.12);
             box-shadow: var(--shadow-subtle);
         }
+        .form-section-title { font-size: 12px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--neutral-gray); }
 
-        .form-section-title {
-            font-size: var(--font-xs);
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            color: var(--neutral-gray);
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-sm);
-        }
-
-        .input-label {
-            font-size: var(--font-sm);
-            font-weight: 600;
-            color: rgba(33, 28, 16, 0.78);
-        }
-
-        .input,
-        .select-wrapper select {
+        .input-group { display: flex; flex-direction: column; gap: 6px; }
+        .input-label { font-size: 14px; font-weight: 700; color: rgba(33, 28, 16, 0.78); }
+        .input, .select-wrapper select {
             width: 100%;
             border: 1px solid rgba(25, 116, 206, 0.16);
             border-radius: 16px;
             background: rgba(255, 255, 255, 0.96);
-            padding: 14px 18px;
-            font-size: var(--font-base);
+            padding: 14px 16px;
+            font-size: 15px;
             color: var(--dark-slate);
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
-
-        .input::placeholder,
-        .select-wrapper select option:first-child {
-            color: var(--neutral-gray);
-        }
-
-        .input:focus,
-        .select-wrapper select:focus {
+        .input::placeholder, .select-wrapper select option:first-child { color: var(--neutral-gray); }
+        .input:focus, .select-wrapper select:focus {
             outline: none;
             border-color: rgba(25, 116, 206, 0.45);
             box-shadow: 0 0 0 3px rgba(25, 116, 206, 0.16);
         }
 
-        .radio-group {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: var(--space-sm);
-        }
-
-        .radio-option input {
-            display: none;
-        }
-
+        .radio-group { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .radio-option input { display: none; }
         .radio-option label {
             display: flex;
             align-items: center;
@@ -323,27 +177,23 @@
             border-radius: var(--radius-md);
             border: 1px solid rgba(25, 116, 206, 0.16);
             background: rgba(25, 116, 206, 0.08);
-            font-weight: 600;
+            font-weight: 700;
             color: var(--primary-blue);
             cursor: pointer;
             transition: all 0.2s ease;
         }
-
         .radio-option input:checked + label {
-            background: linear-gradient(135deg, var(--primary-blue), var(--brand-cyan));
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-green));
             border-color: transparent;
-            color: var(--white);
+            color: #FFFFFF;
             box-shadow: 0 8px 18px rgba(25, 116, 206, 0.24);
         }
 
-        .select-wrapper {
-            position: relative;
-        }
-
+        .select-wrapper { position: relative; }
         .select-wrapper::after {
-            content: ';
+            content: "";
             position: absolute;
-            right: 18px;
+            right: 16px;
             top: 50%;
             width: 10px;
             height: 10px;
@@ -353,8 +203,22 @@
             pointer-events: none;
         }
 
-        .form-spacer {
-            height: 200px;
+        .phone-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 10px;
+        }
+
+        .input-hint { font-size: 12px; color: var(--muted); }
+        .input-error { font-size: 12px; color: var(--danger); }
+
+        .form-note {
+            font-size: 12px;
+            color: var(--muted);
+            background: rgba(25, 116, 206, 0.06);
+            border: 1px solid rgba(25, 116, 206, 0.12);
+            border-radius: 12px;
+            padding: 12px;
         }
 
         .form-footer {
@@ -364,102 +228,58 @@
             right: 0;
             margin: 0 auto;
             width: calc(100% - 48px);
-            max-width: 480px;
+            max-width: 520px;
             display: flex;
-            gap: var(--space-md);
+            gap: 10px;
             background: rgba(255, 255, 255, 0.96);
             border: 1px solid rgba(255, 255, 255, 0.65);
             border-radius: 22px;
             box-shadow: 0 18px 38px rgba(20, 52, 102, 0.14);
-            padding: var(--space-lg);
+            padding: 12px;
             backdrop-filter: blur(18px);
             z-index: 120;
         }
-
         @media (max-width: 420px) {
-            .form-footer {
-                width: calc(100% - 32px);
-            }
+            .form-footer { width: calc(100% - 32px); }
         }
-
         .btn {
             border: none;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: var(--space-sm);
-            font-weight: 600;
+            gap: 8px;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.2s ease;
             height: 52px;
             flex: 1;
         }
-
         .btn-primary {
             border-radius: 16px;
-            background: var(--grad-brand-button);
-            color: var(--white);
-            box-shadow: var(--shadow-button);
-            font-size: var(--font-lg);
+            background: var(--grad-button);
+            color: #FFFFFF;
+            box-shadow: 0 18px 36px rgba(25, 116, 206, 0.24);
+            font-size: 16px;
         }
-
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-button-hover);
-            filter: brightness(1.02);
-        }
-
-        .btn-primary:active {
-            transform: translateY(0);
-            filter: brightness(0.97);
-        }
-
+        .btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
         .btn-secondary {
             border-radius: 16px;
             background: rgba(25, 116, 206, 0.08);
             color: var(--primary-blue);
             border: 1px solid rgba(25, 116, 206, 0.18);
         }
-
-        .btn-secondary:hover {
-            box-shadow: 0 12px 22px rgba(25, 116, 206, 0.18);
-        }
-
         .btn-delete {
             border-radius: 16px;
             background: linear-gradient(120deg, rgba(239, 68, 68, 0.90), rgba(220, 38, 38, 0.92));
             color: #FFFFFF;
             box-shadow: 0 18px 30px rgba(239, 68, 68, 0.22);
         }
-
-        .btn-delete:hover {
-            filter: brightness(1.05);
-        }
-
-        .btn-delete:active {
-            filter: brightness(0.95);
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(14px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .animate-in {
-            animation: fadeInUp 0.5s ease-out forwards;
-        }
     </style>
 </head>
 <body>
     <div class="app-container">
         <div class="page">
-            <div class="page-content animate-in">
+            <div class="page-content">
                 <header class="form-header">
                     <button class="btn-back" onclick="volver()" aria-label="Volver a la lista">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
@@ -473,18 +293,9 @@
                     </div>
                 </header>
 
-                <main class="form-body">
-                    <div class="toggle-group">
-                        <div>
-                            <p class="toggle-label">Guardar como favorito</p>
-                            <p class="toggle-desc">Acceso directo y reconocimiento inmediato al enviar.</p>
-                        </div>
-                        <label class="toggle">
-                            <input type="checkbox" id="isFavorite">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
+                <div id="statusBanner" class="status-banner" hidden></div>
 
+                <main class="form-body">
                     <section class="form-section">
                         <h2 class="form-section-title">Datos personales</h2>
 
@@ -501,10 +312,11 @@
                         <div class="input-group">
                             <label class="input-label">Alias (opcional)</label>
                             <input type="text" class="input" id="alias" placeholder="Ej: Mamá, Hermano, etc.">
+                            <p class="input-hint">Lo usaremos para mostrarlo en la lista y en los atajos de envío.</p>
                         </div>
 
                         <div class="input-group">
-                            <label class="input-label">Número de documento *</label>
+                            <label class="input-label">Tipo de documento *</label>
                             <div class="radio-group">
                                 <div class="radio-option">
                                     <input type="radio" name="tipoDoc" id="docV" value="V" checked>
@@ -527,7 +339,7 @@
 
                         <div class="input-group">
                             <label class="input-label">Número de documento *</label>
-                            <input type="text" class="input" id="numeroDoc" placeholder="Ej: 12345678" inputmode="numeric">
+                            <input type="text" class="input" id="numeroDoc" placeholder="Ej: 12345678" inputmode="text" autocomplete="off">
                         </div>
                     </section>
 
@@ -569,33 +381,43 @@
 
                         <div class="input-group">
                             <label class="input-label">Número de cuenta *</label>
-                            <input type="text" class="input" id="numeroCuenta" placeholder="20 dígitos" maxlength="20" inputmode="numeric">
+                            <input type="text" class="input" id="numeroCuenta" placeholder="20 dígitos" maxlength="20" inputmode="numeric" autocomplete="off">
+                            <p class="input-hint">Solo números, sin espacios ni guiones.</p>
                         </div>
                     </section>
 
                     <section class="form-section">
                         <h2 class="form-section-title">Pago móvil (opcional)</h2>
-
                         <div class="input-group">
                             <label class="input-label">Teléfono</label>
-                            <input type="text" class="input" id="telefono" placeholder="Ej: 04121234567" maxlength="11" inputmode="tel">
+                            <div class="phone-row">
+                                <div class="select-wrapper">
+                                    <select id="telefonoPrefijo">
+                                        <option value="0414">+58 414</option>
+                                        <option value="0412">+58 412</option>
+                                        <option value="0424">+58 424</option>
+                                        <option value="0416">+58 416</option>
+                                    </select>
+                                </div>
+                                <input type="text" class="input" id="telefonoNumero" placeholder="7 dígitos" maxlength="7" inputmode="tel">
+                            </div>
+                            <p class="input-hint">Incluimos el prefijo +58 y la operadora automáticamente.</p>
                         </div>
                     </section>
 
                     <section class="form-section">
                         <h2 class="form-section-title">Contacto (opcional)</h2>
-
                         <div class="input-group">
                             <label class="input-label">Email</label>
                             <input type="email" class="input" id="email" placeholder="correo@ejemplo.com">
                         </div>
                     </section>
 
-                    <div class="form-spacer"></div>
+                    <p class="form-note">Validamos sesión con tu cuenta de Google para asociar cada destinatario al cliente autenticado.</p>
                 </main>
             </div>
 
-            <footer class="form-footer animate-in" id="formFooter" style="animation-delay: 0.12s;">
+            <footer class="form-footer" id="formFooter">
                 <button class="btn btn-secondary" onclick="volver()">Cancelar</button>
                 <button class="btn btn-primary" onclick="guardarDestinatario()">Guardar</button>
             </footer>
@@ -603,19 +425,106 @@
     </div>
 
     <script>
+        const API_BASE = (window.API_BASE_URL || '').replace(/\/$/, '');
         let editando = false;
         let destinatarioId = null;
+        let guardando = false;
 
         document.addEventListener('DOMContentLoaded', () => {
-            verificarSesion();
-            checkEditMode();
+            inicializar();
         });
 
-        async function verificarSesion() {
+        async function inicializar() {
+            bindInputs();
+            await protegerRuta();
+            checkEditMode();
+        }
+
+        function bindInputs() {
+            document.querySelectorAll('input[name="tipoDoc"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    const numero = document.getElementById('numeroDoc');
+                    if (!numero) return;
+                    if (['V', 'E', 'J'].includes(radio.value)) {
+                        numero.value = numero.value.replace(/[^0-9]/g, '');
+                    }
+                });
+            });
+
+            const numeroDoc = document.getElementById('numeroDoc');
+            if (numeroDoc) {
+                numeroDoc.addEventListener('input', e => {
+                    const tipo = (document.querySelector('input[name="tipoDoc"]:checked')?.value || 'V');
+                    e.target.value = tipo === 'P'
+                        ? e.target.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase()
+                        : e.target.value.replace(/[^0-9]/g, '');
+                });
+            }
+
+            const numeroCuenta = document.getElementById('numeroCuenta');
+            if (numeroCuenta) {
+                numeroCuenta.addEventListener('input', e => {
+                    e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 20);
+                });
+            }
+
+            const telefonoNumero = document.getElementById('telefonoNumero');
+            if (telefonoNumero) {
+                telefonoNumero.addEventListener('input', e => {
+                    e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 7);
+                });
+            }
+        }
+
+        function mostrarBanner(mensaje, tono = 'info') {
+            let banner = document.getElementById('statusBanner');
+            if (!banner) {
+                const header = document.querySelector('.form-header');
+                banner = document.createElement('div');
+                banner.id = 'statusBanner';
+                banner.className = 'status-banner';
+                banner.hidden = true;
+                if (header && header.parentNode) {
+                    header.parentNode.insertBefore(banner, header.nextSibling);
+                } else {
+                    document.body.prepend(banner);
+                }
+            }
+
+            if (!mensaje) {
+                banner.hidden = true;
+                banner.textContent = '';
+                banner.className = 'status-banner';
+                return;
+            }
+
+            banner.className = 'status-banner';
+            if (tono === 'danger') banner.classList.add('danger');
+            if (tono === 'success') banner.classList.add('success');
+            banner.textContent = mensaje;
+            banner.hidden = false;
+        }
+
+        async function protegerRuta() {
             const token = localStorage.getItem('clienteToken');
             if (!token) {
                 window.location.href = 'login.html';
                 return;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/api/cliente/auth/verificar`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (resp.ok) {
+                    const data = await resp.json().catch(() => null);
+                    if (data?.usuario) localStorage.setItem('clienteData', JSON.stringify(data.usuario));
+                } else {
+                    localStorage.removeItem('clienteToken');
+                    window.location.href = 'login.html';
+                }
+            } catch (error) {
+                console.error('Error verificando sesión', error);
+                mostrarBanner('No pudimos validar tu sesión. Revisa tu conexión.', 'danger');
             }
         }
 
@@ -627,174 +536,269 @@
                 editando = true;
                 document.getElementById('pageTitle').textContent = 'Editar destinatario';
                 const subtitle = document.getElementById('formSubtitle');
-                if (subtitle) {
-                    subtitle.textContent = 'Actualiza, guarda o elimina los datos cuando lo necesites.';
-                }
-                cargarDestinatario(destinatarioId);
+                if (subtitle) subtitle.textContent = 'Actualiza o elimina los datos cuando lo necesites.';
 
                 const footer = document.getElementById('formFooter');
                 footer.innerHTML = `
                     <button class="btn btn-delete" onclick="eliminarDestinatario()">Eliminar</button>
                     <button class="btn btn-primary" onclick="guardarDestinatario()">Guardar</button>
                 `;
+
+                cargarDestinatario(destinatarioId);
             }
         }
 
         async function cargarDestinatario(id) {
             const token = localStorage.getItem('clienteToken');
-            
             try {
-                const response = await fetch(`/api/cliente/beneficiarios/${id}`, {
+                const response = await fetch(`${API_BASE}/api/cliente/beneficiarios/${id}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-
+                if (response.status === 401) {
+                    localStorage.removeItem('clienteToken');
+                    window.location.href = 'login.html';
+                    return;
+                }
                 if (!response.ok) {
                     manejarErrorCarga();
                     return;
                 }
-
                 const data = await response.json();
-                llenarFormulario(data);
-            } catch (error) {
-                console.error('Error al cargar destinatario', error);
+                llenarFormulario(data.payload || data);
+            } catch (err) {
+                console.error('Error al cargar destinatario', err);
                 manejarErrorCarga();
             }
         }
 
-                function manejarErrorCarga() {
-            alert('No pudimos cargar el destinatario. Intenta de nuevo.');
-            window.location.href = 'destinatarios.html';
+        function manejarErrorCarga() {
+            mostrarBanner('No pudimos cargar el destinatario. Intenta de nuevo.', 'danger');
+            setTimeout(() => window.location.href = 'destinatarios.html', 1400);
+        }
+
+        function normalizarPrefijo(prefijo) {
+            const permitidos = ['0412', '0414', '0424', '0416'];
+            let limpio = (prefijo || '').toString().replace(/[^0-9]/g, '');
+            if (limpio.length === 3) limpio = `0${limpio}`;
+            if (!permitidos.includes(limpio)) limpio = '0414';
+            return limpio;
+        }
+
+        function asignarTelefono(telefonoRaw) {
+            const prefijoEl = document.getElementById('telefonoPrefijo');
+            const numeroEl = document.getElementById('telefonoNumero');
+            if (!prefijoEl || !numeroEl) return;
+
+            const soloDigitos = (telefonoRaw || '').toString().replace(/[^0-9]/g, '');
+            let sin58 = soloDigitos.startsWith('58') ? soloDigitos.slice(2) : soloDigitos;
+
+            if (sin58 && !sin58.startsWith('0') && sin58.length >= 10) {
+                sin58 = `0${sin58}`;
+            }
+
+            let prefijo = prefijoEl.value || '0414';
+            let numero = '';
+
+            if (sin58.length === 7) {
+                numero = sin58;
+            } else if (sin58.length >= 10) {
+                prefijo = sin58.slice(0, 4);
+                numero = sin58.slice(4, 11);
+            }
+
+            prefijoEl.value = normalizarPrefijo(prefijo);
+            numeroEl.value = numero ? numero.slice(0, 7) : '';
         }
 
         function llenarFormulario(data) {
-            document.getElementById('nombres').value = data.nombres || '';
-            document.getElementById('apellidos').value = data.apellidos || '';
+            const nombreCompleto = (data.nombre_completo || '').trim();
+            const partes = nombreCompleto.split(/\s+/);
+            const nombres = data.nombres || partes.shift() || '';
+            const apellidos = data.apellidos || partes.join(' ');
+
+            document.getElementById('nombres').value = nombres;
+            document.getElementById('apellidos').value = apellidos;
             document.getElementById('alias').value = data.alias || '';
-            document.getElementById('numeroDoc').value = data.numero_documento || '';
+            document.getElementById('numeroDoc').value = (data.numero_documento || data.documento_numero || '').toString();
             document.getElementById('banco').value = data.banco || '';
             document.getElementById('numeroCuenta').value = data.numero_cuenta || '';
-            document.getElementById('telefono').value = data.telefono || '';
             document.getElementById('email').value = data.email || '';
-            document.getElementById('isFavorite').checked = data.isFavorite || false;
+            const fav = document.getElementById('isFavorite');
+            if (fav) fav.checked = data.isFavorite === 1 || data.isFavorite === true;
 
-            // Tipo documento
-            if (data.tipo_documento) {
-                const radio = document.getElementById(`doc${data.tipo_documento}`);
-                if (radio) radio.checked = true;
-            }
+            const docMap = { cedula: 'V', rut: 'J', pasaporte: 'P', dni: 'V', e: 'E', v: 'V', j: 'J', p: 'P' };
+            const rawTipo = (data.tipo_documento || data.documento_tipo || '').toLowerCase();
+            const docCode = docMap[rawTipo] || docMap[rawTipo?.[0]] || 'V';
+            const radio = document.getElementById(`doc${docCode}`);
+            if (radio) radio.checked = true;
+
+            asignarTelefono(data.telefono || '');
         }
 
         function validarFormulario() {
-            const nombres = document.getElementById('nombres').value.trim();
-            const apellidos = document.getElementById('apellidos').value.trim();
-            const numeroDoc = document.getElementById('numeroDoc').value.trim();
-            const banco = document.getElementById('banco').value;
-            const numeroCuenta = document.getElementById('numeroCuenta').value.trim();
+            const nombres = document.getElementById("nombres").value.trim();
+            const apellidos = document.getElementById("apellidos").value.trim();
+            const numeroDocRaw = document.getElementById("numeroDoc").value.trim();
+            const bancoSelect = document.getElementById("banco");
+            const bancoValor = bancoSelect.value;
+            const bancoNombre = bancoSelect.options[bancoSelect.selectedIndex]?.text?.trim();
+            const numeroCuenta = document.getElementById("numeroCuenta").value.replace(/[^0-9]/g, "");
+            const prefijo = document.getElementById("telefonoPrefijo")?.value || "0414";
+            const telefonoNumero = document.getElementById("telefonoNumero")?.value.replace(/[^0-9]/g, "") || "";
+            const email = document.getElementById("email").value.trim();
+            const tipoDocForm = document.querySelector('input[name="tipoDoc"]:checked')?.value || "V";
 
-            if (!nombres || !apellidos || !numeroDoc || !banco || !numeroCuenta) {
-                alert('Por favor completa todos los campos obligatorios');
-                return false;
+            if (!nombres || !apellidos || !numeroDocRaw || !bancoValor || !numeroCuenta) {
+                return { valido: false, mensaje: "Completa todos los campos obligatorios." };
             }
 
             if (numeroCuenta.length !== 20) {
-                alert('El número de cuenta debe tener 20 dígitos');
-                return false;
+                return { valido: false, mensaje: "El numero de cuenta debe tener 20 digitos." };
             }
 
-            return true;
+            if (["V", "E", "J"].includes(tipoDocForm) && !/^[0-9]{6,15}$/.test(numeroDocRaw)) {
+                return { valido: false, mensaje: "El documento debe tener entre 6 y 15 digitos." };
+            }
+
+            if (tipoDocForm === "P" && numeroDocRaw.length < 5) {
+                return { valido: false, mensaje: "El numero de pasaporte es demasiado corto." };
+            }
+
+            const prefijoNormalizado = normalizarPrefijo(prefijo);
+            const tieneTelefono = telefonoNumero.length > 0;
+            if (tieneTelefono && telefonoNumero.length !== 7) {
+                return { valido: false, mensaje: "Ingresa los 7 digitos del movil." };
+            }
+            const telefonoCompleto = tieneTelefono ? `+58${prefijoNormalizado}${telefonoNumero}` : null;
+
+            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                return { valido: false, mensaje: "Ingresa un correo valido." };
+            }
+
+            const tipoDocMap = { V: "cedula", E: "cedula", J: "rut", P: "pasaporte" };
+            const nombreCompleto = `${nombres} ${apellidos}`.replace(/\s+/g, " ").trim();
+            const alias = document.getElementById("alias").value.trim() || nombreCompleto;
+            const isFavoriteEl = document.getElementById("isFavorite");
+            const isFavorite = !!(isFavoriteEl && isFavoriteEl.checked);
+
+            const data = {
+                alias,
+                nombre_completo: nombreCompleto,
+                documento_tipo: tipoDocMap[tipoDocForm] || "cedula",
+                documento_numero: numeroDocRaw.replace(/\s+/g, ""),
+                banco: bancoNombre,
+                tipo_cuenta: "corriente",
+                numero_cuenta: numeroCuenta,
+                pais: "Venezuela",
+                telefono: telefonoCompleto,
+                email: email || null,
+                isFavorite
+            };
+
+            return { valido: true, data };
+        }
+
+        function toggleGuardando(isLoading) {
+            guardando = isLoading;
+            const buttons = document.querySelectorAll('.form-footer .btn');
+            buttons.forEach(btn => btn.disabled = isLoading);
         }
 
         async function guardarDestinatario() {
-            if (!validarFormulario()) return;
+            if (guardando) return;
+            const validacion = validarFormulario();
+            if (!validacion.valido) {
+                mostrarBanner(validacion.mensaje, 'danger');
+                return;
+            }
+
+            toggleGuardando(true);
+            mostrarBanner('');
 
             const token = localStorage.getItem('clienteToken');
-            const tipoDocForm = document.querySelector('input[name="tipoDoc"]:checked').value;
-            const nombres = document.getElementById('nombres').value.trim();
-            const apellidos = document.getElementById('apellidos').value.trim();
-            const bancoSelect = document.getElementById('banco');
-            const bancoNombre = bancoSelect.options[bancoSelect.selectedIndex].text;
-
-            // Mapear tipo de documento al formato de la base de datos
-            const tipoDocMap = {
-                'V': 'cedula',
-                'E': 'cedula',
-                'J': 'rut',
-                'P': 'pasaporte'
-            };
-            const tipoDoc = tipoDocMap[tipoDocForm] || 'cedula';
-
-            const data = {
-                alias: document.getElementById('alias').value.trim() || `${nombres} ${apellidos}`,
-                nombre_completo: `${nombres} ${apellidos}`,
-                documento_tipo: tipoDoc,
-                documento_numero: document.getElementById('numeroDoc').value.trim(),
-                banco: bancoNombre,
-                tipo_cuenta: 'corriente',
-                numero_cuenta: document.getElementById('numeroCuenta').value.trim(),
-                pais: 'Venezuela',
-                telefono: document.getElementById('telefono').value.trim() || null,
-                email: document.getElementById('email').value.trim() || null
-            };
+            const url = editando
+                ? `${API_BASE}/api/cliente/beneficiarios/${destinatarioId}`
+                : `${API_BASE}/api/cliente/beneficiarios`;
+            const method = editando ? 'PUT' : 'POST';
 
             try {
-                const url = editando 
-                    ? `/api/cliente/beneficiarios/${destinatarioId}` 
-                    : '/api/cliente/beneficiarios';
-                
-                const method = editando ? 'PUT' : 'POST';
-
                 const response = await fetch(url, {
                     method,
-                    headers: { 
+                    headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(validacion.data)
                 });
 
+                if (response.status === 401) {
+                    localStorage.removeItem('clienteToken');
+                    window.location.href = 'login.html';
+                    return;
+                }
+
                 if (response.ok) {
-                    window.location.href = 'destinatarios.html';
+                    mostrarBanner(editando ? 'Destinatario actualizado' : 'Destinatario agregado', 'success');
+                    setTimeout(() => window.location.href = 'destinatarios.html', 600);
                 } else {
-                    const error = await response.json();
-                    alert(error.error || 'Error al guardar');
+                    const error = await response.json().catch(() => ({}));
+                    mostrarBanner(error.error || 'No pudimos guardar. Intenta nuevamente.', 'danger');
                 }
             } catch (error) {
-                // Demo mode
-                alert(editando ? 'Destinatario actualizado' : 'Destinatario agregado');
-                window.location.href = 'destinatarios.html';
+                console.error('Error al guardar destinatario', error);
+                mostrarBanner('Error de conexión. Intenta nuevamente.', 'danger');
+            } finally {
+                toggleGuardando(false);
             }
         }
 
         async function eliminarDestinatario() {
-            if (!confirm('¿Estás seguro de eliminar este destinatario?')) return;
+            if (!destinatarioId) return;
+            const confirmado = confirm('¿Estás seguro de eliminar este destinatario?');
+            if (!confirmado) return;
 
             const token = localStorage.getItem('clienteToken');
-
+            toggleGuardando(true);
             try {
-                const response = await fetch(`/api/cliente/beneficiarios/${destinatarioId}`, {
+                const response = await fetch(`${API_BASE}/api/cliente/beneficiarios/${destinatarioId}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
+                if (response.status === 401) {
+                    localStorage.removeItem('clienteToken');
+                    window.location.href = 'login.html';
+                    return;
+                }
+
                 if (response.ok) {
                     window.location.href = 'destinatarios.html';
+                } else {
+                    mostrarBanner('No pudimos eliminar el destinatario.', 'danger');
                 }
             } catch (error) {
-                alert('Destinatario eliminado');
-                window.location.href = 'destinatarios.html';
+                console.error('Error eliminando destinatario', error);
+                mostrarBanner('Error de conexión al eliminar.', 'danger');
+            } finally {
+                toggleGuardando(false);
             }
         }
 
         function volver() {
-            window.history.back();
+            const returnTo = sessionStorage.getItem('selectRecipientReturn');
+            if (returnTo) {
+                window.location.href = returnTo;
+                return;
+            }
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = 'destinatarios.html';
+            }
         }
     </script>
 </body>
 </html>
-
-
-
-
 
 
 

@@ -8,10 +8,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
-  </script>
-  <style>
+          <script>
+        (function() {
+            const stored = localStorage.getItem('apiBaseUrlOverride');
+            const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
+            if (isLocal) {
+                window.API_BASE_URL = location.origin || 'http://localhost:3000';
+                localStorage.setItem('apiBaseUrlOverride', window.API_BASE_URL);
+                return;
+            }
+            if (stored) {
+                window.API_BASE_URL = stored;
+                return;
+            }
+            window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+        })();
+    </script>
+<style>
     :root {
       --primary: #1974CE;
       --primary-strong: #145DA6;
@@ -74,7 +87,8 @@
       z-index: 10;
       backdrop-filter: blur(12px);
     }
-      <button class="back-btn" onclick="goBack()">←</button>
+
+    .back-btn {
       width: 42px;
       height: 42px;
       border-radius: 12px;
@@ -86,7 +100,10 @@
       cursor: pointer;
       transition: transform 0.15s ease, border-color 0.2s ease;
     }
-      <button class="back-btn" onclick="goBack()">←</button>
+    .back-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--primary);
+    }
     .titles h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
     .titles p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
 
@@ -713,7 +730,7 @@
     <section class="card" id="step6" style="display:none; text-align:center;">
       <div class="tracking">
         <div class="big">✔</div>
-        <h3 style="margin:0 0 6px;">¡Solicitud creada!</h3>
+        <h3 style="margin:0 0 6px;">Solicitud creada!</h3>
         <p style="color: var(--muted); margin:0 0 14px;">Te notificaremos cuando el dinero llegue.</p>
         <div class="track-code" id="trackingCode">TRX-000000</div>
         <div class="timeline">
@@ -727,7 +744,7 @@
           </div>
           <div class="tl-item" id="timelineProceso">
             <div class="dot">⏳</div>
-            <div class="tl-body"><p class="title">Procesando envío</p><p class="time">Pendiente</p></div>
+            <div class="tl-body"><p class="title">Procesando envio</p><p class="time">Pendiente</p></div>
           </div>
           <div class="tl-item" id="timelineEntregado">
             <div class="dot">⏳</div>
@@ -738,41 +755,41 @@
     </section>
   </div>
 
-  <div class="footer" id="footer">
+    <div class="footer" id="footer">
     <button class="btn-primary" id="btnNext" onclick="nextStep()">Continuar</button>
   </div>
 
   <!-- Modal Compliance -->
   <div class="modal-backdrop" id="complianceModal">
     <div class="modal">
-      <h3>Verificación de cuenta</h3>
+      <h3>Verificacion de cuenta</h3>
       <p><strong>No se permiten transferencias desde cuentas de terceros o cuentas empresa.</strong></p>
-      <p style="margin-top:-4px;">Si detectamos que el pago no proviene de una cuenta personal a tu nombre, la transacción se cancelará automáticamente.</p>
+      <p style="margin-top:-4px;">Si detectamos que el pago no proviene de una cuenta personal a tu nombre, la transaccion se cancelara automaticamente.</p>
       <div class="actions">
-        <button class="btn-primary" style="height:52px;" onclick="confirmarCuentaPropia()">✔ Sí, es mi cuenta personal</button>
-        <button class="btn-secondary" style="height:52px;" onclick="mostrarNoEsMiCuenta()">✖ No es mi cuenta</button>
+        <button class="btn-primary" style="height:52px;" onclick="confirmarCuentaPropia()">Si, es mi cuenta personal</button>
+        <button class="btn-secondary" style="height:52px;" onclick="mostrarNoEsMiCuenta()">No es mi cuenta</button>
       </div>
       <div id="noEsMiCuentaSection" style="display:none; margin-top:16px;">
-        <div class="pill-danger">⚠️ Solo aceptamos pagos desde cuentas personales a nombre del usuario registrado.</div>
-        <label style="color: var(--text); font-size:13px; margin-top:10px;">Cuéntanos tu situación</label>
+        <div class="pill-danger">Solo aceptamos pagos desde cuentas personales a nombre del usuario registrado.</div>
+        <label style="color: var(--text); font-size:13px; margin-top:10px;">Cuentanos tu situacion</label>
         <select id="motivoNoCuenta">
           <option value="">Selecciona un motivo</option>
           <option value="tercero">Pago desde cuenta de familiar/amigo</option>
           <option value="empresa">Mi cuenta es empresarial</option>
-          <option value="otro_nombre">La cuenta está a otro nombre</option>
+          <option value="otro_nombre">La cuenta esta a otro nombre</option>
           <option value="otro">Otro motivo</option>
         </select>
         <textarea id="detalleNoCuenta" placeholder="Detalle adicional (opcional)" rows="3" style="margin-top:10px;"></textarea>
         <div class="actions">
-          <button class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #b91c1c);" onclick="cancelarPorCuenta()">Entendido, cancelar operación</button>
-          <button class="btn-secondary" onclick="volverVerificacion()">← Volver</button>
+          <button class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #b91c1c);" onclick="cancelarPorCuenta()">Entendido, cancelar operacion</button>
+          <button class="btn-secondary" onclick="volverVerificacion()">Volver</button>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    const API_BASE = window.API_BASE_URL || '';
+    const API_BASE = (window.API_BASE_URL || '').replace(/\/$/, '');
     let currentStep = 1;
     let tasa = 0.045;
     let tramos = [];
@@ -786,99 +803,14 @@
       verificarSesion();
       cargarTasa();
       cargarDestinatarios();
-      checkPreselection();
-      updateProgressUI();
-      setupNumericInput('montoCLP', updateFromCLP, fmtCLP);
-      setupNumericInput('montoVES', updateFromVES, fmtVES);
+      bindAmountInputs();
+      updateFromCLP(envio.montoCLP);
       actualizarTasaDisplay();
+      updateProgressUI();
+      showStep(1);
     });
 
-    function sanitizeInteger(value) {
-      const digits = String(value ?? '').replace(/\D/g, '');
-      return digits ? parseInt(digits, 10) : 0;
-    }
-
-    function setupNumericInput(id, handler, formatter) {
-      const input = document.getElementById(id);
-      if (!input) return;
-      input.addEventListener('input', event => {
-        const sanitized = sanitizeInteger(event.target.value);
-        event.target.value = sanitized ? String(sanitized) : '';
-        handler(sanitized, { source: 'input', element: input });
-      });
-      input.addEventListener('focus', event => {
-        const sanitized = sanitizeInteger(event.target.value);
-        event.target.value = sanitized ? String(sanitized) : '';
-      });
-      input.addEventListener('blur', event => {
-        const sanitized = sanitizeInteger(event.target.value);
-        event.target.value = sanitized ? formatter.format(sanitized) : '';
-        handler(sanitized, { source: 'blur', element: input });
-      });
-    }
-
-    function setCLPInputValue(value) {
-      const input = document.getElementById('montoCLP');
-      if (!input) return;
-      if (!value) { input.value = ''; return; }
-      const focused = document.activeElement === input;
-      input.value = focused ? String(value) : fmtCLP.format(value);
-    }
-
-    function setVESInputValue(value) {
-      const input = document.getElementById('montoVES');
-      if (!input) return;
-      if (!value) { input.value = ''; return; }
-      const focused = document.activeElement === input;
-      input.value = focused ? String(value) : fmtVES.format(value);
-    }
-
-    function updateFromCLP(value, ctx = {}) {
-      const clp = Math.max(0, Math.trunc(value || 0));
-      envio.montoCLP = clp;
-      const tasaActual = obtenerTasaPorMonto(clp);
-      const ves = Math.max(0, Math.trunc(clp * tasaActual));
-      envio.montoVES = ves;
-      setCLPInputValue(clp);
-      setVESInputValue(ves);
-      actualizarTasaDisplay();
-    }
-
-    function updateFromVES(value, ctx = {}) {
-      const ves = Math.max(0, Math.trunc(value || 0));
-      const input = ctx.element || document.getElementById('montoVES');
-      const typing = ctx.source === 'input' && document.activeElement === input;
-      const tasaBase = tramos.length > 0 ? tramos[0].tasa : tasa;
-      if (!tasaBase) {
-        envio.montoCLP = 0;
-        envio.montoVES = ves;
-        setCLPInputValue(0);
-        if (!typing) setVESInputValue(ves);
-        else if (input) input.value = ves ? String(ves) : '';
-        actualizarTasaDisplay();
-        return;
-      }
-      const clpEstimado = Math.max(0, Math.trunc(ves / tasaBase));
-      const tasaActual = obtenerTasaPorMonto(clpEstimado);
-      const vesCalculado = Math.max(0, Math.trunc(clpEstimado * tasaActual));
-      envio.montoCLP = clpEstimado;
-      envio.montoVES = typing && ctx.source !== 'blur' ? ves : vesCalculado;
-      setCLPInputValue(clpEstimado);
-      if (typing && ctx.source !== 'blur') {
-        if (input) input.value = ves ? String(ves) : '';
-      } else {
-        setVESInputValue(vesCalculado);
-      }
-      actualizarTasaDisplay();
-    }
-
-    function goBack() {
-      if (currentStep === 1) { window.location.href = 'home.html'; return; }
-      if (currentStep === 6) { window.location.href = 'home.html'; return; }
-      showStep(currentStep - 1);
-    }
-
-    async function verificarSesion() {
+    function verificarSesion() {
       const token = localStorage.getItem('clienteToken');
       if (!token) window.location.href = 'login.html';
     }
@@ -889,26 +821,10 @@
         if (r.ok) {
           const data = await r.json();
           tramos = data.tramos || [];
-          tasa = data.tasaDefecto || 0.045;
-        } else {
-          tasa = 0.045; tramos = [];
+          tasa = data.tasaDefecto || tasa;
         }
-      } catch { tasa = 0.045; tramos = []; }
+      } catch (_) { /* deja valores por defecto */ }
       updateFromCLP(envio.montoCLP);
-    }
-
-    function obtenerTasaPorMonto(montoCLP) {
-      if (!tramos || tramos.length === 0) return tasa;
-      for (let i = tramos.length - 1; i >= 0; i--) {
-        if (montoCLP >= tramos[i].minCLP) return tramos[i].tasa || tasa;
-      }
-      return tasa;
-    }
-
-    function actualizarTasaDisplay() {
-      const baseMonto = envio.montoCLP || 0;
-      const t = obtenerTasaPorMonto(baseMonto);
-      document.getElementById('tasaDisplay').textContent = `1 CLP = ${t.toFixed(4)} VES`;
     }
 
     async function cargarDestinatarios() {
@@ -920,56 +836,149 @@
         console.error('Error al cargar destinatarios', error);
         destinatarios = [];
       }
+      checkPreselection();
       renderizarDestinatariosEnvio();
     }
 
-    function checkPreselection() {
-      const selectedId = sessionStorage.getItem('selectedRecipientId');
-      if (selectedId) {
-        envio.destinatario = destinatarios.find(d => d.id == selectedId);
-        sessionStorage.removeItem('selectedRecipientId');
+    function bindAmountInputs() {
+      const clpInput = document.getElementById('montoCLP');
+      const vesInput = document.getElementById('montoVES');
+
+      if (clpInput) {
+        clpInput.addEventListener('input', e => {
+          const val = sanitizeInteger(e.target.value);
+          updateFromCLP(val, { source: 'input' });
+        });
+        clpInput.addEventListener('focus', e => e.target.value = sanitizeInteger(e.target.value) || '');
+        clpInput.addEventListener('blur', e => {
+          const val = sanitizeInteger(e.target.value);
+          e.target.value = val ? fmtCLP.format(val) : '';
+          updateFromCLP(val, { source: 'blur' });
+        });
       }
-      renderizarDestinatariosEnvio();
+
+      if (vesInput) {
+        vesInput.addEventListener('input', e => {
+          const val = sanitizeInteger(e.target.value);
+          updateFromVES(val, { source: 'input', element: vesInput });
+        });
+        vesInput.addEventListener('focus', e => e.target.value = sanitizeInteger(e.target.value) || '');
+        vesInput.addEventListener('blur', e => {
+          const val = sanitizeInteger(e.target.value);
+          e.target.value = val ? fmtVES.format(val) : '';
+          updateFromVES(val, { source: 'blur', element: vesInput });
+        });
+      }
     }
 
-    function renderizarDestinatariosEnvio() {
-      const container = document.getElementById('recipientListSelect');
-      if (!container) return;
-      const search = (document.getElementById('searchRecipient')?.value || '').toLowerCase();
-      let filtrados = destinatarios;
-      if (search) filtrados = filtrados.filter(d => d.nombre_completo.toLowerCase().includes(search) || (d.alias||'').toLowerCase().includes(search));
-      if (filtrados.length === 0) {
-        container.innerHTML = `<div class=\"add-recipient\" onclick=\"agregarNuevoDestinatario()\">No tienes destinatarios guardados. Agrega uno nuevo.</div>`;
-        return;
-      }
-      container.innerHTML = filtrados.map(d => {
-        const active = envio.destinatario?.id === d.id;
-        return `<div class="recipient-card ${active ? 'active' : ''}" onclick="selectDestinatario(${d.id})">
-          <div class="avatar">${getInitials(d.nombre_completo)}</div>
-          <div>
-            <div style="font-weight:700;">${d.nombre_completo} ${d.alias ? `<span style='color:${'var(--muted)'}'>(${d.alias})</span>` : ''}</div>
-            <div style="color: var(--muted); font-size:12px;">${d.banco}</div>
-          </div>
-        </div>`;
-      }).join('');
+    function sanitizeInteger(value) {
+      const cleaned = (value || '').toString().replace(/[^0-9]/g, '');
+      return cleaned ? parseInt(cleaned, 10) : 0;
     }
 
-    function getInitials(nombre) { return nombre.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase(); }
-    function filtrarDestinatariosEnvio() { renderizarDestinatariosEnvio(); }
+    function setCLPInputValue(value) {
+      const input = document.getElementById('montoCLP');
+      if (!input) return;
+      input.value = document.activeElement === input ? (value ? String(value) : '') : (value ? fmtCLP.format(value) : '');
+    }
+
+    function setVESInputValue(value) {
+      const input = document.getElementById('montoVES');
+      if (!input) return;
+      input.value = document.activeElement === input ? (value ? String(value) : '') : (value ? fmtVES.format(value) : '');
+    }
+
+    function obtenerTasaPorMonto(montoCLP) {
+      if (!tramos || tramos.length === 0) return tasa;
+      for (let i = tramos.length - 1; i >= 0; i--) {
+        if (montoCLP >= (tramos[i].minCLP || 0)) return tramos[i].tasa || tasa;
+      }
+      return tasa;
+    }
+
+    function actualizarTasaDisplay() {
+      const t = obtenerTasaPorMonto(envio.montoCLP || 0);
+      const label = document.getElementById('tasaDisplay');
+      if (label) label.textContent = `1 CLP = ${t.toFixed(4)} VES`;
+    }
+
+    function updateFromCLP(value = 0) {
+      const clp = Math.max(0, Math.trunc(value || 0));
+      envio.montoCLP = clp;
+      const tasaActual = obtenerTasaPorMonto(clp);
+      const ves = Math.max(0, Math.trunc(clp * tasaActual));
+      envio.montoVES = ves;
+      setCLPInputValue(clp);
+      setVESInputValue(ves);
+      actualizarTasaDisplay();
+    }
+
+    function updateFromVES(value = 0, ctx = {}) {
+      const ves = Math.max(0, Math.trunc(value || 0));
+      const baseTasa = tramos.length > 0 ? tramos[0].tasa : tasa;
+      if (!baseTasa) return;
+      const clpEstimado = Math.max(0, Math.trunc(ves / baseTasa));
+      const tasaActual = obtenerTasaPorMonto(clpEstimado);
+      const vesCalculado = Math.max(0, Math.trunc(clpEstimado * tasaActual));
+      envio.montoCLP = clpEstimado;
+      envio.montoVES = ctx.source === 'input' ? ves : vesCalculado;
+      setCLPInputValue(clpEstimado);
+      setVESInputValue(ctx.source === 'input' ? ves : vesCalculado);
+      actualizarTasaDisplay();
+    }
 
     function selectMethod(m) {
       envio.metodo = m;
       document.querySelectorAll('.method-card').forEach(el => el.classList.toggle('active', el.dataset.method === m));
     }
 
+    function renderizarDestinatariosEnvio() {
+      const container = document.getElementById('recipientListSelect');
+      if (!container) return;
+      const search = (document.getElementById('searchRecipient')?.value || '').toLowerCase();
+      let filtrados = destinatarios || [];
+      if (search) filtrados = filtrados.filter(d =>
+        (d.nombre_completo || '').toLowerCase().includes(search) ||
+        (d.alias || '').toLowerCase().includes(search)
+      );
+      if (filtrados.length === 0) {
+        container.innerHTML = `<div class="add-recipient" onclick="agregarNuevoDestinatario()">No tienes destinatarios guardados. Agrega uno nuevo.</div>`;
+        return;
+      }
+      container.innerHTML = filtrados.map(d => {
+        const active = envio.destinatario?.id === d.id;
+        return `<div class="recipient-card ${active ? 'active' : ''}" onclick="selectDestinatario(${d.id})">
+          <div class="avatar">${getInitials(d.nombre_completo || '')}</div>
+          <div>
+            <div style="font-weight:700;">${d.nombre_completo || ''} ${d.alias ? `<span style='color: var(--muted)' >(${d.alias})</span>` : ''}</div>
+            <div style="color: var(--muted); font-size:12px;">${d.banco || ''}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function getInitials(nombre) {
+      return (nombre || '').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0,2).toUpperCase() || 'D';
+    }
+
+    function filtrarDestinatariosEnvio() { renderizarDestinatariosEnvio(); }
+
     function selectDestinatario(id) {
-      envio.destinatario = destinatarios.find(d => d.id === id);
+      envio.destinatario = (destinatarios || []).find(d => d.id === id) || null;
       renderizarDestinatariosEnvio();
     }
 
     function agregarNuevoDestinatario() {
       sessionStorage.setItem('selectRecipientReturn', 'enviar.html');
       window.location.href = 'destinatario-form.html';
+    }
+
+    function checkPreselection() {
+      const selectedId = sessionStorage.getItem('selectedRecipientId');
+      if (selectedId) {
+        envio.destinatario = (destinatarios || []).find(d => d.id == selectedId) || null;
+        sessionStorage.removeItem('selectedRecipientId');
+      }
     }
 
     function updateProgressUI() {
@@ -982,8 +991,12 @@
     }
 
     function showStep(step) {
-      ['step1','step2','step3','step4','step5','step6'].forEach(id => document.getElementById(id).style.display = 'none');
-      document.getElementById(`step${step}`).style.display = 'block';
+      ['step1','step2','step3','step4','step5','step6'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      const target = document.getElementById(`step${step}`);
+      if (target) target.style.display = 'block';
       currentStep = step;
       updateProgressUI();
       updateFooter();
@@ -991,17 +1004,28 @@
     }
 
     function updateFooter() {
-      const btn = document.getElementById('btnNext');
+      const footer = document.getElementById('footer');
+      if (!footer) return;
       if (currentStep === 6) {
-        document.getElementById('footer').innerHTML = `<div style="display:grid; gap:10px;"><button class='btn-secondary' onclick="window.location.href='home.html'">Ir al inicio</button><button class='btn-primary' onclick="verHistorial()">Ver historial</button></div>`;
+        footer.innerHTML = `<div style="display:grid; gap:10px;"><button class='btn-secondary' onclick="window.location.href='home.html'">Ir al inicio</button><button class='btn-primary' onclick="verHistorial()">Ver historial</button></div>`;
         return;
       }
-      document.getElementById('footer').innerHTML = `<button class='btn-primary' id='btnNext' onclick='nextStep()'>${currentStep === 5 ? 'Ya realicé el pago' : currentStep === 4 ? 'Confirmar envío' : 'Continuar'}</button>`;
+      const label = currentStep === 5 ? 'Ya realice el pago' : currentStep === 4 ? 'Confirmar envio' : 'Continuar';
+      footer.innerHTML = `<button class='btn-primary' id='btnNext' onclick='nextStep()'>${label}</button>`;
+    }
+
+    function goBack() {
+      if (currentStep === 1 || currentStep === 6) {
+        window.location.href = 'home.html';
+        return;
+      }
+      document.getElementById('complianceModal').style.display = 'none';
+      showStep(Math.max(1, currentStep - 1));
     }
 
     function nextStep() {
       if (currentStep === 1) {
-        if (!envio.montoCLP || envio.montoCLP < 1000) { alert('El monto mínimo es $1.000 CLP'); return; }
+        if (!envio.montoCLP || envio.montoCLP < 1000) { alert('El monto minimo es $1.000 CLP'); return; }
       }
       if (currentStep === 3 && !envio.destinatario) { alert('Selecciona un destinatario'); return; }
       if (currentStep === 3) prepararResumen();
@@ -1013,34 +1037,40 @@
     function prepararResumen() {
       const tasaActual = obtenerTasaPorMonto(envio.montoCLP);
       const envia = envio.montoCLP || 0;
+      const recibe = envio.montoVES || 0;
       document.getElementById('resumenEnvias').textContent = `$${fmtCLP.format(envia)} CLP`;
       document.getElementById('resumenDestinatario').textContent = envio.destinatario?.alias || envio.destinatario?.nombre_completo || '-';
-      document.getElementById('resumenMetodo').textContent = envio.metodo === 'pago_movil' ? 'Pago Móvil' : 'Transferencia';
+      document.getElementById('resumenMetodo').textContent = envio.metodo === 'pago_movil' ? 'Pago movil' : 'Transferencia';
       document.getElementById('resumenBanco').textContent = envio.destinatario?.banco || '-';
       document.getElementById('resumenTasa').textContent = `1 CLP = ${tasaActual.toFixed(4)} VES`;
-      const recibe = envio.montoVES || 0;
       document.getElementById('resumenRecibe').textContent = `Bs. ${fmtVES.format(recibe)}`;
     }
 
-        <button class="btn-primary" style="height:52px;" onclick="confirmarCuentaPropia()">✔ Sí, es mi cuenta personal</button>
+    function confirmarCuentaPropia() {
       document.getElementById('complianceModal').style.display = 'none';
       showStep(5);
     }
-        <button class="btn-secondary" style="height:52px;" onclick="mostrarNoEsMiCuenta()">✖ No es mi cuenta</button>
+
+    function mostrarNoEsMiCuenta() {
       document.getElementById('noEsMiCuentaSection').style.display = 'block';
     }
-          <button class="btn-secondary" onclick="volverVerificacion()">← Volver</button>
+
+    function volverVerificacion() {
+      document.getElementById('noEsMiCuentaSection').style.display = 'none';
+    }
+
     function cancelarPorCuenta() {
       const motivo = document.getElementById('motivoNoCuenta').value;
       const detalle = document.getElementById('detalleNoCuenta').value;
-      console.log('Operación cancelada - Motivo:', motivo, 'Detalle:', detalle);
-      alert('Tu operación ha sido cancelada. Si necesitas ayuda, contáctanos en Soporte.');
+      console.log('Operacion cancelada - Motivo:', motivo, 'Detalle:', detalle);
+      alert('Tu operacion ha sido cancelada. Si necesitas ayuda, contactanos en Soporte.');
       document.getElementById('complianceModal').style.display = 'none';
       window.location.href = 'home.html';
     }
 
     function prepararDatosPago() {
-      document.getElementById('paymentMonto').textContent = `$${fmtCLP.format(envio.montoCLP || 0)} CLP`;
+      const montoLabel = document.getElementById('paymentMonto');
+      if (montoLabel) montoLabel.textContent = `$${fmtCLP.format(envio.montoCLP || 0)} CLP`;
       startTimer();
     }
 
@@ -1066,7 +1096,7 @@
       navigator.clipboard.writeText(txt).then(() => {
         const btn = event.target;
         const prev = btn.textContent;
-        btn.textContent = '✓ Copiado';
+        btn.textContent = 'Copiado';
         setTimeout(() => btn.textContent = prev, 1600);
       });
     }
@@ -1099,6 +1129,7 @@
       document.getElementById('timeCreated').textContent = new Date().toLocaleString('es-CL');
       showStep(6);
     }
+
     function mostrarTrackingDemo() {
       document.getElementById('trackingCode').textContent = 'TRX-' + Math.random().toString(36).substr(2, 8).toUpperCase();
       document.getElementById('timeCreated').textContent = new Date().toLocaleString('es-CL');
@@ -1109,11 +1140,4 @@
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
 

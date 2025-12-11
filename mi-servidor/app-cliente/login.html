@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -10,9 +10,22 @@
     <!-- Google Sign-In -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    <!-- Config backend (prod apunta a defisistema-interno) -->
-    <script>
-        window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+    <!-- Config backend (usa local cuando se ejecuta en localhost) -->
+        <script>
+        (function() {
+            const stored = localStorage.getItem('apiBaseUrlOverride');
+            const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
+            if (isLocal) {
+                window.API_BASE_URL = location.origin || 'http://localhost:3000';
+                localStorage.setItem('apiBaseUrlOverride', window.API_BASE_URL);
+                return;
+            }
+            if (stored) {
+                window.API_BASE_URL = stored;
+                return;
+            }
+            window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+        })();
     </script>
     
     <link rel="stylesheet" href="css/styles.css">
@@ -463,13 +476,13 @@
 
                 <div class="feature-carousel" aria-live="polite">
                     <div class="feature-slide active" id="feature-slide-0" aria-hidden="false">
-                        <img src="assets/BANERBIENVENIDA.jpeg?v=2" alt="Banner bienvenida" class="feature-banner">
+                        <img src="assets/BANERBIENVENIDA.jpeg?v=3" alt="Banner bienvenida" class="feature-banner">
                     </div>
                     <div class="feature-slide" id="feature-slide-1" aria-hidden="true">
-                        <img src="assets/BANERCENA.jpeg?v=2" alt="Banner cena" class="feature-banner">
+                        <img src="assets/BANERCENA.jpeg?v=3" alt="Banner cena" class="feature-banner">
                     </div>
                     <div class="feature-slide" id="feature-slide-2" aria-hidden="true">
-                        <img src="assets/baner2.jpeg?v=2" alt="Banner 2" class="feature-banner">
+                        <img src="assets/baner2.jpeg?v=3" alt="Banner 2" class="feature-banner">
                     </div>
                     <div class="feature-dots" role="tablist" aria-label="Destacados">
                         <button class="feature-dot active" type="button" aria-label="Destacado 1" data-slide="0"></button>
@@ -528,7 +541,7 @@
                 <h2 class="rates-title">Tasas CLP a VES</h2>
                 <button class="rates-close" type="button" data-close-rates aria-label="Cerrar">X</button>
             </div>
-            <p class="rates-subtitle">Tasas activas para tus envíos.</p>
+            <p class="rates-subtitle">Tasas activas para tus envÃ­os.</p>
             <div class="rate-legend">
                 <div class="rate-flag">
                     <img src="assets/banderachile.svg" alt="Origen Chile">
@@ -765,12 +778,12 @@
                 try {
                     data = await serverResponse.clone().json();
                 } catch (parseError) {
-                    // Si no viene JSON (ej. HTML vacío), data quedará null y manejamos abajo.
+                    // Si no viene JSON (ej. HTML vacÃ­o), data quedarÃ¡ null y manejamos abajo.
                 }
 
                 if (serverResponse.ok) {
                     if (!data) {
-                        throw new Error('Respuesta vacía del servidor');
+                        throw new Error('Respuesta vacÃ­a del servidor');
                     }
 
                     localStorage.setItem('clienteToken', data.token);
@@ -838,4 +851,6 @@
     </script>
 </body>
 </html>
+
+
 

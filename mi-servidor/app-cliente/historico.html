@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -6,6 +6,13 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1974CE">
     <title>Historial - Defi Oracle</title>
+                    <script>
+        const __storedApi = localStorage.getItem('apiBaseUrlOverride');
+        const __fallbackApi = (location.protocol === 'file:' ? 'http://localhost:3000' : location.origin);
+        if (typeof window.API_BASE_URL !== 'string' || window.API_BASE_URL.length === 0) {
+            window.API_BASE_URL = __storedApi || __fallbackApi;
+        }
+    </script>
     <link rel="stylesheet" href="css/styles.css">
     <style>
         .hist-header {
@@ -245,8 +252,8 @@
         <div class="page">
             <!-- Header -->
             <header class="hist-header">
-                <button class="btn-back" onclick="volver()">←</button>
-                <h1 class="hist-header-title">Historial de envíos</h1>
+                <button class="btn-back" onclick="volver()">â†</button>
+                <h1 class="hist-header-title">Historial de envÃ­os</h1>
             </header>
 
             <!-- Filters -->
@@ -261,15 +268,15 @@
 
             <!-- Content -->
             <main class="hist-content" id="histContent">
-                <!-- Se llena dinámicamente -->
+                <!-- Se llena dinÃ¡micamente -->
             </main>
 
             <!-- Empty State -->
             <div class="empty-state" id="emptyState" style="display: none;">
-                <div class="empty-icon">📭</div>
-                <h2 class="empty-title">Sin envíos</h2>
-                <p class="empty-text">Aún no has realizado ningún envío</p>
-                <button class="btn btn-primary" onclick="window.location.href='enviar.html'">Hacer mi primer envío</button>
+                <div class="empty-icon">ðŸ“­</div>
+                <h2 class="empty-title">Sin envÃ­os</h2>
+                <p class="empty-text">AÃºn no has realizado ningÃºn envÃ­o</p>
+                <button class="btn btn-primary" onclick="window.location.href='enviar.html'">Hacer mi primer envÃ­o</button>
             </div>
         </div>
     </div>
@@ -278,12 +285,12 @@
     <div class="modal-backdrop" id="detailModal" style="display: none;">
         <div class="modal" style="max-height: 80vh; overflow-y: auto;">
             <div class="detail-header">
-                <div class="detail-status-icon" id="detailStatusIcon">✅</div>
-                <h3 class="detail-title" id="detailTitle">Envío completado</h3>
+                <div class="detail-status-icon" id="detailStatusIcon">âœ…</div>
+                <h3 class="detail-title" id="detailTitle">EnvÃ­o completado</h3>
             </div>
             <div class="detail-body">
                 <div class="detail-row">
-                    <span class="detail-label">Código</span>
+                    <span class="detail-label">CÃ³digo</span>
                     <span class="detail-value" id="detailCode">-</span>
                 </div>
                 <div class="detail-row">
@@ -299,7 +306,7 @@
                     <span class="detail-value" id="detailBanco">-</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Método</span>
+                    <span class="detail-label">MÃ©todo</span>
                     <span class="detail-value" id="detailMetodo">-</span>
                 </div>
                 <div class="detail-row">
@@ -321,218 +328,17 @@
         </div>
     </div>
 
-    <script>
-        let envios = [];
-        let filtroActual = 'todos';
-
-        document.addEventListener('DOMContentLoaded', () => {
-            verificarSesion();
-            cargarHistorial();
-        });
-
-        function verificarSesion() {
-            const token = localStorage.getItem('clienteToken');
-            if (!token) {
-                window.location.href = 'login.html';
-            }
-        }
-
-        async function cargarHistorial() {
-            const token = localStorage.getItem('clienteToken');
             
-            try {
-                const response = await fetch('/api/cliente/solicitudes', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    envios = await response.json();
-                } else {
-                    envios = getMockData();
-                }
-            } catch {
-                envios = getMockData();
-            }
-
-            renderizarHistorial();
-        }
-
-        function getMockData() {
-            return [
-                {
-                    id: 1,
-                    codigo: 'TRX-A1B2C3D4',
-                    fecha: '2024-01-15T14:30:00',
-                    destinatario: 'María García López',
-                    alias: 'Mamá',
-                    banco: 'Banco de Venezuela',
-                    metodo: 'pago_movil',
-                    monto_clp: 50000,
-                    monto_ves: 2250,
-                    tasa: 0.045,
-                    estado: 'completado'
-                },
-                {
-                    id: 2,
-                    codigo: 'TRX-E5F6G7H8',
-                    fecha: '2024-01-14T10:15:00',
-                    destinatario: 'Carlos García López',
-                    alias: 'Hermano',
-                    banco: 'Banesco',
-                    metodo: 'transferencia',
-                    monto_clp: 100000,
-                    monto_ves: 4500,
-                    tasa: 0.045,
-                    estado: 'procesando'
-                },
-                {
-                    id: 3,
-                    codigo: 'TRX-I9J0K1L2',
-                    fecha: '2024-01-10T16:45:00',
-                    destinatario: 'Ana Martínez',
-                    alias: null,
-                    banco: 'Mercantil',
-                    metodo: 'pago_movil',
-                    monto_clp: 25000,
-                    monto_ves: 1125,
-                    tasa: 0.045,
-                    estado: 'completado'
-                }
-            ];
-        }
-
-        function renderizarHistorial() {
-            const container = document.getElementById('histContent');
-            const emptyState = document.getElementById('emptyState');
-
-            let filtrados = envios;
-            if (filtroActual !== 'todos') {
-                filtrados = filtrados.filter(e => e.estado === filtroActual);
-            }
-
-            if (filtrados.length === 0) {
-                container.innerHTML = '';
-                emptyState.style.display = 'block';
-                return;
-            }
-
-            emptyState.style.display = 'none';
-
-            // Agrupar por fecha
-            const grupos = {};
-            filtrados.forEach(e => {
-                const fecha = new Date(e.fecha);
-                const key = fecha.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
-                if (!grupos[key]) grupos[key] = [];
-                grupos[key].push(e);
-            });
-
-            container.innerHTML = Object.entries(grupos).map(([fecha, items]) => `
-                <div class="hist-group">
-                    <h3 class="hist-date">${capitalizar(fecha)}</h3>
-                    ${items.map(e => `
-                        <div class="hist-card" onclick="verDetalle(${e.id})">
-                            <div class="hist-card-header">
-                                <div class="hist-avatar">${getInitials(e.destinatario)}</div>
-                                <div class="hist-info">
-                                    <p class="hist-name">${e.alias || e.destinatario}</p>
-                                    <p class="hist-method">${e.metodo === 'pago_movil' ? '📱 Pago Móvil' : '🏦 Transferencia'}</p>
-                                </div>
-                                <div class="hist-amount">
-                                    <p class="hist-clp">$${e.monto_clp.toLocaleString('es-CL')}</p>
-                                    <p class="hist-ves">Bs. ${e.monto_ves.toLocaleString('es-VE')}</p>
-                                </div>
-                            </div>
-                            <div class="hist-card-footer">
-                                <span class="hist-code">${e.codigo}</span>
-                                <span class="hist-status ${e.estado}">${getStatusLabel(e.estado)}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `).join('');
-        }
-
-        function getInitials(nombre) {
-            return nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-        }
-
-        function capitalizar(str) {
-            return str.charAt(0).toUpperCase() + str.slice(1);
-        }
-
-        function getStatusLabel(estado) {
-            const labels = {
-                'completado': '✓ Completado',
-                'pendiente': '⏳ Pendiente',
-                'procesando': '🔄 Procesando',
-                'cancelado': '✕ Cancelado'
-            };
-            return labels[estado] || estado;
-        }
-
-        function getStatusIcon(estado) {
-            const icons = {
-                'completado': '✅',
-                'pendiente': '⏳',
-                'procesando': '🔄',
-                'cancelado': '❌'
-            };
-            return icons[estado] || '📋';
-        }
-
-        function getStatusTitle(estado) {
-            const titles = {
-                'completado': 'Envío completado',
-                'pendiente': 'Esperando pago',
-                'procesando': 'En proceso',
-                'cancelado': 'Envío cancelado'
-            };
-            return titles[estado] || 'Envío';
-        }
-
-        function filtrar(filtro) {
-            filtroActual = filtro;
-            
-            document.querySelectorAll('.filter-chip').forEach(c => {
-                c.classList.toggle('active', c.dataset.filter === filtro);
-            });
-
-            renderizarHistorial();
-        }
-
-        function verDetalle(id) {
-            const envio = envios.find(e => e.id === id);
-            if (!envio) return;
-
-            document.getElementById('detailStatusIcon').textContent = getStatusIcon(envio.estado);
-            document.getElementById('detailTitle').textContent = getStatusTitle(envio.estado);
-            document.getElementById('detailCode').textContent = envio.codigo;
-            document.getElementById('detailFecha').textContent = new Date(envio.fecha).toLocaleString('es-CL');
-            document.getElementById('detailDestinatario').textContent = envio.destinatario;
-            document.getElementById('detailBanco').textContent = envio.banco;
-            document.getElementById('detailMetodo').textContent = envio.metodo === 'pago_movil' ? 'Pago Móvil' : 'Transferencia';
-            document.getElementById('detailMontoCLP').textContent = `$${envio.monto_clp.toLocaleString('es-CL')} CLP`;
-            document.getElementById('detailTasa').textContent = `1 CLP = ${envio.tasa} VES`;
-            document.getElementById('detailMontoVES').textContent = `Bs. ${envio.monto_ves.toLocaleString('es-VE')}`;
-
-            document.getElementById('detailModal').style.display = 'flex';
-        }
-
-        function cerrarModal() {
-            document.getElementById('detailModal').style.display = 'none';
-        }
-
-        function volver() {
-            window.history.back();
-        }
-
-        // Cerrar modal al hacer clic fuera
-        document.getElementById('detailModal').addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal-backdrop')) {
-                cerrarModal();
-            }
-        });
-    </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+

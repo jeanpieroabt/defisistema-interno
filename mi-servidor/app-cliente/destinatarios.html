@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -6,6 +6,23 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1974CE">
     <title>Destinatarios - Defi Oracle</title>
+
+    <script>
+        (function() {
+            const stored = localStorage.getItem('apiBaseUrlOverride');
+            const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
+            if (isLocal) {
+                window.API_BASE_URL = location.origin || 'http://localhost:3000';
+                localStorage.setItem('apiBaseUrlOverride', window.API_BASE_URL);
+                return;
+            }
+            if (stored) {
+                window.API_BASE_URL = stored;
+                return;
+            }
+            window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+        })();
+    </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,69 +32,43 @@
         :root {
             --primary-blue: #1974CE;
             --secondary-blue: #D8E2E9;
-            --accent-green: #5C8240;
-            --dark-slate: #211C10;
-            --neutral-gray: #9AA1A1;
-            --light-bg: #E3EAEE;
-            --brand-cyan: #2FC7B8;
-            --white: #FFFFFF;
+            --accent-green: #23C6B8;
+            --dark-slate: #121826;
+            --neutral-gray: #7C8899;
+            --muted: #A3ACB9;
+            --light-bg: #E8EEF3;
+            --panel: #FFFFFF;
+            --danger: #EF4444;
+            --warning: #F59E0B;
 
-            --grad-brand-soft: linear-gradient(135deg, rgba(25, 116, 206, 0.10), rgba(47, 199, 184, 0.10));
-            --grad-brand-button: linear-gradient(90deg, #1974CE 0%, #2FC7B8 100%);
+            --grad-surface: linear-gradient(135deg, rgba(25, 116, 206, 0.12), rgba(35, 198, 184, 0.10));
+            --grad-button: linear-gradient(120deg, #1974CE 0%, #23C6B8 100%);
 
             --radius-sm: 10px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 20px;
-            --radius-xxl: 24px;
+            --radius-md: 14px;
+            --radius-lg: 18px;
+            --radius-xl: 22px;
             --radius-full: 999px;
 
-            --shadow-soft: 0 10px 28px rgba(15, 42, 84, 0.14);
-            --shadow-card: 0 14px 32px rgba(12, 60, 124, 0.16);
+            --shadow-soft: 0 10px 28px rgba(12, 60, 124, 0.14);
+            --shadow-card: 0 16px 36px rgba(13, 54, 112, 0.16);
             --shadow-subtle: 0 6px 16px rgba(17, 38, 78, 0.10);
-            --shadow-button: 0 18px 36px rgba(25, 116, 206, 0.24);
-            --shadow-button-hover: 0 22px 44px rgba(25, 116, 206, 0.28);
-
-            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            --font-xs: 11px;
-            --font-sm: 13px;
-            --font-base: 15px;
-            --font-lg: 17px;
-            --font-xl: 20px;
-            --font-2xl: 24px;
-            --font-3xl: 32px;
-
-            --space-xs: 4px;
-            --space-sm: 8px;
-            --space-md: 12px;
-            --space-lg: 16px;
-            --space-xl: 20px;
-            --space-2xl: 24px;
-            --space-3xl: 32px;
-            --space-4xl: 40px;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: var(--font-family);
-            background: var(--grad-brand-soft);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--grad-surface);
             color: var(--dark-slate);
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
         }
 
-        button,
-        input {
-            font-family: inherit;
-        }
+        button, input { font-family: inherit; }
 
         .app-container {
-            max-width: 480px;
+            max-width: 520px;
             margin: 0 auto;
             min-height: 100vh;
             position: relative;
@@ -87,241 +78,149 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            padding: var(--space-3xl) var(--space-3xl) 200px;
-            gap: var(--space-2xl);
+            padding: 32px 26px 200px;
+            gap: 20px;
         }
 
         @media (max-width: 420px) {
-            .page {
-                padding: var(--space-2xl) var(--space-lg) 200px;
-            }
+            .page { padding: 26px 16px 200px; }
         }
 
         .page-content {
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: var(--space-3xl);
-            background: rgba(255, 255, 255, 0.88);
-            border-radius: var(--radius-xxl);
+            gap: 24px;
+            background: rgba(255, 255, 255, 0.94);
+            border-radius: var(--radius-xl);
             border: 1px solid rgba(255, 255, 255, 0.65);
             box-shadow: var(--shadow-card);
-            padding: var(--space-3xl);
+            padding: 28px;
             backdrop-filter: blur(18px);
         }
 
         @media (max-width: 420px) {
-            .page-content {
-                padding: var(--space-2xl) var(--space-xl);
-            }
+            .page-content { padding: 22px 18px; }
         }
 
-        .dest-header {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-xl);
-        }
-
+        .dest-header { display: flex; flex-direction: column; gap: 10px; }
         .dest-eyebrow {
-            font-size: var(--font-xs);
-            font-weight: 600;
-            letter-spacing: 0.4px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
             color: var(--neutral-gray);
         }
+        .dest-title { font-size: 26px; font-weight: 800; letter-spacing: -0.4px; }
+        .dest-subtitle { font-size: 14px; color: var(--muted); max-width: 320px; }
 
-        .dest-title {
-            font-size: var(--font-2xl);
-            font-weight: 700;
-            letter-spacing: -0.3px;
+        .status-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 18px;
+            border: 1px solid rgba(25, 116, 206, 0.12);
+            background: rgba(25, 116, 206, 0.06);
+            color: var(--dark-slate);
         }
+        .status-banner.danger { border-color: rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08); color: #991B1B; }
+        .status-banner.warning { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.10); color: #92400E; }
+        .status-banner small { color: inherit; }
+        .status-banner button { margin-left: auto; border: none; background: transparent; color: inherit; font-weight: 700; cursor: pointer; }
 
-        .dest-subtitle {
-            font-size: var(--font-sm);
-            color: var(--neutral-gray);
-            max-width: 280px;
-        }
-
-        .dest-search {
-            position: relative;
-        }
-
+        .toolbar { display: flex; flex-direction: column; gap: 14px; }
+        .page-content.empty-mode .toolbar,
+        .page-content.empty-mode .dest-search,
+        .page-content.empty-mode .dest-tabs { display: none; }
+        .dest-search { position: relative; }
         .dest-search-icon {
             position: absolute;
             top: 50%;
-            left: 18px;
+            left: 16px;
             transform: translateY(-50%);
             color: var(--primary-blue);
             opacity: 0.75;
         }
-
-        .dest-search-icon svg {
-            width: 18px;
-            height: 18px;
-        }
-
+        .dest-search-icon svg { width: 18px; height: 18px; }
         .dest-input {
             width: 100%;
             border: 1px solid rgba(25, 116, 206, 0.14);
             border-radius: 18px;
             background: rgba(255, 255, 255, 0.96);
-            padding: 14px 18px 14px 48px;
-            font-size: var(--font-sm);
+            padding: 14px 16px 14px 46px;
+            font-size: 14px;
             color: var(--dark-slate);
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
-
-        .dest-input::placeholder {
-            color: var(--neutral-gray);
-        }
-
+        .dest-input::placeholder { color: var(--neutral-gray); }
         .dest-input:focus {
             outline: none;
             border-color: rgba(25, 116, 206, 0.45);
             box-shadow: 0 0 0 3px rgba(25, 116, 206, 0.16);
         }
 
-        .dest-tabs {
-            display: flex;
-            justify-content: center;
-        }
-
-        .tabs {
-            width: 100%;
-            background: rgba(25, 116, 206, 0.08);
-            border-radius: 999px;
-            padding: 6px;
-            display: flex;
-            gap: 6px;
-        }
-
+        .tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; background: rgba(25, 116, 206, 0.08); padding: 6px; border-radius: 999px; }
         .tab {
-            flex: 1;
             border: none;
             border-radius: 999px;
             background: transparent;
-            color: rgba(33, 28, 16, 0.6);
-            font-size: var(--font-sm);
-            font-weight: 600;
+            color: rgba(33, 28, 16, 0.65);
+            font-size: 14px;
+            font-weight: 700;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            padding: 10px 14px;
+            gap: 8px;
+            padding: 10px 12px;
             cursor: pointer;
-            transition: all 0.25s ease;
+            transition: all 0.2s ease;
         }
-
-        .tab:hover {
-            color: var(--primary-blue);
-        }
-
+        .tab:hover { color: var(--primary-blue); }
         .tab.active {
-            color: var(--white);
-            background: var(--grad-brand-button);
-            box-shadow: 0 10px 20px rgba(25, 116, 206, 0.20);
+            color: #FFFFFF;
+            background: var(--grad-button);
+            box-shadow: 0 10px 20px rgba(25, 116, 206, 0.18);
         }
+        .tab svg { width: 16px; height: 16px; }
 
-        .tab-icon {
-            font-size: var(--font-sm);
-        }
-
-        .list-section {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-xl);
-        }
-
-        .recipient-list {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-sm);
-        }
+        .list-section { display: flex; flex-direction: column; gap: 14px; }
+        .recipient-list { display: flex; flex-direction: column; gap: 10px; }
 
         .recipient-card {
             display: flex;
             align-items: center;
-            gap: var(--space-lg);
-            padding: var(--space-lg) var(--space-xl);
-            background: rgba(255, 255, 255, 0.96);
-            border-radius: var(--radius-xl);
+            gap: 14px;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 18px;
             border: 1px solid rgba(25, 116, 206, 0.08);
             box-shadow: var(--shadow-subtle);
-            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
             cursor: pointer;
         }
-
-        .recipient-card:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 16px 28px rgba(17, 38, 78, 0.12);
-            border-color: rgba(25, 116, 206, 0.20);
-        }
+        .recipient-card:hover { transform: translateY(-1px); box-shadow: 0 14px 26px rgba(17, 38, 78, 0.12); border-color: rgba(25, 116, 206, 0.18); }
 
         .recipient-avatar {
             width: 52px;
             height: 52px;
             border-radius: var(--radius-full);
-            background: linear-gradient(135deg, rgba(25, 116, 206, 0.12), rgba(47, 199, 184, 0.16));
+            background: linear-gradient(135deg, rgba(25, 116, 206, 0.12), rgba(35, 198, 184, 0.20));
             color: var(--primary-blue);
-            font-weight: 700;
-            font-size: var(--font-base);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            letter-spacing: 0.6px;
-        }
-
-        .recipient-info {
+            font-weight: 800;
+            font-size: 16px;
             display: grid;
-            gap: 6px;
-            flex: 1;
-            min-width: 0;
-        }
-
-        .recipient-name-row {
-            display: flex;
-            align-items: center;
-            gap: var(--space-sm);
-            flex-wrap: wrap;
-        }
-
-        .recipient-name {
-            font-weight: 600;
-            font-size: var(--font-base);
-            color: var(--dark-slate);
-        }
-
-        .recipient-alias {
-            padding: 2px 10px;
-            border-radius: 999px;
-            background: rgba(25, 116, 206, 0.12);
-            color: var(--primary-blue);
-            font-size: var(--font-xs);
-            font-weight: 600;
-            letter-spacing: 0.3px;
-            text-transform: uppercase;
-        }
-
-        .recipient-bank {
-            font-size: var(--font-sm);
-            color: rgba(33, 28, 16, 0.78);
-            font-weight: 500;
-        }
-
-        .recipient-account {
-            font-size: var(--font-xs);
-            color: var(--neutral-gray);
+            place-items: center;
             letter-spacing: 0.4px;
-            font-variant-numeric: tabular-nums;
         }
+        .recipient-info { display: grid; gap: 6px; flex: 1; min-width: 0; }
+        .recipient-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .recipient-name { font-weight: 700; font-size: 16px; color: var(--dark-slate); }
+        .recipient-alias { padding: 2px 8px; border-radius: 999px; background: rgba(25, 116, 206, 0.12); color: var(--primary-blue); font-size: 11px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; }
+        .recipient-bank { font-size: 14px; color: rgba(33, 28, 16, 0.78); font-weight: 600; }
+        .recipient-account { font-size: 12px; color: var(--neutral-gray); letter-spacing: 0.3px; font-variant-numeric: tabular-nums; }
 
-        .recipient-actions {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: var(--space-sm);
-        }
-
+        .recipient-actions { display: flex; align-items: center; gap: 8px; }
         .btn-favorite {
             width: 40px;
             height: 40px;
@@ -329,149 +228,62 @@
             background: rgba(25, 116, 206, 0.10);
             border: 1px solid rgba(25, 116, 206, 0.16);
             color: var(--primary-blue);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: grid;
+            place-items: center;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.18s ease;
         }
-
-        .btn-favorite svg {
-            width: 20px;
-            height: 20px;
-            fill: transparent;
-        }
-
-        .btn-favorite:hover {
-            box-shadow: 0 12px 24px rgba(25, 116, 206, 0.20);
-            transform: translateY(-1px);
-        }
-
-        .btn-favorite.active {
-            background: linear-gradient(135deg, rgba(25, 116, 206, 0.18), rgba(47, 199, 184, 0.24));
-            border-color: rgba(25, 116, 206, 0.40);
-        }
-
-        .btn-favorite.active svg {
-            fill: currentColor;
-        }
-
-        .recipient-chevron {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--neutral-gray);
-        }
-
-        .recipient-chevron svg {
-            width: 18px;
-            height: 18px;
-            stroke-width: 1.8;
-        }
+        .btn-favorite svg { width: 20px; height: 20px; }
+        .btn-favorite:hover { box-shadow: 0 12px 24px rgba(25, 116, 206, 0.20); transform: translateY(-1px); }
+        .btn-favorite.active { background: linear-gradient(135deg, rgba(25, 116, 206, 0.18), rgba(35, 198, 184, 0.22)); border-color: rgba(25, 116, 206, 0.40); color: #0F172A; }
+        .recipient-chevron { color: var(--neutral-gray); display: grid; place-items: center; }
+        .recipient-chevron svg { width: 18px; height: 18px; stroke-width: 1.8; }
 
         .empty-state {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: var(--space-md);
+            gap: 10px;
             text-align: center;
-            padding: var(--space-3xl) var(--space-2xl);
-            background: rgba(255, 255, 255, 0.90);
-            border-radius: var(--radius-xl);
+            padding: 26px 18px;
+            background: rgba(255, 255, 255, 0.94);
+            border-radius: 18px;
             border: 1px solid rgba(25, 116, 206, 0.10);
             box-shadow: var(--shadow-subtle);
         }
+        .empty-icon { width: 64px; height: 64px; border-radius: var(--radius-full); background: rgba(25, 116, 206, 0.12); display: grid; place-items: center; color: var(--primary-blue); }
+        .empty-icon svg { width: 28px; height: 28px; }
+        .empty-title { font-size: 17px; font-weight: 800; }
+        .empty-text { font-size: 14px; color: var(--muted); max-width: 260px; }
 
-        .empty-icon {
-            width: 64px;
-            height: 64px;
-            border-radius: var(--radius-full);
-            background: rgba(25, 116, 206, 0.12);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--primary-blue);
-        }
-
-        .empty-icon svg {
-            width: 28px;
-            height: 28px;
-        }
-
-        .empty-title {
-            font-size: var(--font-lg);
-            font-weight: 700;
-        }
-
-        .empty-text {
-            font-size: var(--font-sm);
-            color: var(--neutral-gray);
-            max-width: 260px;
-        }
-
-        .btn {
-            border: none;
-            background: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-sm);
-            font-weight: 600;
-            cursor: pointer;
-        }
-
+        .btn { border: none; background: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; cursor: pointer; }
         .btn-primary {
             width: 100%;
             height: 58px;
             border-radius: 18px;
-            background: var(--grad-brand-button);
-            color: var(--white);
-            box-shadow: var(--shadow-button);
+            background: var(--grad-button);
+            color: #FFFFFF;
+            box-shadow: 0 18px 36px rgba(25, 116, 206, 0.24);
             transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-            font-size: var(--font-lg);
+            font-size: 16px;
         }
-
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-button-hover);
-            filter: brightness(1.02);
-        }
-
-        .btn-primary:active {
-            transform: translateY(0);
-            filter: brightness(0.97);
-        }
-
-        .btn-icon {
-            width: 22px;
-            height: 22px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-icon svg {
-            width: 18px;
-            height: 18px;
-            stroke-width: 2.2;
-        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 22px 44px rgba(25, 116, 206, 0.28); filter: brightness(1.02); }
+        .btn-primary:active { transform: translateY(0); filter: brightness(0.97); }
+        .btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
+        .btn-icon { width: 22px; height: 22px; display: grid; place-items: center; }
+        .btn-icon svg { width: 18px; height: 18px; stroke-width: 2.2; }
 
         .add-recipient-cta {
             position: fixed;
-            bottom: calc(108px + env(safe-area-inset-bottom, 0));
+            bottom: calc(112px + env(safe-area-inset-bottom, 0));
             left: 0;
             right: 0;
             margin: 0 auto;
             width: calc(100% - 48px);
-            max-width: 480px;
+            max-width: 520px;
             z-index: 120;
         }
-
-        @media (max-width: 420px) {
-            .add-recipient-cta {
-                width: calc(100% - 32px);
-            }
-        }
+        @media (max-width: 420px) { .add-recipient-cta { width: calc(100% - 32px); } }
 
         .glass-nav {
             position: fixed;
@@ -479,7 +291,7 @@
             left: 0;
             right: 0;
             margin: 0 auto;
-            width: min(92vw, 480px);
+            width: min(92vw, 520px);
             padding: 14px 18px;
             padding-bottom: calc(14px + env(safe-area-inset-bottom, 0));
             border-radius: 22px;
@@ -493,15 +305,9 @@
             gap: 12px;
             z-index: 110;
         }
-
         @media (max-width: 520px) {
-            .glass-nav {
-                bottom: clamp(12px, env(safe-area-inset-bottom, 0) + 6px, 20px);
-                width: calc(100% - 24px);
-                padding: 12px 14px;
-            }
+            .glass-nav { bottom: clamp(12px, env(safe-area-inset-bottom, 0) + 6px, 20px); width: calc(100% - 24px); padding: 12px 14px; }
         }
-
         .glass-nav-item {
             display: inline-flex;
             flex-direction: column;
@@ -511,116 +317,28 @@
             text-decoration: none;
             color: #7E8A9D;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 700;
             padding: 4px 6px;
             min-width: 56px;
             transition: color 0.25s ease;
         }
+        .glass-nav-item .icon { width: 34px; height: 34px; border-radius: 18px; display: grid; place-items: center; color: inherit; background: transparent; transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease, transform 0.25s ease; }
+        .glass-nav-item .icon svg { width: 20px; height: 20px; stroke-width: 1.7; }
+        .glass-nav-item .label { font-size: 11px; letter-spacing: 0.25px; color: inherit; }
+        .glass-nav-item:hover:not(.active) { color: var(--primary-blue); }
+        .glass-nav-item:hover:not(.active) .icon { color: var(--primary-blue); }
+        .glass-nav-item.active { color: var(--primary-blue); }
+        .glass-nav-item.active .icon { color: #FFFFFF; background: linear-gradient(120deg, var(--primary-blue) 0%, var(--accent-green) 100%); box-shadow: 0 10px 22px rgba(25, 116, 206, 0.22); }
+        .glass-nav-item.active .label { color: var(--primary-blue); text-shadow: 0 2px 6px rgba(25, 116, 206, 0.18); }
 
-        .glass-nav-item .icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: inherit;
-            background: transparent;
-            transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease, transform 0.25s ease;
-        }
+        .glass-nav-fab { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-decoration: none; color: var(--primary-blue); transform: translateY(-12px); }
+        .glass-nav-fab-button { width: 60px; height: 60px; border-radius: 30px; background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-green) 100%); display: grid; place-items: center; box-shadow: 0 20px 36px rgba(25, 116, 206, 0.26); border: 3px solid rgba(255, 255, 255, 0.92); transition: transform 0.25s ease, box-shadow 0.25s ease; }
+        .glass-nav-fab-button svg { width: 26px; height: 26px; color: #FFFFFF; stroke-width: 1.8; }
+        .glass-nav-fab-button:hover { transform: translateY(-3px); box-shadow: 0 24px 40px rgba(25, 116, 206, 0.30); }
+        .glass-nav-fab .label { font-size: 11px; font-weight: 700; letter-spacing: 0.25px; color: var(--primary-blue); }
 
-        .glass-nav-item .icon svg {
-            width: 20px;
-            height: 20px;
-            stroke-width: 1.7;
-        }
-
-        .glass-nav-item .label {
-            font-size: 11px;
-            letter-spacing: 0.25px;
-            color: inherit;
-        }
-
-        .glass-nav-item:hover:not(.active) {
-            color: var(--primary-blue);
-        }
-
-        .glass-nav-item:hover:not(.active) .icon {
-            color: var(--primary-blue);
-        }
-
-        .glass-nav-item.active {
-            color: var(--primary-blue);
-        }
-
-        .glass-nav-item.active .icon {
-            color: var(--white);
-            background: linear-gradient(120deg, var(--primary-blue) 0%, var(--brand-cyan) 100%);
-            box-shadow: 0 10px 22px rgba(25, 116, 206, 0.22);
-        }
-
-        .glass-nav-item.active .label {
-            color: var(--primary-blue);
-            text-shadow: 0 2px 6px rgba(25, 116, 206, 0.18);
-        }
-
-        .glass-nav-fab {
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            text-decoration: none;
-            color: var(--primary-blue);
-            transform: translateY(-12px);
-        }
-
-        .glass-nav-fab-button {
-            width: 60px;
-            height: 60px;
-            border-radius: 30px;
-            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--brand-cyan) 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 20px 36px rgba(25, 116, 206, 0.26);
-            border: 3px solid rgba(255, 255, 255, 0.92);
-            transition: transform 0.25s ease, box-shadow 0.25s ease;
-        }
-
-        .glass-nav-fab-button svg {
-            width: 26px;
-            height: 26px;
-            color: #FFFFFF;
-            stroke-width: 1.8;
-        }
-
-        .glass-nav-fab-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 24px 40px rgba(25, 116, 206, 0.30);
-        }
-
-        .glass-nav-fab .label {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.25px;
-            color: var(--primary-blue);
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(12px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .animate-in {
-            animation: fadeInUp 0.45s ease-out forwards;
-        }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: fadeInUp 0.45s ease-out forwards; }
     </style>
 </head>
 <body>
@@ -628,11 +346,17 @@
         <div class="page">
             <div class="page-content animate-in">
                 <header class="dest-header">
-                    <div>
-                        <p class="dest-eyebrow">Red de confianza</p>
-                        <h1 class="dest-title">Destinatarios</h1>
-                        <p class="dest-subtitle">Envía dinero rápido a tu gente en Venezuela.</p>
-                    </div>
+                    <p class="dest-eyebrow">Red de confianza</p>
+                    <h1 class="dest-title">Destinatarios</h1>
+                    <p class="dest-subtitle">Envía dinero con seguridad a tu gente en Venezuela. Guarda, edita y administra tus contactos en segundos.</p>
+                </header>
+
+                <div id="statusBanner" class="status-banner" hidden>
+                    <small id="statusText"></small>
+                    <button id="statusAction" type="button" hidden>Reintentar</button>
+                </div>
+
+                <div class="toolbar" id="toolbarDest" hidden>
                     <div class="dest-search">
                         <span class="dest-search-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
@@ -640,27 +364,31 @@
                                 <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
                             </svg>
                         </span>
-                        <input type="text" class="dest-input" id="searchInput" placeholder="Buscar por nombre, alias o banco" oninput="filtrarDestinatarios()">
+                        <input type="text" class="dest-input" id="searchInput" placeholder="Buscar por nombre, alias o banco" autocomplete="off">
                     </div>
-                </header>
 
-                <section class="dest-tabs">
-                    <div class="tabs">
-                        <button class="tab active" data-filter="favoritos" onclick="filtrarPorTab('favoritos')">
-                            <span class="tab-icon">★</span>
-                            <span>Favoritos</span>
-                        </button>
-                        <button class="tab" data-filter="todos" onclick="filtrarPorTab('todos')">
-                            <span class="tab-icon">★</span>
+                    <div class="tabs" id="filterTabs">
+                        <button class="tab active" data-filter="todos">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="4" rx="1"></rect>
+                                <rect x="3" y="10" width="18" height="4" rx="1"></rect>
+                                <rect x="3" y="16" width="18" height="4" rx="1"></rect>
+                            </svg>
                             <span>Todos</span>
                         </button>
+                        <button class="tab" data-filter="favoritos">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            <span>Favoritos</span>
+                        </button>
                     </div>
-                </section>
+                </div>
 
                 <section class="list-section">
                     <div class="recipient-list" id="recipientList"></div>
 
-                    <div class="empty-state" id="emptyState" style="display: none;">
+                    <div class="empty-state" id="emptyState" hidden>
                         <div class="empty-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
@@ -670,13 +398,13 @@
                             </svg>
                         </div>
                         <p class="empty-title">Sin destinatarios</p>
-                        <p class="empty-text">Agrega destinatarios para enviar dinero a Venezuela rápidamente.</p>
+                        <p class="empty-text">Crea tu primer destinatario para enviar dinero sin volver a escribir los datos.</p>
                     </div>
                 </section>
             </div>
 
-            <div class="add-recipient-cta animate-in" style="animation-delay: 0.12s;">
-                <button class="btn btn-primary" onclick="agregarDestinatario()">
+            <div class="add-recipient-cta animate-in" style="animation-delay: 0.1s;">
+                <button class="btn btn-primary" id="addButton" onclick="agregarDestinatario()">
                     <span class="btn-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -687,7 +415,7 @@
                 </button>
             </div>
 
-            <nav class="glass-nav animate-in" style="animation-delay: 0.18s;">
+            <nav class="glass-nav animate-in" style="animation-delay: 0.16s;">
                 <a href="home.html" class="glass-nav-item">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -739,98 +467,203 @@
     </div>
 
     <script>
-        let destinatarios = [];
-        let filtroActual = 'favoritos';
+        const API_BASE = (window.API_BASE_URL || '').replace(/\/$/, '');
+        const state = { destinatarios: [], filtro: 'todos', cargando: false };
 
         document.addEventListener('DOMContentLoaded', () => {
-            verificarSesion();
-            cargarDestinatarios();
+            inicializar();
         });
 
-        async function verificarSesion() {
+        async function inicializar() {
+            bindUI();
+            await protegerRuta();
+            cargarDestinatarios();
+        }
+
+        function bindUI() {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.addEventListener('input', filtrarDestinatarios);
+
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => filtrarPorTab(tab.dataset.filter));
+            });
+
+            const statusAction = document.getElementById('statusAction');
+            if (statusAction) {
+                statusAction.addEventListener('click', () => cargarDestinatarios());
+            }
+        }
+
+        async function protegerRuta() {
             const token = localStorage.getItem('clienteToken');
             if (!token) {
                 window.location.href = 'login.html';
                 return;
             }
+            try {
+                const resp = await fetch(`${API_BASE}/api/cliente/auth/verificar`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (resp.ok) {
+                    const data = await resp.json().catch(() => null);
+                    if (data?.usuario) {
+                        localStorage.setItem('clienteData', JSON.stringify(data.usuario));
+                    }
+                } else {
+                    localStorage.removeItem('clienteToken');
+                    window.location.href = 'login.html';
+                }
+            } catch (err) {
+                console.error('Error verificando sesión', err);
+                mostrarBanner('No pudimos validar tu sesión. Revisa tu conexión.', 'warning', true);
+            }
         }
 
         async function cargarDestinatarios() {
             const token = localStorage.getItem('clienteToken');
-            
+            if (!token) { window.location.href = 'login.html'; return; }
+            setLoading(true);
             try {
-                const response = await fetch('/api/cliente/beneficiarios', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const response = await fetch(`${API_BASE}/api/cliente/beneficiarios`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
                 });
 
+                const contentType = response.headers.get('content-type') || '';
+
                 if (response.status === 401) {
+                    localStorage.removeItem('clienteToken');
                     window.location.href = 'login.html';
                     return;
                 }
 
-                const contentType = response.headers.get('content-type') || '';
-
-                if (response.ok) {
-                    if (!contentType.includes('application/json')) {
-                        const texto = await response.text();
-                        console.error('Respuesta no es JSON, se vacía la lista:', texto.slice(0, 200));
-                        destinatarios = [];
-                    } else {
-                        destinatarios = await response.json();
-                    }
+                if (response.ok && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    state.destinatarios = Array.isArray(data) ? data.map(normalizarDestinatario) : [];
+                    mostrarBanner('', '', true);
                 } else {
-                    destinatarios = [];
+                    state.destinatarios = [];
+                    mostrarBanner('No pudimos cargar tus destinatarios. Intenta de nuevo.', 'danger', true);
                 }
             } catch (error) {
                 console.error('Error al cargar destinatarios', error);
-                destinatarios = [];
+                state.destinatarios = [];
+                mostrarBanner('Hubo un problema de conexión. Reintenta en unos segundos.', 'danger', true);
             }
+            setLoading(false);
+            renderizarDestinatarios();
+        }
 
+        function normalizarDestinatario(d) {
+            return {
+                ...d,
+                alias: (d?.alias || '').trim(),
+                nombre_completo: (d?.nombre_completo || '').trim(),
+                banco: (d?.banco || '').trim(),
+                numero_cuenta: (d?.numero_cuenta || '').trim(),
+                isFavorite: d?.isFavorite === 1 || d?.isFavorite === true
+            };
+        }
+
+        function setLoading(show) {
+            state.cargando = show;
+            const list = document.getElementById('recipientList');
+            const empty = document.getElementById('emptyState');
+            const addBtn = document.getElementById('addButton');
+            const toolbar = document.getElementById('toolbarDest');
+            if (list) list.hidden = show;
+            if (empty && show) empty.hidden = true;
+            if (addBtn) addBtn.disabled = show;
+            if (toolbar && show) toolbar.hidden = true;
+        }
+
+        function filtrarDestinatarios() {
+            renderizarDestinatarios();
+        }
+
+        function filtrarPorTab(filtro) {
+            state.filtro = filtro;
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.filter === filtro));
             renderizarDestinatarios();
         }
 
         function renderizarDestinatarios() {
             const container = document.getElementById('recipientList');
             const emptyState = document.getElementById('emptyState');
-            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            const toolbar = document.getElementById('toolbarDest');
+            const pageContent = document.querySelector('.page-content');
+            if (!container || !emptyState) return;
 
-            let filtrados = destinatarios;
+            const searchQuery = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+            // Filtra por cliente actual si viene id guardado en clienteData
+            const clienteData = localStorage.getItem('clienteData');
+            let clienteId = null;
+            try { clienteId = clienteData ? JSON.parse(clienteData).id : null; } catch (_) { clienteId = null; }
 
-            // Filtrar por tab
-            if (filtroActual === 'favoritos') {
-                filtrados = filtrados.filter(d => d.isFavorite);
+            let list = state.destinatarios || [];
+            if (clienteId) {
+                list = list.filter(d => !d.cliente_app_id || d.cliente_app_id === clienteId);
+            }
+            const hayDestinatarios = list.length > 0;
+            // Oculta buscador y tabs cuando la lista está vacía o mientras carga
+            if (toolbar) {
+                const ocultarToolbar = !hayDestinatarios || state.cargando;
+                toolbar.style.display = ocultarToolbar ? 'none' : 'flex';
+                toolbar.hidden = ocultarToolbar;
             }
 
-            // Filtrar por búsqueda
+            let filtrados = list;
+            if (state.filtro === 'favoritos') {
+                filtrados = filtrados.filter(d => d.isFavorite);
+            }
             if (searchQuery) {
-                filtrados = filtrados.filter(d => 
-                    d.nombre_completo.toLowerCase().includes(searchQuery) ||
-                    (d.alias && d.alias.toLowerCase().includes(searchQuery)) ||
-                    d.banco.toLowerCase().includes(searchQuery)
+                filtrados = filtrados.filter(d =>
+                    (d.nombre_completo || '').toLowerCase().includes(searchQuery) ||
+                    (d.alias || '').toLowerCase().includes(searchQuery) ||
+                    (d.banco || '').toLowerCase().includes(searchQuery)
                 );
             }
 
             if (filtrados.length === 0) {
                 container.innerHTML = '';
-                emptyState.style.display = 'block';
+                emptyState.hidden = false;
+                emptyState.style.display = 'flex';
+                container.hidden = true;
+                if (pageContent) pageContent.classList.add('empty-mode');
                 return;
             }
 
+            emptyState.hidden = true;
             emptyState.style.display = 'none';
-            container.innerHTML = filtrados.map(d => `
+            container.hidden = false;
+            if (pageContent) pageContent.classList.remove('empty-mode');
+            if (toolbar) {
+                toolbar.style.display = state.cargando ? 'none' : 'flex';
+                toolbar.hidden = !!state.cargando;
+            }
+            if (pageContent) pageContent.classList.remove('empty-mode');
+            container.innerHTML = filtrados.map(d => crearCardDestinatario(d)).join('');
+        }
+
+        function crearCardDestinatario(d) {
+            const ultimos4 = (d.numero_cuenta || '').slice(-4) || '----';
+            return `
                 <div class="recipient-card" onclick="seleccionarDestinatario(${d.id})">
                     <div class="recipient-avatar">${getInitials(d.nombre_completo)}</div>
                     <div class="recipient-info">
                         <div class="recipient-name-row">
-                            <p class="recipient-name">${d.nombre_completo}</p>
-                            ${d.alias ? `<span class="recipient-alias">${d.alias}</span>` : ''}
+                            <p class="recipient-name">${escaparHTML(d.nombre_completo)}</p>
+                            ${d.alias ? `<span class="recipient-alias">${escaparHTML(d.alias)}</span>` : ''}
                         </div>
-                        <p class="recipient-bank">${d.banco}</p>
-                        <p class="recipient-account">Cuenta: ****${d.numero_cuenta.slice(-4)}</p>
+                        <p class="recipient-bank">${escaparHTML(d.banco || 'Banco no especificado')}</p>
+                        <p class="recipient-account">Cuenta: ****${ultimos4}</p>
                     </div>
                     <div class="recipient-actions">
                         <button class="btn-favorite ${d.isFavorite ? 'active' : ''}" onclick="event.stopPropagation(); toggleFavorite(${d.id})" aria-label="${d.isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <svg viewBox="0 0 24 24" fill="${d.isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                             </svg>
                         </button>
@@ -841,46 +674,60 @@
                         </span>
                     </div>
                 </div>
-            `).join('');
+            `;
         }
 
         function getInitials(nombre) {
-            return nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            return (nombre || '')
+                .split(/\s+/)
+                .filter(Boolean)
+                .map(n => n[0])
+                .join('')
+                .substring(0, 2)
+                .toUpperCase() || 'D';
         }
 
-        function filtrarDestinatarios() {
+        function escaparHTML(texto) {
+            return (texto || '').replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c] || c));
+        }
+
+        async function toggleFavorite(id) {
+            const dest = state.destinatarios.find(d => d.id === id);
+            if (!dest) return;
+            const nuevoValor = !dest.isFavorite;
+            dest.isFavorite = nuevoValor;
             renderizarDestinatarios();
-        }
 
-        function filtrarPorTab(filtro) {
-            filtroActual = filtro;
-            
-            // Actualizar tabs activos
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.toggle('active', tab.dataset.filter === filtro);
-            });
-
-            renderizarDestinatarios();
-        }
-
-        function toggleFavorite(id) {
-            const dest = destinatarios.find(d => d.id === id);
-            if (dest) {
-                dest.isFavorite = !dest.isFavorite;
+            const token = localStorage.getItem('clienteToken');
+            try {
+                const resp = await fetch(`${API_BASE}/api/cliente/beneficiarios/${id}/favorito`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ isFavorite: nuevoValor })
+                });
+                if (!resp.ok) {
+                    dest.isFavorite = !nuevoValor;
+                    renderizarDestinatarios();
+                    mostrarBanner('No pudimos actualizar favoritos. Intenta de nuevo.', 'warning');
+                }
+            } catch (error) {
+                console.error('Error al actualizar favorito', error);
+                dest.isFavorite = !nuevoValor;
                 renderizarDestinatarios();
-                // TODO: Guardar en backend
+                mostrarBanner('Sin conexión. No se guardó el cambio.', 'warning');
             }
         }
 
         function seleccionarDestinatario(id) {
-            // Si viene del flujo de envío
             const returnTo = sessionStorage.getItem('selectRecipientReturn');
             if (returnTo) {
                 sessionStorage.setItem('selectedRecipientId', id);
                 sessionStorage.removeItem('selectRecipientReturn');
                 window.location.href = returnTo;
             } else {
-                // Ir a editar
                 window.location.href = `destinatario-form.html?id=${id}`;
             }
         }
@@ -888,9 +735,23 @@
         function agregarDestinatario() {
             window.location.href = 'destinatario-form.html';
         }
+
+        function mostrarBanner(mensaje, tono = 'info', allowAction = false) {
+            const banner = document.getElementById('statusBanner');
+            const text = document.getElementById('statusText');
+            const action = document.getElementById('statusAction');
+            if (!banner || !text) return;
+
+            if (!mensaje) { banner.hidden = true; return; }
+
+            banner.classList.remove('danger', 'warning');
+            if (tono === 'danger') banner.classList.add('danger');
+            if (tono === 'warning') banner.classList.add('warning');
+
+            text.textContent = mensaje;
+            banner.hidden = false;
+            if (action) action.hidden = !allowAction;
+        }
     </script>
 </body>
 </html>
-
-
-

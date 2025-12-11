@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 	<meta charset="UTF-8">
@@ -6,7 +6,7 @@
 	<meta name="theme-color" content="#1974CE">
 	<title>Completar registro - Defi Oracle</title>
 	<script>
-		// Asegura que todas las vistas apunten al mismo backend (producción por defecto)
+		// Asegura que todas las vistas apunten al mismo backend (producciÃ³n por defecto)
 		window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
 	</script>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
@@ -82,13 +82,13 @@
 			<div class="logo">
 				<img src="assets/defioracle-logo.png" alt="Defi Oracle">
 				<div>
-					<div class="eyebrow">Verificación</div>
+					<div class="eyebrow">VerificaciÃ³n</div>
 					<h1>Completa tus datos</h1>
 				</div>
 			</div>
 			<button class="btn-secondary" id="logoutBtn">Salir</button>
 		</div>
-		<p class="sub">Necesitamos algunos datos para habilitar tus envíos y validar tu identidad.</p>
+		<p class="sub">Necesitamos algunos datos para habilitar tus envÃ­os y validar tu identidad.</p>
 		<div class="badge" id="userSummary">Cargando usuario...</div>
 
 		<div id="errorBox" class="alert error"></div>
@@ -104,7 +104,7 @@
 				<input id="email" class="readonly" type="email" readonly>
 			</div>
 			<div>
-				<label for="telefono">Teléfono</label>
+				<label for="telefono">TelÃ©fono</label>
 				<input id="telefono" name="telefono" type="tel" inputmode="tel" placeholder="+56 9 1234 5678" required>
 			</div>
 			<div class="row">
@@ -118,13 +118,13 @@
 					</select>
 				</div>
 				<div>
-					<label for="documento_numero">Número</label>
+					<label for="documento_numero">NÃºmero</label>
 					<input id="documento_numero" name="documento_numero" type="text" autocomplete="off" required>
 				</div>
 			</div>
 			<div class="row">
 				<div>
-					<label for="pais">País</label>
+					<label for="pais">PaÃ­s</label>
 					<input id="pais" name="pais" type="text" value="Chile" required>
 				</div>
 				<div>
@@ -133,20 +133,20 @@
 				</div>
 			</div>
 			<div>
-				<label for="direccion">Dirección</label>
-				<input id="direccion" name="direccion" type="text" placeholder="Calle y número">
+				<label for="direccion">DirecciÃ³n</label>
+				<input id="direccion" name="direccion" type="text" placeholder="Calle y nÃºmero">
 			</div>
 			<div>
 				<label for="fecha_nacimiento">Fecha de nacimiento</label>
 				<input id="fecha_nacimiento" name="fecha_nacimiento" type="date">
-				<div class="helper">Usamos estos datos solo para validación interna.</div>
+				<div class="helper">Usamos estos datos solo para validaciÃ³n interna.</div>
 			</div>
 			<div class="actions">
 				<button class="btn-primary" type="submit">Guardar y continuar <span id="saving" class="loading">(guardando...)</span></button>
-				<button type="button" class="btn-secondary" id="volverLogin">Volver al inicio de sesión</button>
+				<button type="button" class="btn-secondary" id="volverLogin">Volver al inicio de sesiÃ³n</button>
 			</div>
 		</form>
-		<div class="footer">© 2024 Defi Oracle · Tus datos se protegen con cifrado</div>
+		<div class="footer">Â© 2024 Defi Oracle Â· Tus datos se protegen con cifrado</div>
 	</div>
 
 	<script>
@@ -176,7 +176,7 @@
 			saving.classList.add('active');
 			const token = localStorage.getItem('clienteToken');
 			if (!token) {
-				showError('La sesión expiró, vuelve a iniciar sesión.');
+				showError('La sesiÃ³n expirÃ³, vuelve a iniciar sesiÃ³n.');
 				saving.classList.remove('active');
 				return;
 			}
@@ -224,7 +224,7 @@
 					headers: { 'Authorization': `Bearer ${token}` }
 				});
 				if (resp.status === 401) {
-					// Token inválido/expirado: limpiar y forzar re-login
+					// Token invÃ¡lido/expirado: limpiar y forzar re-login
 					cerrarSesion();
 					return;
 				}
@@ -251,7 +251,7 @@
 			document.getElementById('ciudad').value = data.ciudad || '';
 			document.getElementById('direccion').value = data.direccion || '';
 			document.getElementById('fecha_nacimiento').value = data.fecha_nacimiento ? data.fecha_nacimiento.substring(0, 10) : '';
-			userSummary.textContent = `${data.nombre || 'Usuario'} · ${data.email || ''}`;
+			userSummary.textContent = `${data.nombre || 'Usuario'} Â· ${data.email || ''}`;
 		}
 
 		function showError(msg) {
@@ -288,3 +288,6 @@
 	</script>
 </body>
 </html>
+
+
+

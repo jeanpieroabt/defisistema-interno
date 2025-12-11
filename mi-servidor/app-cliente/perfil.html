@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -10,10 +10,23 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
-    <script>
-        window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+            <script>
+        (function() {
+            const stored = localStorage.getItem('apiBaseUrlOverride');
+            const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
+            if (isLocal) {
+                window.API_BASE_URL = location.origin || 'http://localhost:3000';
+                localStorage.setItem('apiBaseUrlOverride', window.API_BASE_URL);
+                return;
+            }
+            if (stored) {
+                window.API_BASE_URL = stored;
+                return;
+            }
+            window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+        })();
     </script>
-    <style>
+<style>
         /* ============================================
            DESIGN TOKENS & BASE (alineado a home)
            ============================================ */
@@ -452,7 +465,7 @@
         }
 
         /* ============================================
-           Modal de edición de perfil
+           Modal de ediciÃ³n de perfil
            ============================================ */
         .modal-overlay {
             position: fixed;
@@ -739,12 +752,12 @@
             <main class="page-content">
                 <section class="profile-hero">
                     <div class="profile-hero-top">
-                        <div class="profile-avatar" id="profileAvatar">👤</div>
+                        <div class="profile-avatar" id="profileAvatar">ðŸ‘¤</div>
                         <div class="profile-meta">
                             <p class="profile-email" id="greetingTime">Bienvenido</p>
                             <h1 class="profile-name" id="profileName">Usuario</h1>
                             <p class="profile-email" id="profileEmail">correo@ejemplo.com</p>
-                            <span class="profile-badge">✓ Cuenta verificada</span>
+                            <span class="profile-badge">âœ“ Cuenta verificada</span>
                         </div>
                     </div>
                 </section>
@@ -752,7 +765,7 @@
                 <section>
                     <div class="metric-grid">
                         <div class="metric-card">
-                            <span class="metric-label">Envíos realizados</span>
+                            <span class="metric-label">EnvÃ­os realizados</span>
                             <span class="metric-value" id="statEnvios">0</span>
                         </div>
                         <div class="metric-card">
@@ -766,24 +779,24 @@
                     <h3 class="section-title">Mi cuenta</h3>
                     <div class="action-card">
                         <div class="action-item" onclick="editarPerfil()">
-                            <div class="action-icon">✏️</div>
+                            <div class="action-icon">âœï¸</div>
                             <div class="action-text">
                                 <span class="action-title">Editar perfil</span>
-                                <span class="action-desc">Nombre, teléfono, dirección</span>
+                                <span class="action-desc">Nombre, telÃ©fono, direcciÃ³n</span>
                             </div>
-                            <span class="action-chevron">›</span>
+                            <span class="action-chevron">â€º</span>
                         </div>
                         <div class="action-item danger" onclick="cerrarSesion()">
-                            <div class="action-icon">⏻</div>
+                            <div class="action-icon">â»</div>
                             <div class="action-text">
-                                <span class="action-title">Cerrar sesión</span>
+                                <span class="action-title">Cerrar sesiÃ³n</span>
                             </div>
                         </div>
                     </div>
                 </section>
 
                 <div class="version-box">
-                    Defi Oracle v1.0.0 · © 2024
+                    Defi Oracle v1.0.0 Â· Â© 2024
                 </div>
             </main>
 
@@ -847,57 +860,57 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label class="form-label">
-                            <span class="form-label-icon">📸</span>
+                            <span class="form-label-icon">ðŸ“¸</span>
                             Foto de perfil
                         </label>
                         <div class="avatar-upload">
-                            <div class="avatar-preview" id="avatarPreview">👤</div>
+                            <div class="avatar-preview" id="avatarPreview">ðŸ‘¤</div>
                             <div class="avatar-actions">
                                 <input type="file" id="inputFoto" accept="image/*" style="display: none;" onchange="previsualizarFoto(event)">
                                 <button class="btn-upload" onclick="document.getElementById('inputFoto').click()">
-                                    📷 Cambiar foto
+                                    ðŸ“· Cambiar foto
                                 </button>
-                                <span class="avatar-hint">JPG, PNG. Máx 2MB</span>
+                                <span class="avatar-hint">JPG, PNG. MÃ¡x 2MB</span>
                             </div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">
-                            <span class="form-label-icon">👤</span>
+                            <span class="form-label-icon">ðŸ‘¤</span>
                             Nombre completo
                         </label>
                         <input type="text" class="form-input" id="inputNombre" placeholder="Tu nombre completo">
                     </div>
                     <div class="form-group">
                         <label class="form-label">
-                            <span class="form-label-icon">📧</span>
-                            Correo electrónico
+                            <span class="form-label-icon">ðŸ“§</span>
+                            Correo electrÃ³nico
                         </label>
                         <input type="email" class="form-input" id="inputEmail" placeholder="correo@ejemplo.com" disabled>
                     </div>
                     <div class="form-group">
                         <label class="form-label">
-                            <span class="form-label-icon">📱</span>
-                            Teléfono
+                            <span class="form-label-icon">ðŸ“±</span>
+                            TelÃ©fono
                         </label>
                         <input type="tel" class="form-input" id="inputTelefono" placeholder="+56 9 1234 5678">
                     </div>
                     <div class="form-group">
                         <label class="form-label">
-                            <span class="form-label-icon">📍</span>
-                            Dirección
+                            <span class="form-label-icon">ðŸ“</span>
+                            DirecciÃ³n
                         </label>
-                        <input type="text" class="form-input" id="inputDireccion" placeholder="Tu dirección">
+                        <input type="text" class="form-input" id="inputDireccion" placeholder="Tu direcciÃ³n">
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
-                    <button class="btn-save" id="btnGuardar" onclick="guardarPerfil()">💾 Guardar cambios</button>
+                    <button class="btn-save" id="btnGuardar" onclick="guardarPerfil()">ðŸ’¾ Guardar cambios</button>
                 </div>
             </div>
         </div>
 
-        <!-- Toast notificación -->
+        <!-- Toast notificaciÃ³n -->
         <div class="toast" id="toast"></div>
     </div>
 
@@ -916,7 +929,7 @@
             if (!greetingEl) return;
             const hour = new Date().getHours();
             let saludo = 'Buenas noches';
-            if (hour >= 5 && hour < 12) saludo = 'Buenos días';
+            if (hour >= 5 && hour < 12) saludo = 'Buenos dÃ­as';
             else if (hour >= 12 && hour < 19) saludo = 'Buenas tardes';
             greetingEl.textContent = saludo;
         }
@@ -934,7 +947,7 @@
                 });
 
                 if (!resp.ok) {
-                    throw new Error('Sesión inválida');
+                    throw new Error('SesiÃ³n invÃ¡lida');
                 }
             } catch (err) {
                 localStorage.removeItem('clienteToken');
@@ -1024,7 +1037,7 @@
                 const initials = userData.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                 avatarPreview.innerHTML = initials;
             } else {
-                avatarPreview.innerHTML = '👤';
+                avatarPreview.innerHTML = 'ðŸ‘¤';
             }
             
             fotoSeleccionada = null;
@@ -1049,7 +1062,7 @@
             }
 
             if (!file.type.startsWith('image/')) {
-                mostrarToast('Solo se permiten imágenes', 'error');
+                mostrarToast('Solo se permiten imÃ¡genes', 'error');
                 return;
             }
 
@@ -1125,7 +1138,7 @@
                 mostrarToast('Perfil guardado localmente', 'success');
             } finally {
                 btn.disabled = false;
-                btn.textContent = '💾 Guardar cambios';
+                btn.textContent = 'ðŸ’¾ Guardar cambios';
             }
         }
 
@@ -1146,7 +1159,7 @@
         });
 
         function cerrarSesion() {
-            if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+            if (confirm('Â¿EstÃ¡s seguro de que quieres cerrar sesiÃ³n?')) {
                 localStorage.removeItem('clienteToken');
                 localStorage.removeItem('clienteData');
 
@@ -1160,3 +1173,6 @@
     </script>
 </body>
 </html>
+
+
+

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -12,7 +12,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
-        window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+        (function() {
+            const stored = localStorage.getItem('apiBaseUrlOverride');
+            const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
+            if (isLocal) {
+                window.API_BASE_URL = location.origin || 'http://localhost:3000';
+                localStorage.setItem('apiBaseUrlOverride', window.API_BASE_URL);
+                return;
+            }
+            if (stored) {
+                window.API_BASE_URL = stored;
+                return;
+            }
+            window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+        })();
     </script>
     
     <style>
@@ -793,7 +806,7 @@
                         <img src="./assets/letra%202Recurso%2015@2x.png" alt="DefiOracle logo">
                     </div>
                     <div class="brand-banner-content">
-                        <p class="brand-banner-title">Tu envío rápido y seguro</p>
+                        <p class="brand-banner-title">Tu envÃ­o rÃ¡pido y seguro</p>
                         <p class="brand-banner-sub">Tasa clara, sin sorpresas.</p>
                     </div>
                 </div>
@@ -803,7 +816,7 @@
                     <div class="rate-card">
                         <div class="rate-headline">
                             <div class="rate-meta">
-                                <span class="rate-label">Tasa CLP → VES</span>
+                                <span class="rate-label">Tasa CLP â†’ VES</span>
                             </div>
                             <span class="badge-live">
                                 <span class="live-dot"></span>
@@ -848,14 +861,14 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                         </svg>
-                        Envíos rápidos y seguros
+                        EnvÃ­os rÃ¡pidos y seguros
                     </p>
                 </div>
 
                 <!-- Recent Transfers -->
                 <section class="recent-transfers-section animate-in delay-3">
                     <div class="section-header">
-                        <h2 class="section-title">Últimos envíos</h2>
+                        <h2 class="section-title">Ãšltimos envÃ­os</h2>
                         <a href="historico.html" class="section-link">
                             Ver todo
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -872,8 +885,8 @@
                                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                             </svg>
                         </div>
-                        <p class="empty-title">Sin envíos aún</p>
-                        <p class="empty-text">Realiza tu primer envío a Venezuela</p>
+                        <p class="empty-title">Sin envÃ­os aÃºn</p>
+                        <p class="empty-text">Realiza tu primer envÃ­o a Venezuela</p>
                     </div>
                 </section>
 
@@ -950,7 +963,7 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Sesión inválida');
+                    throw new Error('SesiÃ³n invÃ¡lida');
                 }
 
                 const data = await response.json();
@@ -978,7 +991,7 @@
             if (greetingEl) {
                 const hora = new Date().getHours();
                 let saludo = 'Buenas noches';
-                if (hora >= 5 && hora < 12) saludo = 'Buenos días';
+                if (hora >= 5 && hora < 12) saludo = 'Buenos dÃ­as';
                 else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes';
                 greetingEl.textContent = saludo;
             }
@@ -987,7 +1000,7 @@
         async function cargarTasa() {
             try {
                 const response = await fetch(`${API_BASE}/api/cliente/tasa`);
-                if (!response.ok) throw new Error('Respuesta de tasas no válida');
+                if (!response.ok) throw new Error('Respuesta de tasas no vÃ¡lida');
 
                 const data = await response.json();
                 tramosData = data.tramos || [];
@@ -1036,9 +1049,9 @@
 
         function cargarHistorial() {
             const historial = [
-                { id: 1, nombre: 'María García', initials: 'MG', clp: 150000, ves: 6750, status: 'delivered' },
-                { id: 2, nombre: 'Carlos López', initials: 'CL', clp: 100000, ves: 4500, status: 'in-progress' },
-                { id: 3, nombre: 'Ana Martínez', initials: 'AM', clp: 250000, ves: 11250, status: 'delivered' }
+                { id: 1, nombre: 'MarÃ­a GarcÃ­a', initials: 'MG', clp: 150000, ves: 6750, status: 'delivered' },
+                { id: 2, nombre: 'Carlos LÃ³pez', initials: 'CL', clp: 100000, ves: 4500, status: 'in-progress' },
+                { id: 3, nombre: 'Ana MartÃ­nez', initials: 'AM', clp: 250000, ves: 11250, status: 'delivered' }
             ];
 
             const container = document.getElementById('historyList');
@@ -1102,3 +1115,5 @@
     </script>
 </body>
 </html>
+
+
