@@ -38,78 +38,279 @@ async function cargarConfigTelegram() {
     }
 }
 
-// FunciÃ³n para enviar notificaciÃ³n a Telegram
-async function enviarNotificacionTelegram(mensaje, parseMode = 'HTML') {
+// Funcion para enviar notificacion a Telegram
+async function enviarNotificacionTelegram(mensaje, parseMode = 'HTML', botones = null) {
     // Cargar config actualizada de BD
     await cargarConfigTelegram();
-    
+
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-        console.log('âš ï¸ Telegram no configurado - NotificaciÃ³n omitida');
+        console.log('Telegram no configurado - Notificacion omitida');
         return false;
     }
-    
+
     try {
         const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-        const response = await axios.post(url, {
+        const payload = {
             chat_id: TELEGRAM_CHAT_ID,
             text: mensaje,
             parse_mode: parseMode
-        });
-        console.log('âœ… NotificaciÃ³n Telegram enviada');
+        };
+        
+        if (botones) {
+            payload.reply_markup = { inline_keyboard: botones };
+        }
+        
+        const response = await axios.post(url, payload);
+        console.log('Notificacion Telegram enviada');
         return response.data.ok;
     } catch (error) {
-        console.error('âŒ Error enviando notificaciÃ³n Telegram:', error.message);
+        console.error('Error enviando notificacion Telegram:', error.message);
         return false;
     }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // FunciÃ³n para notificar nueva solicitud de la app
 async function notificarNuevaSolicitud(solicitud) {
-    const mensaje = `
-ðŸ”” <b>NUEVA SOLICITUD - APP MÃ“VIL</b>
-
-ðŸ‘¤ <b>Cliente:</b> ${solicitud.cliente_nombre}
-ðŸ“§ ${solicitud.cliente_email}
-
-ðŸ’° <b>EnvÃ­a:</b> $${Number(solicitud.monto_origen).toLocaleString('es-CL')} ${solicitud.moneda_origen}
-ðŸ’µ <b>Recibe:</b> ${Number(solicitud.monto_destino).toLocaleString('es-VE')} ${solicitud.moneda_destino}
-ðŸ“Š <b>Tasa:</b> ${solicitud.tasa_aplicada}
-
-ðŸ‘¥ <b>Beneficiario:</b> ${solicitud.beneficiario_nombre}
-ðŸ¦ ${solicitud.beneficiario_banco}
-
-â° ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}
-
-ðŸ“± <i>Solicitud desde App Defi Oracle</i>
-    `.trim();
+    // Determinar tipo de entrega
+    const tipoEntrega = solicitud.tipo_cuenta === 'pago_movil' ? '📲 PAGO MÓVIL' : '🏦 TRANSFERENCIA';
     
-    return await enviarNotificacionTelegram(mensaje);
+    // Valores con fallback para evitar undefined
+    const cuenta = solicitud.beneficiario_cuenta || 'No registrada';
+    const cedula = solicitud.beneficiario_cedula || 'No registrada';
+    const tipoCuenta = solicitud.beneficiario_tipo_cuenta || 'No especificado';
+    
+    const mensaje = [
+        '🚨 NUEVA SOLICITUD - APP CLIENTE',
+        '',
+        '━━━━ CLIENTE ━━━━',
+        `👤 ${solicitud.cliente_nombre || 'Sin nombre'}`,
+        `📧 ${solicitud.cliente_email || 'Sin email'}`,
+        solicitud.cliente_telefono ? `📱 ${solicitud.cliente_telefono}` : null,
+        solicitud.cliente_documento ? `🪪 ${(solicitud.cliente_documento_tipo || 'DOC').toUpperCase()}: ${solicitud.cliente_documento}` : null,
+        '',
+        '━━━━ OPERACIÓN ━━━━',
+        `💰 Envía: $${Number(solicitud.monto_origen || 0).toLocaleString('es-CL')} ${solicitud.moneda_origen || 'CLP'}`,
+        `💵 Recibe: ${Number(solicitud.monto_destino || 0).toLocaleString('es-VE')} ${solicitud.moneda_destino || 'VES'}`,
+        `📈 Tasa: ${solicitud.tasa_aplicada || 'N/A'}`,
+        '',
+        `━━━━ ${tipoEntrega} ━━━━`,
+        `👥 ${solicitud.beneficiario_nombre || 'Sin nombre'}`,
+        `🪪 Cédula: ${cedula}`,
+        `🏦 ${solicitud.beneficiario_banco || 'Sin banco'}`,
+        `📋 Tipo: ${tipoCuenta}`,
+        `🔢 Cuenta: ${cuenta}`,
+        solicitud.beneficiario_telefono ? `📱 Tel: ${solicitud.beneficiario_telefono}` : null,
+        '',
+        `⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`,
+        '📱 Solicitud desde App Defi Oracle'
+    ].filter(line => line !== null).join('\n');
+    
+    // Botones interactivos para operadores
+    const botones = [
+        [
+            { text: '📋 Copiar Cuenta', copy_text: { text: cuenta } },
+            { text: '🪪 Copiar Cédula', copy_text: { text: cedula } }
+        ],
+        [
+            { text: '🙋 TOMAR PEDIDO', callback_data: `tomar_${solicitud.id}` }
+        ],
+        [
+            { text: '✅ PAGADO', callback_data: `pagado_${solicitud.id}` },
+            { text: '❌ CANCELAR', callback_data: `cancelar_${solicitud.id}` }
+        ]
+    ];
+    
+    // Agregar botón de WhatsApp si hay teléfono del cliente
+    if (solicitud.cliente_telefono) {
+        const telefonoLimpio = solicitud.cliente_telefono.replace(/[^0-9]/g, '');
+        botones.push([
+            { text: '💬 WhatsApp', url: `https://wa.me/${telefonoLimpio}` }
+        ]);
+    }
+    
+    return await enviarNotificacionTelegram(mensaje, 'HTML', botones);
 }
 
 // FunciÃ³n para notificar cambio de estado
 async function notificarCambioEstado(solicitud, nuevoEstado) {
     const estados = {
-        'comprobante_enviado': 'ðŸ“¤ Comprobante Recibido',
-        'verificando': 'ðŸ” Verificando Pago',
-        'procesando': 'âš™ï¸ Procesando EnvÃ­o',
-        'completada': 'âœ… Completada',
-        'rechazada': 'âŒ Rechazada',
-        'cancelada': 'ðŸš« Cancelada'
+        comprobante_enviado: '\u2705 Comprobante recibido',
+        verificando: '\u23F3 Verificando pago',
+        procesando: '\u2699\uFE0F Procesando envio',
+        completada: '\u2705 Completada',
+        rechazada: '\u274C Rechazada',
+        cancelada: '\u274C Cancelada'
     };
-    
-    const mensaje = `
-ðŸ“‹ <b>ACTUALIZACIÃ“N DE SOLICITUD #${solicitud.id}</b>
 
-${estados[nuevoEstado] || nuevoEstado}
+    const mensaje = [
+        `\u2757 ACTUALIZACION DE SOLICITUD #${solicitud.id}`,
+        '',
+        `${estados[nuevoEstado] || nuevoEstado}`,
+        '',
+        `\uD83D\uDC64 Cliente: ${solicitud.cliente_nombre}`,
+        `\uD83D\uDCB0 ${Number(solicitud.monto_origen).toLocaleString('es-CL')} CLP -> ${Number(solicitud.monto_destino).toLocaleString('es-VE')} VES`,
+        '',
+        `\u23F0 ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`
+    ].join('\n');
 
-ðŸ‘¤ <b>Cliente:</b> ${solicitud.cliente_nombre}
-ðŸ’° $${Number(solicitud.monto_origen).toLocaleString('es-CL')} CLP â†’ ${Number(solicitud.monto_destino).toLocaleString('es-VE')} VES
-
-â° ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}
-    `.trim();
-    
     return await enviarNotificacionTelegram(mensaje);
 }
+
+// =================================================================
+// SISTEMA DE CALLBACKS DE TELEGRAM (Polling)
+// =================================================================
+let telegramUpdateOffset = 0;
+const pedidosTomados = new Map(); // Almacena qué operador tomó cada pedido
+
+// Procesar callbacks de botones de Telegram
+async function procesarTelegramCallbacks() {
+    if (!TELEGRAM_BOT_TOKEN) return;
+    
+    try {
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`;
+        const response = await axios.get(url, {
+            params: { offset: telegramUpdateOffset, timeout: 1 }
+        });
+        
+        if (!response.data.ok || !response.data.result.length) return;
+        
+        for (const update of response.data.result) {
+            telegramUpdateOffset = update.update_id + 1;
+            
+            if (update.callback_query) {
+                await manejarCallbackTelegram(update.callback_query);
+            }
+        }
+    } catch (error) {
+        // Silenciar errores de polling
+    }
+}
+
+// Manejar cada callback
+async function manejarCallbackTelegram(callback) {
+    const data = callback.data;
+    const mensaje = callback.message;
+    const operador = callback.from.first_name || callback.from.username || 'Operador';
+    const chatId = mensaje.chat.id;
+    const messageId = mensaje.message_id;
+    
+    try {
+        // Parsear acción e ID
+        const [accion, idStr] = data.split('_');
+        const solicitudId = parseInt(idStr);
+        
+        // Obtener datos de la solicitud
+        const solicitud = await dbGet(
+            `SELECT st.*, b.numero_cuenta, b.documento_numero, b.nombre_completo, b.banco
+             FROM solicitudes_transferencia st
+             LEFT JOIN beneficiarios b ON st.beneficiario_id = b.id
+             WHERE st.id = ?`, [solicitudId]
+        );
+        
+        let alertText = '';
+        
+        switch(accion) {
+            case 'tomar':
+                // Verificar si ya fue tomado
+                if (pedidosTomados.has(solicitudId)) {
+                    alertText = `Este pedido ya fue tomado por ${pedidosTomados.get(solicitudId)}`;
+                } else {
+                    pedidosTomados.set(solicitudId, operador);
+                    await dbRun(`UPDATE solicitudes_transferencia SET estado = 'procesando' WHERE id = ?`, [solicitudId]);
+                    
+                    // Obtener cuenta y cédula para los botones de copiar
+                    const cuentaCopiar = solicitud?.numero_cuenta || 'No disponible';
+                    const cedulaCopiar = solicitud?.documento_numero || 'No disponible';
+                    
+                    // Actualizar mensaje original
+                    const nuevoTexto = mensaje.text + `\n\n🙋 TOMADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
+                    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                        chat_id: chatId,
+                        message_id: messageId,
+                        text: nuevoTexto,
+                        reply_markup: { inline_keyboard: [
+                            [{ text: '📋 Copiar Cuenta', copy_text: { text: cuentaCopiar } }, { text: '🪪 Copiar Cédula', copy_text: { text: cedulaCopiar } }],
+                            [{ text: '✅ PAGADO', callback_data: `pagado_${solicitudId}` }, { text: '❌ CANCELAR', callback_data: `cancelar_${solicitudId}` }]
+                        ]}
+                    });
+                    alertText = `Pedido #${solicitudId} tomado correctamente`;
+                }
+                break;
+                
+            case 'pagado':
+                await dbRun(`UPDATE solicitudes_transferencia SET estado = 'completada' WHERE id = ?`, [solicitudId]);
+                pedidosTomados.delete(solicitudId);
+                
+                const textoPagado = mensaje.text.split('\n🙋')[0] + `\n\n✅ PAGADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
+                await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    text: textoPagado,
+                    reply_markup: { inline_keyboard: [] }
+                });
+                alertText = `Pedido #${solicitudId} marcado como PAGADO`;
+                break;
+                
+            case 'cancelar':
+                await dbRun(`UPDATE solicitudes_transferencia SET estado = 'cancelada' WHERE id = ?`, [solicitudId]);
+                pedidosTomados.delete(solicitudId);
+                
+                const textoCancelado = mensaje.text.split('\n🙋')[0] + `\n\n❌ CANCELADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
+                await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    text: textoCancelado,
+                    reply_markup: { inline_keyboard: [] }
+                });
+                alertText = `Pedido #${solicitudId} CANCELADO`;
+                break;
+        }
+        
+        // Responder al callback
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+            callback_query_id: callback.id,
+            text: alertText,
+            show_alert: accion === 'tomar' && pedidosTomados.has(solicitudId) && pedidosTomados.get(solicitudId) !== operador
+        });
+        
+    } catch (error) {
+        console.error('Error procesando callback Telegram:', error.message);
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+            callback_query_id: callback.id,
+            text: 'Error procesando acción',
+            show_alert: true
+        });
+    }
+}
+
+// Iniciar polling de Telegram (cada 2 segundos)
+function iniciarPollingTelegram() {
+    setInterval(procesarTelegramCallbacks, 2000);
+    console.log('🤖 Sistema de callbacks Telegram iniciado');
+}
+
 // =================================================================
 
 // âœ… RUTA DE LA BASE DE DATOS AJUSTADA PARA DESPLIEGUE
@@ -6386,6 +6587,7 @@ app.get('/api/monitoreo/estado-tasas', apiAuth, onlyMaster, async (req, res) => 
  * Iniciar monitoreo de tasas (cada 2 minutos para respuesta mÃ¡s rÃ¡pida)
  */
 function iniciarMonitoreoTasas() {
+            iniciarPollingTelegram();    // Iniciar polling callbacks Telegram
     // Ejecutar verificaciÃ³n inicial despuÃ©s de 10 segundos
     setTimeout(monitorearTasasVES, 10000);
     
@@ -6780,6 +6982,7 @@ const clienteAuth = async (req, res, next) => {
         }
         
         req.clienteApp = cliente;
+        req.clienteId = cliente.id; // normalizar nombre usado en rutas de la app cliente
         next();
     } catch (error) {
         console.error('Error en autenticaciÃ³n de cliente:', error);
@@ -7021,7 +7224,11 @@ app.get('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
 // POST /api/cliente/beneficiarios - Agregar beneficiario
 app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
     try {
+        console.log('📥 Datos recibidos para nuevo beneficiario:', JSON.stringify(req.body, null, 2));
+        
         const { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, isFavorite } = req.body;
+        
+        console.log('📋 Campos extraídos:', { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais });
         
         if (!alias || !nombre_completo || !banco || !numero_cuenta || !pais) {
             return res.status(400).json({ error: 'Faltan campos obligatorios' });
@@ -7052,7 +7259,12 @@ app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
 app.put('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
     try {
         const { id } = req.params;
+        console.log('📝 Actualizando beneficiario ID:', id);
+        console.log('📥 Datos recibidos:', JSON.stringify(req.body, null, 2));
+        
         const { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, isFavorite } = req.body;
+        
+        console.log('📋 Campos extraídos:', { documento_numero, numero_cuenta, tipo_cuenta });
         
         // Verificar que el beneficiario pertenezca al cliente
         const beneficiario = await dbGet(
@@ -7196,13 +7408,18 @@ app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
         const clienteId = req.clienteId;
         const { 
             beneficiario_id, 
-            monto_origen, 
+            monto_origen: body_monto_origen, 
             moneda_origen = 'CLP',
-            monto_destino,
+            monto_destino: body_monto_destino,
             moneda_destino = 'VES',
-            tasa_aplicada,
+            tasa_aplicada: body_tasa_aplicada,
             metodo_entrega
         } = req.body;
+
+        // Compatibilidad con payloads anteriores del cliente
+        const monto_origen = body_monto_origen ?? req.body.monto_clp;
+        const monto_destino = body_monto_destino ?? req.body.monto_ves;
+        const tasa_aplicada = body_tasa_aplicada ?? req.body.tasa;
 
         // Validaciones
         if (!beneficiario_id || !monto_origen || !monto_destino) {
@@ -7211,7 +7428,9 @@ app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
 
         // Verificar que el beneficiario pertenece al cliente
         const beneficiario = await dbGet(
-            `SELECT b.*, c.nombre as cliente_nombre, c.email as cliente_email 
+            `SELECT b.*, c.nombre as cliente_nombre, c.email as cliente_email,
+                    c.telefono as cliente_telefono, c.documento_tipo as cliente_documento_tipo,
+                    c.documento_numero as cliente_documento
              FROM beneficiarios b 
              JOIN clientes_app c ON b.cliente_app_id = c.id
              WHERE b.id = ? AND b.cliente_app_id = ? AND b.activo = 1`,
@@ -7246,13 +7465,21 @@ app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
             id: solicitudId,
             cliente_nombre: beneficiario.cliente_nombre,
             cliente_email: beneficiario.cliente_email,
+            cliente_telefono: beneficiario.cliente_telefono,
+            cliente_documento_tipo: beneficiario.cliente_documento_tipo,
+            cliente_documento: beneficiario.cliente_documento,
             monto_origen,
             moneda_origen,
             monto_destino,
             moneda_destino,
             tasa_aplicada,
             beneficiario_nombre: beneficiario.nombre_completo,
-            beneficiario_banco: beneficiario.banco
+            beneficiario_banco: beneficiario.banco,
+            beneficiario_cedula: beneficiario.documento_numero,
+            beneficiario_tipo_cuenta: beneficiario.tipo_cuenta,
+            beneficiario_cuenta: beneficiario.numero_cuenta,
+            beneficiario_telefono: beneficiario.telefono,
+            tipo_cuenta: metodo_entrega || beneficiario.tipo_cuenta
         });
 
         // Devolver datos de la cuenta para pago

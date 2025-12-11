@@ -1,344 +1,692 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1974CE">
-    <title>Historial - Defi Oracle</title>
-                    <script>
-        const __storedApi = localStorage.getItem('apiBaseUrlOverride');
-        const __fallbackApi = (location.protocol === 'file:' ? 'http://localhost:3000' : location.origin);
-        if (typeof window.API_BASE_URL !== 'string' || window.API_BASE_URL.length === 0) {
-            window.API_BASE_URL = __storedApi || __fallbackApi;
-        }
-    </script>
-    <link rel="stylesheet" href="css/styles.css">
-    <style>
-        .hist-header {
-            background: var(--bg-white);
-            padding: var(--space-xl);
-            display: flex;
-            align-items: center;
-            gap: var(--space-md);
-            border-bottom: 1px solid var(--border-light);
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1974CE">
+  <title>Historial - Defi Oracle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      const stored = localStorage.getItem('apiBaseUrlOverride');
+      const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
+      if (isLocal) {
+        window.API_BASE_URL = location.origin || 'http://localhost:3000';
+        localStorage.setItem('apiBaseUrlOverride', window.API_BASE_URL);
+        return;
+      }
+      if (stored) { window.API_BASE_URL = stored; return; }
+      window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+    })();
+  </script>
+  <style>
+    :root {
+      --primary: #1974CE;
+      --primary-strong: #145DA6;
+      --accent: #5C8240;
+      --bg: #E3EAEE;
+      --panel: #FFFFFF;
+      --border: #D8E2E9;
+      --text: #211C10;
+      --text-dim: #64748B;
+      --muted: #9AA1A1;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --neon: #00F6FF;
+      --brand-teal: #23C6B8;
+      --radius-sm: 10px;
+      --radius-md: 14px;
+      --radius-lg: 18px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 100px;
+    }
+    .app {
+      max-width: 430px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: var(--bg);
+    }
+    
+    /* Header */
+    .header {
+      background: linear-gradient(120deg, #1974CE 0%, #145DA6 52%, #0C3C7C 70%, #23C6B8 100%);
+      padding: 20px;
+      padding-top: 50px;
+      color: white;
+      border-radius: 0 0 24px 24px;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .btn-back {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .header-subtitle {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-left: 52px;
+    }
 
-        .btn-back {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: var(--space-xs);
-        }
+    /* Filters */
+    .filters {
+      display: flex;
+      gap: 8px;
+      padding: 16px 20px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .filters::-webkit-scrollbar { display: none; }
+    .filter-chip {
+      padding: 10px 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--text-dim);
+    }
+    .filter-chip.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
 
-        .hist-header-title {
-            font-size: var(--font-h2);
-            font-weight: var(--font-semibold);
-        }
+    /* Content */
+    .content {
+      padding: 0 16px;
+    }
+    .date-group {
+      margin-bottom: 20px;
+    }
+    .date-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 10px;
+      padding-left: 4px;
+      text-transform: uppercase;
+    }
 
-        .hist-filters {
-            padding: var(--space-lg);
-            background: var(--bg-white);
-        }
+    /* Cards */
+    .hist-card {
+      background: var(--panel);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .hist-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+    .card-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(25,116,206,0.1), rgba(35,198,184,0.1));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: var(--primary);
+      font-size: 14px;
+    }
+    .card-info { flex: 1; }
+    .card-name {
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+    .card-method {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .card-amounts {
+      text-align: right;
+    }
+    .amount-clp {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text);
+    }
+    .amount-ves {
+      font-size: 12px;
+      color: var(--brand-teal);
+    }
+    .card-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .card-code {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: monospace;
+    }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .status-badge.pendiente {
+      background: #FEF3C7;
+      color: #D97706;
+    }
+    .status-badge.procesando {
+      background: rgba(25,116,206,0.1);
+      color: var(--primary);
+    }
+    .status-badge.completada {
+      background: #D1FAE5;
+      color: #059669;
+    }
+    .status-badge.cancelada {
+      background: #FEE2E2;
+      color: #DC2626;
+    }
 
-        .filter-chips {
-            display: flex;
-            gap: var(--space-sm);
-            overflow-x: auto;
-            padding-bottom: var(--space-sm);
-        }
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+    .empty-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .empty-text {
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
 
-        .filter-chip {
-            padding: var(--space-sm) var(--space-md);
-            background: var(--light-bg);
-            border: 1px solid var(--border-light);
-            border-radius: var(--radius-full);
-            font-size: var(--font-small);
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-        .filter-chip.active {
-            background: var(--primary-blue);
-            color: white;
-            border-color: var(--primary-blue);
-        }
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    .modal {
+      background: var(--panel);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 380px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      text-align: center;
+      padding: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .modal-body {
+      padding: 20px;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .detail-value {
+      font-weight: 500;
+      text-align: right;
+      font-size: 14px;
+    }
+    .detail-value.highlight {
+      color: var(--brand-teal);
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .modal-footer {
+      padding: 0 20px 20px;
+    }
+    .modal-footer .btn-primary {
+      width: 100%;
+    }
 
-        .hist-content {
-            padding: var(--space-lg);
-        }
-
-        .hist-group {
-            margin-bottom: var(--space-xl);
-        }
-
-        .hist-date {
-            font-size: var(--font-small);
-            color: var(--neutral-gray);
-            font-weight: var(--font-medium);
-            margin-bottom: var(--space-md);
-            padding-left: var(--space-sm);
-        }
-
-        .hist-card {
-            background: var(--bg-white);
-            border-radius: var(--radius-lg);
-            padding: var(--space-lg);
-            margin-bottom: var(--space-sm);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .hist-card:hover {
-            box-shadow: var(--shadow-md);
-        }
-
-        .hist-card-header {
-            display: flex;
-            align-items: center;
-            gap: var(--space-md);
-            margin-bottom: var(--space-md);
-        }
-
-        .hist-avatar {
-            width: 44px;
-            height: 44px;
-            border-radius: var(--radius-full);
-            background: var(--secondary-blue);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: var(--font-semibold);
-            color: var(--primary-blue);
-        }
-
-        .hist-info {
-            flex: 1;
-        }
-
-        .hist-name {
-            font-weight: var(--font-medium);
-        }
-
-        .hist-method {
-            font-size: var(--font-caption);
-            color: var(--neutral-gray);
-        }
-
-        .hist-amount {
-            text-align: right;
-        }
-
-        .hist-clp {
-            font-weight: var(--font-semibold);
-        }
-
-        .hist-ves {
-            font-size: var(--font-caption);
-            color: var(--neutral-gray);
-        }
-
-        .hist-card-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding-top: var(--space-md);
-            border-top: 1px solid var(--border-light);
-        }
-
-        .hist-code {
-            font-size: var(--font-caption);
-            color: var(--neutral-gray);
-            font-family: monospace;
-        }
-
-        .hist-status {
-            display: flex;
-            align-items: center;
-            gap: var(--space-xs);
-            font-size: var(--font-small);
-            padding: var(--space-xs) var(--space-sm);
-            border-radius: var(--radius-sm);
-        }
-
-        .hist-status.completado {
-            background: #D1FAE5;
-            color: #059669;
-        }
-
-        .hist-status.pendiente {
-            background: #FEF3C7;
-            color: #D97706;
-        }
-
-        .hist-status.procesando {
-            background: var(--secondary-blue);
-            color: var(--primary-blue);
-        }
-
-        .hist-status.cancelado {
-            background: #FEE2E2;
-            color: #DC2626;
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: var(--space-3xl);
-        }
-
-        .empty-icon {
-            font-size: 64px;
-            margin-bottom: var(--space-lg);
-        }
-
-        .empty-title {
-            font-size: var(--font-h2);
-            font-weight: var(--font-semibold);
-            margin-bottom: var(--space-sm);
-        }
-
-        .empty-text {
-            color: var(--neutral-gray);
-            margin-bottom: var(--space-xl);
-        }
-
-        /* Detail Modal */
-        .detail-header {
-            text-align: center;
-            padding: var(--space-xl);
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .detail-status-icon {
-            font-size: 48px;
-            margin-bottom: var(--space-md);
-        }
-
-        .detail-title {
-            font-size: var(--font-h2);
-            font-weight: var(--font-semibold);
-        }
-
-        .detail-body {
-            padding: var(--space-xl);
-        }
-
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: var(--space-md) 0;
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .detail-row:last-child {
-            border-bottom: none;
-        }
-
-        .detail-label {
-            color: var(--neutral-gray);
-        }
-
-        .detail-value {
-            font-weight: var(--font-medium);
-            text-align: right;
-        }
-    </style>
+    /* Bottom Nav */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      padding: 12px 0 20px;
+      display: flex;
+      justify-content: space-around;
+      border-top: 1px solid var(--border);
+      max-width: 430px;
+      margin: 0 auto;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .nav-item.active {
+      color: var(--primary);
+    }
+    .nav-icon {
+      font-size: 22px;
+    }
+  </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="page">
-            <!-- Header -->
-            <header class="hist-header">
-                <button class="btn-back" onclick="volver()">â†</button>
-                <h1 class="hist-header-title">Historial de envÃ­os</h1>
-            </header>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <button class="btn-back" onclick="window.location.href='home.html'">←</button>
+        <h1>Historial de envíos</h1>
+      </div>
+      <p class="header-subtitle" id="subtitulo">Cargando...</p>
+    </header>
 
-            <!-- Filters -->
-            <div class="hist-filters">
-                <div class="filter-chips">
-                    <button class="filter-chip active" data-filter="todos" onclick="filtrar('todos')">Todos</button>
-                    <button class="filter-chip" data-filter="completado" onclick="filtrar('completado')">Completados</button>
-                    <button class="filter-chip" data-filter="pendiente" onclick="filtrar('pendiente')">Pendientes</button>
-                    <button class="filter-chip" data-filter="procesando" onclick="filtrar('procesando')">En proceso</button>
-                </div>
-            </div>
-
-            <!-- Content -->
-            <main class="hist-content" id="histContent">
-                <!-- Se llena dinÃ¡micamente -->
-            </main>
-
-            <!-- Empty State -->
-            <div class="empty-state" id="emptyState" style="display: none;">
-                <div class="empty-icon">ðŸ“­</div>
-                <h2 class="empty-title">Sin envÃ­os</h2>
-                <p class="empty-text">AÃºn no has realizado ningÃºn envÃ­o</p>
-                <button class="btn btn-primary" onclick="window.location.href='enviar.html'">Hacer mi primer envÃ­o</button>
-            </div>
-        </div>
+    <!-- Filters -->
+    <div class="filters">
+      <button class="filter-chip active" data-filter="todos" onclick="filtrar('todos')">Todos</button>
+      <button class="filter-chip" data-filter="completada" onclick="filtrar('completada')">Completados</button>
+      <button class="filter-chip" data-filter="pendiente" onclick="filtrar('pendiente')">Pendientes</button>
+      <button class="filter-chip" data-filter="procesando" onclick="filtrar('procesando')">En proceso</button>
+      <button class="filter-chip" data-filter="cancelada" onclick="filtrar('cancelada')">Cancelados</button>
     </div>
 
-    <!-- Detail Modal -->
-    <div class="modal-backdrop" id="detailModal" style="display: none;">
-        <div class="modal" style="max-height: 80vh; overflow-y: auto;">
-            <div class="detail-header">
-                <div class="detail-status-icon" id="detailStatusIcon">âœ…</div>
-                <h3 class="detail-title" id="detailTitle">EnvÃ­o completado</h3>
-            </div>
-            <div class="detail-body">
-                <div class="detail-row">
-                    <span class="detail-label">CÃ³digo</span>
-                    <span class="detail-value" id="detailCode">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Fecha</span>
-                    <span class="detail-value" id="detailFecha">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Destinatario</span>
-                    <span class="detail-value" id="detailDestinatario">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Banco</span>
-                    <span class="detail-value" id="detailBanco">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">MÃ©todo</span>
-                    <span class="detail-value" id="detailMetodo">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Monto enviado</span>
-                    <span class="detail-value" id="detailMontoCLP">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Tasa aplicada</span>
-                    <span class="detail-value" id="detailTasa">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Monto recibido</span>
-                    <span class="detail-value" id="detailMontoVES" style="color: var(--accent-green); font-size: 18px;">-</span>
-                </div>
-            </div>
-            <div style="padding: 0 var(--space-xl) var(--space-xl);">
-                <button class="btn btn-primary" style="width: 100%;" onclick="cerrarModal()">Cerrar</button>
-            </div>
-        </div>
+    <!-- Content -->
+    <main class="content" id="content">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Cargando historial...</p>
+      </div>
+    </main>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <div class="empty-icon">📭</div>
+      <h2 class="empty-title">Sin envíos</h2>
+      <p class="empty-text">Aún no has realizado ningún envío</p>
+      <button class="btn-primary" onclick="window.location.href='enviar.html'">Hacer mi primer envío</button>
     </div>
 
-            
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+      <a href="home.html" class="nav-item">
+        <span class="nav-icon">🏠</span>
+        <span>Inicio</span>
+      </a>
+      <a href="enviar.html" class="nav-item">
+        <span class="nav-icon">💸</span>
+        <span>Enviar</span>
+      </a>
+      <a href="historico.html" class="nav-item active">
+        <span class="nav-icon">📋</span>
+        <span>Historial</span>
+      </a>
+      <a href="perfil.html" class="nav-item">
+        <span class="nav-icon">👤</span>
+        <span>Perfil</span>
+      </a>
+    </nav>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-backdrop" id="detailModal" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-icon" id="modalIcon">✅</div>
+        <h3 class="modal-title" id="modalTitle">Envío completado</h3>
+      </div>
+      <div class="modal-body">
+        <div class="detail-row">
+          <span class="detail-label">Código</span>
+          <span class="detail-value" id="detailCode">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Fecha</span>
+          <span class="detail-value" id="detailFecha">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Destinatario</span>
+          <span class="detail-value" id="detailDestinatario">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Banco</span>
+          <span class="detail-value" id="detailBanco">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Método</span>
+          <span class="detail-value" id="detailMetodo">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Monto enviado</span>
+          <span class="detail-value" id="detailMontoCLP">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Tasa aplicada</span>
+          <span class="detail-value" id="detailTasa">-</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Monto recibido</span>
+          <span class="detail-value highlight" id="detailMontoVES">-</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" onclick="cerrarModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = (window.API_BASE_URL || '').replace(/\/$/, '');
+    let solicitudes = [];
+    let filtroActual = 'todos';
+    const fmtCLP = new Intl.NumberFormat('es-CL');
+    const fmtVES = new Intl.NumberFormat('es-VE');
+
+    document.addEventListener('DOMContentLoaded', () => {
+      verificarSesion();
+      cargarHistorial();
+    });
+
+    function verificarSesion() {
+      const token = localStorage.getItem('clienteToken');
+      if (!token) window.location.href = 'login.html';
+    }
+
+    async function cargarHistorial() {
+      const token = localStorage.getItem('clienteToken');
+      try {
+        const r = await fetch(`${API_BASE}/api/cliente/solicitudes`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (r.ok) {
+          solicitudes = await r.json();
+          renderizar();
+        } else {
+          mostrarError();
+        }
+      } catch (e) {
+        console.error('Error cargando historial:', e);
+        mostrarError();
+      }
+    }
+
+    function mostrarError() {
+      document.getElementById('content').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">😕</div>
+          <h2 class="empty-title">Error al cargar</h2>
+          <p class="empty-text">No pudimos cargar tu historial</p>
+          <button class="btn-primary" onclick="cargarHistorial()">Reintentar</button>
+        </div>
+      `;
+    }
+
+    function filtrar(filtro) {
+      filtroActual = filtro;
+      document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.filter === filtro);
+      });
+      renderizar();
+    }
+
+    function renderizar() {
+      const content = document.getElementById('content');
+      const emptyState = document.getElementById('emptyState');
+      
+      // Filtrar solicitudes
+      let filtered = filtroActual === 'todos' 
+        ? solicitudes 
+        : solicitudes.filter(s => s.estado === filtroActual);
+
+      // Actualizar subtítulo
+      const total = solicitudes.length;
+      document.getElementById('subtitulo').textContent = total === 0 
+        ? 'Sin envíos registrados'
+        : `${total} envío${total > 1 ? 's' : ''} en total`;
+
+      if (filtered.length === 0) {
+        content.innerHTML = '';
+        emptyState.style.display = 'block';
+        if (filtroActual !== 'todos') {
+          emptyState.querySelector('.empty-title').textContent = 'Sin resultados';
+          emptyState.querySelector('.empty-text').textContent = `No hay envíos con estado "${filtroActual}"`;
+          emptyState.querySelector('button').style.display = 'none';
+        } else {
+          emptyState.querySelector('.empty-title').textContent = 'Sin envíos';
+          emptyState.querySelector('.empty-text').textContent = 'Aún no has realizado ningún envío';
+          emptyState.querySelector('button').style.display = 'block';
+        }
+        return;
+      }
+
+      emptyState.style.display = 'none';
+
+      // Agrupar por fecha
+      const grupos = {};
+      filtered.forEach(s => {
+        const fecha = new Date(s.fecha_creacion).toLocaleDateString('es-CL', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long'
+        });
+        if (!grupos[fecha]) grupos[fecha] = [];
+        grupos[fecha].push(s);
+      });
+
+      let html = '';
+      for (const [fecha, items] of Object.entries(grupos)) {
+        html += `<div class="date-group">
+          <p class="date-label">${fecha}</p>`;
+        
+        items.forEach(s => {
+          const iniciales = getIniciales(s.beneficiario_nombre);
+          const metodo = s.metodo_entrega === 'pago_movil' ? 'Pago móvil' : 'Transferencia';
+          const statusClass = s.estado || 'pendiente';
+          const statusText = getStatusText(s.estado);
+          const statusIcon = getStatusIcon(s.estado);
+          
+          html += `
+            <div class="hist-card" onclick="verDetalle(${s.id})">
+              <div class="card-top">
+                <div class="avatar">${iniciales}</div>
+                <div class="card-info">
+                  <p class="card-name">${s.beneficiario_nombre || 'Sin nombre'}</p>
+                  <p class="card-method">${metodo} · ${s.beneficiario_banco || '-'}</p>
+                </div>
+                <div class="card-amounts">
+                  <p class="amount-clp">$${fmtCLP.format(s.monto_origen)} CLP</p>
+                  <p class="amount-ves">Bs. ${fmtVES.format(s.monto_destino)}</p>
+                </div>
+              </div>
+              <div class="card-bottom">
+                <span class="card-code">CASH-${s.id}</span>
+                <span class="status-badge ${statusClass}">${statusIcon} ${statusText}</span>
+              </div>
+            </div>
+          `;
+        });
+        
+        html += '</div>';
+      }
+
+      content.innerHTML = html;
+    }
+
+    function getIniciales(nombre) {
+      if (!nombre) return '??';
+      const partes = nombre.trim().split(' ');
+      if (partes.length >= 2) {
+        return (partes[0][0] + partes[1][0]).toUpperCase();
+      }
+      return nombre.substring(0, 2).toUpperCase();
+    }
+
+    function getStatusText(estado) {
+      const textos = {
+        pendiente: 'Pendiente',
+        procesando: 'En proceso',
+        completada: 'Completado',
+        cancelada: 'Cancelado'
+      };
+      return textos[estado] || 'Pendiente';
+    }
+
+    function getStatusIcon(estado) {
+      const iconos = {
+        pendiente: '⏳',
+        procesando: '🔄',
+        completada: '✅',
+        cancelada: '❌'
+      };
+      return iconos[estado] || '⏳';
+    }
+
+    function verDetalle(id) {
+      const s = solicitudes.find(x => x.id === id);
+      if (!s) return;
+
+      const modal = document.getElementById('detailModal');
+      const icon = document.getElementById('modalIcon');
+      const title = document.getElementById('modalTitle');
+
+      // Configurar según estado
+      const config = {
+        pendiente: { icon: '⏳', title: 'Envío pendiente', color: '#D97706' },
+        procesando: { icon: '🔄', title: 'En proceso', color: '#1974CE' },
+        completada: { icon: '✅', title: 'Envío completado', color: '#059669' },
+        cancelada: { icon: '❌', title: 'Envío cancelado', color: '#DC2626' }
+      };
+      const c = config[s.estado] || config.pendiente;
+      icon.textContent = c.icon;
+      title.textContent = c.title;
+      title.style.color = c.color;
+
+      // Llenar datos
+      document.getElementById('detailCode').textContent = 'CASH-' + s.id;
+      document.getElementById('detailFecha').textContent = new Date(s.fecha_creacion).toLocaleString('es-CL');
+      document.getElementById('detailDestinatario').textContent = s.beneficiario_nombre || '-';
+      document.getElementById('detailBanco').textContent = s.beneficiario_banco || '-';
+      document.getElementById('detailMetodo').textContent = s.metodo_entrega === 'pago_movil' ? 'Pago móvil' : 'Transferencia';
+      document.getElementById('detailMontoCLP').textContent = `$${fmtCLP.format(s.monto_origen)} CLP`;
+      document.getElementById('detailTasa').textContent = `1 CLP = ${(s.tasa_aplicada || 0).toFixed(4)} VES`;
+      document.getElementById('detailMontoVES').textContent = `Bs. ${fmtVES.format(s.monto_destino)}`;
+
+      modal.style.display = 'flex';
+    }
+
+    function cerrarModal() {
+      document.getElementById('detailModal').style.display = 'none';
+    }
+
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('detailModal').addEventListener('click', function(e) {
+      if (e.target === this) cerrarModal();
+    });
+  </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-

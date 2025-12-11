@@ -530,9 +530,63 @@
     }
     .tl-item.done .dot { background: var(--brand-teal); color: white; }
     .tl-item.active .dot { background: var(--primary); color: white; animation: pulse 1.6s infinite; }
+    .tl-item.cancelled .dot { background: #e74c3c; color: white; }
+    .tl-item.cancelled .title { color: #e74c3c; }
     .tl-body p { margin: 0; }
     .tl-body .title { font-weight: 600; }
     .tl-body .time { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    /* ETA Banner - Compacto */
+    .eta-banner {
+      background: linear-gradient(120deg, var(--primary) 0%, #0C3C7C 60%, #23C6B8 100%);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin: 16px 0;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 15px rgba(25, 116, 206, 0.25);
+    }
+    .eta-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .eta-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .eta-title {
+      font-size: 11px;
+      opacity: 0.9;
+      margin: 0 0 2px 0;
+      font-weight: 500;
+    }
+    .eta-time {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0;
+    }
+    .eta-progress-container {
+      background: rgba(255,255,255,0.25);
+      border-radius: 6px;
+      height: 6px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .eta-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #00F6FF 0%, #fff 100%);
+      border-radius: 6px;
+      width: 100%;
+      transition: width 1s linear;
+    }
+    .eta-banner.completed {
+      background: linear-gradient(120deg, #11998e 0%, #38ef7d 100%);
+    }
+    .eta-banner.completed .eta-time {
+      font-size: 14px;
+    }
 
     @keyframes pulse {
       0%,100% { transform: scale(1); }
@@ -732,23 +786,32 @@
         <div class="big">✔</div>
         <h3 style="margin:0 0 6px;">Solicitud creada!</h3>
         <p style="color: var(--muted); margin:0 0 14px;">Te notificaremos cuando el dinero llegue.</p>
-        <div class="track-code" id="trackingCode">TRX-000000</div>
-        <div class="timeline">
-          <div class="tl-item done">
-            <div class="dot">⏳</div>
-            <div class="tl-body"><p class="title">Solicitud creada</p><p class="time" id="timeCreated">-</p></div>
+        <div class="track-code" id="trackingCode">CASH-000000</div>
+        
+        <!-- Banner de tiempo estimado -->
+        <div class="eta-banner" id="etaBanner">
+          <div class="eta-icon">🚀</div>
+          <div class="eta-content">
+            <p class="eta-title">Tiempo estimado de entrega</p>
+            <p class="eta-time" id="etaTime">~15 min</p>
+            <div class="eta-progress-container">
+              <div class="eta-progress-bar" id="etaProgressBar"></div>
+            </div>
           </div>
-          <div class="tl-item active" id="timelinePago">
-            <div class="dot">⏳</div>
-            <div class="tl-body"><p class="title">Esperando tu pago</p><p class="time">En proceso</p></div>
+        </div>
+        
+        <div class="timeline">
+          <div class="tl-item done" id="timelineCreada">
+            <div class="dot">✅</div>
+            <div class="tl-body"><p class="title">Solicitud creada</p><p class="time" id="timeCreated">-</p></div>
           </div>
           <div class="tl-item" id="timelineProceso">
             <div class="dot">⏳</div>
-            <div class="tl-body"><p class="title">Procesando envio</p><p class="time">Pendiente</p></div>
+            <div class="tl-body"><p class="title">Procesando envío</p><p class="time" id="timeProceso">Pendiente</p></div>
           </div>
           <div class="tl-item" id="timelineEntregado">
             <div class="dot">⏳</div>
-            <div class="tl-body"><p class="title">Dinero entregado</p><p class="time">Pendiente</p></div>
+            <div class="tl-body"><p class="title" id="titleEntregado">Dinero entregado</p><p class="time" id="timeEntregado">Pendiente</p></div>
           </div>
         </div>
       </div>
@@ -790,6 +853,14 @@
 
   <script>
     const API_BASE = (window.API_BASE_URL || '').replace(/\/$/, '');
+    
+    // ========== CONFIGURACIÓN DE HORARIO ==========
+    // Cambiar a false para activar restricción de horario (9am - 9pm)
+    const MODO_PRUEBAS = true;
+    const HORA_APERTURA = 9;   // 9:00 AM
+    const HORA_CIERRE = 21;    // 9:00 PM (21:00)
+    // ==============================================
+    
     let currentStep = 1;
     let tasa = 0.045;
     let tramos = [];
@@ -798,8 +869,52 @@
     const envio = { montoCLP: 0, montoVES: 0, metodo: 'transferencia', destinatario: null };
     const fmtCLP = new Intl.NumberFormat('es-CL');
     const fmtVES = new Intl.NumberFormat('es-VE');
+    
+    // Verifica si estamos dentro del horario de atención
+    function estaEnHorario() {
+      if (MODO_PRUEBAS) return true;
+      const ahora = new Date();
+      const hora = ahora.getHours();
+      return hora >= HORA_APERTURA && hora < HORA_CIERRE;
+    }
+    
+    // Muestra modal de fuera de horario
+    function mostrarFueraDeHorario() {
+      const ahora = new Date();
+      const hora = ahora.getHours();
+      let mensaje = '';
+      
+      if (hora < HORA_APERTURA) {
+        mensaje = `Abrimos a las ${HORA_APERTURA}:00 AM`;
+      } else {
+        mensaje = `Vuelve mañana desde las ${HORA_APERTURA}:00 AM`;
+      }
+      
+      // Crear modal de horario
+      const modalHtml = `
+        <div id="horarioModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;">
+          <div style="background:white;border-radius:20px;padding:30px;max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="font-size:48px;margin-bottom:16px;">🌙</div>
+            <h2 style="margin:0 0 12px;color:#1974CE;font-size:20px;">Fuera de horario</h2>
+            <p style="margin:0 0 8px;color:#64748B;font-size:14px;">Nuestro horario de atención es de</p>
+            <p style="margin:0 0 20px;color:#211C10;font-size:18px;font-weight:600;">${HORA_APERTURA}:00 AM - ${HORA_CIERRE - 12}:00 PM</p>
+            <p style="margin:0 0 24px;color:#23C6B8;font-size:14px;font-weight:500;">${mensaje}</p>
+            <button onclick="window.location.href='home.html'" style="width:100%;padding:14px;background:linear-gradient(135deg,#1974CE,#145DA6);color:white;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;">
+              Volver al inicio
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
+      // Verificar horario de atención
+      if (!estaEnHorario()) {
+        mostrarFueraDeHorario();
+        return; // No cargar el resto si está fuera de horario
+      }
+      
       verificarSesion();
       cargarTasa();
       cargarDestinatarios();
@@ -1104,12 +1219,15 @@
     async function crearSolicitud() {
       if (timerInterval) clearInterval(timerInterval);
       const token = localStorage.getItem('clienteToken');
+      const tasaAplicada = obtenerTasaPorMonto(envio.montoCLP);
       const solicitud = {
-        monto_clp: envio.montoCLP,
-        monto_ves: envio.montoVES,
-        metodo_entrega: envio.metodo,
         beneficiario_id: envio.destinatario?.id,
-        tasa: tasa
+        monto_origen: envio.montoCLP,
+        moneda_origen: 'CLP',
+        monto_destino: envio.montoVES,
+        moneda_destino: 'VES',
+        tasa_aplicada: tasaAplicada,
+        metodo_entrega: envio.metodo
       };
       try {
         const r = await fetch(`${API_BASE}/api/cliente/solicitudes`, {
@@ -1125,19 +1243,134 @@
     }
 
     function mostrarTracking(data) {
-      document.getElementById('trackingCode').textContent = data.codigo || 'TRX-' + Date.now();
+      const codigo = data?.solicitud_id ? `CASH-${data.solicitud_id}` : (data?.codigo || ('CASH-' + Date.now()));
+      document.getElementById('trackingCode').textContent = codigo;
       document.getElementById('timeCreated').textContent = new Date().toLocaleString('es-CL');
       showStep(6);
+      
+      // Iniciar temporizador de 20 minutos para la barra de progreso
+      iniciarTemporizadorETA();
+      
+      // Iniciar polling para actualizar estado
+      if (data?.solicitud_id) {
+        iniciarPollingEstado(data.solicitud_id);
+      }
+    }
+    
+    // Temporizador visual de ETA (20 minutos)
+    let etaTimerInterval = null;
+    const ETA_DURATION = 20 * 60 * 1000; // 20 minutos en ms
+    
+    function iniciarTemporizadorETA() {
+      const progressBar = document.getElementById('etaProgressBar');
+      const etaBanner = document.getElementById('etaBanner');
+      const startTime = Date.now();
+      
+      if (etaTimerInterval) clearInterval(etaTimerInterval);
+      
+      etaTimerInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, ETA_DURATION - elapsed);
+        const percentage = (remaining / ETA_DURATION) * 100;
+        
+        progressBar.style.width = percentage + '%';
+        
+        // Si llega a 0, detener el timer
+        if (remaining <= 0) {
+          clearInterval(etaTimerInterval);
+          progressBar.style.width = '0%';
+        }
+      }, 1000);
+    }
+    
+    function completarETA() {
+      const etaBanner = document.getElementById('etaBanner');
+      const etaTitle = etaBanner.querySelector('.eta-title');
+      const etaTime = etaBanner.querySelector('.eta-time');
+      const progressBar = document.getElementById('etaProgressBar');
+      
+      if (etaTimerInterval) clearInterval(etaTimerInterval);
+      
+      etaBanner.classList.add('completed');
+      etaTitle.textContent = '¡Listo!';
+      etaTime.textContent = 'Pedido entregado ✓';
+      progressBar.style.width = '100%';
+    }
+    
+    function ocultarETA() {
+      const etaBanner = document.getElementById('etaBanner');
+      if (etaTimerInterval) clearInterval(etaTimerInterval);
+      etaBanner.style.display = 'none';
     }
 
     function mostrarTrackingDemo() {
-      document.getElementById('trackingCode').textContent = 'TRX-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+      document.getElementById('trackingCode').textContent = 'CASH-' + Math.random().toString(36).substr(2, 8).toUpperCase();
       document.getElementById('timeCreated').textContent = new Date().toLocaleString('es-CL');
       showStep(6);
+    }
+    
+    // Polling para actualizar estado en tiempo real
+    let pollingInterval = null;
+    function iniciarPollingEstado(solicitudId) {
+      if (pollingInterval) clearInterval(pollingInterval);
+      
+      pollingInterval = setInterval(async () => {
+        try {
+          const token = localStorage.getItem('clienteToken');
+          const r = await fetch(`${API_BASE}/api/cliente/solicitudes/${solicitudId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (r.ok) {
+            const sol = await r.json();
+            actualizarTimeline(sol.estado);
+            
+            // Detener polling si está completada o cancelada
+            if (sol.estado === 'completada' || sol.estado === 'cancelada') {
+              clearInterval(pollingInterval);
+            }
+          }
+        } catch(e) { console.log('Error polling:', e); }
+      }, 5000); // Cada 5 segundos
+    }
+    
+    function actualizarTimeline(estado) {
+      const proceso = document.getElementById('timelineProceso');
+      const entregado = document.getElementById('timelineEntregado');
+      const titleEntregado = document.getElementById('titleEntregado');
+      const timeProceso = document.getElementById('timeProceso');
+      const timeEntregado = document.getElementById('timeEntregado');
+      
+      if (estado === 'procesando') {
+        proceso.classList.add('active');
+        proceso.querySelector('.dot').textContent = '🔄';
+        timeProceso.textContent = 'En proceso';
+      } else if (estado === 'completada') {
+        proceso.classList.remove('active');
+        proceso.classList.add('done');
+        proceso.querySelector('.dot').textContent = '✅';
+        timeProceso.textContent = 'Completado';
+        
+        entregado.classList.add('done');
+        entregado.querySelector('.dot').textContent = '✅';
+        titleEntregado.textContent = 'Dinero entregado';
+        timeEntregado.textContent = new Date().toLocaleString('es-CL');
+        
+        // Marcar ETA como completado
+        completarETA();
+      } else if (estado === 'cancelada') {
+        proceso.classList.remove('active');
+        entregado.classList.add('cancelled');
+        entregado.querySelector('.dot').textContent = '❌';
+        titleEntregado.textContent = 'Solicitud cancelada';
+        timeEntregado.textContent = new Date().toLocaleString('es-CL');
+        entregado.style.color = '#e74c3c';
+        
+        // Ocultar ETA si se cancela
+        ocultarETA();
+      }
     }
 
     function verHistorial() { window.location.href = 'historico.html'; }
   </script>
 </body>
 </html>
-
