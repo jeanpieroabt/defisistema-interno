@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1974CE">
+    <title>Detalle de Envío - Defi Oracle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            const stored = localStorage.getItem('apiBaseUrlOverride');
+            const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
+            if (isLocal) {
+                window.API_BASE_URL = location.origin || 'http://localhost:3000';
+                localStorage.setItem('apiBaseUrlOverride', window.API_BASE_URL);
+                return;
+            }
+            if (stored) { window.API_BASE_URL = stored; return; }
+            window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+        })();
+    </script>
+    <style>
+        :root {
+            --primary: #1974CE;
+            --primary-dark: #145DA6;
+            --accent: #2FC7B8;
+            --bg: #E3EAEE;
+            --grad-brand-soft: linear-gradient(135deg, rgba(25,116,206,0.10), rgba(47,199,184,0.10));
+            --panel: #FFFFFF;
+            --border: #D8E2E9;
+            --text: #211C10;
+            --text-dim: #64748B;
+            --muted: #9AA1A1;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --radius-sm: 10px;
+            --radius-md: 14px;
+            --radius-lg: 18px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--grad-brand-soft);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .app {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: transparent;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(120deg, #1974CE 0%, #145DA6 52%, #0C3C7C 70%, #23C6B8 100%);
+            padding: 20px;
+            padding-top: 50px;
+            color: white;
+            border-radius: 0 0 24px 24px;
+        }
+        .header-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .btn-back {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        /* Status Card */
+        .status-card {
+            background: rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        .status-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .status-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .status-subtitle {
+            font-size: 13px;
+            opacity: 0.85;
+        }
+
+        /* Content */
+        .content {
+            padding: 20px;
+            padding-bottom: 100px;
+        }
+
+        /* Timeline */
+        .timeline-section {
+            background: var(--panel);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+        }
+        .timeline {
+            position: relative;
+            padding-left: 28px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 4px;
+            bottom: 4px;
+            width: 2px;
+            background: var(--border);
+        }
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+        }
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: -24px;
+            top: 2px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--border);
+            border: 3px solid var(--panel);
+            z-index: 1;
+        }
+        .timeline-item.completed .timeline-dot {
+            background: var(--success);
+        }
+        .timeline-item.active .timeline-dot {
+            background: var(--primary);
+            box-shadow: 0 0 0 4px rgba(25,116,206,0.2);
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { 
+                box-shadow: 0 0 0 4px rgba(25,116,206,0.2);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 0 8px rgba(25,116,206,0.3);
+                transform: scale(1.15);
+            }
+        }
+        .timeline-item.pending .timeline-dot {
+            background: var(--muted);
+        }
+
+        /* ETA Banner - Tiempo estimado */
+        .eta-banner {
+            background: linear-gradient(120deg, var(--primary) 0%, #0C3C7C 60%, #23C6B8 100%);
+            border-radius: var(--radius-md);
+            padding: 14px 18px;
+            margin-bottom: 16px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 4px 15px rgba(25, 116, 206, 0.25);
+        }
+        .eta-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        .eta-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .eta-title {
+            font-size: 13px;
+            opacity: 0.9;
+            margin: 0 0 4px 0;
+            font-weight: 500;
+        }
+        .eta-time {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+        }
+        .eta-progress-container {
+            background: rgba(255,255,255,0.25);
+            border-radius: 6px;
+            height: 6px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .eta-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00F6FF 0%, #fff 100%);
+            border-radius: 6px;
+            width: 100%;
+            transition: width 1s linear;
+        }
+        .eta-banner.completed {
+            background: linear-gradient(120deg, #11998e 0%, #38ef7d 100%);
+        }
+        .eta-banner.completed .eta-time {
+            font-size: 14px;
+        }
+        .eta-banner.expired {
+            background: linear-gradient(120deg, #667eea 0%, #764ba2 100%);
+        }
+        .timeline-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .timeline-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 2px;
+        }
+        .timeline-item.pending .timeline-title {
+            color: var(--muted);
+        }
+        .timeline-time {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* Detail Card */
+        .detail-card {
+            background: var(--panel);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+        .detail-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            text-align: right;
+        }
+        .detail-value.highlight {
+            color: var(--success);
+            font-size: 16px;
+        }
+
+        /* Beneficiary Card */
+        .beneficiary-card {
+            background: var(--panel);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .beneficiary-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .beneficiary-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .beneficiary-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .beneficiary-bank {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        /* Action Button */
+        .btn-support {
+            width: 100%;
+            padding: 16px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-support:hover {
+            background: rgba(25,116,206,0.05);
+        }
+        .btn-support svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error */
+        .error-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .error-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .error-text {
+            color: var(--text-dim);
+            margin-bottom: 20px;
+        }
+        .btn-retry {
+            padding: 12px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <div class="header-top">
+                <button class="btn-back" onclick="history.back()">←</button>
+                <h1>Detalle de envío</h1>
+            </div>
+            <div class="status-card" id="statusCard">
+                <div class="status-icon" id="statusIcon">⏳</div>
+                <p class="status-title" id="statusTitle">Cargando...</p>
+                <p class="status-subtitle" id="statusSubtitle">Obteniendo información</p>
+            </div>
+        </header>
+
+        <div class="content" id="mainContent">
+            <div class="loading" id="loadingState">
+                <div class="loading-spinner"></div>
+                <p>Cargando detalles...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.API_BASE_URL || '';
+        let solicitudData = null;
+        let etaTimerInterval = null;
+        let pollingEstadoInterval = null;
+        const ETA_DURATION = 20 * 60 * 1000; // 20 minutos en ms
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('clienteToken');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+
+            if (!id) {
+                mostrarError('No se especificó el envío');
+                return;
+            }
+
+            cargarDetalle(id);
+            
+            // Iniciar polling para actualizar estado cada 10 segundos
+            iniciarPollingEstado(id);
+        });
+
+        async function cargarDetalle(id) {
+            const token = localStorage.getItem('clienteToken');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/cliente/solicitudes/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Envío no encontrado');
+                }
+
+                solicitudData = await response.json();
+                estadoAnterior = solicitudData.estado; // Guardar estado inicial
+                renderDetalle(solicitudData);
+
+                // Si está en proceso, iniciar el temporizador ETA
+                if (solicitudData.estado === 'procesando') {
+                    setTimeout(() => iniciarTemporizadorETA(solicitudData.fecha_creacion), 100);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarError(error.message);
+            }
+        }
+
+        function renderDetalle(s) {
+            // Actualizar status card
+            const statusConfig = {
+                'pendiente': { icon: '⏳', title: 'Pendiente', subtitle: 'Esperando confirmación de pago', color: '#F59E0B' },
+                'procesando': { icon: '🔄', title: 'En proceso', subtitle: 'Tu envío está siendo procesado', color: '#1974CE' },
+                'completada': { icon: '✅', title: 'Completado', subtitle: 'Envío entregado exitosamente', color: '#10B981' },
+                'cancelada': { icon: '❌', title: 'Cancelado', subtitle: 'Este envío fue cancelado', color: '#EF4444' }
+            };
+            const status = statusConfig[s.estado] || statusConfig['pendiente'];
+            
+            document.getElementById('statusIcon').textContent = status.icon;
+            document.getElementById('statusTitle').textContent = status.title;
+            document.getElementById('statusTitle').style.color = 'white';
+            document.getElementById('statusSubtitle').textContent = status.subtitle;
+
+            // Formatear fecha
+            const fecha = s.fecha_creacion ? new Date(s.fecha_creacion) : new Date();
+            const fechaStr = fecha.toLocaleDateString('es-CL', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Generar iniciales
+            const iniciales = getIniciales(s.beneficiario_nombre);
+
+            // ETA banner solo si está procesando
+            const etaBannerHTML = s.estado === 'procesando' ? `
+                <!-- ETA Banner -->
+                <div class="eta-banner" id="etaBanner">
+                    <div class="eta-icon">🚀</div>
+                    <div class="eta-content">
+                        <p class="eta-title">Tiempo estimado de entrega</p>
+                        <p class="eta-time" id="etaTime">~15 min</p>
+                        <div class="eta-progress-container">
+                            <div class="eta-progress-bar" id="etaProgressBar"></div>
+                        </div>
+                    </div>
+                </div>
+            ` : '';
+
+            // Render content
+            document.getElementById('mainContent').innerHTML = `
+                ${etaBannerHTML}
+                
+                <!-- Timeline -->
+                <div class="timeline-section">
+                    <h3 class="section-title">Estado del envío</h3>
+                    <div class="timeline">
+                        <div class="timeline-item ${getTimelineClass(s.estado, 'creado')}">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div>
+                                    <p class="timeline-title">Solicitud creada</p>
+                                </div>
+                                <span class="timeline-time">${fechaStr}</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item ${getTimelineClass(s.estado, 'procesando')}">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div>
+                                    <p class="timeline-title">En proceso</p>
+                                </div>
+                                <span class="timeline-time">${s.estado === 'procesando' || s.estado === 'completada' ? 'Verificado' : '-'}</span>
+                            </div>
+                        </div>
+                        <div class="timeline-item ${getTimelineClass(s.estado, 'completada')}">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div>
+                                    <p class="timeline-title">Entregado</p>
+                                </div>
+                                <span class="timeline-time">${s.estado === 'completada' ? 'Completado' : '-'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Beneficiary -->
+                <div class="beneficiary-card">
+                    <h3 class="section-title">Destinatario</h3>
+                    <div class="beneficiary-header">
+                        <div class="beneficiary-avatar">${iniciales}</div>
+                        <div>
+                            <p class="beneficiary-name">${s.beneficiario_nombre || 'Sin nombre'}</p>
+                            <p class="beneficiary-bank">${s.beneficiario_banco || '-'}</p>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Cuenta</span>
+                        <span class="detail-value">${s.beneficiario_cuenta || '-'}</span>
+                    </div>
+                </div>
+
+                <!-- Details -->
+                <div class="detail-card">
+                    <h3 class="section-title">Detalles del envío</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Código</span>
+                        <span class="detail-value">CASH-${s.id}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Monto enviado</span>
+                        <span class="detail-value">$${Number(s.monto_origen || 0).toLocaleString('es-CL')} CLP</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Tasa aplicada</span>
+                        <span class="detail-value">1 CLP = ${(s.tasa_aplicada || 0).toFixed(4)} VES</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Monto recibido</span>
+                        <span class="detail-value highlight">Bs. ${Number(s.monto_destino || 0).toLocaleString('es-VE')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Método</span>
+                        <span class="detail-value">${s.metodo_entrega === 'pago_movil' ? 'Pago móvil' : 'Transferencia'}</span>
+                    </div>
+                </div>
+
+                <!-- Support Button -->
+                <button class="btn-support" onclick="window.location.href='soporte.html'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    ¿Necesitas ayuda?
+                </button>
+            `;
+        }
+
+        function getTimelineClass(estado, step) {
+            const order = ['creado', 'procesando', 'completada'];
+            const estadoIndex = {
+                'pendiente': 0,
+                'procesando': 1,
+                'completada': 2,
+                'cancelada': -1
+            };
+            const stepIndex = order.indexOf(step);
+            const currentIndex = estadoIndex[estado] ?? 0;
+
+            if (estado === 'cancelada') {
+                return stepIndex === 0 ? 'completed' : 'pending';
+            }
+            if (stepIndex < currentIndex) return 'completed';
+            if (stepIndex === currentIndex) return 'active';
+            return 'pending';
+        }
+
+        function getIniciales(nombre) {
+            if (!nombre) return '??';
+            const partes = nombre.trim().split(' ');
+            if (partes.length >= 2) {
+                return (partes[0][0] + partes[1][0]).toUpperCase();
+            }
+            return nombre.substring(0, 2).toUpperCase();
+        }
+
+        function mostrarError(mensaje) {
+            document.getElementById('statusIcon').textContent = '❌';
+            document.getElementById('statusTitle').textContent = 'Error';
+            document.getElementById('statusSubtitle').textContent = mensaje;
+
+            document.getElementById('mainContent').innerHTML = `
+                <div class="error-state">
+                    <div class="error-icon">😕</div>
+                    <p class="error-title">No se pudo cargar</p>
+                    <p class="error-text">${mensaje}</p>
+                    <button class="btn-retry" onclick="history.back()">Volver</button>
+                </div>
+            `;
+        }
+
+        // Temporizador visual de ETA (20 minutos desde la creación)
+        function iniciarTemporizadorETA(fechaCreacion) {
+            const progressBar = document.getElementById('etaProgressBar');
+            const etaBanner = document.getElementById('etaBanner');
+            const etaTime = document.getElementById('etaTime');
+            
+            if (!progressBar || !etaBanner) return;
+            
+            // Calcular tiempo transcurrido desde la creación
+            const fechaInicio = fechaCreacion ? new Date(fechaCreacion) : new Date();
+            const tiempoTranscurrido = Date.now() - fechaInicio.getTime();
+            
+            // Si ya pasaron más de 20 minutos, mostrar estado expirado
+            if (tiempoTranscurrido >= ETA_DURATION) {
+                mostrarETAExpirado();
+                return;
+            }
+            
+            if (etaTimerInterval) clearInterval(etaTimerInterval);
+            
+            function actualizarETA() {
+                const elapsed = Date.now() - fechaInicio.getTime();
+                const remaining = Math.max(0, ETA_DURATION - elapsed);
+                const percentage = (remaining / ETA_DURATION) * 100;
+                
+                // Actualizar barra de progreso
+                progressBar.style.width = percentage + '%';
+                
+                // Actualizar tiempo restante
+                const minutos = Math.floor(remaining / 60000);
+                const segundos = Math.floor((remaining % 60000) / 1000);
+                etaTime.textContent = minutos > 0 ? `~${minutos} min` : `${segundos} seg`;
+                
+                // Si llega a 0, mostrar estado expirado
+                if (remaining <= 0) {
+                    clearInterval(etaTimerInterval);
+                    mostrarETAExpirado();
+                }
+            }
+            
+            // Actualizar inmediatamente y luego cada segundo
+            actualizarETA();
+            etaTimerInterval = setInterval(actualizarETA, 1000);
+        }
+        
+        function mostrarETAExpirado() {
+            const etaBanner = document.getElementById('etaBanner');
+            const etaTime = document.getElementById('etaTime');
+            const etaTitle = document.querySelector('.eta-title');
+            const etaIcon = document.querySelector('.eta-icon');
+            const progressBar = document.getElementById('etaProgressBar');
+            
+            if (!etaBanner) return;
+            
+            if (etaTimerInterval) clearInterval(etaTimerInterval);
+            
+            // Cambiar apariencia
+            etaBanner.classList.add('expired');
+            if (etaIcon) etaIcon.textContent = '🔄';
+            if (etaTitle) etaTitle.textContent = 'Procesando tu envío';
+            if (etaTime) etaTime.textContent = 'Estamos trabajando en ello';
+            if (progressBar) progressBar.style.width = '0%';
+        }
+        
+        function completarETA() {
+            const etaBanner = document.getElementById('etaBanner');
+            const etaTitle = document.querySelector('.eta-title');
+            const etaTime = document.getElementById('etaTime');
+            const progressBar = document.getElementById('etaProgressBar');
+            
+            if (!etaBanner) return;
+            
+            if (etaTimerInterval) clearInterval(etaTimerInterval);
+            
+            etaBanner.classList.remove('expired');
+            etaBanner.classList.add('completed');
+            if (etaTitle) etaTitle.textContent = '¡Listo!';
+            if (etaTime) etaTime.textContent = 'Pedido entregado ✓';
+            if (progressBar) progressBar.style.width = '100%';
+        }
+        
+        // Polling para actualizar estado cada 10 segundos
+        let estadoAnterior = null;
+        function iniciarPollingEstado(id) {
+            if (pollingEstadoInterval) clearInterval(pollingEstadoInterval);
+            
+            pollingEstadoInterval = setInterval(async () => {
+                try {
+                    const token = localStorage.getItem('clienteToken');
+                    const response = await fetch(`${API_BASE}/api/cliente/solicitudes/${id}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    
+                    if (!response.ok) return;
+                    
+                    const data = await response.json();
+                    
+                    // Solo actualizar si el estado cambió
+                    if (data.estado !== estadoAnterior) {
+                        estadoAnterior = data.estado;
+                        solicitudData = data;
+                        renderDetalle(data);
+                        
+                        // Manejar cambios de estado
+                        if (data.estado === 'completada') {
+                            completarETA();
+                            clearInterval(pollingEstadoInterval);
+                        } else if (data.estado === 'cancelada') {
+                            if (etaTimerInterval) clearInterval(etaTimerInterval);
+                            clearInterval(pollingEstadoInterval);
+                        } else if (data.estado === 'procesando' && !etaTimerInterval) {
+                            setTimeout(() => iniciarTemporizadorETA(data.fecha_creacion), 100);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error polling estado:', error);
+                }
+            }, 10000); // Cada 10 segundos
+        }
+        
+        // Detener polling cuando la página no está visible
+        document.addEventListener('visibilitychange', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+            
+            if (document.hidden) {
+                if (pollingEstadoInterval) clearInterval(pollingEstadoInterval);
+            } else if (id) {
+                cargarDetalle(id);
+                iniciarPollingEstado(id);
+            }
+        });
+    </script>
+</body>
+</html>

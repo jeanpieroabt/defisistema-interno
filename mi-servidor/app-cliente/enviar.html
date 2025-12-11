@@ -1232,7 +1232,8 @@
 
     function nextStep() {
       if (currentStep === 1) {
-        if (!envio.montoCLP || envio.montoCLP < 1000) { alert('El monto minimo es $1.000 CLP'); return; }
+        if (!envio.montoCLP || envio.montoCLP < 5000) { alert('El monto mínimo es $5.000 CLP'); return; }
+        if (envio.montoCLP > 2000000) { alert('El monto máximo por envío es $2.000.000 CLP'); return; }
       }
       if (currentStep === 3 && !envio.destinatario) { alert('Selecciona un destinatario'); return; }
       if (currentStep === 3) prepararResumen();

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -117,61 +117,35 @@
         .brand-banner {
             display: flex;
             align-items: center;
-            gap: var(--space-lg);
-            background: rgba(255, 255, 255, 0.92);
-            border: 1px solid rgba(255, 255, 255, 0.5);
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.6);
             border-radius: var(--radius-xl);
-            padding: 14px var(--space-xl);
+            padding: 20px var(--space-xl);
             box-shadow: var(--shadow-soft);
             backdrop-filter: blur(12px);
         }
 
         .brand-banner-logo {
-            width: 52px;
-            height: 52px;
-            border-radius: var(--radius-full);
-            background: rgba(25, 116, 206, 0.08);
             display: flex;
             align-items: center;
             justify-content: center;
+            filter: drop-shadow(0 4px 12px rgba(25, 116, 206, 0.25)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
         }
 
         .brand-banner-logo img {
-            height: 28px;
+            height: 55px;
             width: auto;
             display: block;
         }
 
-        .brand-banner-content {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .brand-banner-title {
-            font-size: var(--font-lg);
-            font-weight: 600;
-            color: var(--dark-slate);
-        }
-
-        .brand-banner-sub {
-            font-size: var(--font-sm);
-            color: var(--neutral-gray);
-        }
-
         @media (max-width: 420px) {
             .brand-banner {
-                gap: var(--space-md);
-                padding: 12px 16px;
-            }
-
-            .brand-banner-logo {
-                width: 44px;
-                height: 44px;
+                padding: 16px;
             }
 
             .brand-banner-logo img {
-                height: 26px;
+                height: 48px;
             }
         }
 
@@ -318,6 +292,22 @@
 
         .rate-main .rate-number {
             font-variant-numeric: tabular-nums;
+        }
+
+        .rate-example {
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0.9;
+            margin-top: 6px;
+            letter-spacing: 0.3px;
+        }
+
+        .rate-example .example-clp {
+            opacity: 0.85;
+        }
+
+        .rate-example .example-ves {
+            font-weight: 700;
         }
 
         /* ============================================
@@ -805,10 +795,6 @@
                     <div class="brand-banner-logo">
                         <img src="./assets/letra%202Recurso%2015@2x.png" alt="DefiOracle logo">
                     </div>
-                    <div class="brand-banner-content">
-                        <p class="brand-banner-title">Tu envÃ­o rÃ¡pido y seguro</p>
-                        <p class="brand-banner-sub">Tasa clara, sin sorpresas.</p>
-                    </div>
                 </div>
 
                 <!-- Rate Card -->
@@ -816,7 +802,7 @@
                     <div class="rate-card">
                         <div class="rate-headline">
                             <div class="rate-meta">
-                                <span class="rate-label">Tasa CLP â†’ VES</span>
+                                <span class="rate-label">Tasa CLP → VES</span>
                             </div>
                             <span class="badge-live">
                                 <span class="live-dot"></span>
@@ -825,6 +811,7 @@
                         </div>
                         <div class="rate-value">
                             <span class="rate-main">1 CLP = <span class="rate-number" id="rateValue">0.00</span> VES</span>
+                            <p class="rate-example"><span class="example-clp">10.000 CLP</span> = <span class="example-ves" id="exampleVes">0</span> VES</p>
                         </div>
                     </div>
                 </div>
@@ -861,14 +848,14 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                         </svg>
-                        EnvÃ­os rÃ¡pidos y seguros
+                        Envíos rápidos y seguros
                     </p>
                 </div>
 
                 <!-- Recent Transfers -->
                 <section class="recent-transfers-section animate-in delay-3">
                     <div class="section-header">
-                        <h2 class="section-title">Ãšltimos envÃ­os</h2>
+                        <h2 class="section-title">Últimos envíos</h2>
                         <a href="historico.html" class="section-link">
                             Ver todo
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -885,8 +872,8 @@
                                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                             </svg>
                         </div>
-                        <p class="empty-title">Sin envÃ­os aÃºn</p>
-                        <p class="empty-text">Realiza tu primer envÃ­o a Venezuela</p>
+                        <p class="empty-title">Sin envíos aún</p>
+                        <p class="empty-text">Realiza tu primer envío a Venezuela</p>
                     </div>
                 </section>
 
@@ -963,13 +950,16 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('SesiÃ³n invÃ¡lida');
+                    throw new Error('Sesi�n inv�lida');
                 }
 
                 const data = await response.json();
                 cargarDatosUsuario(data.usuario);
                 cargarTasa();
                 cargarHistorial();
+                
+                // Iniciar polling para actualizar historial cada 10 segundos
+                iniciarPollingHistorial();
 
             } catch (error) {
                 console.error('Error:', error);
@@ -991,7 +981,7 @@
             if (greetingEl) {
                 const hora = new Date().getHours();
                 let saludo = 'Buenas noches';
-                if (hora >= 5 && hora < 12) saludo = 'Buenos dÃ­as';
+                if (hora >= 5 && hora < 12) saludo = 'Buenos d�as';
                 else if (hora >= 12 && hora < 19) saludo = 'Buenas tardes';
                 greetingEl.textContent = saludo;
             }
@@ -1000,7 +990,7 @@
         async function cargarTasa() {
             try {
                 const response = await fetch(`${API_BASE}/api/cliente/tasa`);
-                if (!response.ok) throw new Error('Respuesta de tasas no vÃ¡lida');
+                if (!response.ok) throw new Error('Respuesta de tasas no v�lida');
 
                 const data = await response.json();
                 tramosData = data.tramos || [];
@@ -1011,6 +1001,7 @@
                 const activeCard = document.querySelector('.tier-card.active') || document.querySelector('.tier-card');
                 const tasaInicial = parseFloat(activeCard?.dataset?.tasa) || tasaDefecto;
                 document.getElementById('rateValue').textContent = Number.isFinite(tasaInicial) ? tasaInicial.toFixed(4) : '---';
+                actualizarEjemplo(tasaInicial);
 
             } catch (error) {
                 console.error('Error cargando tasa:', error);
@@ -1044,64 +1035,106 @@
                 const tasa = parseFloat(this.dataset.tasa || tasaDefecto);
                 const rateValueEl = document.getElementById('rateValue');
                 rateValueEl.textContent = Number.isFinite(tasa) ? tasa.toFixed(4) : '---';
+                actualizarEjemplo(tasa);
             });
         });
 
-        function cargarHistorial() {
-            const historial = [
-                { id: 1, nombre: 'MarÃ­a GarcÃ­a', initials: 'MG', clp: 150000, ves: 6750, status: 'delivered' },
-                { id: 2, nombre: 'Carlos LÃ³pez', initials: 'CL', clp: 100000, ves: 4500, status: 'in-progress' },
-                { id: 3, nombre: 'Ana MartÃ­nez', initials: 'AM', clp: 250000, ves: 11250, status: 'delivered' }
-            ];
+        function actualizarEjemplo(tasa) {
+            const exampleEl = document.getElementById('exampleVes');
+            if (exampleEl && Number.isFinite(tasa)) {
+                const resultado = Math.round(10000 * tasa);
+                exampleEl.textContent = resultado.toLocaleString('es-CL');
+            } else if (exampleEl) {
+                exampleEl.textContent = '---';
+            }
+        }
 
+        async function cargarHistorial() {
             const container = document.getElementById('historyList');
             const emptyState = document.getElementById('emptyHistory');
+            const token = localStorage.getItem('clienteToken');
 
-            if (historial.length === 0) {
+            try {
+                const response = await fetch(`${API_BASE}/api/cliente/solicitudes`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) throw new Error('Error cargando historial');
+
+                const solicitudes = await response.json();
+                const ultimos3 = solicitudes.slice(0, 3);
+
+                if (ultimos3.length === 0) {
+                    container.innerHTML = '';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+
+                emptyState.style.display = 'none';
+                container.innerHTML = ultimos3.map(item => {
+                    const iniciales = getIniciales(item.beneficiario_nombre);
+                    const fecha = item.fecha_creacion ? new Date(item.fecha_creacion).toLocaleDateString('es-CL') : '-';
+                    const statusChip = getStatusChip(item.estado);
+                    
+                    return `
+                        <div class="last-send-card" onclick="verDetalle(${item.id})">
+                            <div class="last-avatar">${iniciales}</div>
+                            <div class="last-info">
+                                <span class="last-name">${item.beneficiario_nombre || 'Sin nombre'}</span>
+                                <div class="last-meta">
+                                    ${statusChip}
+                                    <span>${fecha}</span>
+                                </div>
+                            </div>
+                            <div class="last-amounts">
+                                <span class="last-clp">$${Number(item.monto_origen || 0).toLocaleString('es-CL')}</span>
+                                <span class="last-ves">${Number(item.monto_destino || 0).toLocaleString('es-VE')} VES</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error cargando historial:', error);
                 container.innerHTML = '';
                 emptyState.style.display = 'block';
-                return;
             }
+        }
 
-            emptyState.style.display = 'none';
-            container.innerHTML = historial.map(item => `
-                <div class="last-send-card" onclick="verDetalle(${item.id})">
-                    <div class="last-avatar">${item.initials}</div>
-                    <div class="last-info">
-                        <span class="last-name">${item.nombre}</span>
-                        <div class="last-meta">
-                            ${getStatusChip(item.status)}
-                            <span>${new Date().toLocaleDateString('es-CL')}</span>
-                        </div>
-                    </div>
-                    <div class="last-amounts">
-                        <span class="last-clp">$${item.clp.toLocaleString('es-CL')}</span>
-                        <span class="last-ves">${item.ves.toLocaleString('es-VE')} VES</span>
-                    </div>
-                </div>
-            `).join('');
+        function getIniciales(nombre) {
+            if (!nombre) return '??';
+            const partes = nombre.trim().split(' ');
+            if (partes.length >= 2) {
+                return (partes[0][0] + partes[1][0]).toUpperCase();
+            }
+            return nombre.substring(0, 2).toUpperCase();
         }
 
         function getStatusChip(status) {
             const statusConfig = {
-                'delivered': {
+                'pendiente': {
+                    label: 'Pendiente',
+                    class: 'micro-badge info',
+                    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
+                },
+                'procesando': {
+                    label: 'En proceso',
+                    class: 'micro-badge info',
+                    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
+                },
+                'completada': {
                     label: 'Entregado',
                     class: 'micro-badge success',
                     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>'
                 },
-                'in-progress': {
-                    label: 'En curso',
-                    class: 'micro-badge info',
-                    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
-                },
-                'cancelled': {
+                'cancelada': {
                     label: 'Cancelado',
                     class: 'micro-badge alert',
                     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
                 }
             };
             
-            const config = statusConfig[status] || statusConfig['in-progress'];
+            const config = statusConfig[status] || statusConfig['pendiente'];
             return `<span class="${config.class}">${config.icon} ${config.label}</span>`;
         }
 
@@ -1112,6 +1145,26 @@
         function verDetalle(id) {
             window.location.href = `tracking.html?id=${id}`;
         }
+
+        // Polling para actualizar historial cada 10 segundos
+        let pollingHistorialInterval = null;
+        function iniciarPollingHistorial() {
+            if (pollingHistorialInterval) clearInterval(pollingHistorialInterval);
+            
+            pollingHistorialInterval = setInterval(() => {
+                cargarHistorial();
+            }, 10000); // Cada 10 segundos
+        }
+        
+        // Detener polling cuando la página no está visible
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (pollingHistorialInterval) clearInterval(pollingHistorialInterval);
+            } else {
+                cargarHistorial();
+                iniciarPollingHistorial();
+            }
+        });
     </script>
 </body>
 </html>
