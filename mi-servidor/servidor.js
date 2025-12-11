@@ -1,6 +1,6 @@
-// servidor.js
+﻿// servidor.js
 // =======================================================
-// Defi Oracle – Backend (Auth, Envíos, Histórico, Tasas, Compras, Operadores)
+// Defi Oracle â€“ Backend (Auth, EnvÃ­os, HistÃ³rico, Tasas, Compras, Operadores)
 // =======================================================
 
 const express = require('express');
@@ -16,12 +16,12 @@ const cors = require('cors');
 const JWT_SECRET = process.env.JWT_SECRET || 'defi-oracle-jwt-secret-key-' + crypto.randomBytes(16).toString('hex');
 
 // =================================================================
-// CONFIGURACIÓN BOT TELEGRAM PARA NOTIFICACIONES
+// CONFIGURACIÃ“N BOT TELEGRAM PARA NOTIFICACIONES
 // =================================================================
 let TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || ''; // Token del bot
 let TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';     // Chat/Grupo ID para notificaciones
 
-// Función para cargar configuración de Telegram desde BD
+// FunciÃ³n para cargar configuraciÃ³n de Telegram desde BD
 async function cargarConfigTelegram() {
     try {
         const [botToken, chatId] = await Promise.all([
@@ -31,20 +31,20 @@ async function cargarConfigTelegram() {
         if (botToken?.valor) TELEGRAM_BOT_TOKEN = botToken.valor;
         if (chatId?.valor) TELEGRAM_CHAT_ID = chatId.valor;
         if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-            console.log('✅ Configuración de Telegram cargada');
+            console.log('âœ… ConfiguraciÃ³n de Telegram cargada');
         }
     } catch (error) {
-        console.log('⚠️ No se pudo cargar configuración de Telegram');
+        console.log('âš ï¸ No se pudo cargar configuraciÃ³n de Telegram');
     }
 }
 
-// Función para enviar notificación a Telegram
+// FunciÃ³n para enviar notificaciÃ³n a Telegram
 async function enviarNotificacionTelegram(mensaje, parseMode = 'HTML') {
     // Cargar config actualizada de BD
     await cargarConfigTelegram();
     
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-        console.log('⚠️ Telegram no configurado - Notificación omitida');
+        console.log('âš ï¸ Telegram no configurado - NotificaciÃ³n omitida');
         return false;
     }
     
@@ -55,68 +55,68 @@ async function enviarNotificacionTelegram(mensaje, parseMode = 'HTML') {
             text: mensaje,
             parse_mode: parseMode
         });
-        console.log('✅ Notificación Telegram enviada');
+        console.log('âœ… NotificaciÃ³n Telegram enviada');
         return response.data.ok;
     } catch (error) {
-        console.error('❌ Error enviando notificación Telegram:', error.message);
+        console.error('âŒ Error enviando notificaciÃ³n Telegram:', error.message);
         return false;
     }
 }
 
-// Función para notificar nueva solicitud de la app
+// FunciÃ³n para notificar nueva solicitud de la app
 async function notificarNuevaSolicitud(solicitud) {
     const mensaje = `
-🔔 <b>NUEVA SOLICITUD - APP MÓVIL</b>
+ðŸ”” <b>NUEVA SOLICITUD - APP MÃ“VIL</b>
 
-👤 <b>Cliente:</b> ${solicitud.cliente_nombre}
-📧 ${solicitud.cliente_email}
+ðŸ‘¤ <b>Cliente:</b> ${solicitud.cliente_nombre}
+ðŸ“§ ${solicitud.cliente_email}
 
-💰 <b>Envía:</b> $${Number(solicitud.monto_origen).toLocaleString('es-CL')} ${solicitud.moneda_origen}
-💵 <b>Recibe:</b> ${Number(solicitud.monto_destino).toLocaleString('es-VE')} ${solicitud.moneda_destino}
-📊 <b>Tasa:</b> ${solicitud.tasa_aplicada}
+ðŸ’° <b>EnvÃ­a:</b> $${Number(solicitud.monto_origen).toLocaleString('es-CL')} ${solicitud.moneda_origen}
+ðŸ’µ <b>Recibe:</b> ${Number(solicitud.monto_destino).toLocaleString('es-VE')} ${solicitud.moneda_destino}
+ðŸ“Š <b>Tasa:</b> ${solicitud.tasa_aplicada}
 
-👥 <b>Beneficiario:</b> ${solicitud.beneficiario_nombre}
-🏦 ${solicitud.beneficiario_banco}
+ðŸ‘¥ <b>Beneficiario:</b> ${solicitud.beneficiario_nombre}
+ðŸ¦ ${solicitud.beneficiario_banco}
 
-⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}
+â° ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}
 
-📱 <i>Solicitud desde App Defi Oracle</i>
+ðŸ“± <i>Solicitud desde App Defi Oracle</i>
     `.trim();
     
     return await enviarNotificacionTelegram(mensaje);
 }
 
-// Función para notificar cambio de estado
+// FunciÃ³n para notificar cambio de estado
 async function notificarCambioEstado(solicitud, nuevoEstado) {
     const estados = {
-        'comprobante_enviado': '📤 Comprobante Recibido',
-        'verificando': '🔍 Verificando Pago',
-        'procesando': '⚙️ Procesando Envío',
-        'completada': '✅ Completada',
-        'rechazada': '❌ Rechazada',
-        'cancelada': '🚫 Cancelada'
+        'comprobante_enviado': 'ðŸ“¤ Comprobante Recibido',
+        'verificando': 'ðŸ” Verificando Pago',
+        'procesando': 'âš™ï¸ Procesando EnvÃ­o',
+        'completada': 'âœ… Completada',
+        'rechazada': 'âŒ Rechazada',
+        'cancelada': 'ðŸš« Cancelada'
     };
     
     const mensaje = `
-📋 <b>ACTUALIZACIÓN DE SOLICITUD #${solicitud.id}</b>
+ðŸ“‹ <b>ACTUALIZACIÃ“N DE SOLICITUD #${solicitud.id}</b>
 
 ${estados[nuevoEstado] || nuevoEstado}
 
-👤 <b>Cliente:</b> ${solicitud.cliente_nombre}
-💰 $${Number(solicitud.monto_origen).toLocaleString('es-CL')} CLP → ${Number(solicitud.monto_destino).toLocaleString('es-VE')} VES
+ðŸ‘¤ <b>Cliente:</b> ${solicitud.cliente_nombre}
+ðŸ’° $${Number(solicitud.monto_origen).toLocaleString('es-CL')} CLP â†’ ${Number(solicitud.monto_destino).toLocaleString('es-VE')} VES
 
-⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}
+â° ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}
     `.trim();
     
     return await enviarNotificacionTelegram(mensaje);
 }
 // =================================================================
 
-// ✅ RUTA DE LA BASE DE DATOS AJUSTADA PARA DESPLIEGUE
+// âœ… RUTA DE LA BASE DE DATOS AJUSTADA PARA DESPLIEGUE
 const DB_PATH = path.join(process.env.DATA_DIR || '.', 'database.db');
 
 const app = express();
-// ✅ PUERTO AJUSTADO PARA DESPLIEGUE
+// âœ… PUERTO AJUSTADO PARA DESPLIEGUE
 const PORT = process.env.PORT || 3000;
 
 // Zona horaria ajustada a Caracas, Venezuela
@@ -145,13 +145,13 @@ app.use(
 );
 
 // -------------------- DB --------------------
-// ✅ CONEXIÓN USANDO LA RUTA DINÁMICA
+// âœ… CONEXIÃ“N USANDO LA RUTA DINÃMICA
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) console.error('Error DB:', err.message);
   else console.log(`SQLite conectado en: ${DB_PATH}`);
 });
 
-// Función para ejecutar una Promesa para cada sentencia SQL
+// FunciÃ³n para ejecutar una Promesa para cada sentencia SQL
 const dbRun = (sql, params = []) => {
     return new Promise((resolve, reject) => {
         db.run(sql, params, function(err) {
@@ -174,7 +174,7 @@ const dbAll = (sql, params = []) => {
 };
 
 // =================================================================
-// INICIO: LÓGICA DE CÁLCULO DE COSTO REFINADA
+// INICIO: LÃ“GICA DE CÃLCULO DE COSTO REFINADA
 // =================================================================
 const getAvgPurchaseRate = (date, callback) => {
     const sql = `SELECT SUM(clp_invertido) as totalClp, SUM(ves_obtenido) as totalVes FROM compras WHERE date(fecha) = date(?)`;
@@ -191,7 +191,7 @@ const getAvgPurchaseRate = (date, callback) => {
 const calcularCostoClpPorVes = (fecha, callback) => {
     getAvgPurchaseRate(fecha, (err, rate) => {
         if (err) {
-            console.error(`Error obteniendo tasa de compra para el día ${fecha}:`, err.message);
+            console.error(`Error obteniendo tasa de compra para el dÃ­a ${fecha}:`, err.message);
             return callback(err);
         }
         if (rate > 0) {
@@ -200,7 +200,7 @@ const calcularCostoClpPorVes = (fecha, callback) => {
 
         db.get(`SELECT tasa_clp_ves FROM compras WHERE date(fecha) <= date(?) ORDER BY fecha DESC, id DESC LIMIT 1`, [fecha], (errLast, lastPurchase) => {
             if (errLast) {
-                console.error(`Error obteniendo última tasa histórica para fecha ${fecha}:`, errLast.message);
+                console.error(`Error obteniendo Ãºltima tasa histÃ³rica para fecha ${fecha}:`, errLast.message);
                 return callback(errLast);
             }
             if (lastPurchase && lastPurchase.tasa_clp_ves > 0) {
@@ -209,7 +209,7 @@ const calcularCostoClpPorVes = (fecha, callback) => {
 
             db.get(`SELECT tasa_clp_ves FROM compras ORDER BY fecha ASC, id ASC LIMIT 1`, [], (errNext, nextPurchase) => {
                 if (errNext) {
-                    console.error(`Error obteniendo primera tasa histórica disponible:`, errNext.message);
+                    console.error(`Error obteniendo primera tasa histÃ³rica disponible:`, errNext.message);
                     return callback(errNext);
                 }
                 if (nextPurchase && nextPurchase.tasa_clp_ves > 0) {
@@ -224,23 +224,23 @@ const calcularCostoClpPorVes = (fecha, callback) => {
     });
 };
 // =================================================================
-// FIN: LÓGICA DE CÁLCULO DE COSTO REFINADA
+// FIN: LÃ“GICA DE CÃLCULO DE COSTO REFINADA
 // =================================================================
 
 // =================================================================
-// INICIO: MIGRACIÓN Y VERIFICACIÓN DE BASE DE DATOS
+// INICIO: MIGRACIÃ“N Y VERIFICACIÃ“N DE BASE DE DATOS
 // =================================================================
 const runMigrations = async () => {
-    console.log('Iniciando verificación de la estructura de la base de datos...');
+    console.log('Iniciando verificaciÃ³n de la estructura de la base de datos...');
 
     const addColumn = async (tableName, columnDef) => {
         const columnName = columnDef.split(' ')[0];
         try {
             await dbRun(`ALTER TABLE ${tableName} ADD COLUMN ${columnDef}`);
-            console.log(`✅ Columna '${columnName}' añadida a la tabla '${tableName}'.`);
+            console.log(`âœ… Columna '${columnName}' aÃ±adida a la tabla '${tableName}'.`);
         } catch (err) {
             if (!err.message.includes('duplicate column name')) {
-                console.error(`❌ Error al añadir columna ${columnName} a ${tableName}:`, err.message);
+                console.error(`âŒ Error al aÃ±adir columna ${columnName} a ${tableName}:`, err.message);
                 throw err;
             }
         }
@@ -268,10 +268,10 @@ const runMigrations = async () => {
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('totalGananciaAcumuladaClp', '0')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('capitalInicialClp', '0')`);
     
-    // ✅ NUEVA TABLA PARA METAS
+    // âœ… NUEVA TABLA PARA METAS
     await dbRun(`CREATE TABLE IF NOT EXISTS metas(id INTEGER PRIMARY KEY AUTOINCREMENT, mes TEXT NOT NULL UNIQUE, meta_clientes_activos INTEGER DEFAULT 0, meta_nuevos_clientes INTEGER DEFAULT 0, meta_volumen_clp REAL DEFAULT 0, meta_operaciones INTEGER DEFAULT 0)`);
 
-    // ✅ TABLA PARA TAREAS
+    // âœ… TABLA PARA TAREAS
     await dbRun(`CREATE TABLE IF NOT EXISTS tareas(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         titulo TEXT NOT NULL,
@@ -296,7 +296,7 @@ const runMigrations = async () => {
         FOREIGN KEY(creado_por) REFERENCES usuarios(id)
     )`);
 
-    // ✅ TABLA PARA NOTIFICACIONES
+    // âœ… TABLA PARA NOTIFICACIONES
     await dbRun(`CREATE TABLE IF NOT EXISTS notificaciones(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         usuario_id INTEGER NOT NULL,
@@ -310,7 +310,7 @@ const runMigrations = async () => {
         FOREIGN KEY(tarea_id) REFERENCES tareas(id)
     )`);
 
-    // ✅ TABLA PARA ALERTAS DE CLIENTES
+    // âœ… TABLA PARA ALERTAS DE CLIENTES
     await dbRun(`CREATE TABLE IF NOT EXISTS alertas(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         cliente_id INTEGER NOT NULL,
@@ -327,7 +327,7 @@ const runMigrations = async () => {
         FOREIGN KEY(tarea_id) REFERENCES tareas(id)
     )`);
 
-    // ✅ TABLA PARA HISTORIAL DE CHATBOT
+    // âœ… TABLA PARA HISTORIAL DE CHATBOT
     await dbRun(`CREATE TABLE IF NOT EXISTS chatbot_history(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         usuario_id INTEGER NOT NULL,
@@ -339,7 +339,7 @@ const runMigrations = async () => {
         FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
     )`);
 
-    // ✅ TABLA PARA MENSAJES PROACTIVOS DEL BOT
+    // âœ… TABLA PARA MENSAJES PROACTIVOS DEL BOT
     await dbRun(`CREATE TABLE IF NOT EXISTS chatbot_mensajes_proactivos(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         usuario_id INTEGER NOT NULL,
@@ -353,71 +353,71 @@ const runMigrations = async () => {
         FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
     )`);
 
-    // 🔧 MIGRACIÓN: Agregar columnas de resolución automática a tareas
+    // ðŸ”§ MIGRACIÃ“N: Agregar columnas de resoluciÃ³n automÃ¡tica a tareas
     try {
         await dbRun(`ALTER TABLE tareas ADD COLUMN resolucion_agente TEXT CHECK(resolucion_agente IN ('automatica','asistida','manual'))`);
-        console.log('✅ Columna resolucion_agente agregada');
+        console.log('âœ… Columna resolucion_agente agregada');
     } catch (e) {
-        if (!e.message.includes('duplicate column')) console.log('ℹ️  resolucion_agente ya existe');
+        if (!e.message.includes('duplicate column')) console.log('â„¹ï¸  resolucion_agente ya existe');
     }
     
     try {
         await dbRun(`ALTER TABLE tareas ADD COLUMN mensaje_generado TEXT`);
-        console.log('✅ Columna mensaje_generado agregada');
+        console.log('âœ… Columna mensaje_generado agregada');
     } catch (e) {
-        if (!e.message.includes('duplicate column')) console.log('ℹ️  mensaje_generado ya existe');
+        if (!e.message.includes('duplicate column')) console.log('â„¹ï¸  mensaje_generado ya existe');
     }
     
     try {
         await dbRun(`ALTER TABLE tareas ADD COLUMN accion_requerida TEXT`);
-        console.log('✅ Columna accion_requerida agregada');
+        console.log('âœ… Columna accion_requerida agregada');
     } catch (e) {
-        if (!e.message.includes('duplicate column')) console.log('ℹ️  accion_requerida ya existe');
+        if (!e.message.includes('duplicate column')) console.log('â„¹ï¸  accion_requerida ya existe');
     }
     
     try {
         await dbRun(`ALTER TABLE tareas ADD COLUMN metadata TEXT`);
-        console.log('✅ Columna metadata agregada');
+        console.log('âœ… Columna metadata agregada');
     } catch (e) {
-        if (!e.message.includes('duplicate column')) console.log('ℹ️  metadata ya existe');
+        if (!e.message.includes('duplicate column')) console.log('â„¹ï¸  metadata ya existe');
     }
     
     try {
         await dbRun(`ALTER TABLE tareas ADD COLUMN fecha_mensaje_enviado TEXT`);
-        console.log('✅ Columna fecha_mensaje_enviado agregada');
+        console.log('âœ… Columna fecha_mensaje_enviado agregada');
     } catch (e) {
-        if (!e.message.includes('duplicate column')) console.log('ℹ️  fecha_mensaje_enviado ya existe');
+        if (!e.message.includes('duplicate column')) console.log('â„¹ï¸  fecha_mensaje_enviado ya existe');
     }
     
     try {
         await dbRun(`ALTER TABLE tareas ADD COLUMN respuesta_cliente TEXT`);
-        console.log('✅ Columna respuesta_cliente agregada');
+        console.log('âœ… Columna respuesta_cliente agregada');
     } catch (e) {
-        if (!e.message.includes('duplicate column')) console.log('ℹ️  respuesta_cliente ya existe');
+        if (!e.message.includes('duplicate column')) console.log('â„¹ï¸  respuesta_cliente ya existe');
     }
     
     try {
         await dbRun(`ALTER TABLE tareas ADD COLUMN tipo_alerta TEXT`);
-        console.log('✅ Columna tipo_alerta agregada');
+        console.log('âœ… Columna tipo_alerta agregada');
     } catch (e) {
-        if (!e.message.includes('duplicate column')) console.log('ℹ️  tipo_alerta ya existe');
+        if (!e.message.includes('duplicate column')) console.log('â„¹ï¸  tipo_alerta ya existe');
     }
     
     try {
         await dbRun(`ALTER TABLE tareas ADD COLUMN cliente_id INTEGER`);
-        console.log('✅ Columna cliente_id agregada');
+        console.log('âœ… Columna cliente_id agregada');
     } catch (e) {
-        if (!e.message.includes('duplicate column')) console.log('ℹ️  cliente_id ya existe');
+        if (!e.message.includes('duplicate column')) console.log('â„¹ï¸  cliente_id ya existe');
     }
     
     try {
         await dbRun(`ALTER TABLE tareas ADD COLUMN cliente_nombre TEXT`);
-        console.log('✅ Columna cliente_nombre agregada');
+        console.log('âœ… Columna cliente_nombre agregada');
     } catch (e) {
-        if (!e.message.includes('duplicate column')) console.log('ℹ️  cliente_nombre ya existe');
+        if (!e.message.includes('duplicate column')) console.log('â„¹ï¸  cliente_nombre ya existe');
     }
 
-    // ✅ TABLA PARA MONITOREO DE ACTIVIDAD DE OPERADORES
+    // âœ… TABLA PARA MONITOREO DE ACTIVIDAD DE OPERADORES
     await dbRun(`CREATE TABLE IF NOT EXISTS actividad_operadores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         usuario_id INTEGER NOT NULL,
@@ -427,15 +427,15 @@ const runMigrations = async () => {
         metadata TEXT,
         FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
     )`);
-    console.log('✅ Tabla actividad_operadores verificada');
+    console.log('âœ… Tabla actividad_operadores verificada');
 
-    // Índices para actividad_operadores
+    // Ãndices para actividad_operadores
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_actividad_usuario_timestamp ON actividad_operadores(usuario_id, timestamp)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_actividad_tipo ON actividad_operadores(tipo_actividad, timestamp)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_actividad_fecha ON actividad_operadores(fecha)`);
-    console.log('✅ Índices de actividad_operadores verificados');
+    console.log('âœ… Ãndices de actividad_operadores verificados');
 
-    // ✅ TABLAS PARA SISTEMA DE NÓMINA
+    // âœ… TABLAS PARA SISTEMA DE NÃ“MINA
     await dbRun(`CREATE TABLE IF NOT EXISTS periodos_pago (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         anio INTEGER NOT NULL,
@@ -449,7 +449,7 @@ const runMigrations = async () => {
         creado_en TEXT DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(anio, mes, quincena)
     )`);
-    console.log('✅ Tabla periodos_pago verificada');
+    console.log('âœ… Tabla periodos_pago verificada');
 
     await dbRun(`CREATE TABLE IF NOT EXISTS nomina (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -472,7 +472,7 @@ const runMigrations = async () => {
         FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
         UNIQUE(periodo_id, usuario_id)
     )`);
-    console.log('✅ Tabla nomina verificada');
+    console.log('âœ… Tabla nomina verificada');
 
     await dbRun(`CREATE TABLE IF NOT EXISTS atencion_rapida (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -485,20 +485,20 @@ const runMigrations = async () => {
         FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
         FOREIGN KEY (cliente_id) REFERENCES clientes(id)
     )`);
-    console.log('✅ Tabla atencion_rapida verificada');
+    console.log('âœ… Tabla atencion_rapida verificada');
 
-    // Índices para nómina
+    // Ãndices para nÃ³mina
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_nomina_periodo ON nomina(periodo_id)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_nomina_usuario ON nomina(usuario_id)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_atencion_rapida_usuario_fecha ON atencion_rapida(usuario_id, fecha)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_periodos_pago_estado ON periodos_pago(estado)`);
-    console.log('✅ Índices de nómina verificados');
+    console.log('âœ… Ãndices de nÃ³mina verificados');
 
     // =================================================================
-    // TABLAS PARA APP CLIENTE MÓVIL
+    // TABLAS PARA APP CLIENTE MÃ“VIL
     // =================================================================
     
-    // Tabla de usuarios de la app cliente (autenticación con Google)
+    // Tabla de usuarios de la app cliente (autenticaciÃ³n con Google)
     await dbRun(`CREATE TABLE IF NOT EXISTS clientes_app (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         google_id TEXT UNIQUE NOT NULL,
@@ -519,7 +519,7 @@ const runMigrations = async () => {
         ultimo_acceso TEXT,
         UNIQUE(documento_tipo, documento_numero)
     )`);
-    console.log('✅ Tabla clientes_app verificada');
+    console.log('âœ… Tabla clientes_app verificada');
 
     // Tabla de beneficiarios de transferencias
     await dbRun(`CREATE TABLE IF NOT EXISTS beneficiarios (
@@ -541,9 +541,9 @@ const runMigrations = async () => {
         fecha_actualizacion TEXT,
         FOREIGN KEY (cliente_app_id) REFERENCES clientes_app(id)
     )`);
-    // Asegurar columna isFavorite si la tabla ya existía
+    // Asegurar columna isFavorite si la tabla ya existÃ­a
     await dbRun(`ALTER TABLE beneficiarios ADD COLUMN isFavorite INTEGER DEFAULT 0`).catch(() => {});
-    console.log('✅ Tabla beneficiarios verificada');
+    console.log('âœ… Tabla beneficiarios verificada');
 
     // Tabla de cuentas de pago (donde recibe dinero la empresa)
     await dbRun(`CREATE TABLE IF NOT EXISTS cuentas_pago (
@@ -560,7 +560,7 @@ const runMigrations = async () => {
         orden INTEGER DEFAULT 0,
         fecha_creacion TEXT NOT NULL
     )`);
-    console.log('✅ Tabla cuentas_pago verificada');
+    console.log('âœ… Tabla cuentas_pago verificada');
 
     // Tabla de solicitudes de transferencia desde la app
     await dbRun(`CREATE TABLE IF NOT EXISTS solicitudes_transferencia (
@@ -589,15 +589,15 @@ const runMigrations = async () => {
         FOREIGN KEY (operador_id) REFERENCES usuarios(id),
         FOREIGN KEY (operacion_id) REFERENCES operaciones(id)
     )`);
-    console.log('✅ Tabla solicitudes_transferencia verificada');
+    console.log('âœ… Tabla solicitudes_transferencia verificada');
 
-    // Índices para app cliente
+    // Ãndices para app cliente
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_clientes_app_google ON clientes_app(google_id)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_clientes_app_email ON clientes_app(email)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_beneficiarios_cliente ON beneficiarios(cliente_app_id)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_solicitudes_cliente ON solicitudes_transferencia(cliente_app_id)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_solicitudes_estado ON solicitudes_transferencia(estado)`);
-    console.log('✅ Índices de app cliente verificados');
+    console.log('âœ… Ãndices de app cliente verificados');
 
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -605,15 +605,15 @@ const runMigrations = async () => {
             if (!row || row.c === 0) {
                 const hash = await bcrypt.hash('master123', 10);
                 await dbRun(`INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`, ['master', hash, 'master']);
-                console.log('✅ Usuario semilla creado: master/master123');
+                console.log('âœ… Usuario semilla creado: master/master123');
             }
-            console.log('✅ Verificación de base de datos completada.');
+            console.log('âœ… VerificaciÃ³n de base de datos completada.');
             resolve();
         });
     });
 };
 // =================================================================
-// FIN: MIGRACIÓN Y VERIFICACIÓN DE BASE DE DATOS
+// FIN: MIGRACIÃ“N Y VERIFICACIÃ“N DE BASE DE DATOS
 // =================================================================
 
 
@@ -658,7 +658,18 @@ const readConfigValue = (clave) => {
 };
 
 // -------------------- Páginas --------------------
-app.get('/', (req, res) => res.redirect('/login.html'));
+const sendClientePage = (page, res) =>
+  res.sendFile(path.join(__dirname, 'app-cliente', page));
+
+app.get('/', (req, res) => res.redirect('/app-cliente/login.html'));
+app.get('/login.html', (req, res) => sendClientePage('login.html', res));
+app.get('/home.html', (req, res) => sendClientePage('home.html', res));
+app.get('/destinatarios.html', (req, res) => sendClientePage('destinatarios.html', res));
+app.get('/destinatario-form.html', (req, res) => sendClientePage('destinatario-form.html', res));
+app.get('/enviar.html', (req, res) => sendClientePage('enviar.html', res));
+app.get('/registro.html', (req, res) => sendClientePage('registro.html', res));
+app.get('/soporte.html', (req, res) => sendClientePage('soporte.html', res));
+app.get('/perfil.html', (req, res) => sendClientePage('perfil.html', res));
 app.get('/app.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'app.html')));
 app.get('/admin.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/historico.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'historico.html')));
@@ -669,9 +680,9 @@ app.get('/analytics.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   db.get(`SELECT * FROM usuarios WHERE username=?`, [username], (err, u) => {
-    if (err || !u) return res.status(400).json({ message: 'Credenciales inválidas' });
+    if (err || !u) return res.status(400).json({ message: 'Credenciales invÃ¡lidas' });
     bcrypt.compare(password, u.password, (e, ok) => {
-      if (e || !ok) return res.status(400).json({ message: 'Credenciales inválidas' });
+      if (e || !ok) return res.status(400).json({ message: 'Credenciales invÃ¡lidas' });
       req.session.user = { id: u.id, username: u.username, role: u.role };
       
       // Registrar login en actividad
@@ -732,7 +743,7 @@ app.get('/api/actividad/operadores', apiAuth, onlyMaster, async (req, res) => {
         const resultado = [];
         
         for (const operador of operadores) {
-            // Obtener todas las actividades del día
+            // Obtener todas las actividades del dÃ­a
             const actividades = await dbAll(`
                 SELECT tipo_actividad, timestamp
                 FROM actividad_operadores
@@ -741,7 +752,7 @@ app.get('/api/actividad/operadores', apiAuth, onlyMaster, async (req, res) => {
                 ORDER BY timestamp ASC
             `, [operador.id, fechaFiltro]);
             
-            // Calcular horas online con gaps de máximo 30 minutos
+            // Calcular horas online con gaps de mÃ¡ximo 30 minutos
             let horasOnline = 0;
             let sesionInicio = null;
             let ultimaActividad = null;
@@ -751,15 +762,15 @@ app.get('/api/actividad/operadores', apiAuth, onlyMaster, async (req, res) => {
                 const timestamp = new Date(act.timestamp);
                 
                 if (!sesionInicio) {
-                    // Iniciar nueva sesión
+                    // Iniciar nueva sesiÃ³n
                     sesionInicio = timestamp;
                     ultimaActividad = timestamp;
                 } else {
-                    // Calcular diferencia con última actividad
+                    // Calcular diferencia con Ãºltima actividad
                     const diffMinutos = (timestamp - ultimaActividad) / (1000 * 60);
                     
                     if (diffMinutos > UMBRAL_MINUTOS) {
-                        // Gap > 30 min: cerrar sesión anterior e iniciar nueva
+                        // Gap > 30 min: cerrar sesiÃ³n anterior e iniciar nueva
                         horasOnline += (ultimaActividad - sesionInicio) / (1000 * 60 * 60);
                         sesionInicio = timestamp;
                     }
@@ -768,12 +779,12 @@ app.get('/api/actividad/operadores', apiAuth, onlyMaster, async (req, res) => {
                 }
             }
             
-            // Cerrar última sesión si existe
+            // Cerrar Ãºltima sesiÃ³n si existe
             if (sesionInicio && ultimaActividad) {
                 horasOnline += (ultimaActividad - sesionInicio) / (1000 * 60 * 60);
             }
             
-            // Contar actividades específicas
+            // Contar actividades especÃ­ficas
             const operaciones = await dbGet(`
                 SELECT COUNT(*) as cnt FROM actividad_operadores
                 WHERE usuario_id = ? AND tipo_actividad = 'operacion' AND fecha = ?
@@ -813,7 +824,7 @@ app.get('/api/actividad/operadores', apiAuth, onlyMaster, async (req, res) => {
     }
 });
 
-// --- Endpoint para verificar número de recibo ---
+// --- Endpoint para verificar nÃºmero de recibo ---
 app.get('/api/recibo/check', apiAuth, (req, res) => {
     const { numero, excludeId } = req.query;
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -835,7 +846,7 @@ app.get('/api/recibo/check', apiAuth, (req, res) => {
     });
 });
 
-// -------------------- Rutas de búsqueda añadidas --------------------
+// -------------------- Rutas de bÃºsqueda aÃ±adidas --------------------
 app.get('/api/clientes/search', apiAuth, (req, res) => {
     const term = String(req.query.term || '').trim();
     if (!term || term.length < 2) return res.json([]);
@@ -855,9 +866,9 @@ app.get('/api/usuarios/search', apiAuth, onlyMaster, (req, res) => {
 
 
 // =================================================================
-// INICIO: ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
+// INICIO: ENDPOINTS PARA LA GESTIÃ“N DE CLIENTES (CRUD)
 // =================================================================
-// ✅ ENDPOINT DE CLIENTES MODIFICADO PARA PAGINACIÓN Y BÚSQUEDA
+// âœ… ENDPOINT DE CLIENTES MODIFICADO PARA PAGINACIÃ“N Y BÃšSQUEDA
 app.get('/api/clientes', apiAuth, async (req, res) => {
     try {
         const page = parseInt(req.query.page || '1', 10);
@@ -884,14 +895,14 @@ app.get('/api/clientes', apiAuth, async (req, res) => {
     }
 });
 
-// 🔍 ENDPOINT PARA BUSCAR POSIBLES DUPLICADOS (debe ir ANTES de /api/clientes/:id)
+// ðŸ” ENDPOINT PARA BUSCAR POSIBLES DUPLICADOS (debe ir ANTES de /api/clientes/:id)
 app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
     try {
         const clientes = await dbAll(`SELECT id, nombre, rut, email, telefono FROM clientes ORDER BY LOWER(nombre)`);
         const duplicados = [];
         const procesados = new Set();
         
-        // Función para normalizar texto (sin acentos, minúsculas, sin espacios múltiples)
+        // FunciÃ³n para normalizar texto (sin acentos, minÃºsculas, sin espacios mÃºltiples)
         const normalizar = (texto) => {
             return texto
                 .toLowerCase()
@@ -901,7 +912,7 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
                 .replace(/\s+/g, ' '); // Normalizar espacios
         };
         
-        // Función para calcular similitud de Levenshtein
+        // FunciÃ³n para calcular similitud de Levenshtein
         const levenshteinDistance = (str1, str2) => {
             const len1 = str1.length;
             const len2 = str2.length;
@@ -928,7 +939,7 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
             return matrix[len1][len2];
         };
         
-        // Función para verificar similitud (más flexible)
+        // FunciÃ³n para verificar similitud (mÃ¡s flexible)
         const sonSimilares = (nombre1, nombre2) => {
             const n1 = normalizar(nombre1);
             const n2 = normalizar(nombre2);
@@ -942,7 +953,7 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
             // Si uno contiene al otro completamente
             if (n1.includes(n2) || n2.includes(n1)) {
                 const longitudMin = Math.min(n1.length, n2.length);
-                // Solo si el más corto tiene al menos 4 caracteres
+                // Solo si el mÃ¡s corto tiene al menos 4 caracteres
                 if (longitudMin >= 4) return true;
             }
             
@@ -951,7 +962,7 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
             if (longitudMax <= 15) { // Solo para nombres relativamente cortos
                 const distancia = levenshteinDistance(n1, n2);
                 const similitud = 1 - (distancia / longitudMax);
-                // Si tienen más del 75% de similitud
+                // Si tienen mÃ¡s del 75% de similitud
                 if (similitud >= 0.75) return true;
             }
             
@@ -978,7 +989,7 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
                 }
             }
             
-            // Verificar coincidencia de apellidos (última palabra si hay varias)
+            // Verificar coincidencia de apellidos (Ãºltima palabra si hay varias)
             if (palabras1.length >= 2 && palabras2.length >= 2) {
                 const apellido1 = palabras1[palabras1.length - 1];
                 const apellido2 = palabras2[palabras2.length - 1];
@@ -1040,7 +1051,7 @@ app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
     }
 });
 
-// 🔀 ENDPOINT PARA FUSIONAR CLIENTES DUPLICADOS (debe ir ANTES de /api/clientes/:id)
+// ðŸ”€ ENDPOINT PARA FUSIONAR CLIENTES DUPLICADOS (debe ir ANTES de /api/clientes/:id)
 app.post('/api/clientes/fusionar', apiAuth, onlyMaster, async (req, res) => {
     const { cliente_principal_id, cliente_duplicado_id } = req.body;
     
@@ -1069,7 +1080,7 @@ app.post('/api/clientes/fusionar', apiAuth, onlyMaster, async (req, res) => {
         // Transferir todas las operaciones del duplicado al principal
         await dbRun(`UPDATE operaciones SET cliente_id = ? WHERE cliente_id = ?`, [cliente_principal_id, cliente_duplicado_id]);
         
-        // Actualizar datos del cliente principal si el duplicado tiene información adicional
+        // Actualizar datos del cliente principal si el duplicado tiene informaciÃ³n adicional
         const updates = [];
         const params = [];
         
@@ -1089,7 +1100,7 @@ app.post('/api/clientes/fusionar', apiAuth, onlyMaster, async (req, res) => {
         await dbRun('COMMIT');
         
         res.json({ 
-            message: 'Clientes fusionados con éxito.', 
+            message: 'Clientes fusionados con Ã©xito.', 
             operaciones_transferidas: countOps.total,
             cliente_final: clientePrincipal.nombre
         });
@@ -1112,7 +1123,7 @@ app.post('/api/clientes', apiAuth, (req, res) => {
     let { nombre, rut, email, telefono, datos_bancarios } = req.body;
     if (!nombre) return res.status(400).json({ message: 'El nombre es obligatorio.' });
     
-    // Normalizar nombre: Title Case (Primera letra mayúscula de cada palabra)
+    // Normalizar nombre: Title Case (Primera letra mayÃºscula de cada palabra)
     nombre = nombre.trim().split(/\s+/).map(palabra => 
         palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
     ).join(' ');
@@ -1128,7 +1139,7 @@ app.post('/api/clientes', apiAuth, (req, res) => {
                 if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Ya existe un cliente con ese nombre.' });
                 return res.status(500).json({ message: 'Error al crear el cliente.' });
             }
-            res.status(201).json({ id: this.lastID, message: 'Cliente creado con éxito.' });
+            res.status(201).json({ id: this.lastID, message: 'Cliente creado con Ã©xito.' });
         });
     });
 });
@@ -1153,7 +1164,7 @@ app.put('/api/clientes/:id', apiAuth, (req, res) => {
                 return res.status(500).json({ message: 'Error al actualizar el cliente.' });
             }
             if (this.changes === 0) return res.status(404).json({ message: 'Cliente no encontrado.' });
-            res.json({ message: 'Cliente actualizado con éxito.' });
+            res.json({ message: 'Cliente actualizado con Ã©xito.' });
         });
     });
 });
@@ -1161,11 +1172,11 @@ app.delete('/api/clientes/:id', apiAuth, onlyMaster, (req, res) => {
     db.run('DELETE FROM clientes WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ message: 'Error al eliminar el cliente.' });
         if (this.changes === 0) return res.status(404).json({ message: 'Cliente no encontrado.' });
-        res.json({ message: 'Cliente eliminado con éxito.' });
+        res.json({ message: 'Cliente eliminado con Ã©xito.' });
     });
 });
 // =================================================================
-// FIN: ENDPOINTS PARA LA GESTIÓN DE CLIENTES (CRUD)
+// FIN: ENDPOINTS PARA LA GESTIÃ“N DE CLIENTES (CRUD)
 // =================================================================
 
 
@@ -1192,14 +1203,14 @@ app.get('/api/dashboard', apiAuth, async (req, res) => {
                         // Si hay tasa hoy, usarla
                         if (!err && rateHoy > 0) return resolve({ tasaCompraPromedio: rateHoy });
                         
-                        // Si no hay tasa hoy, buscar la última tasa histórica
+                        // Si no hay tasa hoy, buscar la Ãºltima tasa histÃ³rica
                         db.get(`SELECT tasa_clp_ves FROM compras WHERE date(fecha) <= date(?) ORDER BY fecha DESC, id DESC LIMIT 1`, 
                             [hoy], 
                             (errLast, lastPurchase) => {
                                 if (errLast || !lastPurchase || !lastPurchase.tasa_clp_ves) {
                                     return resolve({ tasaCompraPromedio: 0 });
                                 }
-                                // tasa_clp_ves ya está en formato VES/CLP, usar directamente
+                                // tasa_clp_ves ya estÃ¡ en formato VES/CLP, usar directamente
                                 resolve({ tasaCompraPromedio: lastPurchase.tasa_clp_ves });
                             }
                         );
@@ -1248,7 +1259,7 @@ app.get('/api/ganancia-mensual', apiAuth, onlyMaster, (req, res) => {
     const { mes } = req.query; // Formato: YYYY-MM
     
     if (!mes || !/^\d{4}-\d{2}$/.test(mes)) {
-        return res.status(400).json({ message: 'Formato de mes inválido. Use YYYY-MM' });
+        return res.status(400).json({ message: 'Formato de mes invÃ¡lido. Use YYYY-MM' });
     }
     
     const inicioMes = `${mes}-01`;
@@ -1274,22 +1285,22 @@ app.get('/api/ganancia-mensual', apiAuth, onlyMaster, (req, res) => {
     );
 });
 
-// Endpoint de análisis de crecimiento día a día
+// Endpoint de anÃ¡lisis de crecimiento dÃ­a a dÃ­a
 app.get('/api/analisis/crecimiento', apiAuth, (req, res) => {
     const { fecha } = req.query;
     
     if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-        return res.status(400).json({ message: 'Formato de fecha inválido. Use YYYY-MM-DD' });
+        return res.status(400).json({ message: 'Formato de fecha invÃ¡lido. Use YYYY-MM-DD' });
     }
 
-    // Calcular la fecha del mes anterior (mismo día)
+    // Calcular la fecha del mes anterior (mismo dÃ­a)
     const fechaObj = new Date(fecha + 'T00:00:00');
     const fechaPreviaObj = new Date(fechaObj);
     fechaPreviaObj.setMonth(fechaPreviaObj.getMonth() - 1);
     
-    // Si el día no existe en el mes anterior (ej: 31 de marzo -> 28/29 feb), ajustar
+    // Si el dÃ­a no existe en el mes anterior (ej: 31 de marzo -> 28/29 feb), ajustar
     if (fechaPreviaObj.getDate() !== fechaObj.getDate()) {
-        fechaPreviaObj.setDate(0); // Último día del mes anterior
+        fechaPreviaObj.setDate(0); // Ãšltimo dÃ­a del mes anterior
     }
     
     const fechaPrevia = fechaPreviaObj.toISOString().slice(0, 10);
@@ -1313,7 +1324,7 @@ app.get('/api/analisis/crecimiento', apiAuth, (req, res) => {
             `, [fechaTarget], (err, row) => {
                 if (err) return reject(err);
                 
-                // Calcular clientes recurrentes (que ya habían operado antes de esta fecha)
+                // Calcular clientes recurrentes (que ya habÃ­an operado antes de esta fecha)
                 db.get(`
                     SELECT COUNT(DISTINCT o1.cliente_id) as clientes_recurrentes
                     FROM operaciones o1
@@ -1363,8 +1374,8 @@ app.get('/api/analisis/crecimiento', apiAuth, (req, res) => {
         });
     })
     .catch(error => {
-        console.error('Error en análisis de crecimiento:', error);
-        res.status(500).json({ message: 'Error al generar análisis de crecimiento' });
+        console.error('Error en anÃ¡lisis de crecimiento:', error);
+        res.status(500).json({ message: 'Error al generar anÃ¡lisis de crecimiento' });
     });
 });
 
@@ -1432,7 +1443,7 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
           .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase())
           .join(' ');
       
-      console.log(`\n📝 Nueva operación - Usuario: ${req.session.user.username}, Cliente: ${nombreNormalizado}, Monto: ${montoClpNum} CLP`);
+      console.log(`\nðŸ“ Nueva operaciÃ³n - Usuario: ${req.session.user.username}, Cliente: ${nombreNormalizado}, Monto: ${montoClpNum} CLP`);
       
       const findOrCreateCliente = new Promise((resolve, reject) => {
           // Buscar cliente existente comparando sin acentos
@@ -1448,14 +1459,14 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
               if (clienteExistente) return resolve(clienteExistente.id);
               
               // NO crear cliente nuevo - retornar error
-              return reject(new Error('El cliente no existe. Debe registrarlo primero en la sección de Gestión de Clientes.'));
+              return reject(new Error('El cliente no existe. Debe registrarlo primero en la secciÃ³n de GestiÃ³n de Clientes.'));
           });
       });
       
       const getCosto = new Promise((resolve, reject) => {
           calcularCostoClpPorVes(fechaGuardado, (err, costo) => {
               if (err) return reject(new Error('Error al calcular costo.'));
-              if (!costo || costo === 0) return reject(new Error('No se pudo determinar el costo de la operación. Registre una compra.'));
+              if (!costo || costo === 0) return reject(new Error('No se pudo determinar el costo de la operaciÃ³n. Registre una compra.'));
               resolve(costo);
           });
       });
@@ -1470,17 +1481,17 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
               [req.session.user.id, cliente_id, fechaGuardado, montoClpNum, montoVesNum, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes, numero_recibo],
               function (err) {
                 if (err) {
-                    if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Error: El número de recibo ya existe.' });
-                    return res.status(500).json({ message: 'Error inesperado al guardar la operación.' });
+                    if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Error: El nÃºmero de recibo ya existe.' });
+                    return res.status(500).json({ message: 'Error inesperado al guardar la operaciÃ³n.' });
                 }
                 db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar]);
                 db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNeta]);
                 
-                console.log(`✅ Operación #${numero_recibo} registrada exitosamente`);
-                console.log(`   Cliente ID: ${cliente_id}, Monto: ${montoClpNum} CLP → ${montoVesNum} VES`);
+                console.log(`âœ… OperaciÃ³n #${numero_recibo} registrada exitosamente`);
+                console.log(`   Cliente ID: ${cliente_id}, Monto: ${montoClpNum} CLP â†’ ${montoVesNum} VES`);
                 console.log(`   Ganancia Neta: ${gananciaNeta.toFixed(2)} CLP`);
                 
-                // Registrar actividad de operación
+                // Registrar actividad de operaciÃ³n
                 const timestamp = new Date().toISOString();
                 db.run(`
                     INSERT INTO actividad_operadores(usuario_id, tipo_actividad, timestamp, metadata)
@@ -1497,38 +1508,38 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
                         const datosFaltantes = [];
                         if (!cliente.rut || cliente.rut.trim() === '') datosFaltantes.push('RUT');
                         if (!cliente.email || cliente.email.trim() === '') datosFaltantes.push('Email');
-                        if (!cliente.telefono || cliente.telefono.trim() === '') datosFaltantes.push('Teléfono');
+                        if (!cliente.telefono || cliente.telefono.trim() === '') datosFaltantes.push('TelÃ©fono');
                         
                         if (datosFaltantes.length > 0) {
-                            console.log(`\n⚠️  ALERTA: Cliente "${cliente.nombre}" tiene datos incompletos!`);
+                            console.log(`\nâš ï¸  ALERTA: Cliente "${cliente.nombre}" tiene datos incompletos!`);
                             console.log(`   Faltan: ${datosFaltantes.join(', ')}`);
-                            console.log(`   Se creará notificación para el operador\n`);
+                            console.log(`   Se crearÃ¡ notificaciÃ³n para el operador\n`);
                             
-                            const mensaje = `⚠️ Cliente "${cliente.nombre}" realizó una operación pero le faltan datos: ${datosFaltantes.join(', ')}. Por favor actualizar su información.`;
+                            const mensaje = `âš ï¸ Cliente "${cliente.nombre}" realizÃ³ una operaciÃ³n pero le faltan datos: ${datosFaltantes.join(', ')}. Por favor actualizar su informaciÃ³n.`;
                             const fechaCreacion = new Date().toISOString();
                             
-                            // Crear notificación para el operador que registró la operación
+                            // Crear notificaciÃ³n para el operador que registrÃ³ la operaciÃ³n
                             db.run(
                                 `INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion) VALUES (?, ?, ?, ?, ?)`,
                                 [req.session.user.id, 'alerta', 'Datos de cliente incompletos', mensaje, fechaCreacion],
                                 (errNot) => {
-                                    if (errNot) console.error('❌ Error al crear notificación de datos incompletos:', errNot);
-                                    else console.log(`✅ Notificación creada para usuario ID ${req.session.user.id}`);
+                                    if (errNot) console.error('âŒ Error al crear notificaciÃ³n de datos incompletos:', errNot);
+                                    else console.log(`âœ… NotificaciÃ³n creada para usuario ID ${req.session.user.id}`);
                                 }
                             );
                         } else {
-                            console.log(`✅ Cliente "${cliente.nombre}" tiene datos completos\n`);
+                            console.log(`âœ… Cliente "${cliente.nombre}" tiene datos completos\n`);
                         }
                     }
                 });
                 
-                res.status(201).json({ id: this.lastID, message: 'Operación registrada con éxito.' });
+                res.status(201).json({ id: this.lastID, message: 'OperaciÃ³n registrada con Ã©xito.' });
               }
             );
         })
         .catch(error => {
-            console.error("Error en la promesa de operación:", error.message);
-            res.status(500).json({ message: error.message || 'Error al procesar la operación.' });
+            console.error("Error en la promesa de operaciÃ³n:", error.message);
+            res.status(500).json({ message: error.message || 'Error al procesar la operaciÃ³n.' });
         });
   }).catch(e => {
       console.error("Error validando saldo VES:", e);
@@ -1540,19 +1551,19 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
     const operacionId = req.params.id;
     const user = req.session.user;
     const { cliente_nombre, monto_clp, tasa, observaciones, fecha, numero_recibo } = req.body;
-    if (!numero_recibo) return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
+    if (!numero_recibo) return res.status(400).json({ message: 'El nÃºmero de recibo es obligatorio.' });
     
     db.get('SELECT id FROM operaciones WHERE numero_recibo = ? AND id != ?', [numero_recibo, operacionId], (err, existing) => {
         if (err) return res.status(500).json({ message: 'Error de base de datos al verificar recibo.' });
-        if (existing) return res.status(400).json({ message: 'El número de recibo ya está en uso por otra operación.' });
+        if (existing) return res.status(400).json({ message: 'El nÃºmero de recibo ya estÃ¡ en uso por otra operaciÃ³n.' });
         
         db.get('SELECT * FROM operaciones WHERE id = ?', [operacionId], (err, opOriginal) => {
-            if (err || !opOriginal) return res.status(404).json({ message: 'Operación no encontrada.' });
+            if (err || !opOriginal) return res.status(404).json({ message: 'OperaciÃ³n no encontrada.' });
             
             const esMaster = user.role === 'master';
             const esSuOperacion = opOriginal.usuario_id === user.id;
             const esDeHoy = opOriginal.fecha === hoyLocalYYYYMMDD();
-            if (!esMaster && !(esSuOperacion && esDeHoy)) return res.status(403).json({ message: 'No tienes permiso para editar esta operación.' });
+            if (!esMaster && !(esSuOperacion && esDeHoy)) return res.status(403).json({ message: 'No tienes permiso para editar esta operaciÃ³n.' });
 
             calcularCostoClpPorVes(fecha, (e, costoClpPorVes) => {
                 if (e || !costoClpPorVes || costoClpPorVes === 0) return res.status(500).json({ message: 'Error al recalcular el costo. Verifique que existan compras registradas.' });
@@ -1580,10 +1591,10 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
                         db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
                             if (err) {
                                 db.run('ROLLBACK');
-                                return res.status(500).json({ message: 'Error al actualizar saldos, se revirtió la operación.' });
+                                return res.status(500).json({ message: 'Error al actualizar saldos, se revirtiÃ³ la operaciÃ³n.' });
                             }
                             db.run('COMMIT');
-                            res.json({ message: 'Operación y saldos actualizados con éxito.' });
+                            res.json({ message: 'OperaciÃ³n y saldos actualizados con Ã©xito.' });
                         });
                     });
                 });
@@ -1595,7 +1606,7 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
 app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
     const operacionId = req.params.id;
     db.get('SELECT * FROM operaciones WHERE id = ?', [operacionId], (err, op) => {
-        if (err || !op) return res.status(404).json({ message: 'Operación no encontrada.' });
+        if (err || !op) return res.status(404).json({ message: 'OperaciÃ³n no encontrada.' });
         const gananciaBruta = op.monto_clp - op.costo_clp;
         const comisionClp = op.monto_clp * 0.003;
         const gananciaNetaARevertir = gananciaBruta - comisionClp;
@@ -1607,16 +1618,16 @@ app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
             db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [vesTotalARevertir], (err) => {
                 if (err) {
                     db.run('ROLLBACK');
-                    return res.status(500).json({ message: 'Error al revertir saldos, se canceló el borrado.' });
+                    return res.status(500).json({ message: 'Error al revertir saldos, se cancelÃ³ el borrado.' });
                 }
                 db.run('COMMIT');
-                res.json({ message: 'Operación borrada y saldos revertidos con éxito.' });
+                res.json({ message: 'OperaciÃ³n borrada y saldos revertidos con Ã©xito.' });
             });
         });
     });
 });
 
-// ✅ NUEVO ENDPOINT PARA RECALCULAR COSTOS
+// âœ… NUEVO ENDPOINT PARA RECALCULAR COSTOS
 app.post('/api/operaciones/recalculate-costs', apiAuth, onlyMaster, async (req, res) => {
     const { ids } = req.body;
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -1658,7 +1669,7 @@ app.post('/api/operaciones/recalculate-costs', apiAuth, onlyMaster, async (req, 
         }
 
         await dbRun('COMMIT');
-        res.json({ message: `Recalculación completada. ${recalculadas} operaciones actualizadas.`, totalAjusteGanancia: gananciaAcumuladaDelta });
+        res.json({ message: `RecalculaciÃ³n completada. ${recalculadas} operaciones actualizadas.`, totalAjusteGanancia: gananciaAcumuladaDelta });
 
     } catch (error) {
         await dbRun('ROLLBACK');
@@ -1741,7 +1752,7 @@ app.get('/api/rendimiento/operadores', apiAuth, onlyMaster, (req, res) => {
 app.get('/api/mi-rendimiento', apiAuth, (req, res) => {
     const userId = req.session.user.id;
     
-    // Obtener primer y último día del mes actual en formato correcto
+    // Obtener primer y Ãºltimo dÃ­a del mes actual en formato correcto
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
@@ -1805,8 +1816,8 @@ app.post('/api/tasas', apiAuth, onlyMaster, (req, res) => {
     upsertConfig('tasaNivel2', String(tasaNivel2 ?? ''), () => {
       upsertConfig('tasaNivel3', String(tasaNivel3 ?? ''), () => {
         upsertConfig('margenToleranciaAlertas', String(margenToleranciaAlertas ?? '2.0'), () => {
-          // ✅ Ejecutar verificación inmediata después de guardar tasas
-          console.log('🔔 Tasas actualizadas por Master - Ejecutando verificación inmediata...');
+          // âœ… Ejecutar verificaciÃ³n inmediata despuÃ©s de guardar tasas
+          console.log('ðŸ”” Tasas actualizadas por Master - Ejecutando verificaciÃ³n inmediata...');
           setTimeout(() => monitorearTasasVES(), 2000); // Verificar en 2 segundos
           res.json({ ok: true });
         });
@@ -1819,30 +1830,30 @@ app.post('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
     const { capitalInicialClp } = req.body;
     upsertConfig('capitalInicialClp', String(Number(capitalInicialClp) || 0), (err) => {
         if (err) return res.status(500).json({ message: 'Error al actualizar el capital inicial.' });
-        res.json({ message: 'Capital inicial actualizado con éxito.' });
+        res.json({ message: 'Capital inicial actualizado con Ã©xito.' });
     });
 });
 
 app.get('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
     Promise.all(['capitalInicialClp', 'saldoInicialVes', 'capitalCostoVesPorClp'].map(readConfigValue))
         .then(([capitalInicialClp, saldoInicialVes, costoVesPorClp]) => res.json({ capitalInicialClp, saldoInicialVes, costoVesPorClp }))
-        .catch(e => res.status(500).json({ message: 'Error al leer configuración' }));
+        .catch(e => res.status(500).json({ message: 'Error al leer configuraciÃ³n' }));
 });
 
 app.post('/api/config/ajustar-saldo-ves', apiAuth, onlyMaster, (req, res) => {
     const { nuevoSaldoVes } = req.body;
     const saldo = Number(nuevoSaldoVes);
     if (isNaN(saldo) || saldo < 0) {
-        return res.status(400).json({ message: 'El valor del saldo debe ser un número positivo.' });
+        return res.status(400).json({ message: 'El valor del saldo debe ser un nÃºmero positivo.' });
     }
     upsertConfig('saldoVesOnline', String(saldo), (err) => {
         if (err) return res.status(500).json({ message: 'Error al actualizar el saldo.' });
-        res.json({ message: 'Saldo VES Online actualizado con éxito.' });
+        res.json({ message: 'Saldo VES Online actualizado con Ã©xito.' });
     });
 });
 
 // =================================================================
-// CONFIGURACIÓN BOT TELEGRAM
+// CONFIGURACIÃ“N BOT TELEGRAM
 // =================================================================
 app.get('/api/config/telegram', apiAuth, onlyMaster, async (req, res) => {
     try {
@@ -1856,7 +1867,7 @@ app.get('/api/config/telegram', apiAuth, onlyMaster, async (req, res) => {
             configurado: !!(botToken?.valor && chatId?.valor)
         });
     } catch (error) {
-        res.status(500).json({ error: 'Error al obtener configuración' });
+        res.status(500).json({ error: 'Error al obtener configuraciÃ³n' });
     }
 });
 
@@ -1875,29 +1886,29 @@ app.post('/api/config/telegram', apiAuth, onlyMaster, async (req, res) => {
         global.TELEGRAM_BOT_TOKEN = bot_token;
         global.TELEGRAM_CHAT_ID = chat_id;
 
-        // Enviar mensaje de prueba si está configurado
+        // Enviar mensaje de prueba si estÃ¡ configurado
         if (bot_token && chat_id) {
-            const testResult = await enviarNotificacionTelegram('✅ <b>Bot configurado correctamente</b>\n\nRecibirás notificaciones de nuevas solicitudes de la App Defi Oracle.');
+            const testResult = await enviarNotificacionTelegram('âœ… <b>Bot configurado correctamente</b>\n\nRecibirÃ¡s notificaciones de nuevas solicitudes de la App Defi Oracle.');
             if (testResult) {
-                res.json({ mensaje: 'Configuración guardada y mensaje de prueba enviado' });
+                res.json({ mensaje: 'ConfiguraciÃ³n guardada y mensaje de prueba enviado' });
             } else {
-                res.json({ mensaje: 'Configuración guardada, pero no se pudo enviar mensaje de prueba. Verifica el token y chat ID.' });
+                res.json({ mensaje: 'ConfiguraciÃ³n guardada, pero no se pudo enviar mensaje de prueba. Verifica el token y chat ID.' });
             }
         } else {
-            res.json({ mensaje: 'Configuración guardada' });
+            res.json({ mensaje: 'ConfiguraciÃ³n guardada' });
         }
     } catch (error) {
         console.error('Error guardando config Telegram:', error);
-        res.status(500).json({ error: 'Error al guardar configuración' });
+        res.status(500).json({ error: 'Error al guardar configuraciÃ³n' });
     }
 });
 
 app.post('/api/config/telegram/test', apiAuth, onlyMaster, async (req, res) => {
-    const result = await enviarNotificacionTelegram('🔔 <b>Mensaje de prueba</b>\n\n¡Las notificaciones de Telegram están funcionando correctamente!');
+    const result = await enviarNotificacionTelegram('ðŸ”” <b>Mensaje de prueba</b>\n\nÂ¡Las notificaciones de Telegram estÃ¡n funcionando correctamente!');
     if (result) {
         res.json({ mensaje: 'Mensaje de prueba enviado correctamente' });
     } else {
-        res.status(400).json({ error: 'No se pudo enviar el mensaje. Verifica la configuración.' });
+        res.status(400).json({ error: 'No se pudo enviar el mensaje. Verifica la configuraciÃ³n.' });
     }
 });
 
@@ -1919,7 +1930,7 @@ app.put('/api/usuarios/:id', apiAuth, onlyMaster, async (req, res) => {
     }
     db.run(sql, params, function (e) {
         if (e) return res.status(500).json({ message: 'Error al actualizar usuario' });
-        res.json({ message: 'Usuario actualizado con éxito.' });
+        res.json({ message: 'Usuario actualizado con Ã©xito.' });
     });
 });
 
@@ -1928,7 +1939,7 @@ app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
   if (!username || !password) return res.status(400).json({ message: 'Datos incompletos' });
   const hash = await bcrypt.hash(password, 10);
   db.run(`INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`, [username, hash, 'operador'], (e) => {
-      if (e) return res.status(400).json({ message: 'No se pudo crear (¿duplicado?)' });
+      if (e) return res.status(400).json({ message: 'No se pudo crear (Â¿duplicado?)' });
       res.json({ message: 'Operador creado' });
     }
   );
@@ -1955,8 +1966,8 @@ app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
                 return res.status(500).json({ message: 'Error al guardar la compra.', error: err.message });
             }
             db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [ves], (updateErr) => {
-                if(updateErr) return res.status(500).json({ message: 'Compra guardada, pero falló la actualización del saldo.' });
-                res.json({ message: 'Compra registrada con éxito.' });
+                if(updateErr) return res.status(500).json({ message: 'Compra guardada, pero fallÃ³ la actualizaciÃ³n del saldo.' });
+                res.json({ message: 'Compra registrada con Ã©xito.' });
             });
         }
     );
@@ -1978,10 +1989,10 @@ app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
             db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
                 if (err) {
                     db.run('ROLLBACK');
-                    return res.status(500).json({ message: 'Error al actualizar saldo, se revirtió la operación.' });
+                    return res.status(500).json({ message: 'Error al actualizar saldo, se revirtiÃ³ la operaciÃ³n.' });
                 }
                 db.run('COMMIT');
-                res.json({ message: 'Compra y saldo actualizados con éxito.' });
+                res.json({ message: 'Compra y saldo actualizados con Ã©xito.' });
             });
         });
     });
@@ -1998,10 +2009,10 @@ app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
             db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesARevertir], (err) => {
                 if (err) {
                     db.run('ROLLBACK');
-                    return res.status(500).json({ message: 'Error al revertir saldo, se canceló el borrado.' });
+                    return res.status(500).json({ message: 'Error al revertir saldo, se cancelÃ³ el borrado.' });
                 }
                 db.run('COMMIT');
-                res.json({ message: 'Compra borrada y saldo revertido con éxito.' });
+                res.json({ message: 'Compra borrada y saldo revertido con Ã©xito.' });
             });
         });
     });
@@ -2011,7 +2022,7 @@ app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
 // INICIO: ENDPOINTS DE ANALYTICS AVANZADO
 // =================================================================
 
-// 📊 ENDPOINT 1: Análisis de comportamiento de clientes
+// ðŸ“Š ENDPOINT 1: AnÃ¡lisis de comportamiento de clientes
 app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (req, res) => {
     try {
         const clientes = await dbAll(`
@@ -2040,9 +2051,9 @@ app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (re
             let tendencia = 'estable';
             
             if (c.total_operaciones > 0 && primeraOp && ultimaOp) {
-                // Cliente con una sola operación
+                // Cliente con una sola operaciÃ³n
                 if (c.total_operaciones === 1) {
-                    frecuencia = 'Única operación';
+                    frecuencia = 'Ãšnica operaciÃ³n';
                 } else {
                     const diasActivo = Math.max(1, Math.floor((ultimaOp - primeraOp) / (1000 * 60 * 60 * 24)));
                     const promedioDias = diasActivo / Math.max(1, c.total_operaciones - 1);
@@ -2051,10 +2062,10 @@ app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (re
                     if (c.total_operaciones >= 5 && promedioDias <= 2) frecuencia = 'Diario';
                     else if (promedioDias <= 7) frecuencia = 'Semanal';
                     else if (promedioDias <= 30) frecuencia = 'Mensual';
-                    else frecuencia = 'Esporádico';
+                    else frecuencia = 'EsporÃ¡dico';
                 }
                 
-                // Análisis de tendencia: comparar últimos 30 días vs 30-60 días atrás
+                // AnÃ¡lisis de tendencia: comparar Ãºltimos 30 dÃ­as vs 30-60 dÃ­as atrÃ¡s
                 const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
                 const hace60 = new Date(hoy.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
                 
@@ -2084,19 +2095,19 @@ app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (re
 
         res.json(analisis);
     } catch (error) {
-        console.error('Error en análisis de comportamiento:', error);
+        console.error('Error en anÃ¡lisis de comportamiento:', error);
         res.status(500).json({ message: 'Error al analizar comportamiento de clientes' });
     }
 });
 
-// 🚨 ENDPOINT 2: Alertas y clientes en riesgo
+// ðŸš¨ ENDPOINT 2: Alertas y clientes en riesgo
 app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res) => {
     try {
         const alertas = [];
         const hoy = new Date();
         const fechaHoy = hoyLocalYYYYMMDD();
         
-        // Clientes inactivos (30-60 días)
+        // Clientes inactivos (30-60 dÃ­as)
         const inactivos = await dbAll(`
             SELECT c.id, c.nombre, MAX(o.fecha) as ultima_operacion, COUNT(o.id) as total_ops
             FROM clientes c
@@ -2127,20 +2138,20 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
                     severidad: 'warning',
                     cliente_id: c.id,
                     cliente_nombre: c.nombre,
-                    mensaje: `Cliente inactivo por ${dias} días`,
+                    mensaje: `Cliente inactivo por ${dias} dÃ­as`,
                     dias_inactivo: dias,
                     ultima_operacion: c.ultima_operacion,
                     accion_realizada: null
                 });
             } else {
-                // Retornar alerta existente con acción si existe
+                // Retornar alerta existente con acciÃ³n si existe
                 alertas.push({
                     id: alertaExistente.id,
                     tipo: alertaExistente.tipo,
                     severidad: alertaExistente.severidad,
                     cliente_id: c.id,
                     cliente_nombre: c.nombre,
-                    mensaje: `Cliente inactivo por ${dias} días`,
+                    mensaje: `Cliente inactivo por ${dias} dÃ­as`,
                     dias_inactivo: dias,
                     ultima_operacion: c.ultima_operacion,
                     accion_realizada: alertaExistente.accion_realizada,
@@ -2149,7 +2160,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
             }
         }
         
-        // Clientes críticos (+60 días)
+        // Clientes crÃ­ticos (+60 dÃ­as)
         const criticos = await dbAll(`
             SELECT c.id, c.nombre, MAX(o.fecha) as ultima_operacion
             FROM clientes c
@@ -2178,7 +2189,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
                     severidad: 'danger',
                     cliente_id: c.id,
                     cliente_nombre: c.nombre,
-                    mensaje: `Cliente sin actividad por ${dias} días - RIESGO ALTO`,
+                    mensaje: `Cliente sin actividad por ${dias} dÃ­as - RIESGO ALTO`,
                     dias_inactivo: dias,
                     ultima_operacion: c.ultima_operacion,
                     accion_realizada: null
@@ -2190,7 +2201,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
                     severidad: alertaExistente.severidad,
                     cliente_id: c.id,
                     cliente_nombre: c.nombre,
-                    mensaje: `Cliente sin actividad por ${dias} días - RIESGO ALTO`,
+                    mensaje: `Cliente sin actividad por ${dias} dÃ­as - RIESGO ALTO`,
                     dias_inactivo: dias,
                     ultima_operacion: c.ultima_operacion,
                     accion_realizada: alertaExistente.accion_realizada,
@@ -2199,7 +2210,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
             }
         }
         
-        // Disminución de frecuencia
+        // DisminuciÃ³n de frecuencia
         const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         const hace60 = new Date(hoy.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
         
@@ -2236,7 +2247,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
                         severidad: 'warning',
                         cliente_id: c.cliente_id,
                         cliente_nombre: cliente.nombre,
-                        mensaje: `Reducción de actividad: ${anteriores.cnt} ops → ${recientes.cnt} ops`,
+                        mensaje: `ReducciÃ³n de actividad: ${anteriores.cnt} ops â†’ ${recientes.cnt} ops`,
                         ops_anterior: anteriores.cnt,
                         ops_reciente: recientes.cnt,
                         accion_realizada: null
@@ -2248,7 +2259,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
                         severidad: alertaExistente.severidad,
                         cliente_id: c.cliente_id,
                         cliente_nombre: cliente.nombre,
-                        mensaje: `Reducción de actividad: ${anteriores.cnt} ops → ${recientes.cnt} ops`,
+                        mensaje: `ReducciÃ³n de actividad: ${anteriores.cnt} ops â†’ ${recientes.cnt} ops`,
                         ops_anterior: anteriores.cnt,
                         ops_reciente: recientes.cnt,
                         accion_realizada: alertaExistente.accion_realizada,
@@ -2265,7 +2276,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
     }
 });
 
-// 👥 ENDPOINT 3: Análisis de clientes nuevos
+// ðŸ‘¥ ENDPOINT 3: AnÃ¡lisis de clientes nuevos
 app.get('/api/analytics/clientes/nuevos', apiAuth, onlyMaster, async (req, res) => {
     try {
         const { mes } = req.query; // formato: 2025-11
@@ -2317,7 +2328,7 @@ app.get('/api/analytics/clientes/nuevos', apiAuth, onlyMaster, async (req, res) 
     }
 });
 
-// 🔍 ENDPOINT 4: Detalle profundo de un cliente
+// ðŸ” ENDPOINT 4: Detalle profundo de un cliente
 app.get('/api/analytics/clientes/detalle/:id', apiAuth, onlyMaster, async (req, res) => {
     try {
         const clienteId = req.params.id;
@@ -2367,7 +2378,7 @@ app.get('/api/analytics/clientes/detalle/:id', apiAuth, onlyMaster, async (req, 
     }
 });
 
-// 🎯 ENDPOINT 5: Dashboard de metas
+// ðŸŽ¯ ENDPOINT 5: Dashboard de metas
 app.get('/api/analytics/metas/dashboard', apiAuth, onlyMaster, async (req, res) => {
     try {
         const mesActual = new Date().toISOString().slice(0, 7);
@@ -2425,7 +2436,7 @@ app.get('/api/analytics/metas/dashboard', apiAuth, onlyMaster, async (req, res) 
     }
 });
 
-// 🎯 ENDPOINT 6: Configurar metas
+// ðŸŽ¯ ENDPOINT 6: Configurar metas
 app.post('/api/analytics/metas/configurar', apiAuth, onlyMaster, async (req, res) => {
     try {
         const { mes, meta_clientes_activos, meta_nuevos_clientes, meta_volumen_clp, meta_operaciones } = req.body;
@@ -2460,8 +2471,8 @@ app.post('/api/analytics/metas/configurar', apiAuth, onlyMaster, async (req, res
  * Consulta anuncios P2P de Binance
  * @param {string} fiat - Moneda fiat (VES, CLP, etc)
  * @param {string} tradeType - BUY (comprar USDT) o SELL (vender USDT)
- * @param {string[]} payTypes - Métodos de pago específicos (ej: ["Bancamiga"])
- * @param {number} transAmount - Monto mínimo de transacción
+ * @param {string[]} payTypes - MÃ©todos de pago especÃ­ficos (ej: ["Bancamiga"])
+ * @param {number} transAmount - Monto mÃ­nimo de transacciÃ³n
  * @returns {Promise<Array>} - Lista de anuncios ordenados por precio
  */
 async function consultarBinanceP2P(fiat, tradeType, payTypes = [], transAmount = null) {
@@ -2475,7 +2486,7 @@ async function consultarBinanceP2P(fiat, tradeType, payTypes = [], transAmount =
             publisherType: null
         };
 
-        // Agregar filtro de métodos de pago si se especifican
+        // Agregar filtro de mÃ©todos de pago si se especifican
         if (payTypes && payTypes.length > 0) {
             payload.payTypes = payTypes;
         }
@@ -2520,7 +2531,7 @@ async function obtenerTasaVentaVES() {
             throw new Error('No se encontraron ofertas de venta USDT por VES con Bancamiga');
         }
 
-        // Filtrar por monto mínimo y ordenar por precio (más alto primero = mejor para vender)
+        // Filtrar por monto mÃ­nimo y ordenar por precio (mÃ¡s alto primero = mejor para vender)
         const ofertasValidas = anuncios
             .filter(ad => {
                 const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
@@ -2529,13 +2540,13 @@ async function obtenerTasaVentaVES() {
             .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
 
         if (ofertasValidas.length === 0) {
-            throw new Error('No hay ofertas válidas con monto mínimo <= 50,000 VES');
+            throw new Error('No hay ofertas vÃ¡lidas con monto mÃ­nimo <= 50,000 VES');
         }
 
         const mejorOferta = ofertasValidas[0];
         const precio = parseFloat(mejorOferta.adv?.price || 0);
 
-        console.log(`✅ Mejor oferta VES: ${precio} VES/USDT (Bancamiga)`);
+        console.log(`âœ… Mejor oferta VES: ${precio} VES/USDT (Bancamiga)`);
         return precio;
     } catch (error) {
         console.error('Error obteniendo tasa VES:', error.message);
@@ -2555,7 +2566,7 @@ async function obtenerTasaVentaCOP() {
             throw new Error('No se encontraron ofertas de venta USDT por COP con Bancolombia/Nequi');
         }
 
-        // Filtrar por monto mínimo y ordenar por precio (más alto primero = mejor para vender)
+        // Filtrar por monto mÃ­nimo y ordenar por precio (mÃ¡s alto primero = mejor para vender)
         const ofertasValidas = anuncios
             .filter(ad => {
                 const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
@@ -2564,13 +2575,13 @@ async function obtenerTasaVentaCOP() {
             .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
 
         if (ofertasValidas.length === 0) {
-            throw new Error('No hay ofertas válidas con monto mínimo <= 40,000 COP');
+            throw new Error('No hay ofertas vÃ¡lidas con monto mÃ­nimo <= 40,000 COP');
         }
 
         const mejorOferta = ofertasValidas[0];
         const precio = parseFloat(mejorOferta.adv?.price || 0);
 
-        console.log(`✅ Mejor oferta COP: ${precio} COP/USDT (Bancolombia/Nequi)`);
+        console.log(`âœ… Mejor oferta COP: ${precio} COP/USDT (Bancolombia/Nequi)`);
         return precio;
     } catch (error) {
         console.error('Error obteniendo tasa COP:', error.message);
@@ -2590,7 +2601,7 @@ async function obtenerTasaVentaPEN() {
             throw new Error('No se encontraron ofertas de venta USDT por PEN con BCP/Yape');
         }
 
-        // Filtrar por monto mínimo y ordenar por precio (más alto primero = mejor para vender)
+        // Filtrar por monto mÃ­nimo y ordenar por precio (mÃ¡s alto primero = mejor para vender)
         const ofertasValidas = anuncios
             .filter(ad => {
                 const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
@@ -2599,13 +2610,13 @@ async function obtenerTasaVentaPEN() {
             .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
 
         if (ofertasValidas.length === 0) {
-            throw new Error('No hay ofertas válidas con monto mínimo <= 30 PEN');
+            throw new Error('No hay ofertas vÃ¡lidas con monto mÃ­nimo <= 30 PEN');
         }
 
         const mejorOferta = ofertasValidas[0];
         const precio = parseFloat(mejorOferta.adv?.price || 0);
 
-        console.log(`✅ Mejor oferta PEN: ${precio} PEN/USDT (BCP/Yape)`);
+        console.log(`âœ… Mejor oferta PEN: ${precio} PEN/USDT (BCP/Yape)`);
         return precio;
     } catch (error) {
         console.error('Error obteniendo tasa PEN:', error.message);
@@ -2626,7 +2637,7 @@ async function obtenerTasaVentaBOB() {
             throw new Error('No se encontraron ofertas de venta USDT por BOB con Banco Ganadero/Economico');
         }
 
-        // Filtrar por monto mínimo y ordenar por precio (más alto primero = mejor para vender)
+        // Filtrar por monto mÃ­nimo y ordenar por precio (mÃ¡s alto primero = mejor para vender)
         const ofertasValidas = anuncios
             .filter(ad => {
                 const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
@@ -2635,13 +2646,13 @@ async function obtenerTasaVentaBOB() {
             .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
 
         if (ofertasValidas.length === 0) {
-            throw new Error('No hay ofertas válidas con monto mínimo <= 100 BOB');
+            throw new Error('No hay ofertas vÃ¡lidas con monto mÃ­nimo <= 100 BOB');
         }
 
         const mejorOferta = ofertasValidas[0];
         const precio = parseFloat(mejorOferta.adv?.price || 0);
 
-        console.log(`✅ Mejor oferta BOB: ${precio} BOB/USDT (BancoGanadero/BancoEconomico)`);
+        console.log(`âœ… Mejor oferta BOB: ${precio} BOB/USDT (BancoGanadero/BancoEconomico)`);
         return precio;
     } catch (error) {
         console.error('Error obteniendo tasa BOB:', error.message);
@@ -2661,7 +2672,7 @@ async function obtenerTasaVentaARS() {
             throw new Error('No se encontraron ofertas de venta USDT por ARS con MercadoPago/Brubank/LemonCash');
         }
 
-        // Filtrar por monto mínimo y ordenar por precio (más alto primero = mejor para vender)
+        // Filtrar por monto mÃ­nimo y ordenar por precio (mÃ¡s alto primero = mejor para vender)
         const ofertasValidas = anuncios
             .filter(ad => {
                 const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
@@ -2670,13 +2681,13 @@ async function obtenerTasaVentaARS() {
             .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
 
         if (ofertasValidas.length === 0) {
-            throw new Error('No hay ofertas válidas con monto mínimo <= 15000 ARS');
+            throw new Error('No hay ofertas vÃ¡lidas con monto mÃ­nimo <= 15000 ARS');
         }
 
         const mejorOferta = ofertasValidas[0];
         const precio = parseFloat(mejorOferta.adv?.price || 0);
 
-        console.log(`✅ Mejor oferta ARS: ${precio} ARS/USDT (MercadoPago/Brubank/LemonCash)`);
+        console.log(`âœ… Mejor oferta ARS: ${precio} ARS/USDT (MercadoPago/Brubank/LemonCash)`);
         return precio;
     } catch (error) {
         console.error('Error obteniendo tasa ARS:', error.message);
@@ -2696,7 +2707,7 @@ async function obtenerTasaCompraCLP() {
             throw new Error('No se encontraron ofertas de compra USDT con CLP');
         }
 
-        // Filtrar por disponibilidad mínima de 500 USDT y ordenar por precio (más bajo primero = mejor para comprar)
+        // Filtrar por disponibilidad mÃ­nima de 500 USDT y ordenar por precio (mÃ¡s bajo primero = mejor para comprar)
         const ofertasValidas = anuncios
             .filter(ad => {
                 if (!ad.adv || !ad.adv.price) return false;
@@ -2706,13 +2717,13 @@ async function obtenerTasaCompraCLP() {
             .sort((a, b) => parseFloat(a.adv.price) - parseFloat(b.adv.price));
 
         if (ofertasValidas.length === 0) {
-            throw new Error('No hay ofertas válidas con disponibilidad >= 500 USDT');
+            throw new Error('No hay ofertas vÃ¡lidas con disponibilidad >= 500 USDT');
         }
 
         const mejorOferta = ofertasValidas[0];
         const precio = parseFloat(mejorOferta.adv.price);
 
-        console.log(`✅ Mejor oferta CLP: ${precio} CLP/USDT`);
+        console.log(`âœ… Mejor oferta CLP: ${precio} CLP/USDT`);
         return precio;
     } catch (error) {
         console.error('Error obteniendo tasa CLP:', error.message);
@@ -2726,7 +2737,7 @@ async function obtenerTasaCompraCLP() {
 
 app.get('/api/p2p/tasas-ves-clp', apiAuth, async (req, res) => {
     try {
-        console.log('🔄 Consultando tasas P2P VES/CLP...');
+        console.log('ðŸ”„ Consultando tasas P2P VES/CLP...');
 
         // 1. Obtener tasas P2P
         const [tasa_ves_p2p, tasa_clp_p2p] = await Promise.all([
@@ -2734,7 +2745,7 @@ app.get('/api/p2p/tasas-ves-clp', apiAuth, async (req, res) => {
             obtenerTasaCompraCLP()
         ]);
 
-        // 2. Calcular tasa base CLP → VES
+        // 2. Calcular tasa base CLP â†’ VES
         const tasa_base_clp_ves = tasa_ves_p2p / tasa_clp_p2p;
 
         // 3. Calcular tasas ajustadas
@@ -2762,10 +2773,10 @@ app.get('/api/p2p/tasas-ves-clp', apiAuth, async (req, res) => {
             }
         };
 
-        console.log('✅ Tasas P2P calculadas exitosamente');
+        console.log('âœ… Tasas P2P calculadas exitosamente');
         res.json(response);
     } catch (error) {
-        console.error('❌ Error en endpoint /api/p2p/tasas-ves-clp:', error.message);
+        console.error('âŒ Error en endpoint /api/p2p/tasas-ves-clp:', error.message);
         res.status(500).json({ 
             message: 'Error al consultar tasas P2P',
             error: error.message 
@@ -2779,7 +2790,7 @@ app.get('/api/p2p/tasas-ves-clp', apiAuth, async (req, res) => {
 
 app.get('/api/p2p/tasas-cop-clp', apiAuth, async (req, res) => {
     try {
-        console.log('🔄 Consultando tasas P2P COP/CLP...');
+        console.log('ðŸ”„ Consultando tasas P2P COP/CLP...');
 
         // 1. Obtener tasas P2P
         const [tasa_cop_p2p, tasa_clp_p2p] = await Promise.all([
@@ -2787,7 +2798,7 @@ app.get('/api/p2p/tasas-cop-clp', apiAuth, async (req, res) => {
             obtenerTasaCompraCLP()
         ]);
 
-        // 2. Calcular tasa base CLP → COP
+        // 2. Calcular tasa base CLP â†’ COP
         const tasa_base_clp_cop = tasa_cop_p2p / tasa_clp_p2p;
 
         // 3. Calcular tasas ajustadas
@@ -2815,10 +2826,10 @@ app.get('/api/p2p/tasas-cop-clp', apiAuth, async (req, res) => {
             }
         };
 
-        console.log('✅ Tasas P2P COP/CLP calculadas exitosamente');
+        console.log('âœ… Tasas P2P COP/CLP calculadas exitosamente');
         res.json(response);
     } catch (error) {
-        console.error('❌ Error en endpoint /api/p2p/tasas-cop-clp:', error.message);
+        console.error('âŒ Error en endpoint /api/p2p/tasas-cop-clp:', error.message);
         res.status(500).json({ 
             message: 'Error al consultar tasas P2P',
             error: error.message 
@@ -2832,7 +2843,7 @@ app.get('/api/p2p/tasas-cop-clp', apiAuth, async (req, res) => {
 
 app.get('/api/p2p/tasas-pen-clp', apiAuth, async (req, res) => {
     try {
-        console.log('🔄 Consultando tasas P2P PEN/CLP...');
+        console.log('ðŸ”„ Consultando tasas P2P PEN/CLP...');
 
         // 1. Obtener tasas P2P
         const [tasa_pen_p2p, tasa_clp_p2p] = await Promise.all([
@@ -2840,7 +2851,7 @@ app.get('/api/p2p/tasas-pen-clp', apiAuth, async (req, res) => {
             obtenerTasaCompraCLP()
         ]);
 
-        // 2. Calcular tasa base CLP → PEN
+        // 2. Calcular tasa base CLP â†’ PEN
         const tasa_base_clp_pen = tasa_pen_p2p / tasa_clp_p2p;
 
         // 3. Calcular tasas ajustadas
@@ -2848,7 +2859,7 @@ app.get('/api/p2p/tasas-pen-clp', apiAuth, async (req, res) => {
         const tasa_menos_4_5 = tasa_base_clp_pen * (1 - 0.045);
         const tasa_menos_4 = tasa_base_clp_pen * (1 - 0.04);
 
-        // 4. Truncar a 6 decimales SIN redondear (PEN tiene valores más pequeños)
+        // 4. Truncar a 6 decimales SIN redondear (PEN tiene valores mÃ¡s pequeÃ±os)
         const truncar = (num) => Math.floor(num * 1000000) / 1000000;
 
         const response = {
@@ -2868,10 +2879,10 @@ app.get('/api/p2p/tasas-pen-clp', apiAuth, async (req, res) => {
             }
         };
 
-        console.log('✅ Tasas P2P PEN/CLP calculadas exitosamente');
+        console.log('âœ… Tasas P2P PEN/CLP calculadas exitosamente');
         res.json(response);
     } catch (error) {
-        console.error('❌ Error en endpoint /api/p2p/tasas-pen-clp:', error.message);
+        console.error('âŒ Error en endpoint /api/p2p/tasas-pen-clp:', error.message);
         res.status(500).json({ 
             message: 'Error al consultar tasas P2P',
             error: error.message 
@@ -2885,7 +2896,7 @@ app.get('/api/p2p/tasas-pen-clp', apiAuth, async (req, res) => {
 
 app.get('/api/p2p/tasas-bob-clp', apiAuth, async (req, res) => {
     try {
-        console.log('🔄 Consultando tasas P2P BOB/CLP...');
+        console.log('ðŸ”„ Consultando tasas P2P BOB/CLP...');
 
         // 1. Obtener tasas P2P
         const [tasa_bob_p2p, tasa_clp_p2p] = await Promise.all([
@@ -2893,7 +2904,7 @@ app.get('/api/p2p/tasas-bob-clp', apiAuth, async (req, res) => {
             obtenerTasaCompraCLP()
         ]);
 
-        // 2. Calcular tasa base CLP → BOB
+        // 2. Calcular tasa base CLP â†’ BOB
         const tasa_base_clp_bob = tasa_bob_p2p / tasa_clp_p2p;
 
         // 3. Calcular tasas ajustadas
@@ -2901,7 +2912,7 @@ app.get('/api/p2p/tasas-bob-clp', apiAuth, async (req, res) => {
         const tasa_menos_4_5 = tasa_base_clp_bob * (1 - 0.045);
         const tasa_menos_4 = tasa_base_clp_bob * (1 - 0.04);
 
-        // 4. Truncar a 5 decimales SIN redondear (BOB requiere más precisión)
+        // 4. Truncar a 5 decimales SIN redondear (BOB requiere mÃ¡s precisiÃ³n)
         const truncar = (num) => Math.floor(num * 100000) / 100000;
 
         const response = {
@@ -2921,10 +2932,10 @@ app.get('/api/p2p/tasas-bob-clp', apiAuth, async (req, res) => {
             }
         };
 
-        console.log('✅ Tasas P2P BOB/CLP calculadas exitosamente');
+        console.log('âœ… Tasas P2P BOB/CLP calculadas exitosamente');
         res.json(response);
     } catch (error) {
-        console.error('❌ Error en endpoint /api/p2p/tasas-bob-clp:', error.message);
+        console.error('âŒ Error en endpoint /api/p2p/tasas-bob-clp:', error.message);
         res.status(500).json({ 
             message: 'Error al consultar tasas P2P',
             error: error.message 
@@ -2938,7 +2949,7 @@ app.get('/api/p2p/tasas-bob-clp', apiAuth, async (req, res) => {
 
 app.get('/api/p2p/tasas-ars-clp', apiAuth, async (req, res) => {
     try {
-        console.log('🔄 Consultando tasas P2P ARS/CLP...');
+        console.log('ðŸ”„ Consultando tasas P2P ARS/CLP...');
 
         // 1. Obtener tasas P2P
         const [tasa_ars_p2p, tasa_clp_p2p] = await Promise.all([
@@ -2946,7 +2957,7 @@ app.get('/api/p2p/tasas-ars-clp', apiAuth, async (req, res) => {
             obtenerTasaCompraCLP()
         ]);
 
-        // 2. Calcular tasa base CLP → ARS
+        // 2. Calcular tasa base CLP â†’ ARS
         const tasa_base_clp_ars = tasa_ars_p2p / tasa_clp_p2p;
 
         // 3. Calcular tasas ajustadas
@@ -2974,10 +2985,10 @@ app.get('/api/p2p/tasas-ars-clp', apiAuth, async (req, res) => {
             }
         };
 
-        console.log('✅ Tasas P2P ARS/CLP calculadas exitosamente');
+        console.log('âœ… Tasas P2P ARS/CLP calculadas exitosamente');
         res.json(response);
     } catch (error) {
-        console.error('❌ Error en endpoint /api/p2p/tasas-ars-clp:', error.message);
+        console.error('âŒ Error en endpoint /api/p2p/tasas-ars-clp:', error.message);
         res.status(500).json({ 
             message: 'Error al consultar tasas P2P',
             error: error.message 
@@ -2999,7 +3010,7 @@ app.post('/api/tareas', apiAuth, (req, res) => {
     const creado_por = req.session.user.id;
     const fecha_creacion = hoyLocalYYYYMMDD();
     
-    if (!titulo) return res.status(400).json({ message: 'El título es obligatorio' });
+    if (!titulo) return res.status(400).json({ message: 'El tÃ­tulo es obligatorio' });
     
     const sql = `INSERT INTO tareas(titulo, descripcion, tipo, prioridad, asignado_a, creado_por, fecha_creacion, fecha_vencimiento) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
@@ -3010,7 +3021,7 @@ app.post('/api/tareas', apiAuth, (req, res) => {
             return res.status(500).json({ message: 'Error al crear tarea' });
         }
         
-        // Crear notificación para el asignado
+        // Crear notificaciÃ³n para el asignado
         if (asignado_a) {
             const sqlNot = `INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, tarea_id) 
                            VALUES (?, 'tarea', ?, ?, ?, ?)`;
@@ -3088,15 +3099,15 @@ app.put('/api/tareas/:id', apiAuth, async (req, res) => {
         
         await dbRun(sql, params);
         
-        // Marcar como leída la notificación de esta tarea para el usuario actual (operador)
-        // Esto sucede cuando el operador toma acción (en_progreso, completada, etc.)
+        // Marcar como leÃ­da la notificaciÃ³n de esta tarea para el usuario actual (operador)
+        // Esto sucede cuando el operador toma acciÃ³n (en_progreso, completada, etc.)
         await dbRun(`
             UPDATE notificaciones 
             SET leida = 1 
             WHERE tarea_id = ? AND usuario_id = ? AND leida = 0
         `, [tareaId, userId]);
         
-        // Si la tarea se completó con una acción, actualizar la alerta relacionada
+        // Si la tarea se completÃ³ con una acciÃ³n, actualizar la alerta relacionada
         if (estado === 'completada' && accion) {
             const fechaHoy = hoyLocalYYYYMMDD();
             await dbRun(`
@@ -3133,7 +3144,7 @@ app.put('/api/tareas/:id', apiAuth, async (req, res) => {
     }
 });
 
-// Resolver tarea automáticamente con el agente
+// Resolver tarea automÃ¡ticamente con el agente
 app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
     const tareaId = req.params.id;
     const userId = req.session.user.id;
@@ -3165,11 +3176,11 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
             });
         }
         
-        // Extraer días de inactividad
-        const matchDias = tarea.descripcion ? tarea.descripcion.match(/(\d+)\s*d[ií]as?/i) : null;
+        // Extraer dÃ­as de inactividad
+        const matchDias = tarea.descripcion ? tarea.descripcion.match(/(\d+)\s*d[iÃ­]as?/i) : null;
         const diasInactivo = tarea.dias_inactivo || (matchDias ? parseInt(matchDias[1]) : 0);
         
-        // Obtener última compra USDT
+        // Obtener Ãºltima compra USDT
         const ultimaCompra = await dbGet(`
             SELECT tasa_clp_ves, fecha, id
             FROM compras
@@ -3178,7 +3189,7 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
         `);
         
         if (!ultimaCompra || !ultimaCompra.tasa_clp_ves) {
-            // Resolución ASISTIDA - Sin historial de compras
+            // ResoluciÃ³n ASISTIDA - Sin historial de compras
             await dbRun(`
                 UPDATE tareas
                 SET resolucion_agente = 'asistida',
@@ -3192,11 +3203,11 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
                 success: false,
                 resolucion_agente: 'asistida',
                 problema: 'sin_historial_compras',
-                mensaje: 'No se puede resolver automáticamente porque no hay historial de compras USDT. Registra una compra en /admin.html'
+                mensaje: 'No se puede resolver automÃ¡ticamente porque no hay historial de compras USDT. Registra una compra en /admin.html'
             });
         }
         
-        // Determinar estrategia según tipo de alerta y días
+        // Determinar estrategia segÃºn tipo de alerta y dÃ­as
         let tipoEstrategia = '';
         let descuentoPorcentaje = 0;
         let mensajeGenerado = '';
@@ -3204,7 +3215,7 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
         if (tarea.tipo_alerta === 'critico' || diasInactivo > 60) {
             tipoEstrategia = 'critico_reactivacion';
             descuentoPorcentaje = 2.0;
-        } else if (tarea.tipo_alerta === 'disminucion' || (tarea.descripcion && tarea.descripcion.toLowerCase().includes('reducción'))) {
+        } else if (tarea.tipo_alerta === 'disminucion' || (tarea.descripcion && tarea.descripcion.toLowerCase().includes('reducciÃ³n'))) {
             tipoEstrategia = 'reduccion_actividad';
             descuentoPorcentaje = 3.3;  // Cambiado de 4.0 a 3.3%
         } else if (diasInactivo >= 45) {
@@ -3233,16 +3244,16 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
             let promptMensaje = '';
             
             if (tipoEstrategia === 'inactivo_recordatorio') {
-                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje amigable de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: cálido, cercano, pregunta cómo está. NO menciones descuentos ni promociones (solo recordatorio). NO uses placeholders. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 4 líneas. IMPORTANTE: Sé CREATIVO y VARÍA el estilo - evita usar siempre la misma estructura o frases. Cada mensaje debe sentirse único y personalizado. ANTI-SPAM: Escribe como humano, NO como bot comercial. Evita mayúsculas excesivas, !!!, lenguaje de ventas. Preferir conversación natural.`;
+                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje amigable de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} dÃ­as sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: cÃ¡lido, cercano, pregunta cÃ³mo estÃ¡. NO menciones descuentos ni promociones (solo recordatorio). NO uses placeholders. Mensaje directo de DefiOracle. Emojis apropiados (2-3 mÃ¡x). Horario: 08:00-21:00 ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±. MÃ¡ximo 4 lÃ­neas. IMPORTANTE: SÃ© CREATIVO y VARÃA el estilo - evita usar siempre la misma estructura o frases. Cada mensaje debe sentirse Ãºnico y personalizado. ANTI-SPAM: Escribe como humano, NO como bot comercial. Evita mayÃºsculas excesivas, !!!, lenguaje de ventas. Preferir conversaciÃ³n natural.`;
                 
             } else if (tipoEstrategia === 'inactivo_promocion') {
-                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero a Venezuela. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa promocional: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. Tono: cercano, hazle saber que lo extrañamos. NO uses placeholders como [Tu Nombre]. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 5 líneas. IMPORTANTE: Sé CREATIVO - varía el tono, la estructura y las palabras. Cada mensaje debe ser único. ANTI-SPAM: Lenguaje humano y natural, NO promocional agresivo. Evita: OFERTAS!!!, TODO EN MAYÚSCULAS, lenguaje de marketing. Sé conversacional.`;
+                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} dÃ­as sin enviar dinero a Venezuela. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa promocional: ${tasaPromocional.toFixed(3)} VES/CLP, vÃ¡lida SOLO HOY hasta las 21:00. Tono: cercano, hazle saber que lo extraÃ±amos. NO uses placeholders como [Tu Nombre]. Mensaje directo de DefiOracle. Emojis apropiados (2-3 mÃ¡x). Horario: 08:00-21:00 ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±. MÃ¡ximo 5 lÃ­neas. IMPORTANTE: SÃ© CREATIVO - varÃ­a el tono, la estructura y las palabras. Cada mensaje debe ser Ãºnico. ANTI-SPAM: Lenguaje humano y natural, NO promocional agresivo. Evita: OFERTAS!!!, TODO EN MAYÃšSCULAS, lenguaje de marketing. SÃ© conversacional.`;
                 
             } else if (tipoEstrategia === 'critico_reactivacion') {
-                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa ESPECIAL de reactivación: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. Tono: urgente pero cálido, transmite que lo extrañamos. NO menciones "pérdidas" ni "riesgos". NO incluyas placeholders como [Tu Nombre] o [Tu Empresa]. El mensaje es DIRECTO del equipo DefiOracle. Emojis: ⚠️💰 (máximo 3). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 6 líneas. IMPORTANTE: Sé MUY CREATIVO - cada mensaje debe tener diferente estructura, estilo y expresiones. Personaliza según el contexto. ANTI-SPAM: Urgencia SIN agresividad comercial. Evita: !!URGENTE!!, OFERTA LIMITADA!!!, mayúsculas excesivas. Preferir: lenguaje directo pero amigable.`;
+                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} dÃ­as sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa ESPECIAL de reactivaciÃ³n: ${tasaPromocional.toFixed(3)} VES/CLP, vÃ¡lida SOLO HOY hasta las 21:00. Tono: urgente pero cÃ¡lido, transmite que lo extraÃ±amos. NO menciones "pÃ©rdidas" ni "riesgos". NO incluyas placeholders como [Tu Nombre] o [Tu Empresa]. El mensaje es DIRECTO del equipo DefiOracle. Emojis: âš ï¸ðŸ’° (mÃ¡ximo 3). Horario: 08:00-21:00 ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±. MÃ¡ximo 6 lÃ­neas. IMPORTANTE: SÃ© MUY CREATIVO - cada mensaje debe tener diferente estructura, estilo y expresiones. Personaliza segÃºn el contexto. ANTI-SPAM: Urgencia SIN agresividad comercial. Evita: !!URGENTE!!, OFERTA LIMITADA!!!, mayÃºsculas excesivas. Preferir: lenguaje directo pero amigable.`;
                 
             } else if (tipoEstrategia === 'reduccion_actividad') {
-                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje para ${nombreCliente} que antes enviaba dinero con más frecuencia pero ahora no tanto. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: preocupación genuina, pregunta si todo está bien o si podemos mejorar. Ofrece tasa EXCLUSIVA solo para él/ella: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. NO uses palabras corporativas como "retención", "estrategia", "fidelización". Lenguaje cercano y familiar. NO placeholders. Emojis moderados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 5 líneas. IMPORTANTE: Varía la forma de expresar preocupación y oferta. Sé único y creativo en cada mensaje. ANTI-SPAM: Tono empático y humano, NO ventas. Evita: frases genéricas de marketing, exclamaciones excesivas. Parecer conversación real.`;
+                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje para ${nombreCliente} que antes enviaba dinero con mÃ¡s frecuencia pero ahora no tanto. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: preocupaciÃ³n genuina, pregunta si todo estÃ¡ bien o si podemos mejorar. Ofrece tasa EXCLUSIVA solo para Ã©l/ella: ${tasaPromocional.toFixed(3)} VES/CLP, vÃ¡lida SOLO HOY hasta las 21:00. NO uses palabras corporativas como "retenciÃ³n", "estrategia", "fidelizaciÃ³n". Lenguaje cercano y familiar. NO placeholders. Emojis moderados (2-3 mÃ¡x). Horario: 08:00-21:00 ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±. MÃ¡ximo 5 lÃ­neas. IMPORTANTE: VarÃ­a la forma de expresar preocupaciÃ³n y oferta. SÃ© Ãºnico y creativo en cada mensaje. ANTI-SPAM: Tono empÃ¡tico y humano, NO ventas. Evita: frases genÃ©ricas de marketing, exclamaciones excesivas. Parecer conversaciÃ³n real.`;
             }
             
             const responseIA = await axios.post('https://api.openai.com/v1/chat/completions', {
@@ -3250,7 +3261,7 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
                 messages: [
                     {
                         role: 'system',
-                        content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cálidos y profesionales en español para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderación (2-3 máximo). Enfoque: remesas familiares, no inversiones ni pérdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayúsculas, múltiples signos de exclamación (!!!), lenguaje muy formal o corporativo, frases genéricas de marketing. Preferir: conversación natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo. PRIVACIDAD: NO menciones situaciones personales/familiares del cliente ("apoyo a casa", "seres queridos", "familia"). Solo usar: "enviar dinero a Venezuela" o "hacer un envío".'
+                        content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cÃ¡lidos y profesionales en espaÃ±ol para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderaciÃ³n (2-3 mÃ¡ximo). Enfoque: remesas familiares, no inversiones ni pÃ©rdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayÃºsculas, mÃºltiples signos de exclamaciÃ³n (!!!), lenguaje muy formal o corporativo, frases genÃ©ricas de marketing. Preferir: conversaciÃ³n natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo. PRIVACIDAD: NO menciones situaciones personales/familiares del cliente ("apoyo a casa", "seres queridos", "familia"). Solo usar: "enviar dinero a Venezuela" o "hacer un envÃ­o".'
                     },
                     {
                         role: 'user',
@@ -3272,9 +3283,9 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
             console.error('Error generando mensaje con IA:', errorIA.message);
             // Fallback a mensaje predeterminado si falla la IA
             if (tipoEstrategia === 'inactivo_recordatorio') {
-                mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nHace tiempo que no te vemos por aquí. ¿Todo bien? 😊\n\nEstamos disponibles 08:00-21:00 todos los días para tus operaciones. 🇻🇪🇨🇱\n\n¡Esperamos verte pronto!`;
+                mensajeGenerado = `Hola ${nombreCliente}! ðŸ‘‹\n\nHace tiempo que no te vemos por aquÃ­. Â¿Todo bien? ðŸ˜Š\n\nEstamos disponibles 08:00-21:00 todos los dÃ­as para tus operaciones. ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±\n\nÂ¡Esperamos verte pronto!`;
             } else {
-                mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nTenemos una tasa especial para ti: ${tasaPromocional ? tasaPromocional.toFixed(3) : ''} VES/CLP 💰\n\n¡Contáctanos! Disponibles 08:00-21:00 🇻🇪🇨🇱`;
+                mensajeGenerado = `Hola ${nombreCliente}! ðŸ‘‹\n\nTenemos una tasa especial para ti: ${tasaPromocional ? tasaPromocional.toFixed(3) : ''} VES/CLP ðŸ’°\n\nÂ¡ContÃ¡ctanos! Disponibles 08:00-21:00 ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±`;
             }
         }
         
@@ -3291,7 +3302,7 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
             fecha_resolucion: hoyLocalYYYYMMDD()
         };
         
-        // Actualizar tarea con resolución automática
+        // Actualizar tarea con resoluciÃ³n automÃ¡tica
         await dbRun(`
             UPDATE tareas
             SET resolucion_agente = 'automatica',
@@ -3317,7 +3328,7 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
     }
 });
 
-// Confirmar envío de mensaje
+// Confirmar envÃ­o de mensaje
 app.post('/api/tareas/:id/confirmar-envio', apiAuth, async (req, res) => {
     const tareaId = req.params.id;
     const { respuesta_cliente } = req.body;
@@ -3366,13 +3377,13 @@ app.post('/api/tareas/:id/confirmar-envio', apiAuth, async (req, res) => {
             `, [fechaHoy, tarea.cliente_id]);
         }
         
-        // Crear notificación para el master
+        // Crear notificaciÃ³n para el master
         const operadorNombre = req.session.user.username || 'Operador';
         await dbRun(`
             INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, tarea_id)
             VALUES (1, 'tarea', 'Tarea completada', ?, ?, ?)
         `, [
-            `${operadorNombre} completó: ${tarea.titulo}`,
+            `${operadorNombre} completÃ³: ${tarea.titulo}`,
             fechaHoy,
             tareaId
         ]);
@@ -3383,8 +3394,8 @@ app.post('/api/tareas/:id/confirmar-envio', apiAuth, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('Error confirmando envío:', error);
-        res.status(500).json({ message: 'Error al confirmar envío' });
+        console.error('Error confirmando envÃ­o:', error);
+        res.status(500).json({ message: 'Error al confirmar envÃ­o' });
     }
 });
 
@@ -3429,21 +3440,21 @@ app.get('/api/notificaciones', apiAuth, (req, res) => {
     });
 });
 
-// Marcar notificación como leída
+// Marcar notificaciÃ³n como leÃ­da
 app.put('/api/notificaciones/:id/leer', apiAuth, (req, res) => {
     const notifId = req.params.id;
     const userId = req.session.user.id;
     
     db.run(`UPDATE notificaciones SET leida = 1 WHERE id = ? AND usuario_id = ?`, [notifId, userId], function(err) {
         if (err) {
-            console.error('Error marcando notificación:', err);
-            return res.status(500).json({ message: 'Error al marcar notificación' });
+            console.error('Error marcando notificaciÃ³n:', err);
+            return res.status(500).json({ message: 'Error al marcar notificaciÃ³n' });
         }
-        res.json({ message: 'Notificación marcada como leída' });
+        res.json({ message: 'NotificaciÃ³n marcada como leÃ­da' });
     });
 });
 
-// Marcar todas las notificaciones como leídas
+// Marcar todas las notificaciones como leÃ­das
 app.put('/api/notificaciones/leer-todas', apiAuth, (req, res) => {
     const userId = req.session.user.id;
     
@@ -3452,11 +3463,11 @@ app.put('/api/notificaciones/leer-todas', apiAuth, (req, res) => {
             console.error('Error marcando todas las notificaciones:', err);
             return res.status(500).json({ message: 'Error al marcar notificaciones' });
         }
-        res.json({ message: 'Todas las notificaciones marcadas como leídas' });
+        res.json({ message: 'Todas las notificaciones marcadas como leÃ­das' });
     });
 });
 
-// Contador de notificaciones no leídas
+// Contador de notificaciones no leÃ­das
 app.get('/api/notificaciones/contador', apiAuth, (req, res) => {
     const userId = req.session.user.id;
     
@@ -3469,41 +3480,41 @@ app.get('/api/notificaciones/contador', apiAuth, (req, res) => {
     });
 });
 
-// Obtener notificaciones no leídas (para chatbot)
+// Obtener notificaciones no leÃ­das (para chatbot)
 app.get('/api/notificaciones/no-leidas', apiAuth, (req, res) => {
     const userId = req.session.user.id;
     
     db.all(`SELECT * FROM notificaciones WHERE usuario_id = ? AND leida = 0 ORDER BY fecha_creacion DESC`, [userId], (err, rows) => {
         if (err) {
-            console.error('Error obteniendo notificaciones no leídas:', err);
+            console.error('Error obteniendo notificaciones no leÃ­das:', err);
             return res.json([]);
         }
         res.json(rows || []);
     });
 });
 
-// Generar tareas automáticas desde alertas
+// Generar tareas automÃ¡ticas desde alertas
 app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, res) => {
     try {
         const fechaHoy = hoyLocalYYYYMMDD();
         
-        console.log('🔍 === DEBUG: Generando tareas automáticas ===');
-        console.log(`📅 Fecha hoy: ${fechaHoy}`);
+        console.log('ðŸ” === DEBUG: Generando tareas automÃ¡ticas ===');
+        console.log(`ðŸ“… Fecha hoy: ${fechaHoy}`);
         
         // Primero verificar TODAS las alertas activas
         const todasAlertas = await dbAll(`SELECT id, cliente_id, tipo, accion_realizada, tarea_id FROM alertas WHERE activa = 1`);
-        console.log(`📊 Total alertas activas: ${todasAlertas.length}`);
+        console.log(`ðŸ“Š Total alertas activas: ${todasAlertas.length}`);
         
         const conMensaje = todasAlertas.filter(a => a.accion_realizada === 'mensaje_enviado');
         const conPromocion = todasAlertas.filter(a => a.accion_realizada === 'promocion_enviada');
         const sinAccion = todasAlertas.filter(a => !a.accion_realizada || a.accion_realizada === '');
         
-        console.log(`✅ Con mensaje_enviado: ${conMensaje.length}`);
-        console.log(`✅ Con promocion_enviada: ${conPromocion.length}`);
-        console.log(`⚪ Sin acción (NULL o vacío): ${sinAccion.length}`);
+        console.log(`âœ… Con mensaje_enviado: ${conMensaje.length}`);
+        console.log(`âœ… Con promocion_enviada: ${conPromocion.length}`);
+        console.log(`âšª Sin acciÃ³n (NULL o vacÃ­o): ${sinAccion.length}`);
         
-        // Obtener alertas activas SIN acción realizada (sin mensaje_enviado ni promocion_enviada)
-        // Permitir reasignar si: 1) sin tarea, 2) tarea eliminada, 3) tarea cancelada, 4) tarea de días anteriores
+        // Obtener alertas activas SIN acciÃ³n realizada (sin mensaje_enviado ni promocion_enviada)
+        // Permitir reasignar si: 1) sin tarea, 2) tarea eliminada, 3) tarea cancelada, 4) tarea de dÃ­as anteriores
         const alertasSinResolver = await dbAll(`
             SELECT a.* 
             FROM alertas a
@@ -3520,19 +3531,19 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             )
         `, [fechaHoy]);
         
-        console.log(`🎯 Alertas que cumplen condiciones para generar tareas: ${alertasSinResolver.length}`);
+        console.log(`ðŸŽ¯ Alertas que cumplen condiciones para generar tareas: ${alertasSinResolver.length}`);
         
-        // Verificar si hay alguna con accion_realizada que no debería estar
+        // Verificar si hay alguna con accion_realizada que no deberÃ­a estar
         const errorAccion = alertasSinResolver.filter(a => a.accion_realizada && a.accion_realizada !== '');
         if (errorAccion.length > 0) {
-            console.log(`⚠️ ERROR: ${errorAccion.length} alertas con accion_realizada pasaron el filtro:`);
+            console.log(`âš ï¸ ERROR: ${errorAccion.length} alertas con accion_realizada pasaron el filtro:`);
             errorAccion.slice(0, 5).forEach(a => {
                 console.log(`   - ID ${a.id}: accion_realizada="${a.accion_realizada}"`);
             });
         }
         
         if (alertasSinResolver.length === 0) {
-            console.log('✅ No hay alertas pendientes para crear tareas');
+            console.log('âœ… No hay alertas pendientes para crear tareas');
             return res.json({ message: 'No hay alertas pendientes sin resolver', tareas_creadas: 0 });
         }
         
@@ -3550,11 +3561,11 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
         
         // Distribuir alertas equitativamente
         for (const alerta of alertasSinResolver) {
-            // Seleccionar operador por rotación
+            // Seleccionar operador por rotaciÃ³n
             const operador = operadores[indiceOperador];
             indiceOperador = (indiceOperador + 1) % operadores.length;
             
-            // Obtener datos del cliente y RECALCULAR días de inactividad en tiempo real
+            // Obtener datos del cliente y RECALCULAR dÃ­as de inactividad en tiempo real
             const cliente = await dbGet(`
                 SELECT c.nombre, MAX(o.fecha) as ultima_operacion,
                        CAST(julianday('now') - julianday(
@@ -3569,20 +3580,20 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
                 GROUP BY c.id
             `, [alerta.cliente_id]);
             
-            console.log(`📊 Cliente ID ${alerta.cliente_id} (${cliente?.nombre}): última op ${cliente?.ultima_operacion}, días reales: ${cliente?.dias_reales}`);
+            console.log(`ðŸ“Š Cliente ID ${alerta.cliente_id} (${cliente?.nombre}): Ãºltima op ${cliente?.ultima_operacion}, dÃ­as reales: ${cliente?.dias_reales}`);
             
             // Si el cliente ya no cumple el criterio de inactividad, saltar
             const diasInactivo = cliente?.dias_reales || 0;
             if (alerta.tipo === 'inactivo' && (diasInactivo < 30 || diasInactivo > 60)) {
-                console.log(`⏭️ Saltando alerta ${alerta.id}: cliente ya no cumple criterio inactivo (${diasInactivo} días)`);
+                console.log(`â­ï¸ Saltando alerta ${alerta.id}: cliente ya no cumple criterio inactivo (${diasInactivo} dÃ­as)`);
                 continue;
             }
             if (alerta.tipo === 'critico' && diasInactivo <= 60) {
-                console.log(`⏭️ Saltando alerta ${alerta.id}: cliente ya no cumple criterio crítico (${diasInactivo} días)`);
+                console.log(`â­ï¸ Saltando alerta ${alerta.id}: cliente ya no cumple criterio crÃ­tico (${diasInactivo} dÃ­as)`);
                 continue;
             }
             
-            // Para reducción de frecuencia, verificar AHORA si realmente hay reducción
+            // Para reducciÃ³n de frecuencia, verificar AHORA si realmente hay reducciÃ³n
             if (alerta.tipo === 'disminucion') {
                 const hace30 = new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
                 const hace60 = new Date(new Date().getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -3590,14 +3601,14 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
                 const recientes = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ?`, [alerta.cliente_id, hace30]);
                 const anteriores = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [alerta.cliente_id, hace60, hace30]);
                 
-                // Si ya NO hay reducción significativa, saltar
+                // Si ya NO hay reducciÃ³n significativa, saltar
                 if (anteriores.cnt < 3 || recientes.cnt >= anteriores.cnt * 0.5) {
-                    console.log(`⏭️ Saltando alerta ${alerta.id}: cliente ya no tiene reducción significativa (${anteriores.cnt}→${recientes.cnt} ops)`);
+                    console.log(`â­ï¸ Saltando alerta ${alerta.id}: cliente ya no tiene reducciÃ³n significativa (${anteriores.cnt}â†’${recientes.cnt} ops)`);
                     continue;
                 }
             }
             
-            // Determinar prioridad según días REALES de inactividad
+            // Determinar prioridad segÃºn dÃ­as REALES de inactividad
             let prioridad = 'normal';
             if (diasInactivo > 60) prioridad = 'urgente';
             else if (diasInactivo >= 45) prioridad = 'alta';
@@ -3606,16 +3617,16 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             await dbRun(`
                 UPDATE tareas 
                 SET estado = 'cancelada', 
-                    resolucion_agente = 'Tarea obsoleta - reemplazada por nueva tarea automática'
+                    resolucion_agente = 'Tarea obsoleta - reemplazada por nueva tarea automÃ¡tica'
                 WHERE cliente_id = ? 
                 AND tipo = 'automatica'
                 AND estado IN ('pendiente', 'en_progreso')
                 AND fecha_creacion < ?
             `, [alerta.cliente_id, fechaHoy]);
             
-            // Crear tarea con días REALES
+            // Crear tarea con dÃ­as REALES
             const titulo = `Reactivar cliente: ${cliente ? cliente.nombre : 'Desconocido'}`;
-            const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crítico' : 'Disminución de frecuencia'} - ${diasInactivo ? `${diasInactivo} días sin actividad` : 'Reducción de operaciones'}. Última operación: ${cliente?.ultima_operacion || 'N/A'}`;
+            const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crÃ­tico' : 'DisminuciÃ³n de frecuencia'} - ${diasInactivo ? `${diasInactivo} dÃ­as sin actividad` : 'ReducciÃ³n de operaciones'}. Ãšltima operaciÃ³n: ${cliente?.ultima_operacion || 'N/A'}`;
             
             const resultTarea = await dbRun(`
                 INSERT INTO tareas(titulo, descripcion, tipo, prioridad, asignado_a, creado_por, fecha_creacion)
@@ -3627,7 +3638,7 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
                 UPDATE alertas SET tarea_id = ? WHERE id = ?
             `, [resultTarea.lastID, alerta.id]);
             
-            // Crear notificación para el operador
+            // Crear notificaciÃ³n para el operador
             await dbRun(`
                 INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, tarea_id)
                 VALUES (?, 'tarea', 'Nueva tarea asignada', ?, ?, ?)
@@ -3753,7 +3764,7 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
         // Obtener datos del sistema para contexto adicional
         let contextData = await obtenerContextoSistema(userId, userRole);
         
-        // Verificar notificaciones no leídas
+        // Verificar notificaciones no leÃ­das
         const notificacionesNoLeidasPromise = new Promise((resolve) => {
             db.all(`
                 SELECT * FROM notificaciones 
@@ -3766,7 +3777,7 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             });
         });
 
-        // Obtener mensajes proactivos no mostrados (IMPORTANTE: Estos contienen contexto específico de alertas)
+        // Obtener mensajes proactivos no mostrados (IMPORTANTE: Estos contienen contexto especÃ­fico de alertas)
         const mensajesProactivosPromise = new Promise((resolve) => {
             db.all(`
                 SELECT id, tipo, mensaje, prioridad, fecha_creacion
@@ -3801,7 +3812,7 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             });
         });
 
-        // Obtener historial reciente de conversación (últimos 10 mensajes, últimas 24 horas)
+        // Obtener historial reciente de conversaciÃ³n (Ãºltimos 10 mensajes, Ãºltimas 24 horas)
         const historialPromise = new Promise((resolve) => {
             const hace24h = new Date();
             hace24h.setHours(hace24h.getHours() - 24);
@@ -3816,7 +3827,7 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
                 LIMIT 10
             `, [userId, fechaLimite], (err, rows) => {
                 if (err || !rows) return resolve([]);
-                resolve(rows.reverse()); // Ordenar cronológicamente
+                resolve(rows.reverse()); // Ordenar cronolÃ³gicamente
             });
         });
 
@@ -3829,15 +3840,15 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
         
         // Si hay notificaciones sin leer, validarlas antes de incluirlas
         if (notificaciones.length > 0) {
-            // Filtrar notificaciones que ya están resueltas (por ejemplo, cliente ya completado)
+            // Filtrar notificaciones que ya estÃ¡n resueltas (por ejemplo, cliente ya completado)
             const notificacionesValidas = [];
             
             for (const notif of notificaciones) {
                 let esValida = true;
                 
-                // Si es notificación de "datos incompletos", verificar si el cliente YA fue actualizado
+                // Si es notificaciÃ³n de "datos incompletos", verificar si el cliente YA fue actualizado
                 if (notif.tipo === 'datos_incompletos' && notif.mensaje) {
-                    // Extraer nombre del cliente de la notificación
+                    // Extraer nombre del cliente de la notificaciÃ³n
                     const matchNombre = notif.mensaje.match(/Cliente "([^"]+)"/);
                     if (matchNombre) {
                         const nombreCliente = matchNombre[1];
@@ -3854,12 +3865,12 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
                             );
                         });
                         
-                        // Si el cliente ahora tiene todos los datos, NO incluir la notificación
+                        // Si el cliente ahora tiene todos los datos, NO incluir la notificaciÃ³n
                         if (clienteActual && clienteActual.rut && clienteActual.email && clienteActual.telefono) {
                             esValida = false;
-                            // Marcar como leída automáticamente ya que está resuelta
+                            // Marcar como leÃ­da automÃ¡ticamente ya que estÃ¡ resuelta
                             db.run(`UPDATE notificaciones SET leida = 1 WHERE id = ?`, [notif.id]);
-                            console.log(`✅ Notificación #${notif.id} marcada como leída automáticamente (cliente "${nombreCliente}" ya completo)`);
+                            console.log(`âœ… NotificaciÃ³n #${notif.id} marcada como leÃ­da automÃ¡ticamente (cliente "${nombreCliente}" ya completo)`);
                         }
                     }
                 }
@@ -3875,7 +3886,7 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             }
         }
         
-        // Agregar mensajes proactivos al contexto (IMPORTANTE: contienen detalles específicos de alertas)
+        // Agregar mensajes proactivos al contexto (IMPORTANTE: contienen detalles especÃ­ficos de alertas)
         if (mensajesProactivos.length > 0) {
             contextData.mensajes_proactivos = mensajesProactivos.map(mp => ({
                 tipo: mp.tipo,
@@ -3909,381 +3920,381 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             contextData.total_tareas_pendientes = 0;
         }
         
-        // Las consultas de clientes ahora se manejan automáticamente por OpenAI Function Calling
-        // Ya no necesitamos regex para detectar búsquedas - OpenAI decide cuándo llamar buscar_cliente()
+        // Las consultas de clientes ahora se manejan automÃ¡ticamente por OpenAI Function Calling
+        // Ya no necesitamos regex para detectar bÃºsquedas - OpenAI decide cuÃ¡ndo llamar buscar_cliente()
 
-        // Las consultas ahora se manejan automáticamente por OpenAI Function Calling
-        // Ya no necesitamos regex para detectar consultas - OpenAI decide qué función llamar
+        // Las consultas ahora se manejan automÃ¡ticamente por OpenAI Function Calling
+        // Ya no necesitamos regex para detectar consultas - OpenAI decide quÃ© funciÃ³n llamar
 
         // Contexto del sistema para el chatbot - ASISTENTE INTERNO DE OPERACIONES
-        const systemContext = `🧠 PROMPT SISTEMA – ASISTENTE INTERNO DE OPERACIONES Y SUPERVISOR SUAVE (DEFIORACLE.CL)
+        const systemContext = `ðŸ§  PROMPT SISTEMA â€“ ASISTENTE INTERNO DE OPERACIONES Y SUPERVISOR SUAVE (DEFIORACLE.CL)
 
 Eres el Asistente Interno de Operaciones y Supervisor Suave de la empresa de remesas DefiOracle.cl.
 
-👉 Solo hablas con operadores y usuarios master del sistema.
+ðŸ‘‰ Solo hablas con operadores y usuarios master del sistema.
 Nunca conversas directamente con el cliente final.
 
 Tu trabajo es ayudar, supervisar suavemente y mejorar el rendimiento de los operadores.
 
 USUARIO ACTUAL: "${username}" con rol de "${userRole}".
 
-1. INFORMACIÓN DE LA EMPRESA
+1. INFORMACIÃ“N DE LA EMPRESA
 
 Nombre comercial: DefiOracle.cl
-Razón social: DEFI ORACLE SPA
+RazÃ³n social: DEFI ORACLE SPA
 Rubro: Empresa de remesas y cambio de divisas, usando cripto (USDT) como puente.
-Ubicación: Santiago de Chile, comuna de Las Condes.
-Ámbito: Envía dinero desde Chile (CLP) hacia varios países (principalmente Venezuela, pero también Colombia, Perú, Argentina, República Dominicana, Europa y EE.UU.).
+UbicaciÃ³n: Santiago de Chile, comuna de Las Condes.
+Ãmbito: EnvÃ­a dinero desde Chile (CLP) hacia varios paÃ­ses (principalmente Venezuela, pero tambiÃ©n Colombia, PerÃº, Argentina, RepÃºblica Dominicana, Europa y EE.UU.).
 
 DATOS BANCARIOS OFICIALES (cuenta CLP):
-Banco: BancoEstado – Chequera Electrónica
+Banco: BancoEstado â€“ Chequera ElectrÃ³nica
 Nombre: DEFI ORACLE SPA
-N.º de cuenta: 316-7-032793-3
+N.Âº de cuenta: 316-7-032793-3
 RUT: 77.354.262-7
 
-Horario de atención: 08:00–21:00 hrs, todos los días.
+Horario de atenciÃ³n: 08:00â€“21:00 hrs, todos los dÃ­as.
 
-Canales de atención:
-- Canal principal: WhatsApp (chat directo con clientes, envío de comprobantes, seguimiento)
+Canales de atenciÃ³n:
+- Canal principal: WhatsApp (chat directo con clientes, envÃ­o de comprobantes, seguimiento)
 - Canal soporte/marketing: Instagram @DefiOracle.cl
 
 2. SERVICIOS Y DESTINOS
 
-Envío desde CLP (Chile) hacia:
-- Venezuela (VES): Provincial, Banesco, Banco de Venezuela, Tesoro, BNC, Mercantil, Bancamiga, Pago Móvil
+EnvÃ­o desde CLP (Chile) hacia:
+- Venezuela (VES): Provincial, Banesco, Banco de Venezuela, Tesoro, BNC, Mercantil, Bancamiga, Pago MÃ³vil
 - Colombia (COP): Bancolombia, Davivienda, Daviplata, Nequi
-- Perú (PEN): BCP, Interbank
+- PerÃº (PEN): BCP, Interbank
 - Bolivia (BOB): Bancos disponibles
 - Argentina (ARS): Bancos disponibles
-- Otros: República Dominicana, Europa, EE.UU.
+- Otros: RepÃºblica Dominicana, Europa, EE.UU.
 
 3. USO DE TASAS Y CONVERSIONES
 
 IMPORTANTE: Las tasas que debes usar son las TASAS DE VENTA (las que ofrecemos a los clientes):
 
 VENEZUELA (VES) - TASAS DE VENTA:
-- ≥ 5.000 CLP: ${contextData.tasas_actuales.VES_nivel1} VES por 1 CLP
-- ≥ 100.000 CLP: ${contextData.tasas_actuales.VES_nivel2} VES por 1 CLP
-- ≥ 250.000 CLP: ${contextData.tasas_actuales.VES_nivel3} VES por 1 CLP
+- â‰¥ 5.000 CLP: ${contextData.tasas_actuales.VES_nivel1} VES por 1 CLP
+- â‰¥ 100.000 CLP: ${contextData.tasas_actuales.VES_nivel2} VES por 1 CLP
+- â‰¥ 250.000 CLP: ${contextData.tasas_actuales.VES_nivel3} VES por 1 CLP
 
 Estas son las tasas que los operadores ofrecen a los clientes finales.
 
-OTROS PAÍSES (COP, PEN, BOB, ARS):
+OTROS PAÃSES (COP, PEN, BOB, ARS):
 - Usa tasas basadas en Binance P2P ajustadas con margen
 
 PROMOCIONES POR BAJA ACTIVIDAD (solo Venezuela):
-- Cuando el sistema genere alerta de cliente inactivo/reducción de envíos (≥45 días)
-- Tasa promo = Última tasa de compra USDT registrada en "Historial de Compras" – 3.3%
-- Ejemplo: Si última compra fue a 0.393651 VES/CLP, la tasa promocional es 0.393651 - (0.393651 × 0.033) = 0.3806 VES/CLP
+- Cuando el sistema genere alerta de cliente inactivo/reducciÃ³n de envÃ­os (â‰¥45 dÃ­as)
+- Tasa promo = Ãšltima tasa de compra USDT registrada en "Historial de Compras" â€“ 3.3%
+- Ejemplo: Si Ãºltima compra fue a 0.393651 VES/CLP, la tasa promocional es 0.393651 - (0.393651 Ã— 0.033) = 0.3806 VES/CLP
 - Genera mensaje personalizado con nombre del cliente y tasa promocional calculada
 
-4. ASISTENTE DE CONVERSACIÓN
+4. ASISTENTE DE CONVERSACIÃ“N
 
 Cuando el operador te escriba:
-- Entiende la intención (conversión, proceso, datos bancarios, tiempos, promo)
+- Entiende la intenciÃ³n (conversiÃ³n, proceso, datos bancarios, tiempos, promo)
 - Genera respuesta clara, amigable, semiformal
 - Lista para copiar y pegar en WhatsApp
 
-DATOS BANCARIOS - Cuando se pidan, envía SIEMPRE:
+DATOS BANCARIOS - Cuando se pidan, envÃ­a SIEMPRE:
 "Te dejo los datos de nuestra cuenta en Chile:
-Banco: BancoEstado – Chequera Electrónica
+Banco: BancoEstado â€“ Chequera ElectrÃ³nica
 Nombre: DEFI ORACLE SPA
-N.º de cuenta: 316-7-032793-3
+N.Âº de cuenta: 316-7-032793-3
 RUT: 77.354.262-7
 
-Después de hacer el pago, que el cliente envíe el comprobante por WhatsApp para procesar su envío 😉."
+DespuÃ©s de hacer el pago, que el cliente envÃ­e el comprobante por WhatsApp para procesar su envÃ­o ðŸ˜‰."
 
-5. SUPERVISIÓN DE DATOS DE CLIENTES Y ACCIONES COMO AGENTE
+5. SUPERVISIÃ“N DE DATOS DE CLIENTES Y ACCIONES COMO AGENTE
 
 Cliente "completo" = nombre, rut, email, telefono
 
-⚠️ IMPORTANTE: NO guardamos ni solicitamos datos bancarios de clientes. Solo validamos: RUT, email, teléfono.
+âš ï¸ IMPORTANTE: NO guardamos ni solicitamos datos bancarios de clientes. Solo validamos: RUT, email, telÃ©fono.
 
-Si falta información, informa al operador de forma conversacional y sugiere actualizar los datos.
+Si falta informaciÃ³n, informa al operador de forma conversacional y sugiere actualizar los datos.
 
-🤖 MODO AGENTE AUTÓNOMO CON FUNCTION CALLING:
+ðŸ¤– MODO AGENTE AUTÃ“NOMO CON FUNCTION CALLING:
 
-Tienes acceso REAL a funciones para consultar la base de datos. OpenAI decide AUTOMÁTICAMENTE cuándo llamarlas según el contexto de la pregunta.
+Tienes acceso REAL a funciones para consultar la base de datos. OpenAI decide AUTOMÃTICAMENTE cuÃ¡ndo llamarlas segÃºn el contexto de la pregunta.
 
-FUNCIONES DISPONIBLES (llamadas automáticamente por ti):
+FUNCIONES DISPONIBLES (llamadas automÃ¡ticamente por ti):
 
-1️⃣ **buscar_cliente(nombre)**
-   - Cuándo usarla: Cuando pregunten sobre un cliente específico, si actualizaron datos, verificar información, etc.
+1ï¸âƒ£ **buscar_cliente(nombre)**
+   - CuÃ¡ndo usarla: Cuando pregunten sobre un cliente especÃ­fico, si actualizaron datos, verificar informaciÃ³n, etc.
    - Ejemplos de preguntas:
-     * "¿ya actualizaron a Cris?"
-     * "datos de María"
+     * "Â¿ya actualizaron a Cris?"
+     * "datos de MarÃ­a"
      * "tiene el cliente Juan todos los datos?"
      * "verificar si Cris tiene email"
-   - Retorna: {encontrado, nombre, rut, email, telefono, datos_completos, faltan: [array con 'RUT', 'Email', 'Teléfono']}
-   - Razonamiento: Si preguntan "¿ya actualizaron a Cris?", TÚ decides llamar buscar_cliente("Cris"), recibes los datos actuales, y respondes si están completos o no
-   - CRÍTICO: Si el cliente tiene datos_completos=true, NO menciones que faltan datos. Si datos_completos=false, menciona SOLO lo que está en faltan[]
+   - Retorna: {encontrado, nombre, rut, email, telefono, datos_completos, faltan: [array con 'RUT', 'Email', 'TelÃ©fono']}
+   - Razonamiento: Si preguntan "Â¿ya actualizaron a Cris?", TÃš decides llamar buscar_cliente("Cris"), recibes los datos actuales, y respondes si estÃ¡n completos o no
+   - CRÃTICO: Si el cliente tiene datos_completos=true, NO menciones que faltan datos. Si datos_completos=false, menciona SOLO lo que estÃ¡ en faltan[]
 
-2️⃣ **listar_operaciones_dia(limite)**
-   - Cuándo usarla: Cuando pregunten sobre operaciones de hoy, envíos realizados, última operación
+2ï¸âƒ£ **listar_operaciones_dia(limite)**
+   - CuÃ¡ndo usarla: Cuando pregunten sobre operaciones de hoy, envÃ­os realizados, Ãºltima operaciÃ³n
    - Ejemplos:
-     * "¿cuántas operaciones llevamos hoy?"
-     * "muéstrame las últimas operaciones"
-     * "qué envíos se hicieron hoy"
+     * "Â¿cuÃ¡ntas operaciones llevamos hoy?"
+     * "muÃ©strame las Ãºltimas operaciones"
+     * "quÃ© envÃ­os se hicieron hoy"
    - Retorna: {total, operaciones: [{numero_recibo, cliente, monto_clp, monto_ves, tasa, operador, hora}]}
 
-3️⃣ **consultar_rendimiento()**
-   - Cuándo usarla: Cuando el operador pregunte sobre su desempeño, estadísticas, productividad
+3ï¸âƒ£ **consultar_rendimiento()**
+   - CuÃ¡ndo usarla: Cuando el operador pregunte sobre su desempeÃ±o, estadÃ­sticas, productividad
    - Ejemplos:
-     * "cómo voy este mes?"
+     * "cÃ³mo voy este mes?"
      * "mi rendimiento"
-     * "cuántas operaciones he hecho?"
+     * "cuÃ¡ntas operaciones he hecho?"
    - Retorna: {total_operaciones, total_procesado_clp, ganancia_total_clp, ganancia_promedio_clp}
 
-4️⃣ **listar_clientes_incompletos(limite)**
-   - Cuándo usarla: Cuando pregunten sobre clientes pendientes de actualizar
+4ï¸âƒ£ **listar_clientes_incompletos(limite)**
+   - CuÃ¡ndo usarla: Cuando pregunten sobre clientes pendientes de actualizar
    - Ejemplos:
-     * "¿qué clientes faltan actualizar?"
+     * "Â¿quÃ© clientes faltan actualizar?"
      * "clientes incompletos"
-     * "quién necesita completar datos?"
+     * "quiÃ©n necesita completar datos?"
    - Retorna: {total, clientes: [{nombre, faltan: [array]}]}
 
-5️⃣ **buscar_operaciones_cliente(nombre_cliente)**
-   - Cuándo usarla: Cuando pregunten sobre el historial de un cliente específico
+5ï¸âƒ£ **buscar_operaciones_cliente(nombre_cliente)**
+   - CuÃ¡ndo usarla: Cuando pregunten sobre el historial de un cliente especÃ­fico
    - Ejemplos:
-     * "cuántas operaciones tiene Cris?"
-     * "historial de envíos de María"
+     * "cuÃ¡ntas operaciones tiene Cris?"
+     * "historial de envÃ­os de MarÃ­a"
      * "ha enviado Juan anteriormente?"
    - Retorna: {total, operaciones: [{numero_recibo, monto_clp, monto_ves, fecha}]}
 
-6️⃣ **calcular_conversion_moneda(monto, moneda_origen, moneda_destino)**
-   - Cuándo usarla: Cuando pregunten sobre conversiones entre monedas, cuánto transferir, tasas de cambio
+6ï¸âƒ£ **calcular_conversion_moneda(monto, moneda_origen, moneda_destino)**
+   - CuÃ¡ndo usarla: Cuando pregunten sobre conversiones entre monedas, cuÃ¡nto transferir, tasas de cambio
    - Ejemplos:
-     * "¿cuánto debo transferir en CLP para que lleguen 40.000 COP?"
+     * "Â¿cuÃ¡nto debo transferir en CLP para que lleguen 40.000 COP?"
      * "convertir 100.000 CLP a VES"
-     * "cuántos dólares son 500.000 pesos chilenos?"
+     * "cuÃ¡ntos dÃ³lares son 500.000 pesos chilenos?"
      * "equivalencia entre pesos chilenos y colombianos"
-     * "cuál es la tasa CLP a COP"
+     * "cuÃ¡l es la tasa CLP a COP"
 
-7️⃣ **consultar_tareas(incluir_completadas)**
-   - Cuándo usarla: Cuando pregunten sobre tareas pendientes, trabajo asignado, qué hacer
+7ï¸âƒ£ **consultar_tareas(incluir_completadas)**
+   - CuÃ¡ndo usarla: Cuando pregunten sobre tareas pendientes, trabajo asignado, quÃ© hacer
    - Ejemplos:
-     * "¿tengo tareas pendientes?"
-     * "qué tareas tengo hoy?"
+     * "Â¿tengo tareas pendientes?"
+     * "quÃ© tareas tengo hoy?"
      * "mis asignaciones"
-     * "qué debo hacer?"
+     * "quÃ© debo hacer?"
      * "tareas"
    - Retorna: {total, tareas: [{titulo, descripcion, prioridad, estado, fecha_vencimiento, vencida, dias_restantes}]}
-   - IMPORTANTE: Si el mensaje proactivo mencionó tareas, SIEMPRE llama esta función
+   - IMPORTANTE: Si el mensaje proactivo mencionÃ³ tareas, SIEMPRE llama esta funciÃ³n
 
-8️⃣ **obtener_estadisticas_clientes()**
-   - Cuándo usarla: Cuando pregunten por el total de clientes, estadísticas generales
+8ï¸âƒ£ **obtener_estadisticas_clientes()**
+   - CuÃ¡ndo usarla: Cuando pregunten por el total de clientes, estadÃ­sticas generales
    - Ejemplos:
-     * "¿cuántos clientes tenemos?"
+     * "Â¿cuÃ¡ntos clientes tenemos?"
      * "total de clientes registrados"
-     * "estadísticas de clientes"
+     * "estadÃ­sticas de clientes"
    - Retorna: {total_clientes, clientes_completos, clientes_incompletos, porcentaje_completos}
 
-9️⃣ **analizar_tarea_cliente_inactivo(nombre_cliente, descripcion_tarea)**
-   - Cuándo usarla: Cuando el operador pida ayuda con una tarea de cliente inactivo o reducción de actividad
+9ï¸âƒ£ **analizar_tarea_cliente_inactivo(nombre_cliente, descripcion_tarea)**
+   - CuÃ¡ndo usarla: Cuando el operador pida ayuda con una tarea de cliente inactivo o reducciÃ³n de actividad
    - Ejemplos:
-     * "¿qué hago con esta tarea de [cliente]?"
-     * "ayúdame con el cliente inactivo [nombre]"
-     * "¿qué mensaje envío a [cliente]?"
-     * Operador menciona tarea de: "cliente inactivo por X días", "reducción de actividad", "riesgo alto"
-   - Función INTELIGENTE que:
-     ✅ Analiza los días de inactividad
-     ✅ Determina si debe enviar recordatorio (30-44 días) o promoción (45+ días)
-     ✅ Calcula tasa promocional automáticamente (3.3% descuento sobre ÚLTIMA TASA DE COMPRA USDT del historial de compras)
-     ✅ Genera mensaje personalizado listo para copiar y enviar
-   - Aplica a: "Cliente inactivo", "Reducción de actividad", "Riesgo alto"
-   - IMPORTANTE: La tasa promocional se calcula desde el "Historial de Compras" (última compra de USDT), NO desde Binance P2P
+     * "Â¿quÃ© hago con esta tarea de [cliente]?"
+     * "ayÃºdame con el cliente inactivo [nombre]"
+     * "Â¿quÃ© mensaje envÃ­o a [cliente]?"
+     * Operador menciona tarea de: "cliente inactivo por X dÃ­as", "reducciÃ³n de actividad", "riesgo alto"
+   - FunciÃ³n INTELIGENTE que:
+     âœ… Analiza los dÃ­as de inactividad
+     âœ… Determina si debe enviar recordatorio (30-44 dÃ­as) o promociÃ³n (45+ dÃ­as)
+     âœ… Calcula tasa promocional automÃ¡ticamente (3.3% descuento sobre ÃšLTIMA TASA DE COMPRA USDT del historial de compras)
+     âœ… Genera mensaje personalizado listo para copiar y enviar
+   - Aplica a: "Cliente inactivo", "ReducciÃ³n de actividad", "Riesgo alto"
+   - IMPORTANTE: La tasa promocional se calcula desde el "Historial de Compras" (Ãºltima compra de USDT), NO desde Binance P2P
    - Retorna: {tipo_accion, dias_inactivo, tasa_original, tasa_promocional, mensaje_sugerido}
 
-   - Monedas soportadas: CLP (Chile), COP (Colombia), VES (Venezuela), USD (Dólares), ARS (Argentina), PEN (Perú), BRL (Brasil), MXN (México), EUR (Euro), UYU (Uruguay)
+   - Monedas soportadas: CLP (Chile), COP (Colombia), VES (Venezuela), USD (DÃ³lares), ARS (Argentina), PEN (PerÃº), BRL (Brasil), MXN (MÃ©xico), EUR (Euro), UYU (Uruguay)
    - Retorna: {monto_origen, moneda_origen, nombre_moneda_origen, monto_convertido, moneda_destino, nombre_moneda_destino, tasa_cambio, formula}
 
    
-   📐 FÓRMULAS DE CONVERSIÓN (IMPORTANTE):
+   ðŸ“ FÃ“RMULAS DE CONVERSIÃ“N (IMPORTANTE):
    
    Para convertir DESDE moneda A HACIA moneda B:
-   Monto en B = Monto en A × Tasa(A→B)
+   Monto en B = Monto en A Ã— Tasa(Aâ†’B)
    
-   Ejemplos prácticos:
+   Ejemplos prÃ¡cticos:
    
-   ✅ "¿Cuántos COP son 100.000 CLP?"
-   → Llamas: calcular_conversion_moneda(100000, "CLP", "COP")
-   → Tasa CLP→COP = 4 (porque 1 CLP = 4 COP)
-   → Resultado: 100.000 × 4 = 400.000 COP
+   âœ… "Â¿CuÃ¡ntos COP son 100.000 CLP?"
+   â†’ Llamas: calcular_conversion_moneda(100000, "CLP", "COP")
+   â†’ Tasa CLPâ†’COP = 4 (porque 1 CLP = 4 COP)
+   â†’ Resultado: 100.000 Ã— 4 = 400.000 COP
    
-   ✅ "¿Cuántos CLP necesito transferir para que lleguen 40.000 COP?"
-   → Usuario pregunta: Cuántos CLP → 40.000 COP (quiere saber el origen)
-   → Llamas: calcular_conversion_moneda(40000, "COP", "CLP")
-   → Tasa COP→CLP = 0.25 (porque 1 COP = 0.25 CLP)
-   → Resultado: 40.000 × 0.25 = 10.000 CLP
-   → Respondes: "Para que lleguen 40.000 COP, debes transferir 10.000 CLP"
+   âœ… "Â¿CuÃ¡ntos CLP necesito transferir para que lleguen 40.000 COP?"
+   â†’ Usuario pregunta: CuÃ¡ntos CLP â†’ 40.000 COP (quiere saber el origen)
+   â†’ Llamas: calcular_conversion_moneda(40000, "COP", "CLP")
+   â†’ Tasa COPâ†’CLP = 0.25 (porque 1 COP = 0.25 CLP)
+   â†’ Resultado: 40.000 Ã— 0.25 = 10.000 CLP
+   â†’ Respondes: "Para que lleguen 40.000 COP, debes transferir 10.000 CLP"
    
-   ✅ "¿Cuántos VES recibe el cliente por 50.000 CLP?"
-   → Llamas: calcular_conversion_moneda(50000, "CLP", "VES")
-   → Resultado basado en tasa actual
+   âœ… "Â¿CuÃ¡ntos VES recibe el cliente por 50.000 CLP?"
+   â†’ Llamas: calcular_conversion_moneda(50000, "CLP", "VES")
+   â†’ Resultado basado en tasa actual
    
-   ⚠️ IMPORTANTE - INTERPRETACIÓN DE PREGUNTAS:
+   âš ï¸ IMPORTANTE - INTERPRETACIÃ“N DE PREGUNTAS:
    
-   Cuando pregunten "¿cuánto debo transferir para que lleguen X [moneda destino]?":
+   Cuando pregunten "Â¿cuÃ¡nto debo transferir para que lleguen X [moneda destino]?":
    - El usuario TIENE moneda destino conocida (X unidades)
-   - El usuario NECESITA saber cuánta moneda origen enviar
+   - El usuario NECESITA saber cuÃ¡nta moneda origen enviar
    - Llamas: calcular_conversion_moneda(X, "moneda_destino", "moneda_origen")
    
-   Cuando pregunten "¿cuánto llega si envío X [moneda origen]?":
+   Cuando pregunten "Â¿cuÃ¡nto llega si envÃ­o X [moneda origen]?":
    - El usuario TIENE moneda origen conocida (X unidades)
-   - El usuario NECESITA saber cuánto llega en moneda destino
+   - El usuario NECESITA saber cuÃ¡nto llega en moneda destino
    - Llamas: calcular_conversion_moneda(X, "moneda_origen", "moneda_destino")
 
-RAZONAMIENTO AUTÓNOMO:
+RAZONAMIENTO AUTÃ“NOMO:
 
-✅ TÚ DECIDES qué función llamar según el contexto de la pregunta
-✅ OpenAI analiza la pregunta y elige la función apropiada automáticamente
-✅ NO necesitas que el usuario use palabras exactas
-✅ Entiendes intención: "¿ya está listo Cris?" → buscar_cliente("Cris") → revisar datos_completos
+âœ… TÃš DECIDES quÃ© funciÃ³n llamar segÃºn el contexto de la pregunta
+âœ… OpenAI analiza la pregunta y elige la funciÃ³n apropiada automÃ¡ticamente
+âœ… NO necesitas que el usuario use palabras exactas
+âœ… Entiendes intenciÃ³n: "Â¿ya estÃ¡ listo Cris?" â†’ buscar_cliente("Cris") â†’ revisar datos_completos
 
 EJEMPLOS DE RAZONAMIENTO:
 
-Pregunta: "¿ya actualizaron a ese cliente Cris?"
-→ TÚ razonas: "Necesito buscar si Cris existe y si sus datos están completos"
-→ Llamas: buscar_cliente("Cris")
-→ Recibes: {encontrado: true, nombre: "Cris", rut: "12345", email: "cris@mail.com", telefono: "987654", datos_completos: true, faltan: []}
-→ Respondes: "Sí, Cris ya está completo ✅. Tiene RUT, email y teléfono registrados."
+Pregunta: "Â¿ya actualizaron a ese cliente Cris?"
+â†’ TÃš razonas: "Necesito buscar si Cris existe y si sus datos estÃ¡n completos"
+â†’ Llamas: buscar_cliente("Cris")
+â†’ Recibes: {encontrado: true, nombre: "Cris", rut: "12345", email: "cris@mail.com", telefono: "987654", datos_completos: true, faltan: []}
+â†’ Respondes: "SÃ­, Cris ya estÃ¡ completo âœ…. Tiene RUT, email y telÃ©fono registrados."
 
-Pregunta: "tiene datos el cliente que se llama María?"
-→ Llamas: buscar_cliente("María")
-→ Respondes según lo que encuentres
+Pregunta: "tiene datos el cliente que se llama MarÃ­a?"
+â†’ Llamas: buscar_cliente("MarÃ­a")
+â†’ Respondes segÃºn lo que encuentres
 
-Pregunta: "cuánto he trabajado este mes?"
-→ Llamas: consultar_rendimiento()
-→ Respondes con las estadísticas
+Pregunta: "cuÃ¡nto he trabajado este mes?"
+â†’ Llamas: consultar_rendimiento()
+â†’ Respondes con las estadÃ­sticas
 
 IMPORTANTE:
 
-✅ Llamas funciones AUTOMÁTICAMENTE cuando detectas la necesidad
-✅ NO pidas permiso para consultar - simplemente hazlo
-✅ Presenta los resultados de forma conversacional y amigable
-✅ Si no encuentras datos, dilo claramente: "No encontré cliente con ese nombre"
-✅ NO inventes información - usa SOLO lo que las funciones retornan
+âœ… Llamas funciones AUTOMÃTICAMENTE cuando detectas la necesidad
+âœ… NO pidas permiso para consultar - simplemente hazlo
+âœ… Presenta los resultados de forma conversacional y amigable
+âœ… Si no encuentras datos, dilo claramente: "No encontrÃ© cliente con ese nombre"
+âœ… NO inventes informaciÃ³n - usa SOLO lo que las funciones retornan
 
-6. GESTIÓN DE TAREAS Y RENDIMIENTO
+6. GESTIÃ“N DE TAREAS Y RENDIMIENTO
 
 Revisa tareas pendientes o vencidas
-Como supervisor suave, pregunta sin regañar
-Sugiere actualización de tareas según respuesta del operador
+Como supervisor suave, pregunta sin regaÃ±ar
+Sugiere actualizaciÃ³n de tareas segÃºn respuesta del operador
 
-Rendimiento: Usa /api/mi-rendimiento para explicar métricas del mes
+Rendimiento: Usa /api/mi-rendimiento para explicar mÃ©tricas del mes
 
 7. CONTEXTO CONVERSACIONAL Y NOTIFICACIONES
 
-Mantén el contexto de la conversación. Si el operador te preguntó algo anteriormente, recuérdalo.
+MantÃ©n el contexto de la conversaciÃ³n. Si el operador te preguntÃ³ algo anteriormente, recuÃ©rdalo.
 
-🔔 IMPORTANTE - NOTIFICACIONES PROACTIVAS (OBLIGATORIO):
+ðŸ”” IMPORTANTE - NOTIFICACIONES PROACTIVAS (OBLIGATORIO):
 
-⚠️ REGLA ABSOLUTA - VERIFICA PRIMERO:
+âš ï¸ REGLA ABSOLUTA - VERIFICA PRIMERO:
 ANTES de responder cualquier cosa, REVISA si contextData.notificaciones_pendientes tiene contenido.
 
-Si contextData.notificaciones_pendientes existe y NO está vacío:
-- 🚨 DEBES mencionarlas INMEDIATAMENTE en tu respuesta
-- ❌ NO respondas nada más sin mencionarlas primero
-- ✅ Menciónalas ANTES de responder cualquier otra cosa
+Si contextData.notificaciones_pendientes existe y NO estÃ¡ vacÃ­o:
+- ðŸš¨ DEBES mencionarlas INMEDIATAMENTE en tu respuesta
+- âŒ NO respondas nada mÃ¡s sin mencionarlas primero
+- âœ… MenciÃ³nalas ANTES de responder cualquier otra cosa
 
-CUÁNDO MENCIONAR NOTIFICACIONES:
-- ✅ SIEMPRE que contextData.notificaciones_pendientes tenga datos
-- ✅ Especialmente cuando el usuario te salude ("hola", "buenos días", "qué hay", etc.)
-- ✅ Cuando pregunten "tengo notificaciones?", "qué hay pendiente", "tareas", "alertas"
-- ❌ NUNCA digas "no hay notificaciones" si contextData.notificaciones_pendientes tiene elementos
+CUÃNDO MENCIONAR NOTIFICACIONES:
+- âœ… SIEMPRE que contextData.notificaciones_pendientes tenga datos
+- âœ… Especialmente cuando el usuario te salude ("hola", "buenos dÃ­as", "quÃ© hay", etc.)
+- âœ… Cuando pregunten "tengo notificaciones?", "quÃ© hay pendiente", "tareas", "alertas"
+- âŒ NUNCA digas "no hay notificaciones" si contextData.notificaciones_pendientes tiene elementos
 
-EJEMPLO VERIFICACIÓN:
+EJEMPLO VERIFICACIÃ“N:
 Usuario: "hola"
-TÚ piensas: ¿Hay algo en contextData.notificaciones_pendientes?
+TÃš piensas: Â¿Hay algo en contextData.notificaciones_pendientes?
 - SI HAY: Mencionar PRIMERO las notificaciones
 - NO HAY: Saludo normal
 
-CÓMO MENCIONAR NOTIFICACIONES:
-- Ejemplo BUENO: "¡Hola! 👋 Mira, hay un tema: el cliente Craus hizo un envío pero le faltan RUT, email y teléfono. ¿Lo revisamos?"
-- Ejemplo MALO: "Notificación #1: Cliente Craus tiene datos incompletos..."
-- Si hay varias (2-3), menciónalas: "Hay un par de cosas: 1) Craus necesita datos, 2) María también..."
-- Si hay muchas (>3): "Tienes 5 notificaciones. Las más importantes: Craus y María necesitan actualizar datos"
+CÃ“MO MENCIONAR NOTIFICACIONES:
+- Ejemplo BUENO: "Â¡Hola! ðŸ‘‹ Mira, hay un tema: el cliente Craus hizo un envÃ­o pero le faltan RUT, email y telÃ©fono. Â¿Lo revisamos?"
+- Ejemplo MALO: "NotificaciÃ³n #1: Cliente Craus tiene datos incompletos..."
+- Si hay varias (2-3), menciÃ³nalas: "Hay un par de cosas: 1) Craus necesita datos, 2) MarÃ­a tambiÃ©n..."
+- Si hay muchas (>3): "Tienes 5 notificaciones. Las mÃ¡s importantes: Craus y MarÃ­a necesitan actualizar datos"
 
 FORMATO DE RESPUESTA CON NOTIFICACIONES:
 1. Saludo breve
-2. ⭐ MENCIONA LAS NOTIFICACIONES (palabra clave: "pendiente", "falta", "incompleto", etc.)
-3. Pregunta si quiere más detalles
+2. â­ MENCIONA LAS NOTIFICACIONES (palabra clave: "pendiente", "falta", "incompleto", etc.)
+3. Pregunta si quiere mÃ¡s detalles
 
 Ejemplo completo cuando preguntan "tengo notificaciones?":
-"Sí! Tienes 1 notificación pendiente: el cliente Craus hizo una operación pero le faltan datos (RUT, email, teléfono). ¿Quieres que busque más info?"
+"SÃ­! Tienes 1 notificaciÃ³n pendiente: el cliente Craus hizo una operaciÃ³n pero le faltan datos (RUT, email, telÃ©fono). Â¿Quieres que busque mÃ¡s info?"
 
-❌ NUNCA digas "no hay notificaciones" si contextData.notificaciones_pendientes tiene contenido
+âŒ NUNCA digas "no hay notificaciones" si contextData.notificaciones_pendientes tiene contenido
 
-CRÍTICO - SOBRE CONSULTAS DE DATOS ESPECÍFICOS:
-- SI te piden datos de un cliente específico, revisa si hay información en contextData.cliente_consultado
+CRÃTICO - SOBRE CONSULTAS DE DATOS ESPECÃFICOS:
+- SI te piden datos de un cliente especÃ­fico, revisa si hay informaciÃ³n en contextData.cliente_consultado
 - Si contextData.cliente_consultado existe, muestra esos datos de forma conversacional y clara
 - Si NO existe cliente_consultado pero te piden datos, sugiere verificar el nombre del cliente
-- NUNCA inventes datos como RUT, email, teléfono
-- Solo usa la información real que viene en contextData
+- NUNCA inventes datos como RUT, email, telÃ©fono
+- Solo usa la informaciÃ³n real que viene en contextData
 
 CUANDO MUESTRES DATOS DE UN CLIENTE:
-- Formato conversacional, NO listados robóticos
-- Ejemplo BUENO: "Cris está registrado desde [fecha]. Tiene RUT: xxx, email: xxx, teléfono: xxx. Todo completo ✅"
+- Formato conversacional, NO listados robÃ³ticos
+- Ejemplo BUENO: "Cris estÃ¡ registrado desde [fecha]. Tiene RUT: xxx, email: xxx, telÃ©fono: xxx. Todo completo âœ…"
 - Ejemplo MALO: "Datos del cliente: - Nombre: Cris - RUT: xxx..."
-- Si faltan datos, menciónalos de forma natural: "A Cris le falta el email y el teléfono, el RUT sí lo tiene"
+- Si faltan datos, menciÃ³nalos de forma natural: "A Cris le falta el email y el telÃ©fono, el RUT sÃ­ lo tiene"
 
 8. ESTILO Y TONO
 
-- CONVERSACIONAL, cercano, como un compañero de trabajo que ayuda
+- CONVERSACIONAL, cercano, como un compaÃ±ero de trabajo que ayuda
 - Respuestas CORTAS y directas (evita textos largos)
-- Usa emojis con moderación (1-2 por mensaje máximo)
-- Nunca regañes, siempre sugiere con frases tipo "Ojo con este detalle..." o "Te sugiero..."
-- Mismo idioma del operador (por defecto español chileno)
-- Si falta información clave, pide aclaración de forma natural
-- NO inventes información que no tienes
+- Usa emojis con moderaciÃ³n (1-2 por mensaje mÃ¡ximo)
+- Nunca regaÃ±es, siempre sugiere con frases tipo "Ojo con este detalle..." o "Te sugiero..."
+- Mismo idioma del operador (por defecto espaÃ±ol chileno)
+- Si falta informaciÃ³n clave, pide aclaraciÃ³n de forma natural
+- NO inventes informaciÃ³n que no tienes
 
-TU ROL: Eres como un supervisor amigable que ayuda - explicas, corriges, sugieres y acompañas. Nunca atacas ni regañas.
+TU ROL: Eres como un supervisor amigable que ayuda - explicas, corriges, sugieres y acompaÃ±as. Nunca atacas ni regaÃ±as.
 
-⚠️ IMPORTANTE - LEE SIEMPRE ESTOS CONTEXTOS PRIMERO:
+âš ï¸ IMPORTANTE - LEE SIEMPRE ESTOS CONTEXTOS PRIMERO:
 
-📋 **1. MENSAJES PROACTIVOS** (contextData.mensajes_proactivos):
-- Estos mensajes contienen información ESPECÍFICA ya detectada por el sistema
+ðŸ“‹ **1. MENSAJES PROACTIVOS** (contextData.mensajes_proactivos):
+- Estos mensajes contienen informaciÃ³n ESPECÃFICA ya detectada por el sistema
 - Nombres exactos de clientes, detalles precisos de alertas
-- Cuando el usuario responda a un mensaje proactivo, USA LA INFORMACIÓN DEL MENSAJE
-- NO llames funciones genéricas si el mensaje proactivo ya tiene los detalles
-- Ejemplo: Si dice "Cristia Jose, Craus y 1 más", menciona ESOS nombres exactos
+- Cuando el usuario responda a un mensaje proactivo, USA LA INFORMACIÃ“N DEL MENSAJE
+- NO llames funciones genÃ©ricas si el mensaje proactivo ya tiene los detalles
+- Ejemplo: Si dice "Cristia Jose, Craus y 1 mÃ¡s", menciona ESOS nombres exactos
 
-🔔 **2. NOTIFICACIONES PENDIENTES** (contextData.notificaciones_pendientes):
+ðŸ”” **2. NOTIFICACIONES PENDIENTES** (contextData.notificaciones_pendientes):
 - Alertas del sistema de notificaciones normales
-- Menciónalas cuando existan, especialmente al saludar
+- MenciÃ³nalas cuando existan, especialmente al saludar
 - Palabra clave para mencionar: "pendiente", "falta", "incompleto"
 
-✅ **3. TAREAS PENDIENTES** (contextData.tareas_pendientes):
+âœ… **3. TAREAS PENDIENTES** (contextData.tareas_pendientes):
 - Lista de tareas asignadas al usuario
 - Total disponible en: contextData.total_tareas_pendientes
-- Cuando pregunten por tareas, VERIFICA PRIMERO si ya están en el contexto
-- Si contextData.tareas_pendientes tiene datos, úsalos directamente
+- Cuando pregunten por tareas, VERIFICA PRIMERO si ya estÃ¡n en el contexto
+- Si contextData.tareas_pendientes tiene datos, Ãºsalos directamente
 - Solo llama a consultar_tareas() si necesitas actualizar o filtrar
 
-🎯 **AYUDA CON TAREAS - FUNCIÓN INTELIGENTE**:
+ðŸŽ¯ **AYUDA CON TAREAS - FUNCIÃ“N INTELIGENTE**:
 
 Cuando el operador tenga tareas y pida ayuda:
-- **Detecta tipo de tarea**: "Cliente inactivo por X días", "Reducción de actividad", etc.
-- **Ofrece ayuda automáticamente**: "¿Quieres que te ayude a resolver esta tarea?"
-- **Usa analizar_tarea_cliente_inactivo()** para generar mensajes automáticos
+- **Detecta tipo de tarea**: "Cliente inactivo por X dÃ­as", "ReducciÃ³n de actividad", etc.
+- **Ofrece ayuda automÃ¡ticamente**: "Â¿Quieres que te ayude a resolver esta tarea?"
+- **Usa analizar_tarea_cliente_inactivo()** para generar mensajes automÃ¡ticos
 
 Ejemplo de flujo:
-Operador: "Tengo una tarea de andrez hernandez, cliente inactivo por 71 días"
-Tú: "¡Claro! Voy a analizar esta tarea y generar un mensaje para andrez..."
-→ Llamas: analizar_tarea_cliente_inactivo("andrez hernandez", "Cliente inactivo por 71 días")
-→ Recibes: tasa promocional calculada + mensaje listo
-→ Respondes: "Aquí está el mensaje para andrez: [mensaje generado]. La tasa promocional es [X] VES. ¿Lo envío?"
+Operador: "Tengo una tarea de andrez hernandez, cliente inactivo por 71 dÃ­as"
+TÃº: "Â¡Claro! Voy a analizar esta tarea y generar un mensaje para andrez..."
+â†’ Llamas: analizar_tarea_cliente_inactivo("andrez hernandez", "Cliente inactivo por 71 dÃ­as")
+â†’ Recibes: tasa promocional calculada + mensaje listo
+â†’ Respondes: "AquÃ­ estÃ¡ el mensaje para andrez: [mensaje generado]. La tasa promocional es [X] VES. Â¿Lo envÃ­o?"
 
 Tipos de tareas que puedes resolver:
-1. **Cliente inactivo 30-44 días**: Mensaje de recordatorio/cercanía (sin promoción)
-2. **Cliente inactivo 45+ días**: Mensaje con promoción (tasa + 3.3% descuento)
-3. **Reducción de actividad**: Mensaje con promoción (tasa + 3.3% descuento)
+1. **Cliente inactivo 30-44 dÃ­as**: Mensaje de recordatorio/cercanÃ­a (sin promociÃ³n)
+2. **Cliente inactivo 45+ dÃ­as**: Mensaje con promociÃ³n (tasa + 3.3% descuento)
+3. **ReducciÃ³n de actividad**: Mensaje con promociÃ³n (tasa + 3.3% descuento)
 
-📊 **PRIORIDAD DE LECTURA**:
-1. PRIMERO: Lee mensajes_proactivos (información más específica)
+ðŸ“Š **PRIORIDAD DE LECTURA**:
+1. PRIMERO: Lee mensajes_proactivos (informaciÃ³n mÃ¡s especÃ­fica)
 2. SEGUNDO: Lee notificaciones_pendientes
 3. TERCERO: Lee tareas_pendientes
-4. ÚLTIMO: Llama funciones solo si necesitas datos adicionales
+4. ÃšLTIMO: Llama funciones solo si necesitas datos adicionales
 
 DATOS DEL SISTEMA ACTUAL:
 ${JSON.stringify(contextData, null, 2)}
@@ -4292,7 +4303,7 @@ Usa estos datos cuando sea necesario para responder consultas sobre tasas, clien
 
         const reply = await generateChatbotResponse(message, systemContext, userRole, username, contextData, historial, userId);
         
-        // CRÍTICO: Solo marcar notificaciones como leídas si el chatbot las mencionó en su respuesta
+        // CRÃTICO: Solo marcar notificaciones como leÃ­das si el chatbot las mencionÃ³ en su respuesta
         // Verificamos si la respuesta contiene palabras clave de notificaciones
         if (contextData.notificaciones_pendientes && contextData.notificaciones_pendientes.length > 0) {
             const replyLower = reply.toLowerCase();
@@ -4304,23 +4315,23 @@ Usa estos datos cuando sea necesario para responder consultas sobre tasas, clien
                 replyLower.includes('datos') ||
                 replyLower.includes('alerta');
             
-            // Solo marcar como leídas si el chatbot realmente las mencionó
+            // Solo marcar como leÃ­das si el chatbot realmente las mencionÃ³
             if (mencionoNotificaciones) {
                 const notifIds = contextData.notificaciones_pendientes.map(n => n.id);
                 db.run(
                     `UPDATE notificaciones SET leida = 1 WHERE id IN (${notifIds.join(',')})`,
                     (err) => {
                         if (!err) {
-                            console.log(`✅ ${notifIds.length} notificación(es) marcada(s) como leída(s) (chatbot las mencionó en su respuesta)`);
+                            console.log(`âœ… ${notifIds.length} notificaciÃ³n(es) marcada(s) como leÃ­da(s) (chatbot las mencionÃ³ en su respuesta)`);
                         }
                     }
                 );
             } else {
-                console.log(`ℹ️ Notificaciones NO marcadas como leídas - el chatbot no las mencionó en esta respuesta`);
+                console.log(`â„¹ï¸ Notificaciones NO marcadas como leÃ­das - el chatbot no las mencionÃ³ en esta respuesta`);
             }
         }
         
-        // Guardar conversación en el historial
+        // Guardar conversaciÃ³n en el historial
         const fechaCreacion = new Date().toISOString();
         await new Promise((resolve, reject) => {
             db.run(
@@ -4337,11 +4348,11 @@ Usa estos datos cuando sea necesario para responder consultas sobre tasas, clien
         res.json({ reply });
     } catch (error) {
         console.error('Error en chatbot:', error);
-        res.status(500).json({ reply: 'Lo siento, ocurrió un error. Por favor intenta de nuevo.' });
+        res.status(500).json({ reply: 'Lo siento, ocurriÃ³ un error. Por favor intenta de nuevo.' });
     }
 });
 
-// Función para obtener contexto del sistema para el chatbot
+// FunciÃ³n para obtener contexto del sistema para el chatbot
 async function obtenerContextoSistema(userId, userRole) {
     const context = {
         tasas_actuales: null,
@@ -4374,7 +4385,7 @@ async function obtenerContextoSistema(userId, userRole) {
             });
         });
 
-        // Obtener tasas P2P base (si existen en configuración)
+        // Obtener tasas P2P base (si existen en configuraciÃ³n)
         const [tasasVenta, totalClientes, tasaCOP, tasaPEN, tasaBOB, tasaARS] = await Promise.all([
             tasasVentaPromise,
             totalClientesPromise,
@@ -4390,7 +4401,7 @@ async function obtenerContextoSistema(userId, userRole) {
             VES_nivel1: tasasVenta.nivel1,
             VES_nivel2: tasasVenta.nivel2,
             VES_nivel3: tasasVenta.nivel3,
-            VES_descripcion: "Tasas de VENTA a clientes (≥5K, ≥100K, ≥250K CLP). Estas son las que ofrecemos.",
+            VES_descripcion: "Tasas de VENTA a clientes (â‰¥5K, â‰¥100K, â‰¥250K CLP). Estas son las que ofrecemos.",
             COP: tasaCOP,
             COP_descripcion: "Tasa base Binance P2P ajustada con margen",
             PEN: tasaPEN,
@@ -4472,26 +4483,26 @@ async function obtenerContextoSistema(userId, userRole) {
     return context;
 }
 
-// 💱 TASAS DE CAMBIO P2P (Base: CLP)
-// Actualizar estas tasas regularmente según el mercado
+// ðŸ’± TASAS DE CAMBIO P2P (Base: CLP)
+// Actualizar estas tasas regularmente segÃºn el mercado
 const TASAS_CAMBIO_P2P = {
     // Moneda: tasa (1 unidad de moneda origen = X CLP)
     'CLP': 1,           // Peso Chileno (base)
     'COP': 0.25,        // Peso Colombiano (1 COP = 0.25 CLP, o 1 CLP = 4 COP)
-    'VES': 33.33,       // Bolívar Venezolano (1 VES = 33.33 CLP, o 1 CLP = 0.03 VES)
-    'USD': 950,         // Dólar estadounidense (1 USD = 950 CLP)
+    'VES': 33.33,       // BolÃ­var Venezolano (1 VES = 33.33 CLP, o 1 CLP = 0.03 VES)
+    'USD': 950,         // DÃ³lar estadounidense (1 USD = 950 CLP)
     'ARS': 1.05,        // Peso Argentino (1 ARS = 1.05 CLP)
     'PEN': 250,         // Sol Peruano (1 PEN = 250 CLP)
-    'BRL': 190,         // Real Brasileño (1 BRL = 190 CLP)
+    'BRL': 190,         // Real BrasileÃ±o (1 BRL = 190 CLP)
     'MXN': 55,          // Peso Mexicano (1 MXN = 55 CLP)
     'EUR': 1050,        // Euro (1 EUR = 1050 CLP)
     'UYU': 23          // Peso Uruguayo (1 UYU = 23 CLP)
 };
 
-// Función para obtener tasa de cambio actualizada desde DB o usar default
+// FunciÃ³n para obtener tasa de cambio actualizada desde DB o usar default
 async function obtenerTasaCambioActual(monedaOrigen, monedaDestino) {
     // Por ahora usar las tasas fijas, pero esto puede extenderse para
-    // consultar tasas dinámicas desde la tabla de operaciones recientes
+    // consultar tasas dinÃ¡micas desde la tabla de operaciones recientes
     
     if (monedaOrigen === monedaDestino) return 1;
     
@@ -4502,15 +4513,15 @@ async function obtenerTasaCambioActual(monedaOrigen, monedaDestino) {
         return null; // Moneda no soportada
     }
     
-    // Convertir: Origen → CLP → Destino
+    // Convertir: Origen â†’ CLP â†’ Destino
     return tasaOrigenACLP / tasaDestinoACLP;
 }
 
-// 🤖 FUNCIONES DISPONIBLES PARA EL AGENTE (Function Calling)
+// ðŸ¤– FUNCIONES DISPONIBLES PARA EL AGENTE (Function Calling)
 const agentFunctions = [
     {
         name: "calcular_conversion_moneda",
-        description: "Calcula conversiones entre monedas del P2P. Úsalo cuando pregunten: '¿cuánto debo transferir para que lleguen X pesos colombianos?', 'convertir X a otra moneda', 'cuál es la tasa', 'equivalencia entre monedas', etc. Monedas soportadas: CLP (Chile), COP (Colombia), VES (Venezuela), USD, ARS (Argentina), PEN (Perú), BRL (Brasil), MXN (México), EUR, UYU (Uruguay).",
+        description: "Calcula conversiones entre monedas del P2P. Ãšsalo cuando pregunten: 'Â¿cuÃ¡nto debo transferir para que lleguen X pesos colombianos?', 'convertir X a otra moneda', 'cuÃ¡l es la tasa', 'equivalencia entre monedas', etc. Monedas soportadas: CLP (Chile), COP (Colombia), VES (Venezuela), USD, ARS (Argentina), PEN (PerÃº), BRL (Brasil), MXN (MÃ©xico), EUR, UYU (Uruguay).",
         parameters: {
             type: "object",
             properties: {
@@ -4520,11 +4531,11 @@ const agentFunctions = [
                 },
                 moneda_origen: {
                     type: "string",
-                    description: "Código de la moneda origen (CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU)"
+                    description: "CÃ³digo de la moneda origen (CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU)"
                 },
                 moneda_destino: {
                     type: "string",
-                    description: "Código de la moneda destino (CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU)"
+                    description: "CÃ³digo de la moneda destino (CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU)"
                 }
             },
             required: ["monto", "moneda_origen", "moneda_destino"]
@@ -4532,7 +4543,7 @@ const agentFunctions = [
     },
     {
         name: "obtener_estadisticas_clientes",
-        description: "Obtiene estadísticas generales sobre clientes: total de clientes registrados, cuántos tienen datos completos, cuántos incompletos, distribución, etc. Usa esto cuando pregunten '¿cuántos clientes tenemos?', 'total de clientes', 'estadísticas de clientes', 'clientes registrados', etc.",
+        description: "Obtiene estadÃ­sticas generales sobre clientes: total de clientes registrados, cuÃ¡ntos tienen datos completos, cuÃ¡ntos incompletos, distribuciÃ³n, etc. Usa esto cuando pregunten 'Â¿cuÃ¡ntos clientes tenemos?', 'total de clientes', 'estadÃ­sticas de clientes', 'clientes registrados', etc.",
         parameters: {
             type: "object",
             properties: {}
@@ -4540,7 +4551,7 @@ const agentFunctions = [
     },
     {
         name: "buscar_cliente",
-        description: "Busca un cliente en la base de datos por nombre. Usa esto cuando el usuario pregunte sobre datos de un cliente específico, si ya actualizaron un cliente, verificar información, etc.",
+        description: "Busca un cliente en la base de datos por nombre. Usa esto cuando el usuario pregunte sobre datos de un cliente especÃ­fico, si ya actualizaron un cliente, verificar informaciÃ³n, etc.",
         parameters: {
             type: "object",
             properties: {
@@ -4554,20 +4565,20 @@ const agentFunctions = [
     },
     {
         name: "listar_operaciones_dia",
-        description: "Lista las operaciones realizadas hoy. Usa esto cuando pregunten sobre envíos, transferencias, operaciones del día, última operación, etc.",
+        description: "Lista las operaciones realizadas hoy. Usa esto cuando pregunten sobre envÃ­os, transferencias, operaciones del dÃ­a, Ãºltima operaciÃ³n, etc.",
         parameters: {
             type: "object",
             properties: {
                 limite: {
                     type: "number",
-                    description: "Número máximo de operaciones a listar (por defecto 10)"
+                    description: "NÃºmero mÃ¡ximo de operaciones a listar (por defecto 10)"
                 }
             }
         }
     },
     {
         name: "consultar_rendimiento",
-        description: "Consulta el rendimiento del operador actual en el mes. Usa esto cuando pregunten 'cómo voy', 'mi desempeño', 'mis operaciones', 'cuánto he hecho', etc.",
+        description: "Consulta el rendimiento del operador actual en el mes. Usa esto cuando pregunten 'cÃ³mo voy', 'mi desempeÃ±o', 'mis operaciones', 'cuÃ¡nto he hecho', etc.",
         parameters: {
             type: "object",
             properties: {}
@@ -4575,20 +4586,20 @@ const agentFunctions = [
     },
     {
         name: "listar_clientes_incompletos",
-        description: "Lista clientes que tienen datos faltantes (RUT, email o teléfono). Usa esto cuando pregunten sobre clientes pendientes, incompletos, que faltan actualizar, etc.",
+        description: "Lista clientes que tienen datos faltantes (RUT, email o telÃ©fono). Usa esto cuando pregunten sobre clientes pendientes, incompletos, que faltan actualizar, etc.",
         parameters: {
             type: "object",
             properties: {
                 limite: {
                     type: "number",
-                    description: "Número máximo de clientes a listar (por defecto 10)"
+                    description: "NÃºmero mÃ¡ximo de clientes a listar (por defecto 10)"
                 }
             }
         }
     },
     {
         name: "buscar_operaciones_cliente",
-        description: "Busca las operaciones de un cliente específico. Usa esto cuando pregunten cuántas operaciones tiene un cliente, historial de envíos de alguien, etc.",
+        description: "Busca las operaciones de un cliente especÃ­fico. Usa esto cuando pregunten cuÃ¡ntas operaciones tiene un cliente, historial de envÃ­os de alguien, etc.",
         parameters: {
             type: "object",
             properties: {
@@ -4602,7 +4613,7 @@ const agentFunctions = [
     },
     {
         name: "consultar_tareas",
-        description: "Consulta las tareas asignadas al operador. ÚSALO SIEMPRE cuando pregunten: '¿tengo tareas?', 'mis tareas pendientes', 'qué debo hacer hoy', 'tareas', 'pendientes', 'asignaciones', 'trabajo pendiente', etc. Esta función muestra tareas activas, su prioridad, estado y fecha de vencimiento.",
+        description: "Consulta las tareas asignadas al operador. ÃšSALO SIEMPRE cuando pregunten: 'Â¿tengo tareas?', 'mis tareas pendientes', 'quÃ© debo hacer hoy', 'tareas', 'pendientes', 'asignaciones', 'trabajo pendiente', etc. Esta funciÃ³n muestra tareas activas, su prioridad, estado y fecha de vencimiento.",
         parameters: {
             type: "object",
             properties: {
@@ -4615,7 +4626,7 @@ const agentFunctions = [
     },
     {
         name: "analizar_tarea_cliente_inactivo",
-        description: "Analiza una tarea de cliente inactivo y genera una sugerencia de mensaje personalizado. Úsala cuando el operador pida ayuda con una tarea de: 'cliente inactivo', 'reducción de actividad', 'riesgo alto', o cuando pregunten '¿qué hago con esta tarea?', 'ayúdame con este cliente', '¿qué mensaje envío?'",
+        description: "Analiza una tarea de cliente inactivo y genera una sugerencia de mensaje personalizado. Ãšsala cuando el operador pida ayuda con una tarea de: 'cliente inactivo', 'reducciÃ³n de actividad', 'riesgo alto', o cuando pregunten 'Â¿quÃ© hago con esta tarea?', 'ayÃºdame con este cliente', 'Â¿quÃ© mensaje envÃ­o?'",
         parameters: {
             type: "object",
             properties: {
@@ -4625,7 +4636,7 @@ const agentFunctions = [
                 },
                 descripcion_tarea: {
                     type: "string",
-                    description: "Descripción completa de la tarea (ej: 'Cliente inactivo por 30 días')"
+                    description: "DescripciÃ³n completa de la tarea (ej: 'Cliente inactivo por 30 dÃ­as')"
                 }
             },
             required: ["nombre_cliente", "descripcion_tarea"]
@@ -4633,7 +4644,7 @@ const agentFunctions = [
     },
     {
         name: "resolver_tarea",
-        description: "Resuelve automáticamente una tarea generando mensaje, calculando promoción y preparando todo para que el operador solo confirme el envío. Úsala cuando: 1) Se crea una tarea nueva automática, 2) El operador pregunta sobre una tarea asignada, 3) Necesitas preparar el mensaje de forma proactiva. Esta función analiza la tarea, obtiene datos del cliente, calcula tasa promocional y genera mensaje listo para copiar.",
+        description: "Resuelve automÃ¡ticamente una tarea generando mensaje, calculando promociÃ³n y preparando todo para que el operador solo confirme el envÃ­o. Ãšsala cuando: 1) Se crea una tarea nueva automÃ¡tica, 2) El operador pregunta sobre una tarea asignada, 3) Necesitas preparar el mensaje de forma proactiva. Esta funciÃ³n analiza la tarea, obtiene datos del cliente, calcula tasa promocional y genera mensaje listo para copiar.",
         parameters: {
             type: "object",
             properties: {
@@ -4643,7 +4654,7 @@ const agentFunctions = [
                 },
                 confirmar_envio: {
                     type: "boolean",
-                    description: "true si el operador confirma que envió el mensaje al cliente (marca tarea completada)"
+                    description: "true si el operador confirma que enviÃ³ el mensaje al cliente (marca tarea completada)"
                 }
             },
             required: ["tarea_id"]
@@ -4651,32 +4662,32 @@ const agentFunctions = [
     }
 ];
 
-// Función para generar respuestas del chatbot con Function Calling
+// FunciÃ³n para generar respuestas del chatbot con Function Calling
 async function generateChatbotResponse(userMessage, systemContext, userRole, username, contextData, historial = [], userId = null) {
     const messageLower = userMessage.toLowerCase();
     
-    // SOLO respuestas ultra-rápidas de datos bancarios (se usan mucho)
+    // SOLO respuestas ultra-rÃ¡pidas de datos bancarios (se usan mucho)
     if (messageLower === 'datos bancarios' || messageLower === 'cuenta bancaria' || messageLower === 'datos banco') {
-        return `🏦 **Datos Bancarios DefiOracle.cl:**\n\nBanco: BancoEstado – Chequera Electrónica\nNombre: DEFI ORACLE SPA\nCuenta: 316-7-032793-3\nRUT: 77.354.262-7\n\n✅ Listo para copiar y pegar.`;
+        return `ðŸ¦ **Datos Bancarios DefiOracle.cl:**\n\nBanco: BancoEstado â€“ Chequera ElectrÃ³nica\nNombre: DEFI ORACLE SPA\nCuenta: 316-7-032793-3\nRUT: 77.354.262-7\n\nâœ… Listo para copiar y pegar.`;
     }
     
-    // Para todo lo demás, usar OpenAI con Function Calling
+    // Para todo lo demÃ¡s, usar OpenAI con Function Calling
     try {
         // Usar variable de entorno OPENAI_API_KEY, o fallback a la key hardcodeada
         const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
         
         // Validar que hay API key
         if (!OPENAI_API_KEY || OPENAI_API_KEY === '' || OPENAI_API_KEY.includes('your-api-key-here')) {
-            console.error('❌ No se encontró API key de OpenAI válida');
-            return '❌ Lo siento, el chatbot no está configurado correctamente. Por favor contacta al administrador para configurar la API key de OpenAI.';
+            console.error('âŒ No se encontrÃ³ API key de OpenAI vÃ¡lida');
+            return 'âŒ Lo siento, el chatbot no estÃ¡ configurado correctamente. Por favor contacta al administrador para configurar la API key de OpenAI.';
         }
         
-        // Construir mensajes con historial de conversación
+        // Construir mensajes con historial de conversaciÃ³n
         const messages = [
             { role: 'system', content: systemContext }
         ];
         
-        // Agregar historial de conversación (últimos 10 mensajes)
+        // Agregar historial de conversaciÃ³n (Ãºltimos 10 mensajes)
         if (historial && historial.length > 0) {
             historial.forEach(h => {
                 messages.push({ role: 'user', content: h.mensaje });
@@ -4704,16 +4715,16 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
         
         let responseMessage = response.data.choices[0].message;
         
-        // Si OpenAI decidió llamar una función
+        // Si OpenAI decidiÃ³ llamar una funciÃ³n
         if (responseMessage.function_call) {
             const functionName = responseMessage.function_call.name;
             const functionArgs = JSON.parse(responseMessage.function_call.arguments);
             
-            console.log(`🤖 Agente llamando función: ${functionName} con args:`, functionArgs);
+            console.log(`ðŸ¤– Agente llamando funciÃ³n: ${functionName} con args:`, functionArgs);
             
             let functionResult = null;
             
-            // Ejecutar la función solicitada
+            // Ejecutar la funciÃ³n solicitada
             switch (functionName) {
                 case 'calcular_conversion_moneda':
                     functionResult = await new Promise(async (resolve) => {
@@ -4726,7 +4737,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                         if (!TASAS_CAMBIO_P2P[monedaOrigenUpper]) {
                             resolve({ 
                                 error: true, 
-                                mensaje: `❌ La moneda "${moneda_origen}" no está soportada. Monedas disponibles: CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU` 
+                                mensaje: `âŒ La moneda "${moneda_origen}" no estÃ¡ soportada. Monedas disponibles: CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU` 
                             });
                             return;
                         }
@@ -4734,7 +4745,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                         if (!TASAS_CAMBIO_P2P[monedaDestinoUpper]) {
                             resolve({ 
                                 error: true, 
-                                mensaje: `❌ La moneda "${moneda_destino}" no está soportada. Monedas disponibles: CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU` 
+                                mensaje: `âŒ La moneda "${moneda_destino}" no estÃ¡ soportada. Monedas disponibles: CLP, COP, VES, USD, ARS, PEN, BRL, MXN, EUR, UYU` 
                             });
                             return;
                         }
@@ -4748,15 +4759,15 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                         
                         const montoConvertido = monto * tasa;
                         
-                        // Nombres de monedas para respuesta más amigable
+                        // Nombres de monedas para respuesta mÃ¡s amigable
                         const nombreMonedas = {
                             'CLP': 'Pesos Chilenos',
                             'COP': 'Pesos Colombianos',
-                            'VES': 'Bolívares Venezolanos',
-                            'USD': 'Dólares',
+                            'VES': 'BolÃ­vares Venezolanos',
+                            'USD': 'DÃ³lares',
                             'ARS': 'Pesos Argentinos',
                             'PEN': 'Soles Peruanos',
-                            'BRL': 'Reales Brasileños',
+                            'BRL': 'Reales BrasileÃ±os',
                             'MXN': 'Pesos Mexicanos',
                             'EUR': 'Euros',
                             'UYU': 'Pesos Uruguayos'
@@ -4770,7 +4781,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                             moneda_destino: monedaDestinoUpper,
                             nombre_moneda_destino: nombreMonedas[monedaDestinoUpper],
                             tasa_cambio: Math.round(tasa * 10000) / 10000,
-                            formula: `${monto} ${monedaOrigenUpper} × ${Math.round(tasa * 10000) / 10000} = ${Math.round(montoConvertido * 100) / 100} ${monedaDestinoUpper}`
+                            formula: `${monto} ${monedaOrigenUpper} Ã— ${Math.round(tasa * 10000) / 10000} = ${Math.round(montoConvertido * 100) / 100} ${monedaDestinoUpper}`
                         });
                     });
                     break;
@@ -4788,7 +4799,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                     const faltan = [];
                                     if (!cliente.rut) faltan.push('RUT');
                                     if (!cliente.email) faltan.push('Email');
-                                    if (!cliente.telefono) faltan.push('Teléfono');
+                                    if (!cliente.telefono) faltan.push('TelÃ©fono');
                                     
                                     resolve({
                                         encontrado: true,
@@ -4802,7 +4813,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                         faltan: faltan
                                     });
                                 } else {
-                                    resolve({ encontrado: false, mensaje: `No se encontró cliente con nombre similar a "${functionArgs.nombre}"` });
+                                    resolve({ encontrado: false, mensaje: `No se encontrÃ³ cliente con nombre similar a "${functionArgs.nombre}"` });
                                 }
                             }
                         );
@@ -4941,7 +4952,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                                     const faltan = [];
                                                     if (!c.rut || c.rut === '') faltan.push('RUT');
                                                     if (!c.email || c.email === '') faltan.push('Email');
-                                                    if (!c.telefono || c.telefono === '') faltan.push('Teléfono');
+                                                    if (!c.telefono || c.telefono === '') faltan.push('TelÃ©fono');
                                                     return {
                                                         nombre: c.nombre,
                                                         faltan: faltan
@@ -5019,7 +5030,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                                 descripcion: t.descripcion || '',
                                                 prioridad: t.prioridad,
                                                 estado: t.estado,
-                                                fecha_vencimiento: vencimiento ? vencimiento.toLocaleDateString('es-CL') : 'Sin fecha límite',
+                                                fecha_vencimiento: vencimiento ? vencimiento.toLocaleDateString('es-CL') : 'Sin fecha lÃ­mite',
                                                 vencida: vencida,
                                                 dias_restantes: vencimiento ? Math.ceil((vencimiento - ahora) / (1000 * 60 * 60 * 24)) : null
                                             };
@@ -5038,15 +5049,15 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                         const nombreCliente = functionArgs.nombre_cliente;
                         const descripcionTarea = functionArgs.descripcion_tarea || '';
                         
-                        // Extraer días de inactividad de la descripción
-                        const matchDias = descripcionTarea.match(/(\d+)\s*d[ií]as?/i);
+                        // Extraer dÃ­as de inactividad de la descripciÃ³n
+                        const matchDias = descripcionTarea.match(/(\d+)\s*d[iÃ­]as?/i);
                         const diasInactivo = matchDias ? parseInt(matchDias[1]) : 0;
                         
-                        // Determinar tipo de acción según días
+                        // Determinar tipo de acciÃ³n segÃºn dÃ­as
                         let tipoAccion = '';
                         let requierePromocion = false;
                         
-                        if (descripcionTarea.toLowerCase().includes('reducción de actividad')) {
+                        if (descripcionTarea.toLowerCase().includes('reducciÃ³n de actividad')) {
                             tipoAccion = 'reduccion_actividad';
                             requierePromocion = true;
                         } else if (diasInactivo >= 45 || descripcionTarea.toLowerCase().includes('riesgo alto')) {
@@ -5060,8 +5071,8 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                             requierePromocion = false;
                         }
                         
-                        // Buscar última tasa de compra en el historial de compras (tabla compras)
-                        // IMPORTANTE: Esta es la tasa CLP→VES de la última compra de USDT registrada
+                        // Buscar Ãºltima tasa de compra en el historial de compras (tabla compras)
+                        // IMPORTANTE: Esta es la tasa CLPâ†’VES de la Ãºltima compra de USDT registrada
                         // NO se usa la tasa de Binance P2P, sino la tasa real de compra
                         db.get(
                             `SELECT tasa_clp_ves, fecha
@@ -5085,18 +5096,18 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                     tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
                                 }
                                 
-                                // Generar mensaje según tipo de acción
+                                // Generar mensaje segÃºn tipo de acciÃ³n
                                 if (tipoAccion === 'inactivo_recordatorio') {
-                                    mensajeSugerido = `Hola ${nombreCliente}! 👋\n\nHemos notado que hace ${diasInactivo} días no realizas una operación con nosotros. 😊\n\nTe esperamos pronto, siempre estamos atentos a tus operaciones. ¡Gracias por ser un cliente constante de DefiOracle! 🇻🇪🇨🇱`;
+                                    mensajeSugerido = `Hola ${nombreCliente}! ðŸ‘‹\n\nHemos notado que hace ${diasInactivo} dÃ­as no realizas una operaciÃ³n con nosotros. ðŸ˜Š\n\nTe esperamos pronto, siempre estamos atentos a tus operaciones. Â¡Gracias por ser un cliente constante de DefiOracle! ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±`;
                                     
                                 } else if (requierePromocion && tasaPromocional) {
                                     if (tipoAccion === 'reduccion_actividad') {
-                                        mensajeSugerido = `Hola ${nombreCliente}! 👋\n\nHemos notado que últimamente has reducido tu actividad con nosotros. 😢\n\nNo queremos que te vayas, así que tenemos una tasa especial solo para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP 💰\n\n¡Aprovecha esta oferta! Estamos disponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                        mensajeSugerido = `Hola ${nombreCliente}! ðŸ‘‹\n\nHemos notado que Ãºltimamente has reducido tu actividad con nosotros. ðŸ˜¢\n\nNo queremos que te vayas, asÃ­ que tenemos una tasa especial solo para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP ðŸ’°\n\nÂ¡Aprovecha esta oferta! Estamos disponibles 08:00-21:00 todos los dÃ­as. ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±`;
                                     } else {
-                                        mensajeSugerido = `Hola ${nombreCliente}! 👋\n\nTe extrañamos! Hace tiempo que no haces una operación con nosotros. 😢\n\nPorque nos importa tu regreso, tenemos una tasa de regalo especial para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP 💰\n\n¡Esperamos verte pronto! Disponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                        mensajeSugerido = `Hola ${nombreCliente}! ðŸ‘‹\n\nTe extraÃ±amos! Hace tiempo que no haces una operaciÃ³n con nosotros. ðŸ˜¢\n\nPorque nos importa tu regreso, tenemos una tasa de regalo especial para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP ðŸ’°\n\nÂ¡Esperamos verte pronto! Disponibles 08:00-21:00 todos los dÃ­as. ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±`;
                                     }
                                 } else if (requierePromocion && !tasaPromocional) {
-                                    mensajeSugerido = `⚠️ No se pudo calcular la tasa promocional porque no hay historial de compras de USDT registrado.\n\nSugerencia: Revisa el historial de compras en /admin.html y registra al menos una compra de USDT para poder calcular tasas promocionales automáticamente.`;
+                                    mensajeSugerido = `âš ï¸ No se pudo calcular la tasa promocional porque no hay historial de compras de USDT registrado.\n\nSugerencia: Revisa el historial de compras en /admin.html y registra al menos una compra de USDT para poder calcular tasas promocionales automÃ¡ticamente.`;
                                 }
                                 
                                 resolve({
@@ -5136,7 +5147,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 return;
                             }
                             
-                            // Si solo está confirmando envío
+                            // Si solo estÃ¡ confirmando envÃ­o
                             if (confirmarEnvio) {
                                 const fechaHoy = hoyLocalYYYYMMDD();
                                 
@@ -5161,7 +5172,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 
                                 resolve({
                                     success: true,
-                                    mensaje: `✅ Tarea completada exitosamente. Mensaje enviado a ${tarea.cliente_nombre}.`
+                                    mensaje: `âœ… Tarea completada exitosamente. Mensaje enviado a ${tarea.cliente_nombre}.`
                                 });
                                 return;
                             }
@@ -5175,16 +5186,16 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                     mensaje_generado: tarea.mensaje_generado,
                                     metadata: tarea.metadata ? JSON.parse(tarea.metadata) : null,
                                     accion_requerida: tarea.accion_requerida,
-                                    mensaje: `Esta tarea ya fue resuelta automáticamente. El mensaje está listo para copiar y enviar.`
+                                    mensaje: `Esta tarea ya fue resuelta automÃ¡ticamente. El mensaje estÃ¡ listo para copiar y enviar.`
                                 });
                                 return;
                             }
                             
-                            // 3. Extraer días de inactividad
-                            const matchDias = tarea.descripcion ? tarea.descripcion.match(/(\d+)\s*d[ií]as?/i) : null;
+                            // 3. Extraer dÃ­as de inactividad
+                            const matchDias = tarea.descripcion ? tarea.descripcion.match(/(\d+)\s*d[iÃ­]as?/i) : null;
                             const diasInactivo = tarea.dias_inactivo || (matchDias ? parseInt(matchDias[1]) : 0);
                             
-                            // 4. Obtener última compra USDT
+                            // 4. Obtener Ãºltima compra USDT
                             const ultimaCompra = await dbGet(`
                                 SELECT tasa_clp_ves, fecha, id
                                 FROM compras
@@ -5193,7 +5204,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                             `);
                             
                             if (!ultimaCompra || !ultimaCompra.tasa_clp_ves) {
-                                // Resolución ASISTIDA - Sin historial de compras
+                                // ResoluciÃ³n ASISTIDA - Sin historial de compras
                                 await dbRun(`
                                     UPDATE tareas
                                     SET resolucion_agente = 'asistida',
@@ -5207,33 +5218,33 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                     success: false,
                                     resolucion_agente: 'asistida',
                                     problema: 'sin_historial_compras',
-                                    mensaje: `⚠️ No se puede resolver automáticamente porque no hay historial de compras USDT.\n\n**Acción requerida:** Registra al menos una compra de USDT en el Historial de Compras (/admin.html) para poder calcular tasas promocionales.`
+                                    mensaje: `âš ï¸ No se puede resolver automÃ¡ticamente porque no hay historial de compras USDT.\n\n**AcciÃ³n requerida:** Registra al menos una compra de USDT en el Historial de Compras (/admin.html) para poder calcular tasas promocionales.`
                                 });
                                 return;
                             }
                             
-                            // 5. Determinar estrategia según tipo de alerta y días
+                            // 5. Determinar estrategia segÃºn tipo de alerta y dÃ­as
                             let tipoEstrategia = '';
                             let descuentoPorcentaje = 0;
                             let mensajeGenerado = '';
                             
                             if (tarea.tipo_alerta === 'critico' || diasInactivo > 60) {
-                                // Cliente CRÍTICO: 2% descuento
+                                // Cliente CRÃTICO: 2% descuento
                                 tipoEstrategia = 'critico_reactivacion';
                                 descuentoPorcentaje = 2.0;
                                 
-                            } else if (tarea.tipo_alerta === 'disminucion' || tarea.descripcion.toLowerCase().includes('reducción')) {
-                                // Reducción de actividad: 3.3% descuento
+                            } else if (tarea.tipo_alerta === 'disminucion' || tarea.descripcion.toLowerCase().includes('reducciÃ³n')) {
+                                // ReducciÃ³n de actividad: 3.3% descuento
                                 tipoEstrategia = 'reduccion_actividad';
                                 descuentoPorcentaje = 3.3;
                                 
                             } else if (diasInactivo >= 45) {
-                                // Inactivo 45-60 días: 3.3% descuento
+                                // Inactivo 45-60 dÃ­as: 3.3% descuento
                                 tipoEstrategia = 'inactivo_promocion';
                                 descuentoPorcentaje = 3.3;
                                 
                             } else if (diasInactivo >= 30) {
-                                // Inactivo 30-44 días: Solo recordatorio (SIN promoción)
+                                // Inactivo 30-44 dÃ­as: Solo recordatorio (SIN promociÃ³n)
                                 tipoEstrategia = 'inactivo_recordatorio';
                                 descuentoPorcentaje = 0;
                             }
@@ -5247,23 +5258,23 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
                             }
                             
-                            // 7. Generar mensaje con OpenAI según estrategia
+                            // 7. Generar mensaje con OpenAI segÃºn estrategia
                             const nombreCliente = tarea.cliente_nombre || 'Cliente';
                             
                             try {
                                 let promptMensaje = '';
                                 
                                 if (tipoEstrategia === 'inactivo_recordatorio') {
-                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje amigable de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: cálido, cercano, pregunta cómo está. NO menciones descuentos ni promociones (solo recordatorio). NO uses placeholders. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 4 líneas. IMPORTANTE: Sé CREATIVO y VARÍA el estilo - evita usar siempre la misma estructura o frases. Cada mensaje debe sentirse único y personalizado. ANTI-SPAM: Escribe como humano, NO como bot comercial. Evita mayúsculas excesivas, !!!, lenguaje de ventas. Preferir conversación natural.`;
+                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje amigable de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} dÃ­as sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: cÃ¡lido, cercano, pregunta cÃ³mo estÃ¡. NO menciones descuentos ni promociones (solo recordatorio). NO uses placeholders. Mensaje directo de DefiOracle. Emojis apropiados (2-3 mÃ¡x). Horario: 08:00-21:00 ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±. MÃ¡ximo 4 lÃ­neas. IMPORTANTE: SÃ© CREATIVO y VARÃA el estilo - evita usar siempre la misma estructura o frases. Cada mensaje debe sentirse Ãºnico y personalizado. ANTI-SPAM: Escribe como humano, NO como bot comercial. Evita mayÃºsculas excesivas, !!!, lenguaje de ventas. Preferir conversaciÃ³n natural.`;
                                     
                                 } else if (tipoEstrategia === 'inactivo_promocion') {
-                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero a Venezuela. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa promocional: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. Tono: cercano, hazle saber que lo extrañamos. NO uses placeholders como [Tu Nombre]. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 5 líneas. IMPORTANTE: Sé CREATIVO - varía el tono, la estructura y las palabras. Cada mensaje debe ser único. ANTI-SPAM: Lenguaje humano y natural, NO promocional agresivo. Evita: OFERTAS!!!, TODO EN MAYÚSCULAS, lenguaje de marketing. Sé conversacional.`;
+                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} dÃ­as sin enviar dinero a Venezuela. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa promocional: ${tasaPromocional.toFixed(3)} VES/CLP, vÃ¡lida SOLO HOY hasta las 21:00. Tono: cercano, hazle saber que lo extraÃ±amos. NO uses placeholders como [Tu Nombre]. Mensaje directo de DefiOracle. Emojis apropiados (2-3 mÃ¡x). Horario: 08:00-21:00 ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±. MÃ¡ximo 5 lÃ­neas. IMPORTANTE: SÃ© CREATIVO - varÃ­a el tono, la estructura y las palabras. Cada mensaje debe ser Ãºnico. ANTI-SPAM: Lenguaje humano y natural, NO promocional agresivo. Evita: OFERTAS!!!, TODO EN MAYÃšSCULAS, lenguaje de marketing. SÃ© conversacional.`;
                                     
                                 } else if (tipoEstrategia === 'critico_reactivacion') {
-                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa ESPECIAL de reactivación: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. Tono: urgente pero cálido, transmite que lo extrañamos. NO menciones "pérdidas" ni "riesgos". NO incluyas placeholders como [Tu Nombre] o [Tu Empresa]. El mensaje es DIRECTO del equipo DefiOracle. Emojis: ⚠️💰 (máximo 3). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 6 líneas. IMPORTANTE: Sé MUY CREATIVO - cada mensaje debe tener diferente estructura, estilo y expresiones. Personaliza según el contexto. ANTI-SPAM: Urgencia SIN agresividad comercial. Evita: !!URGENTE!!, OFERTA LIMITADA!!!, mayúsculas excesivas. Preferir: lenguaje directo pero amigable.`;
+                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} dÃ­as sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa ESPECIAL de reactivaciÃ³n: ${tasaPromocional.toFixed(3)} VES/CLP, vÃ¡lida SOLO HOY hasta las 21:00. Tono: urgente pero cÃ¡lido, transmite que lo extraÃ±amos. NO menciones "pÃ©rdidas" ni "riesgos". NO incluyas placeholders como [Tu Nombre] o [Tu Empresa]. El mensaje es DIRECTO del equipo DefiOracle. Emojis: âš ï¸ðŸ’° (mÃ¡ximo 3). Horario: 08:00-21:00 ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±. MÃ¡ximo 6 lÃ­neas. IMPORTANTE: SÃ© MUY CREATIVO - cada mensaje debe tener diferente estructura, estilo y expresiones. Personaliza segÃºn el contexto. ANTI-SPAM: Urgencia SIN agresividad comercial. Evita: !!URGENTE!!, OFERTA LIMITADA!!!, mayÃºsculas excesivas. Preferir: lenguaje directo pero amigable.`;
                                     
                                 } else if (tipoEstrategia === 'reduccion_actividad') {
-                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje para ${nombreCliente} que antes enviaba dinero con más frecuencia pero ahora no tanto. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: preocupación genuina, pregunta si todo está bien o si podemos mejorar. Ofrece tasa EXCLUSIVA solo para él/ella: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. NO uses palabras corporativas como "retención", "estrategia", "fidelización". Lenguaje cercano y familiar. NO placeholders. Emojis moderados (2-3 máx). Horario: 08:00-21:00 🇻🇪🇨🇱. Máximo 5 líneas. IMPORTANTE: Varía la forma de expresar preocupación y oferta. Sé único y creativo en cada mensaje. ANTI-SPAM: Tono empático y humano, NO ventas. Evita: frases genéricas de marketing, exclamaciones excesivas. Parecer conversación real.`;
+                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje para ${nombreCliente} que antes enviaba dinero con mÃ¡s frecuencia pero ahora no tanto. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: preocupaciÃ³n genuina, pregunta si todo estÃ¡ bien o si podemos mejorar. Ofrece tasa EXCLUSIVA solo para Ã©l/ella: ${tasaPromocional.toFixed(3)} VES/CLP, vÃ¡lida SOLO HOY hasta las 21:00. NO uses palabras corporativas como "retenciÃ³n", "estrategia", "fidelizaciÃ³n". Lenguaje cercano y familiar. NO placeholders. Emojis moderados (2-3 mÃ¡x). Horario: 08:00-21:00 ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±. MÃ¡ximo 5 lÃ­neas. IMPORTANTE: VarÃ­a la forma de expresar preocupaciÃ³n y oferta. SÃ© Ãºnico y creativo en cada mensaje. ANTI-SPAM: Tono empÃ¡tico y humano, NO ventas. Evita: frases genÃ©ricas de marketing, exclamaciones excesivas. Parecer conversaciÃ³n real.`;
                                 }
                                 
                                 // Llamar a OpenAI para generar el mensaje
@@ -5272,7 +5283,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                     messages: [
                                         {
                                             role: 'system',
-                                            content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cálidos y profesionales en español para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderación (2-3 máximo). Enfoque: remesas familiares, no inversiones ni pérdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayúsculas, múltiples signos de exclamación (!!!), lenguaje muy formal o corporativo, frases genéricas de marketing. Preferir: conversación natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo. PRIVACIDAD: NO menciones situaciones personales/familiares del cliente ("apoyo a casa", "seres queridos", "familia"). Solo usar: "enviar dinero a Venezuela" o "hacer un envío".'
+                                            content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cÃ¡lidos y profesionales en espaÃ±ol para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderaciÃ³n (2-3 mÃ¡ximo). Enfoque: remesas familiares, no inversiones ni pÃ©rdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayÃºsculas, mÃºltiples signos de exclamaciÃ³n (!!!), lenguaje muy formal o corporativo, frases genÃ©ricas de marketing. Preferir: conversaciÃ³n natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo. PRIVACIDAD: NO menciones situaciones personales/familiares del cliente ("apoyo a casa", "seres queridos", "familia"). Solo usar: "enviar dinero a Venezuela" o "hacer un envÃ­o".'
                                         },
                                         {
                                             role: 'user',
@@ -5295,20 +5306,20 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 
                                 // Fallback a mensajes de plantilla si OpenAI falla
                                 if (tipoEstrategia === 'inactivo_recordatorio') {
-                                    mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nHace tiempo que no te vemos por aquí. ¿Todo bien? 😊\n\nEstamos disponibles 08:00-21:00 todos los días para tus operaciones. 🇻🇪🇨🇱\n\n¡Esperamos verte pronto!`;
+                                    mensajeGenerado = `Hola ${nombreCliente}! ðŸ‘‹\n\nHace tiempo que no te vemos por aquÃ­. Â¿Todo bien? ðŸ˜Š\n\nEstamos disponibles 08:00-21:00 todos los dÃ­as para tus operaciones. ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±\n\nÂ¡Esperamos verte pronto!`;
                                     
                                 } else if (tipoEstrategia === 'inactivo_promocion') {
-                                    mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nTe extrañamos! Hace ${diasInactivo} días que no haces una operación con nosotros. 😢\n\nPorque nos importa tu regreso, tenemos una tasa de regalo especial para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP 💰\n\n¡Esperamos verte pronto! Disponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                    mensajeGenerado = `Hola ${nombreCliente}! ðŸ‘‹\n\nTe extraÃ±amos! Hace ${diasInactivo} dÃ­as que no haces una operaciÃ³n con nosotros. ðŸ˜¢\n\nPorque nos importa tu regreso, tenemos una tasa de regalo especial para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP ðŸ’°\n\nÂ¡Esperamos verte pronto! Disponibles 08:00-21:00 todos los dÃ­as. ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±`;
                                     
                                 } else if (tipoEstrategia === 'critico_reactivacion') {
                                     const fechaLimite = new Date();
                                     fechaLimite.setDate(fechaLimite.getDate() + 7);
                                     const fechaLimiteStr = fechaLimite.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
                                     
-                                    mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nHan pasado más de ${diasInactivo} días desde tu última operación con nosotros. 😢\n\n⚠️ No queremos perderte como cliente! Por eso te ofrecemos una tasa ESPECIAL de reactivación:\n\n💰 ${tasaPromocional.toFixed(3)} VES por cada CLP\n(2% de descuento especial!)\n\nEsta oferta es válida solo por 7 días. Escríbenos antes del ${fechaLimiteStr}.\n\nDisponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                    mensajeGenerado = `Hola ${nombreCliente}! ðŸ‘‹\n\nHan pasado mÃ¡s de ${diasInactivo} dÃ­as desde tu Ãºltima operaciÃ³n con nosotros. ðŸ˜¢\n\nâš ï¸ No queremos perderte como cliente! Por eso te ofrecemos una tasa ESPECIAL de reactivaciÃ³n:\n\nðŸ’° ${tasaPromocional.toFixed(3)} VES por cada CLP\n(2% de descuento especial!)\n\nEsta oferta es vÃ¡lida solo por 7 dÃ­as. EscrÃ­benos antes del ${fechaLimiteStr}.\n\nDisponibles 08:00-21:00 todos los dÃ­as. ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±`;
                                     
                                 } else if (tipoEstrategia === 'reduccion_actividad') {
-                                    mensajeGenerado = `Hola ${nombreCliente}! 👋\n\nNotamos que antes hacías más operaciones con nosotros. 🤔\n\n¿Hay algo que podamos mejorar? ¿Nuestro servicio te está satisfaciendo?\n\nQueremos que sigas confiando en nosotros, por eso te ofrecemos una tasa especial: ${tasaPromocional.toFixed(3)} VES/CLP 💰\n\nEscríbenos y cuéntanos cómo te podemos ayudar mejor. 🙏\n\nDisponibles 08:00-21:00 todos los días. 🇻🇪🇨🇱`;
+                                    mensajeGenerado = `Hola ${nombreCliente}! ðŸ‘‹\n\nNotamos que antes hacÃ­as mÃ¡s operaciones con nosotros. ðŸ¤”\n\nÂ¿Hay algo que podamos mejorar? Â¿Nuestro servicio te estÃ¡ satisfaciendo?\n\nQueremos que sigas confiando en nosotros, por eso te ofrecemos una tasa especial: ${tasaPromocional.toFixed(3)} VES/CLP ðŸ’°\n\nEscrÃ­benos y cuÃ©ntanos cÃ³mo te podemos ayudar mejor. ðŸ™\n\nDisponibles 08:00-21:00 todos los dÃ­as. ðŸ‡»ðŸ‡ªðŸ‡¨ðŸ‡±`;
                                 }
                             }
                             
@@ -5323,7 +5334,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 cliente_id: tarea.cliente_id
                             };
                             
-                            // 9. Actualizar tarea con resolución automática
+                            // 9. Actualizar tarea con resoluciÃ³n automÃ¡tica
                             await dbRun(`
                                 UPDATE tareas
                                 SET resolucion_agente = 'automatica',
@@ -5341,7 +5352,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 mensaje_generado: mensajeGenerado,
                                 metadata: metadata,
                                 accion_requerida: 'enviar_whatsapp',
-                                mensaje: `✅ Tarea resuelta automáticamente para ${nombreCliente}.\n\n📋 Mensaje listo para copiar y enviar por WhatsApp.`
+                                mensaje: `âœ… Tarea resuelta automÃ¡ticamente para ${nombreCliente}.\n\nðŸ“‹ Mensaje listo para copiar y enviar por WhatsApp.`
                             });
                             
                         } catch (error) {
@@ -5355,7 +5366,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                     break;
             }
             
-            // Agregar el resultado de la función a los mensajes
+            // Agregar el resultado de la funciÃ³n a los mensajes
             messages.push(responseMessage);
             messages.push({
                 role: 'function',
@@ -5379,19 +5390,19 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
             return response.data.choices[0].message.content;
         }
         
-        // Si no llamó ninguna función, retornar respuesta directa
+        // Si no llamÃ³ ninguna funciÃ³n, retornar respuesta directa
         return responseMessage.content;
         
     } catch (error) {
-        console.error('❌ Error API OpenAI:', error.response?.data || error.message);
+        console.error('âŒ Error API OpenAI:', error.response?.data || error.message);
         
-        // Si el error es de API key inválida, dar mensaje específico
+        // Si el error es de API key invÃ¡lida, dar mensaje especÃ­fico
         if (error.response?.data?.error?.code === 'invalid_api_key') {
-            return `❌ **Configuración pendiente**\n\nLo siento, la API key de OpenAI no está configurada correctamente.\n\n**Administrador:** Configure la variable de entorno \`OPENAI_API_KEY\` en Render con una key válida de https://platform.openai.com/api-keys`;
+            return `âŒ **ConfiguraciÃ³n pendiente**\n\nLo siento, la API key de OpenAI no estÃ¡ configurada correctamente.\n\n**Administrador:** Configure la variable de entorno \`OPENAI_API_KEY\` en Render con una key vÃ¡lida de https://platform.openai.com/api-keys`;
         }
         
-        // Si falla OpenAI por otro motivo, respuesta genérica humanizada
-        return `Entiendo tu consulta, ${username}. Como asistente de DefiOracle.cl puedo ayudarte con conversiones, datos bancarios, tareas, y más. ¿Podrías darme más detalles de lo que necesitas?\n\n_Nota: El servicio de IA está experimentando problemas técnicos._`;
+        // Si falla OpenAI por otro motivo, respuesta genÃ©rica humanizada
+        return `Entiendo tu consulta, ${username}. Como asistente de DefiOracle.cl puedo ayudarte con conversiones, datos bancarios, tareas, y mÃ¡s. Â¿PodrÃ­as darme mÃ¡s detalles de lo que necesitas?\n\n_Nota: El servicio de IA estÃ¡ experimentando problemas tÃ©cnicos._`;
     }
 }
 
@@ -5418,7 +5429,7 @@ app.get('/api/logs/sistema', apiAuth, onlyMaster, (req, res) => {
                         logs.push({
                             tipo: 'operacion',
                             fecha: op.fecha,
-                            mensaje: `💰 Operación #${op.numero_recibo || op.id} - ${op.cliente_nombre} - ${op.monto_clp} CLP (${op.operador})`,
+                            mensaje: `ðŸ’° OperaciÃ³n #${op.numero_recibo || op.id} - ${op.cliente_nombre} - ${op.monto_clp} CLP (${op.operador})`,
                             detalles: op
                         });
                     });
@@ -5443,7 +5454,7 @@ app.get('/api/logs/sistema', apiAuth, onlyMaster, (req, res) => {
                         logs.push({
                             tipo: 'notificacion',
                             fecha: not.fecha_creacion,
-                            mensaje: `🔔 ${not.titulo} - ${not.username} - ${not.leida ? 'Leída' : 'No leída'}`,
+                            mensaje: `ðŸ”” ${not.titulo} - ${not.username} - ${not.leida ? 'LeÃ­da' : 'No leÃ­da'}`,
                             detalles: not
                         });
                     });
@@ -5468,7 +5479,7 @@ app.get('/api/logs/sistema', apiAuth, onlyMaster, (req, res) => {
                         logs.push({
                             tipo: 'alerta',
                             fecha: alerta.fecha_creacion,
-                            mensaje: `⚠️ ${alerta.tipo} - ${alerta.cliente_nombre} - Severidad: ${alerta.severidad}`,
+                            mensaje: `âš ï¸ ${alerta.tipo} - ${alerta.cliente_nombre} - Severidad: ${alerta.severidad}`,
                             detalles: alerta
                         });
                     });
@@ -5495,12 +5506,12 @@ app.get('/api/logs/sistema', apiAuth, onlyMaster, (req, res) => {
                         const faltantes = [];
                         if (!cliente.rut || cliente.rut.trim() === '') faltantes.push('RUT');
                         if (!cliente.email || cliente.email.trim() === '') faltantes.push('Email');
-                        if (!cliente.telefono || cliente.telefono.trim() === '') faltantes.push('Teléfono');
+                        if (!cliente.telefono || cliente.telefono.trim() === '') faltantes.push('TelÃ©fono');
                         
                         logs.push({
                             tipo: 'cliente_incompleto',
                             fecha: cliente.fecha_creacion,
-                            mensaje: `📋 Cliente "${cliente.nombre}" - Faltan: ${faltantes.join(', ')}`,
+                            mensaje: `ðŸ“‹ Cliente "${cliente.nombre}" - Faltan: ${faltantes.join(', ')}`,
                             detalles: { ...cliente, datos_faltantes: faltantes }
                         });
                     });
@@ -5521,11 +5532,11 @@ app.get('/api/logs/sistema', apiAuth, onlyMaster, (req, res) => {
 });
 
 // =================================================================
-// 🤖 SISTEMA DE MONITOREO PROACTIVO DEL CHATBOT
+// ðŸ¤– SISTEMA DE MONITOREO PROACTIVO DEL CHATBOT
 // =================================================================
 
 async function generarMensajesProactivos() {
-    console.log('🔍 Ejecutando monitoreo proactivo...');
+    console.log('ðŸ” Ejecutando monitoreo proactivo...');
     
     try {
         // Obtener todos los usuarios activos
@@ -5543,9 +5554,9 @@ async function generarMensajesProactivos() {
             const fechaVenezuela = new Date(ahora.toLocaleString('en-US', { timeZone: 'America/Caracas' }));
             const hoyStr = fechaVenezuela.toISOString().split('T')[0]; // YYYY-MM-DD en hora local de Venezuela
             
-            console.log(`⏰ Verificando mensajes para ${usuario.username} - Fecha local Venezuela: ${hoyStr}`);
+            console.log(`â° Verificando mensajes para ${usuario.username} - Fecha local Venezuela: ${hoyStr}`);
 
-            // 1️⃣ CELEBRACIÓN - Operaciones del día
+            // 1ï¸âƒ£ CELEBRACIÃ“N - Operaciones del dÃ­a
             const operacionesHoy = await new Promise((resolve) => {
                 db.all(`
                     SELECT COUNT(*) as total, SUM(monto_clp) as volumen
@@ -5556,19 +5567,19 @@ async function generarMensajesProactivos() {
                     resolve(rows[0]);
                 });
             });
-            console.log(`📊 ${usuario.username} - Operaciones hoy (${hoyStr}):`, operacionesHoy);
+            console.log(`ðŸ“Š ${usuario.username} - Operaciones hoy (${hoyStr}):`, operacionesHoy);
 
             if (operacionesHoy && operacionesHoy.total >= 5) {
                 mensajesGenerados.push({
                     tipo: 'celebracion',
-                    mensaje: `🎉 ¡Vas genial hoy! Ya llevas ${operacionesHoy.total} operaciones y has procesado $${Math.round(operacionesHoy.volumen).toLocaleString()} CLP. ¡Sigue así!`,
+                    mensaje: `ðŸŽ‰ Â¡Vas genial hoy! Ya llevas ${operacionesHoy.total} operaciones y has procesado $${Math.round(operacionesHoy.volumen).toLocaleString()} CLP. Â¡Sigue asÃ­!`,
                     prioridad: 'normal',
                     contexto: JSON.stringify({ operaciones: operacionesHoy.total, volumen: operacionesHoy.volumen })
                 });
-                console.log(`✅ Agregado mensaje: celebracion`);
+                console.log(`âœ… Agregado mensaje: celebracion`);
             }
 
-            // 2️⃣ RECORDATORIO - Tareas pendientes urgentes
+            // 2ï¸âƒ£ RECORDATORIO - Tareas pendientes urgentes
             const tareasPendientes = await new Promise((resolve) => {
                 db.all(`
                     SELECT COUNT(*) as total
@@ -5586,13 +5597,13 @@ async function generarMensajesProactivos() {
             if (tareasPendientes && tareasPendientes.total > 0) {
                 mensajesGenerados.push({
                     tipo: 'recordatorio',
-                    mensaje: `⏰ Hey! Tienes ${tareasPendientes.total} tarea(s) importante(s) pendiente(s). ¿Quieres que te las muestre?`,
+                    mensaje: `â° Hey! Tienes ${tareasPendientes.total} tarea(s) importante(s) pendiente(s). Â¿Quieres que te las muestre?`,
                     prioridad: 'alta',
                     contexto: JSON.stringify({ tareas_pendientes: tareasPendientes.total })
                 });
             }
 
-            // 3️⃣ ALERTA - Clientes con datos incompletos que operaron recientemente
+            // 3ï¸âƒ£ ALERTA - Clientes con datos incompletos que operaron recientemente
             const hace7Dias = new Date(fechaVenezuela);
             hace7Dias.setDate(hace7Dias.getDate() - 7);
             const fecha7DiasStr = hace7Dias.toISOString().split('T')[0];
@@ -5614,16 +5625,16 @@ async function generarMensajesProactivos() {
 
             if (clientesIncompletos.length > 0) {
                 const nombres = clientesIncompletos.map(c => c.nombre).slice(0, 2).join(', ');
-                const resto = clientesIncompletos.length > 2 ? ` y ${clientesIncompletos.length - 2} más` : '';
+                const resto = clientesIncompletos.length > 2 ? ` y ${clientesIncompletos.length - 2} mÃ¡s` : '';
                 mensajesGenerados.push({
                     tipo: 'alerta',
-                    mensaje: `⚠️ Ojo: ${nombres}${resto} operaron esta semana pero les faltan datos. ¿Los actualizamos?`,
+                    mensaje: `âš ï¸ Ojo: ${nombres}${resto} operaron esta semana pero les faltan datos. Â¿Los actualizamos?`,
                     prioridad: 'normal',
                     contexto: JSON.stringify({ clientes: clientesIncompletos.map(c => c.nombre) })
                 });
             }
 
-            // 4️⃣ SUGERENCIA - Clientes con datos completos que operaron recientemente
+            // 4ï¸âƒ£ SUGERENCIA - Clientes con datos completos que operaron recientemente
             const clientesCompletosRecientes = await new Promise((resolve) => {
                 db.all(`
                     SELECT DISTINCT c.nombre, c.id
@@ -5640,19 +5651,19 @@ async function generarMensajesProactivos() {
                     resolve(rows);
                 });
             });
-            console.log(`✅ ${usuario.username} - Clientes completos recientes:`, clientesCompletosRecientes.length);
+            console.log(`âœ… ${usuario.username} - Clientes completos recientes:`, clientesCompletosRecientes.length);
 
             if (clientesCompletosRecientes.length > 0) {
                 mensajesGenerados.push({
                     tipo: 'sugerencia',
-                    mensaje: `✅ ¡Genial! ${clientesCompletosRecientes[0].nombre} ya tiene todos los datos completos. Un cliente menos en pendientes 🎯`,
+                    mensaje: `âœ… Â¡Genial! ${clientesCompletosRecientes[0].nombre} ya tiene todos los datos completos. Un cliente menos en pendientes ðŸŽ¯`,
                     prioridad: 'baja',
                     contexto: JSON.stringify({ cliente: clientesCompletosRecientes[0].nombre })
                 });
-                console.log(`✅ Agregado mensaje: sugerencia`);
+                console.log(`âœ… Agregado mensaje: sugerencia`);
             }
 
-            // 5️⃣ INFORMATIVO - Rendimiento semanal
+            // 5ï¸âƒ£ INFORMATIVO - Rendimiento semanal
             const esLunes = fechaVenezuela.getDay() === 1; // 0 = Domingo, 1 = Lunes
             if (esLunes && fechaVenezuela.getHours() >= 9 && fechaVenezuela.getHours() <= 10) {
                 const rendimientoSemanal = await new Promise((resolve) => {
@@ -5670,7 +5681,7 @@ async function generarMensajesProactivos() {
                 if (rendimientoSemanal && rendimientoSemanal.ops > 0) {
                     mensajesGenerados.push({
                         tipo: 'informativo',
-                        mensaje: `📊 Resumen semanal: ${rendimientoSemanal.ops} operaciones, volumen de $${Math.round(rendimientoSemanal.volumen).toLocaleString()} CLP. ¡Buen trabajo!`,
+                        mensaje: `ðŸ“Š Resumen semanal: ${rendimientoSemanal.ops} operaciones, volumen de $${Math.round(rendimientoSemanal.volumen).toLocaleString()} CLP. Â¡Buen trabajo!`,
                         prioridad: 'baja',
                         contexto: JSON.stringify({ ops: rendimientoSemanal.ops, volumen: rendimientoSemanal.volumen })
                     });
@@ -5678,9 +5689,9 @@ async function generarMensajesProactivos() {
             }
 
             // Guardar mensajes generados en la base de datos
-            console.log(`📋 Usuario ${usuario.username}: ${mensajesGenerados.length} mensajes candidatos`);
+            console.log(`ðŸ“‹ Usuario ${usuario.username}: ${mensajesGenerados.length} mensajes candidatos`);
             for (const msg of mensajesGenerados) {
-                // Verificar que no exista un mensaje similar reciente (últimas 6 horas)
+                // Verificar que no exista un mensaje similar reciente (Ãºltimas 6 horas)
                 const mensajeDuplicado = await new Promise((resolve) => {
                     db.get(`
                         SELECT id FROM chatbot_mensajes_proactivos
@@ -5702,24 +5713,24 @@ async function generarMensajesProactivos() {
                         `, [usuario.id, msg.tipo, msg.mensaje, msg.contexto, msg.prioridad, fechaVenezuela.toISOString()],
                         (err) => {
                             if (!err) {
-                                console.log(`💬 Mensaje proactivo generado para ${usuario.username}: ${msg.tipo}`);
+                                console.log(`ðŸ’¬ Mensaje proactivo generado para ${usuario.username}: ${msg.tipo}`);
                             } else {
-                                console.error(`❌ Error guardando mensaje ${msg.tipo}:`, err.message);
+                                console.error(`âŒ Error guardando mensaje ${msg.tipo}:`, err.message);
                             }
                             resolve();
                         });
                     });
                 } else {
-                    console.log(`⏭️ Mensaje tipo "${msg.tipo}" ya existe (ID ${mensajeDuplicado.id}), omitiendo...`);
+                    console.log(`â­ï¸ Mensaje tipo "${msg.tipo}" ya existe (ID ${mensajeDuplicado.id}), omitiendo...`);
                 }
             }
         }
     } catch (error) {
-        console.error('❌ Error en monitoreo proactivo:', error);
+        console.error('âŒ Error en monitoreo proactivo:', error);
     }
 }
 
-// Función para limpiar mensajes antiguos (más de 24 horas)
+// FunciÃ³n para limpiar mensajes antiguos (mÃ¡s de 24 horas)
 async function limpiarMensajesAntiguos() {
     try {
         const ahora = new Date();
@@ -5733,20 +5744,20 @@ async function limpiarMensajesAntiguos() {
             WHERE fecha_creacion < ? OR mostrado = 1
         `, [fecha24HorasStr], function(err) {
             if (err) {
-                console.error('❌ Error limpiando mensajes antiguos:', err);
+                console.error('âŒ Error limpiando mensajes antiguos:', err);
             } else if (this.changes > 0) {
-                console.log(`🧹 Limpiados ${this.changes} mensajes antiguos/mostrados`);
+                console.log(`ðŸ§¹ Limpiados ${this.changes} mensajes antiguos/mostrados`);
             }
         });
     } catch (error) {
-        console.error('❌ Error en limpieza de mensajes:', error);
+        console.error('âŒ Error en limpieza de mensajes:', error);
     }
 }
 
 // Endpoint para obtener mensajes proactivos
 app.get('/api/chatbot/mensajes-proactivos', apiAuth, (req, res) => {
     const userId = req.session.user.id;
-    console.log(`🔍 GET /api/chatbot/mensajes-proactivos - userId: ${userId}`);
+    console.log(`ðŸ” GET /api/chatbot/mensajes-proactivos - userId: ${userId}`);
     
     // Limpiar mensajes antiguos antes de consultar
     limpiarMensajesAntiguos();
@@ -5762,7 +5773,7 @@ app.get('/api/chatbot/mensajes-proactivos', apiAuth, (req, res) => {
             return res.json({ mensajes: [] });
         }
         
-        console.log(`📨 Mensajes encontrados para userId ${userId}:`, mensajes.length);
+        console.log(`ðŸ“¨ Mensajes encontrados para userId ${userId}:`, mensajes.length);
         res.json({ mensajes: mensajes || [] });
     });
 });
@@ -5814,7 +5825,7 @@ app.get('/api/chatbot/mensajes-proactivos/debug', apiAuth, (req, res) => {
     });
 });
 
-// Ejecutar monitoreo cada 30 segundos (para pruebas - cambiar a 10 min en producción)
+// Ejecutar monitoreo cada 30 segundos (para pruebas - cambiar a 10 min en producciÃ³n)
 const INTERVALO_MONITOREO = 30 * 1000; // 30 segundos
 const INTERVALO_LIMPIEZA = 60 * 60 * 1000; // 1 hora
 const INTERVALO_GENERACION_TAREAS = 24 * 60 * 60 * 1000; // 24 horas
@@ -5823,16 +5834,16 @@ let intervaloLimpieza = null;
 let intervaloGeneracionTareas = null;
 
 /**
- * Genera tareas automáticamente desde alertas pendientes
+ * Genera tareas automÃ¡ticamente desde alertas pendientes
  * Distribuye equitativamente entre operadores
  */
 async function generarTareasAutomaticas() {
     try {
-        console.log('📋 Generando tareas automáticas desde alertas...');
+        console.log('ðŸ“‹ Generando tareas automÃ¡ticas desde alertas...');
         const fechaHoy = hoyLocalYYYYMMDD();
         
-        // Obtener alertas activas SIN acción realizada (sin mensaje_enviado ni promocion_enviada)
-        // Permitir reasignar si: 1) sin tarea, 2) tarea eliminada, 3) tarea cancelada, 4) tarea de días anteriores
+        // Obtener alertas activas SIN acciÃ³n realizada (sin mensaje_enviado ni promocion_enviada)
+        // Permitir reasignar si: 1) sin tarea, 2) tarea eliminada, 3) tarea cancelada, 4) tarea de dÃ­as anteriores
         const alertasSinResolver = await dbAll(`
             SELECT a.* 
             FROM alertas a
@@ -5850,7 +5861,7 @@ async function generarTareasAutomaticas() {
         `, [fechaHoy]);
         
         if (alertasSinResolver.length === 0) {
-            console.log('✅ No hay alertas pendientes para crear tareas');
+            console.log('âœ… No hay alertas pendientes para crear tareas');
             return;
         }
         
@@ -5860,7 +5871,7 @@ async function generarTareasAutomaticas() {
         `);
         
         if (operadores.length === 0) {
-            console.log('⚠️ No hay operadores disponibles para asignar tareas');
+            console.log('âš ï¸ No hay operadores disponibles para asignar tareas');
             return;
         }
         
@@ -5869,11 +5880,11 @@ async function generarTareasAutomaticas() {
         
         // Distribuir alertas equitativamente
         for (const alerta of alertasSinResolver) {
-            // Seleccionar operador por rotación
+            // Seleccionar operador por rotaciÃ³n
             const operador = operadores[indiceOperador];
             indiceOperador = (indiceOperador + 1) % operadores.length;
             
-            // Obtener datos del cliente y RECALCULAR días de inactividad en tiempo real
+            // Obtener datos del cliente y RECALCULAR dÃ­as de inactividad en tiempo real
             const cliente = await dbGet(`
                 SELECT c.nombre, MAX(o.fecha) as ultima_operacion,
                        CAST(julianday('now') - julianday(
@@ -5888,16 +5899,16 @@ async function generarTareasAutomaticas() {
                 GROUP BY c.id
             `, [alerta.cliente_id]);
             
-            // Validar en tiempo real si aún cumple criterio
+            // Validar en tiempo real si aÃºn cumple criterio
             const diasInactivo = cliente?.dias_reales || 0;
             if (alerta.tipo === 'inactivo' && (diasInactivo < 30 || diasInactivo > 60)) {
                 continue; // Saltar si ya no cumple
             }
             if (alerta.tipo === 'critico' && diasInactivo <= 60) {
-                continue; // Saltar si ya no cumple (debe ser más de 60 días)
+                continue; // Saltar si ya no cumple (debe ser mÃ¡s de 60 dÃ­as)
             }
             
-            // Para reducción de frecuencia, verificar AHORA
+            // Para reducciÃ³n de frecuencia, verificar AHORA
             if (alerta.tipo === 'disminucion') {
                 const hace30 = new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
                 const hace60 = new Date(new Date().getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -5906,11 +5917,11 @@ async function generarTareasAutomaticas() {
                 const anteriores = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [alerta.cliente_id, hace60, hace30]);
                 
                 if (anteriores.cnt < 3 || recientes.cnt >= anteriores.cnt * 0.5) {
-                    continue; // Saltar si ya no hay reducción
+                    continue; // Saltar si ya no hay reducciÃ³n
                 }
             }
             
-            // Determinar prioridad según días REALES de inactividad
+            // Determinar prioridad segÃºn dÃ­as REALES de inactividad
             let prioridad = 'normal';
             if (diasInactivo > 60) prioridad = 'urgente';
             else if (diasInactivo >= 45) prioridad = 'alta';
@@ -5919,16 +5930,16 @@ async function generarTareasAutomaticas() {
             await dbRun(`
                 UPDATE tareas 
                 SET estado = 'cancelada', 
-                    resolucion_agente = 'Tarea obsoleta - reemplazada por nueva tarea automática'
+                    resolucion_agente = 'Tarea obsoleta - reemplazada por nueva tarea automÃ¡tica'
                 WHERE cliente_id = ? 
                 AND tipo = 'automatica'
                 AND estado IN ('pendiente', 'en_progreso')
                 AND fecha_creacion < ?
             `, [alerta.cliente_id, fechaHoy]);
             
-            // Crear tarea con días REALES
+            // Crear tarea con dÃ­as REALES
             const titulo = `Reactivar cliente: ${cliente ? cliente.nombre : 'Desconocido'}`;
-            const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crítico' : 'Disminución de frecuencia'} - ${diasInactivo ? `${diasInactivo} días sin actividad` : 'Reducción de operaciones'}. Última operación: ${cliente?.ultima_operacion || 'N/A'}`;
+            const descripcion = `${alerta.tipo === 'inactivo' ? 'Cliente inactivo' : alerta.tipo === 'critico' ? 'Cliente crÃ­tico' : 'DisminuciÃ³n de frecuencia'} - ${diasInactivo ? `${diasInactivo} dÃ­as sin actividad` : 'ReducciÃ³n de operaciones'}. Ãšltima operaciÃ³n: ${cliente?.ultima_operacion || 'N/A'}`;
             
             const resultTarea = await dbRun(`
                 INSERT INTO tareas(titulo, descripcion, tipo, prioridad, asignado_a, creado_por, fecha_creacion, tipo_alerta, cliente_id, cliente_nombre)
@@ -5940,37 +5951,37 @@ async function generarTareasAutomaticas() {
                 UPDATE alertas SET tarea_id = ? WHERE id = ?
             `, [resultTarea.lastID, alerta.id]);
             
-            // Crear notificación para el operador
+            // Crear notificaciÃ³n para el operador
             await dbRun(`
                 INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, tarea_id)
-                VALUES (?, 'tarea', 'Nueva tarea asignada automáticamente', ?, ?, ?)
+                VALUES (?, 'tarea', 'Nueva tarea asignada automÃ¡ticamente', ?, ?, ?)
             `, [operador.id, titulo, fechaHoy, resultTarea.lastID]);
             
             tareasCreadas++;
         }
         
-        console.log(`✅ ${tareasCreadas} tareas creadas y distribuidas entre ${operadores.length} operadores`);
+        console.log(`âœ… ${tareasCreadas} tareas creadas y distribuidas entre ${operadores.length} operadores`);
     } catch (error) {
-        console.error('❌ Error generando tareas automáticas:', error);
+        console.error('âŒ Error generando tareas automÃ¡ticas:', error);
     }
 }
 
 function iniciarMonitoreoProactivo() {
     // Ejecutar inmediatamente
-    setTimeout(generarMensajesProactivos, 3000); // 3 segundos después del inicio
+    setTimeout(generarMensajesProactivos, 3000); // 3 segundos despuÃ©s del inicio
     
     // Luego cada 30 segundos
     intervaloMonitoreo = setInterval(generarMensajesProactivos, INTERVALO_MONITOREO);
-    console.log('🤖 Sistema de monitoreo proactivo iniciado (cada 30 segundos)');
+    console.log('ðŸ¤– Sistema de monitoreo proactivo iniciado (cada 30 segundos)');
     
     // Limpieza de mensajes antiguos cada hora
     intervaloLimpieza = setInterval(limpiarMensajesAntiguos, INTERVALO_LIMPIEZA);
-    console.log('🧹 Sistema de limpieza de mensajes iniciado (cada 1 hora)');
+    console.log('ðŸ§¹ Sistema de limpieza de mensajes iniciado (cada 1 hora)');
     
-    // Generar tareas automáticas cada 24 horas
-    setTimeout(generarTareasAutomaticas, 10000); // Primera ejecución 10 segundos después del inicio
+    // Generar tareas automÃ¡ticas cada 24 horas
+    setTimeout(generarTareasAutomaticas, 10000); // Primera ejecuciÃ³n 10 segundos despuÃ©s del inicio
     intervaloGeneracionTareas = setInterval(generarTareasAutomaticas, INTERVALO_GENERACION_TAREAS);
-    console.log('📋 Sistema de generación automática de tareas iniciado (cada 24 horas)');
+    console.log('ðŸ“‹ Sistema de generaciÃ³n automÃ¡tica de tareas iniciado (cada 24 horas)');
 }
 
 // =================================================================
@@ -5978,7 +5989,7 @@ function iniciarMonitoreoProactivo() {
 // =================================================================
 
 // =================================================================
-// 🔔 SISTEMA DE MONITOREO DE TASAS P2P vs MANUALES
+// ðŸ”” SISTEMA DE MONITOREO DE TASAS P2P vs MANUALES
 // =================================================================
 
 let alertaTasasPendiente = null; // { timestamp, tasa_manual, tasa_p2p, notificado, timeout_id }
@@ -5989,13 +6000,13 @@ let intervaloMonitoreoTasas = null;
  */
 async function monitorearTasasVES() {
     try {
-        console.log('💹 Verificando tasas VES: Manual vs Binance P2P...');
+        console.log('ðŸ’¹ Verificando tasas VES: Manual vs Binance P2P...');
 
         // 1. Obtener tasa manual configurada (nivel 3 = 250.000 CLP)
         const tasaManual = await readConfigValue('tasaNivel3');
         
         if (!tasaManual || tasaManual === 0) {
-            console.log('⚠️ No hay tasa manual configurada (tasaNivel3), omitiendo monitoreo');
+            console.log('âš ï¸ No hay tasa manual configurada (tasaNivel3), omitiendo monitoreo');
             return;
         }
 
@@ -6011,10 +6022,10 @@ async function monitorearTasasVES() {
             tasa_base_clp_ves = tasa_ves_p2p / tasa_clp_p2p;
             tasaP2PAjustada = tasa_base_clp_ves * (1 - 0.04); // -4% para 250K CLP
             
-            console.log(`📊 Tasa Manual (250K): ${tasaManual.toFixed(4)} VES/CLP`);
-            console.log(`📊 Tasa P2P Ajustada -4%: ${tasaP2PAjustada.toFixed(4)} VES/CLP`);
+            console.log(`ðŸ“Š Tasa Manual (250K): ${tasaManual.toFixed(4)} VES/CLP`);
+            console.log(`ðŸ“Š Tasa P2P Ajustada -4%: ${tasaP2PAjustada.toFixed(4)} VES/CLP`);
         } catch (error) {
-            console.error('❌ Error consultando Binance P2P:', error.message);
+            console.error('âŒ Error consultando Binance P2P:', error.message);
             return;
         }
 
@@ -6024,26 +6035,26 @@ async function monitorearTasasVES() {
             margenTolerancia = 2.0; // Margen por defecto: 2%
         }
         
-        // 4. COMPARAR: Si tasa manual > tasa P2P (estamos cobrando MÁS de lo debido)
+        // 4. COMPARAR: Si tasa manual > tasa P2P (estamos cobrando MÃS de lo debido)
         const diferencia = tasaManual - tasaP2PAjustada;
         const porcentajeDiferencia = (diferencia / tasaP2PAjustada) * 100;
 
-        console.log(`📊 Diferencia: ${porcentajeDiferencia.toFixed(2)}% | Margen tolerancia: ${margenTolerancia}%`);
+        console.log(`ðŸ“Š Diferencia: ${porcentajeDiferencia.toFixed(2)}% | Margen tolerancia: ${margenTolerancia}%`);
 
         // Solo alertar si la diferencia supera el margen de tolerancia
         if (tasaManual > tasaP2PAjustada && porcentajeDiferencia > margenTolerancia) {
-            console.log(`🚨 ALERTA: Tasa manual es ${porcentajeDiferencia.toFixed(2)}% MAYOR que P2P (supera margen de ${margenTolerancia}%)`);
+            console.log(`ðŸš¨ ALERTA: Tasa manual es ${porcentajeDiferencia.toFixed(2)}% MAYOR que P2P (supera margen de ${margenTolerancia}%)`);
             
             // Verificar si ya existe una alerta pendiente
             if (alertaTasasPendiente) {
                 const tiempoTranscurrido = Date.now() - alertaTasasPendiente.timestamp;
                 const minutosTranscurridos = Math.floor(tiempoTranscurrido / 60000);
                 
-                console.log(`⏳ Alerta existente. Tiempo transcurrido: ${minutosTranscurridos} minutos`);
+                console.log(`â³ Alerta existente. Tiempo transcurrido: ${minutosTranscurridos} minutos`);
                 
-                // Si ya pasaron 15 minutos y el Master no actualizó
+                // Si ya pasaron 15 minutos y el Master no actualizÃ³
                 if (minutosTranscurridos >= 15) {
-                    console.log('🔄 15 minutos transcurridos. Actualizando las 3 tasas automáticamente...');
+                    console.log('ðŸ”„ 15 minutos transcurridos. Actualizando las 3 tasas automÃ¡ticamente...');
                     await actualizarTasasAutomaticamente(alertaTasasPendiente.tasa_base);
                     
                     // Limpiar alerta
@@ -6054,12 +6065,12 @@ async function monitorearTasasVES() {
                 }
             } else {
                 // Nueva alerta - Notificar a todos los usuarios
-                console.log('🔔 Generando nueva alerta de tasas...');
+                console.log('ðŸ”” Generando nueva alerta de tasas...');
                 await generarAlertaTasas(tasaManual, tasaP2PAjustada, diferencia, porcentajeDiferencia);
                 
-                // Programar actualización automática de las 3 tasas en 15 minutos
+                // Programar actualizaciÃ³n automÃ¡tica de las 3 tasas en 15 minutos
                 const timeoutId = setTimeout(async () => {
-                    console.log('⏰ Timeout de 15 minutos alcanzado. Actualizando las 3 tasas...');
+                    console.log('â° Timeout de 15 minutos alcanzado. Actualizando las 3 tasas...');
                     await actualizarTasasAutomaticamente(alertaTasasPendiente.tasa_base);
                     alertaTasasPendiente = null;
                 }, 15 * 60 * 1000); // 15 minutos
@@ -6068,29 +6079,29 @@ async function monitorearTasasVES() {
                     timestamp: Date.now(),
                     tasa_manual: tasaManual,
                     tasa_p2p: tasaP2PAjustada,
-                    tasa_base: tasa_base_clp_ves, // 🎯 Guardamos la tasa base para reutilizarla
+                    tasa_base: tasa_base_clp_ves, // ðŸŽ¯ Guardamos la tasa base para reutilizarla
                     notificado: true,
                     timeout_id: timeoutId
                 };
             }
         } else if (tasaManual > tasaP2PAjustada && porcentajeDiferencia <= margenTolerancia) {
             // Diferencia dentro del margen de tolerancia - no alertar
-            console.log(`✅ Diferencia ${porcentajeDiferencia.toFixed(2)}% dentro del margen de tolerancia (${margenTolerancia}%) - No se alerta`);
+            console.log(`âœ… Diferencia ${porcentajeDiferencia.toFixed(2)}% dentro del margen de tolerancia (${margenTolerancia}%) - No se alerta`);
             
-            // Si había alerta pendiente, cancelarla
+            // Si habÃ­a alerta pendiente, cancelarla
             if (alertaTasasPendiente) {
-                console.log('✅ Diferencia ahora dentro del margen. Cancelando alerta...');
+                console.log('âœ… Diferencia ahora dentro del margen. Cancelando alerta...');
                 if (alertaTasasPendiente.timeout_id) {
                     clearTimeout(alertaTasasPendiente.timeout_id);
                 }
                 alertaTasasPendiente = null;
             }
         } else {
-            console.log(`✅ Tasas OK: Manual (${tasaManual.toFixed(4)}) <= P2P (${tasaP2PAjustada.toFixed(4)})`);
+            console.log(`âœ… Tasas OK: Manual (${tasaManual.toFixed(4)}) <= P2P (${tasaP2PAjustada.toFixed(4)})`);
             
-            // Si había alerta pendiente pero las tasas ya se corrigieron, cancelarla
+            // Si habÃ­a alerta pendiente pero las tasas ya se corrigieron, cancelarla
             if (alertaTasasPendiente) {
-                console.log('✅ Tasas corregidas por el Master. Cancelando alerta...');
+                console.log('âœ… Tasas corregidas por el Master. Cancelando alerta...');
                 if (alertaTasasPendiente.timeout_id) {
                     clearTimeout(alertaTasasPendiente.timeout_id);
                 }
@@ -6098,7 +6109,7 @@ async function monitorearTasasVES() {
             }
         }
     } catch (error) {
-        console.error('❌ Error en monitoreo de tasas:', error);
+        console.error('âŒ Error en monitoreo de tasas:', error);
     }
 }
 
@@ -6112,37 +6123,37 @@ async function generarAlertaTasas(tasaManual, tasaP2P, diferencia, porcentaje) {
         // Obtener TODOS los usuarios (Master y operadores)
         const usuarios = await dbAll('SELECT id, username, role FROM usuarios');
         
-        console.log(`📢 Generando alertas de tasas para ${usuarios.length} usuario(s)...`);
+        console.log(`ðŸ“¢ Generando alertas de tasas para ${usuarios.length} usuario(s)...`);
         
         for (const usuario of usuarios) {
             let mensaje = '';
             let prioridad = 'urgente';
             
             if (usuario.role === 'master') {
-                // Mensaje para Master - más técnico y con acción requerida
-                mensaje = `🚨 **ALERTA DE TASAS - ACCIÓN REQUERIDA**\n\n` +
-                         `📊 **Tasa Manual (250K CLP):** ${tasaManual.toFixed(4)} VES/CLP\n` +
-                         `📊 **Tasa Binance P2P (-4%):** ${tasaP2P.toFixed(4)} VES/CLP\n` +
-                         `⚠️ **Diferencia:** +${diferencia.toFixed(4)} VES/CLP (${porcentaje.toFixed(2)}% más alta)\n\n` +
-                         `🔴 **Nuestra tasa está MÁS ALTA que el mercado - POSIBLES PÉRDIDAS**\n\n` +
-                         `**ACCIÓN URGENTE:** Actualiza las tasas manualmente en /admin.html\n\n` +
-                         `⏰ **Si no actualizas en 15 minutos:**\n` +
-                         `   El sistema actualizará automáticamente las 3 tasas (5K, 100K, 250K)\n` +
-                         `   basándose en las tasas actuales de Binance P2P.`;
+                // Mensaje para Master - mÃ¡s tÃ©cnico y con acciÃ³n requerida
+                mensaje = `ðŸš¨ **ALERTA DE TASAS - ACCIÃ“N REQUERIDA**\n\n` +
+                         `ðŸ“Š **Tasa Manual (250K CLP):** ${tasaManual.toFixed(4)} VES/CLP\n` +
+                         `ðŸ“Š **Tasa Binance P2P (-4%):** ${tasaP2P.toFixed(4)} VES/CLP\n` +
+                         `âš ï¸ **Diferencia:** +${diferencia.toFixed(4)} VES/CLP (${porcentaje.toFixed(2)}% mÃ¡s alta)\n\n` +
+                         `ðŸ”´ **Nuestra tasa estÃ¡ MÃS ALTA que el mercado - POSIBLES PÃ‰RDIDAS**\n\n` +
+                         `**ACCIÃ“N URGENTE:** Actualiza las tasas manualmente en /admin.html\n\n` +
+                         `â° **Si no actualizas en 15 minutos:**\n` +
+                         `   El sistema actualizarÃ¡ automÃ¡ticamente las 3 tasas (5K, 100K, 250K)\n` +
+                         `   basÃ¡ndose en las tasas actuales de Binance P2P.`;
             } else {
                 // Mensaje para operadores - informativo y directivo
-                mensaje = `🚨 **ALERTA: Tasas MÁS ALTAS que mercado**\n\n` +
-                         `📊 Nuestra tasa: ${tasaManual.toFixed(4)} VES/CLP\n` +
-                         `📊 Mercado P2P: ${tasaP2P.toFixed(4)} VES/CLP\n` +
-                         `⚠️ Diferencia: +${diferencia.toFixed(4)} VES/CLP (${porcentaje.toFixed(2)}% más alta)\n\n` +
-                         `🔴 **Estamos dando más de lo necesario - posibles pérdidas.**\n\n` +
-                         `**⚡ ACCIÓN INMEDIATA:**\n` +
-                         `   🔔 Informa al Master AHORA\n` +
-                         `   📱 Contacta vía WhatsApp/llamada si es necesario\n\n` +
-                         `⏰ En 15 minutos el sistema actualizará las tasas automáticamente.`;
+                mensaje = `ðŸš¨ **ALERTA: Tasas MÃS ALTAS que mercado**\n\n` +
+                         `ðŸ“Š Nuestra tasa: ${tasaManual.toFixed(4)} VES/CLP\n` +
+                         `ðŸ“Š Mercado P2P: ${tasaP2P.toFixed(4)} VES/CLP\n` +
+                         `âš ï¸ Diferencia: +${diferencia.toFixed(4)} VES/CLP (${porcentaje.toFixed(2)}% mÃ¡s alta)\n\n` +
+                         `ðŸ”´ **Estamos dando mÃ¡s de lo necesario - posibles pÃ©rdidas.**\n\n` +
+                         `**âš¡ ACCIÃ“N INMEDIATA:**\n` +
+                         `   ðŸ”” Informa al Master AHORA\n` +
+                         `   ðŸ“± Contacta vÃ­a WhatsApp/llamada si es necesario\n\n` +
+                         `â° En 15 minutos el sistema actualizarÃ¡ las tasas automÃ¡ticamente.`;
             }
             
-            // Crear notificación en la BD
+            // Crear notificaciÃ³n en la BD
             await dbRun(`
                 INSERT INTO notificaciones(usuario_id, tipo, titulo, mensaje, fecha_creacion, leida)
                 VALUES (?, 'alerta', 'Alerta de Tasas VES', ?, ?, 0)
@@ -6164,24 +6175,24 @@ async function generarAlertaTasas(tasaManual, tasaP2P, diferencia, porcentaje) {
                 })
             ]);
             
-            console.log(`✅ Alerta de tasas enviada a: ${usuario.username} (${usuario.role})`);
+            console.log(`âœ… Alerta de tasas enviada a: ${usuario.username} (${usuario.role})`);
         }
         
     } catch (error) {
-        console.error('❌ Error generando alerta de tasas:', error);
+        console.error('âŒ Error generando alerta de tasas:', error);
     }
 }
 
 /**
- * Actualiza las 3 tasas automáticamente usando la tasa base ya calculada
+ * Actualiza las 3 tasas automÃ¡ticamente usando la tasa base ya calculada
  * @param {number} tasa_base_clp_ves - Tasa base VES/CLP de Binance P2P ya calculada
  */
 async function actualizarTasasAutomaticamente(tasa_base_clp_ves) {
     try {
-        console.log('🔄 Actualizando las 3 tasas automáticamente...');
-        console.log(`📊 Usando tasa base P2P: ${tasa_base_clp_ves.toFixed(4)} VES/CLP (calculada previamente)`);
+        console.log('ðŸ”„ Actualizando las 3 tasas automÃ¡ticamente...');
+        console.log(`ðŸ“Š Usando tasa base P2P: ${tasa_base_clp_ves.toFixed(4)} VES/CLP (calculada previamente)`);
         
-        // Función auxiliar para truncar (NO redondear) a exactamente 4 decimales
+        // FunciÃ³n auxiliar para truncar (NO redondear) a exactamente 4 decimales
         const truncarA4Decimales = (num) => {
             return Math.floor(num * 10000) / 10000;
         };
@@ -6196,7 +6207,7 @@ async function actualizarTasasAutomaticamente(tasa_base_clp_ves) {
         await dbRun(`INSERT OR REPLACE INTO configuracion(clave, valor) VALUES ('tasaNivel2', ?)`, [tasa_nivel2.toString()]);
         await dbRun(`INSERT OR REPLACE INTO configuracion(clave, valor) VALUES ('tasaNivel3', ?)`, [tasa_nivel3.toString()]);
         
-        console.log(`✅ Tasas actualizadas en BD (truncadas a 4 decimales SIN redondear):`);
+        console.log(`âœ… Tasas actualizadas en BD (truncadas a 4 decimales SIN redondear):`);
         console.log(`   - Nivel 1 (5K CLP, -5%): ${tasa_nivel1.toFixed(4)} VES/CLP`);
         console.log(`   - Nivel 2 (100K CLP, -4.5%): ${tasa_nivel2.toFixed(4)} VES/CLP`);
         console.log(`   - Nivel 3 (250K CLP, -4%): ${tasa_nivel3.toFixed(4)} VES/CLP`);
@@ -6210,23 +6221,23 @@ async function actualizarTasasAutomaticamente(tasa_base_clp_ves) {
             
             if (usuario.role === 'master') {
                 // Mensaje para Master
-                mensaje = `✅ **Tasas actualizadas automáticamente**\n\n` +
-                         `⏰ El tiempo de espera de 15 minutos expiró.\n` +
-                         `🤖 El sistema actualizó las 3 tasas según Binance P2P:\n\n` +
-                         `📊 Nivel 1 (5K CLP): ${tasa_nivel1.toFixed(4)} VES/CLP\n` +
-                         `📊 Nivel 2 (100K CLP): ${tasa_nivel2.toFixed(4)} VES/CLP\n` +
-                         `📊 Nivel 3 (250K CLP): ${tasa_nivel3.toFixed(4)} VES/CLP\n\n` +
-                         `✅ Las nuevas tasas ya están disponibles en el sistema.\n` +
-                         `📋 Puedes verificarlas en /admin.html`;
+                mensaje = `âœ… **Tasas actualizadas automÃ¡ticamente**\n\n` +
+                         `â° El tiempo de espera de 15 minutos expirÃ³.\n` +
+                         `ðŸ¤– El sistema actualizÃ³ las 3 tasas segÃºn Binance P2P:\n\n` +
+                         `ðŸ“Š Nivel 1 (5K CLP): ${tasa_nivel1.toFixed(4)} VES/CLP\n` +
+                         `ðŸ“Š Nivel 2 (100K CLP): ${tasa_nivel2.toFixed(4)} VES/CLP\n` +
+                         `ðŸ“Š Nivel 3 (250K CLP): ${tasa_nivel3.toFixed(4)} VES/CLP\n\n` +
+                         `âœ… Las nuevas tasas ya estÃ¡n disponibles en el sistema.\n` +
+                         `ðŸ“‹ Puedes verificarlas en /admin.html`;
             } else {
                 // Mensaje para Operadores
-                mensaje = `✅ **TASAS ACTUALIZADAS AUTOMÁTICAMENTE**\n\n` +
-                         `🤖 El sistema actualizó las tasas según mercado P2P:\n\n` +
-                         `📊 Nivel 1 (5K CLP): ${tasa_nivel1.toFixed(4)} VES/CLP\n` +
-                         `📊 Nivel 2 (100K CLP): ${tasa_nivel2.toFixed(4)} VES/CLP\n` +
-                         `📊 Nivel 3 (250K CLP): ${tasa_nivel3.toFixed(4)} VES/CLP\n\n` +
-                         `✅ Las nuevas tasas ya están activas en el sistema.\n` +
-                         `📋 El Master fue notificado de la actualización.`;
+                mensaje = `âœ… **TASAS ACTUALIZADAS AUTOMÃTICAMENTE**\n\n` +
+                         `ðŸ¤– El sistema actualizÃ³ las tasas segÃºn mercado P2P:\n\n` +
+                         `ðŸ“Š Nivel 1 (5K CLP): ${tasa_nivel1.toFixed(4)} VES/CLP\n` +
+                         `ðŸ“Š Nivel 2 (100K CLP): ${tasa_nivel2.toFixed(4)} VES/CLP\n` +
+                         `ðŸ“Š Nivel 3 (250K CLP): ${tasa_nivel3.toFixed(4)} VES/CLP\n\n` +
+                         `âœ… Las nuevas tasas ya estÃ¡n activas en el sistema.\n` +
+                         `ðŸ“‹ El Master fue notificado de la actualizaciÃ³n.`;
             }
             
             await dbRun(`
@@ -6241,21 +6252,21 @@ async function actualizarTasasAutomaticamente(tasa_base_clp_ves) {
         }
         
     } catch (error) {
-        console.error('❌ Error actualizando tasas automáticamente:', error);
+        console.error('âŒ Error actualizando tasas automÃ¡ticamente:', error);
     }
 }
 
-// Función generarMensajeWhatsApp eliminada - el sistema NO envía WhatsApp automáticamente
+// FunciÃ³n generarMensajeWhatsApp eliminada - el sistema NO envÃ­a WhatsApp automÃ¡ticamente
 // Los operadores pueden comunicar cambios de tasas manualmente cuando lo consideren necesario
 
 /**
- * Endpoint manual para forzar verificación de tasas (solo Master)
+ * Endpoint manual para forzar verificaciÃ³n de tasas (solo Master)
  */
 app.post('/api/monitoreo/verificar-tasas', apiAuth, onlyMaster, async (req, res) => {
     try {
         await monitorearTasasVES();
         res.json({ 
-            message: 'Verificación de tasas ejecutada',
+            message: 'VerificaciÃ³n de tasas ejecutada',
             alerta_activa: !!alertaTasasPendiente,
             detalles: alertaTasasPendiente
         });
@@ -6265,7 +6276,7 @@ app.post('/api/monitoreo/verificar-tasas', apiAuth, onlyMaster, async (req, res)
 });
 
 /**
- * Endpoint de diagnóstico completo (solo Master)
+ * Endpoint de diagnÃ³stico completo (solo Master)
  */
 app.get('/api/monitoreo/diagnostico-tasas', apiAuth, onlyMaster, async (req, res) => {
     try {
@@ -6317,7 +6328,7 @@ app.get('/api/monitoreo/diagnostico-tasas', apiAuth, onlyMaster, async (req, res
             } : null
         });
     } catch (error) {
-        res.status(500).json({ message: 'Error en diagnóstico', error: error.message });
+        res.status(500).json({ message: 'Error en diagnÃ³stico', error: error.message });
     }
 });
 
@@ -6372,16 +6383,16 @@ app.get('/api/monitoreo/estado-tasas', apiAuth, onlyMaster, async (req, res) => 
 });
 
 /**
- * Iniciar monitoreo de tasas (cada 2 minutos para respuesta más rápida)
+ * Iniciar monitoreo de tasas (cada 2 minutos para respuesta mÃ¡s rÃ¡pida)
  */
 function iniciarMonitoreoTasas() {
-    // Ejecutar verificación inicial después de 10 segundos
+    // Ejecutar verificaciÃ³n inicial despuÃ©s de 10 segundos
     setTimeout(monitorearTasasVES, 10000);
     
-    // Luego verificar cada 2 minutos (más frecuente que antes)
+    // Luego verificar cada 2 minutos (mÃ¡s frecuente que antes)
     intervaloMonitoreoTasas = setInterval(monitorearTasasVES, 2 * 60 * 1000);
     
-    console.log('💹 Sistema de monitoreo de tasas P2P iniciado (cada 2 minutos)');
+    console.log('ðŸ’¹ Sistema de monitoreo de tasas P2P iniciado (cada 2 minutos)');
 }
 
 // =================================================================
@@ -6389,7 +6400,7 @@ function iniciarMonitoreoTasas() {
 // =================================================================
 
 // =================================================================
-// SISTEMA DE NÓMINA
+// SISTEMA DE NÃ“MINA
 // =================================================================
 
 // Obtener periodo actual o crear uno nuevo
@@ -6440,7 +6451,7 @@ app.get('/api/nomina/periodos', apiAuth, onlyMaster, async (req, res) => {
   }
 });
 
-// Calcular nómina para un periodo
+// Calcular nÃ³mina para un periodo
 app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res) => {
   try {
     const { periodoId } = req.params;
@@ -6458,7 +6469,7 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
 
     for (const operador of operadores) {
       // 1. CALCULAR HORAS TRABAJADAS (mismo algoritmo que monitoreo)
-      // Obtener todas las actividades del período
+      // Obtener todas las actividades del perÃ­odo
       const actividades = await dbAll(`
         SELECT fecha, timestamp
         FROM actividad_operadores
@@ -6468,7 +6479,7 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
         ORDER BY timestamp ASC
       `, [operador.id, periodo.fecha_inicio, periodo.fecha_fin]);
 
-      // Calcular horas con gaps de máximo 30 minutos (igual que monitoreo)
+      // Calcular horas con gaps de mÃ¡ximo 30 minutos (igual que monitoreo)
       let horasOnline = 0;
       let sesionInicio = null;
       let ultimaActividad = null;
@@ -6484,7 +6495,7 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
           const diffMinutos = (timestamp - ultimaActividad) / (1000 * 60);
           
           if (diffMinutos > UMBRAL_MINUTOS) {
-            // Gap > 30 min: cerrar sesión anterior e iniciar nueva
+            // Gap > 30 min: cerrar sesiÃ³n anterior e iniciar nueva
             horasOnline += (ultimaActividad - sesionInicio) / (1000 * 60 * 60);
             sesionInicio = timestamp;
           }
@@ -6493,7 +6504,7 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
         }
       }
 
-      // Cerrar última sesión si existe
+      // Cerrar Ãºltima sesiÃ³n si existe
       if (sesionInicio && ultimaActividad) {
         horasOnline += (ultimaActividad - sesionInicio) / (1000 * 60 * 60);
       }
@@ -6522,21 +6533,21 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
       const domingos_trabajados = domingosResult.domingos || 0;
 
       // 4. CALCULAR PAGOS
-      // Sistema quincenal: 135 horas × $0.555/hora = $75 USD base
+      // Sistema quincenal: 135 horas Ã— $0.555/hora = $75 USD base
       const TASA_POR_HORA = 0.555;
       const HORAS_MAXIMAS_QUINCENA = 135;
       const horas_a_pagar = Math.min(horas_trabajadas, HORAS_MAXIMAS_QUINCENA);
       const sueldo_base = horas_a_pagar * TASA_POR_HORA; // Pago por horas trabajadas hasta el tope
       
-      const bono_atencion_rapida = 0; // Se agrega manualmente desde el botón Bonos
+      const bono_atencion_rapida = 0; // Se agrega manualmente desde el botÃ³n Bonos
       const bono_asistencia = horas_trabajadas >= HORAS_MAXIMAS_QUINCENA ? 15.00 : 0; // $15 quincenal por cumplir 135 horas
-      const comision_ventas = millones_comisionables * 2.00; // $2 por millón CLP
+      const comision_ventas = millones_comisionables * 2.00; // $2 por millÃ³n CLP
       const bono_domingos = domingos_trabajados * 8.00; // $8 por domingo
-      const bonos_extra = 0; // Se pueden agregar manualmente después
+      const bonos_extra = 0; // Se pueden agregar manualmente despuÃ©s
 
       const total_pagar = sueldo_base + bono_atencion_rapida + bono_asistencia + comision_ventas + bono_domingos + bonos_extra;
 
-      // 6. INSERTAR O ACTUALIZAR NÓMINA
+      // 6. INSERTAR O ACTUALIZAR NÃ“MINA
       await dbRun(`
         INSERT INTO nomina (
           periodo_id, usuario_id, sueldo_base, horas_trabajadas,
@@ -6568,14 +6579,14 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
       });
     }
 
-    res.json({ mensaje: 'Nómina calculada exitosamente', resultados });
+    res.json({ mensaje: 'NÃ³mina calculada exitosamente', resultados });
   } catch (error) {
-    console.error('Error calculando nómina:', error);
-    res.status(500).json({ error: 'Error calculando nómina' });
+    console.error('Error calculando nÃ³mina:', error);
+    res.status(500).json({ error: 'Error calculando nÃ³mina' });
   }
 });
 
-// Obtener nómina de un periodo
+// Obtener nÃ³mina de un periodo
 app.get('/api/nomina/periodo/:periodoId', apiAuth, onlyMaster, async (req, res) => {
   try {
     const { periodoId } = req.params;
@@ -6599,8 +6610,8 @@ app.get('/api/nomina/periodo/:periodoId', apiAuth, onlyMaster, async (req, res) 
 
     res.json(nominas);
   } catch (error) {
-    console.error('Error obteniendo nómina:', error);
-    res.status(500).json({ error: 'Error obteniendo nómina' });
+    console.error('Error obteniendo nÃ³mina:', error);
+    res.status(500).json({ error: 'Error obteniendo nÃ³mina' });
   }
 });
 
@@ -6634,10 +6645,10 @@ app.put('/api/nomina/:nominaId/bonos', apiAuth, onlyMaster, async (req, res) => 
     const { nominaId } = req.params;
     const { bono_atencion_rapida, bonos_extra, nota_bonos } = req.body;
 
-    // Obtener la nómina actual
+    // Obtener la nÃ³mina actual
     const nomina = await dbGet('SELECT * FROM nomina WHERE id = ?', [nominaId]);
     if (!nomina) {
-      return res.status(404).json({ error: 'Nómina no encontrada' });
+      return res.status(404).json({ error: 'NÃ³mina no encontrada' });
     }
 
     // Recalcular el total
@@ -6657,7 +6668,7 @@ app.put('/api/nomina/:nominaId/bonos', apiAuth, onlyMaster, async (req, res) => 
   }
 });
 
-// Cerrar un periodo (no se podrá modificar después)
+// Cerrar un periodo (no se podrÃ¡ modificar despuÃ©s)
 app.post('/api/nomina/periodo/:periodoId/cerrar', apiAuth, onlyMaster, async (req, res) => {
   try {
     const { periodoId } = req.params;
@@ -6691,7 +6702,7 @@ app.post('/api/nomina/periodo/:periodoId/pagar', apiAuth, onlyMaster, async (req
   }
 });
 
-// Registrar atención rápida (llamar desde endpoint de operaciones/mensajes)
+// Registrar atenciÃ³n rÃ¡pida (llamar desde endpoint de operaciones/mensajes)
 async function registrarAtencionRapida(usuario_id, cliente_id, tipo, tiempo_respuesta_minutos) {
   try {
     if (tiempo_respuesta_minutos <= 5) {
@@ -6702,30 +6713,30 @@ async function registrarAtencionRapida(usuario_id, cliente_id, tipo, tiempo_resp
       );
     }
   } catch (error) {
-    console.error('Error registrando atención rápida:', error);
+    console.error('Error registrando atenciÃ³n rÃ¡pida:', error);
   }
 }
 
 // =================================================================
-// FIN: SISTEMA DE NÓMINA
+// FIN: SISTEMA DE NÃ“MINA
 // =================================================================
 
 // =================================================================
-// INICIO: APP CLIENTE MÓVIL - AUTENTICACIÓN Y ENDPOINTS
+// INICIO: APP CLIENTE MÃ“VIL - AUTENTICACIÃ“N Y ENDPOINTS
 // =================================================================
 
-// Función para generar token simple
+// FunciÃ³n para generar token simple
 function generarTokenCliente() {
     return crypto.randomBytes(32).toString('hex');
 }
 
-// Función para verificar token de Google
+// FunciÃ³n para verificar token de Google
 async function verificarGoogleToken(credential) {
     try {
         // Decodificar el JWT de Google
         const parts = credential.split('.');
         if (parts.length !== 3) {
-            throw new Error('Token de Google inválido');
+            throw new Error('Token de Google invÃ¡lido');
         }
         
         const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
@@ -6748,7 +6759,7 @@ async function verificarGoogleToken(credential) {
     }
 }
 
-// Middleware para autenticación de clientes de la app
+// Middleware para autenticaciÃ³n de clientes de la app
 const clienteAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     
@@ -6765,24 +6776,24 @@ const clienteAuth = async (req, res, next) => {
         );
         
         if (!cliente) {
-            return res.status(401).json({ error: 'Token inválido o sesión expirada' });
+            return res.status(401).json({ error: 'Token invÃ¡lido o sesiÃ³n expirada' });
         }
         
         req.clienteApp = cliente;
         next();
     } catch (error) {
-        console.error('Error en autenticación de cliente:', error);
-        res.status(500).json({ error: 'Error de autenticación' });
+        console.error('Error en autenticaciÃ³n de cliente:', error);
+        res.status(500).json({ error: 'Error de autenticaciÃ³n' });
     }
 };
 
-// Servir archivos estáticos de la app cliente
+// Servir archivos estÃ¡ticos de la app cliente
 app.use('/app-cliente', express.static(path.join(__dirname, 'app-cliente')));
 app.get('/favicon.ico', (req, res) => {
     res.sendFile(path.join(__dirname, 'app-cliente', 'assets', 'defioracle-logo.png'));
 });
 
-// POST /api/cliente/auth/google - Autenticación con Google
+// POST /api/cliente/auth/google - AutenticaciÃ³n con Google
 app.post('/api/cliente/auth/google', async (req, res) => {
     try {
         const { credential } = req.body;
@@ -6795,7 +6806,7 @@ app.post('/api/cliente/auth/google', async (req, res) => {
         const googleUser = await verificarGoogleToken(credential);
         
         if (!googleUser.email_verificado) {
-            return res.status(400).json({ error: 'El email de Google no está verificado' });
+            return res.status(400).json({ error: 'El email de Google no estÃ¡ verificado' });
         }
         
         // Buscar si el usuario ya existe
@@ -6809,7 +6820,7 @@ app.post('/api/cliente/auth/google', async (req, res) => {
         let nuevoUsuario = false;
         
         if (cliente) {
-            // Usuario existente - actualizar token y último acceso
+            // Usuario existente - actualizar token y Ãºltimo acceso
             await dbRun(
                 'UPDATE clientes_app SET token_sesion = ?, ultimo_acceso = ?, nombre = ?, foto_url = ? WHERE id = ?',
                 [token, ahora, googleUser.nombre, googleUser.foto_url, cliente.id]
@@ -6827,7 +6838,7 @@ app.post('/api/cliente/auth/google', async (req, res) => {
         }
         
         res.json({
-            mensaje: nuevoUsuario ? 'Cuenta creada exitosamente' : 'Inicio de sesión exitoso',
+            mensaje: nuevoUsuario ? 'Cuenta creada exitosamente' : 'Inicio de sesiÃ³n exitoso',
             token: token,
             nuevoUsuario: nuevoUsuario,
             usuario: {
@@ -6841,11 +6852,11 @@ app.post('/api/cliente/auth/google', async (req, res) => {
         
     } catch (error) {
         console.error('Error en login con Google:', error);
-        res.status(500).json({ error: 'Error al procesar autenticación de Google' });
+        res.status(500).json({ error: 'Error al procesar autenticaciÃ³n de Google' });
     }
 });
 
-// GET /api/cliente/auth/verificar - Verificar sesión activa
+// GET /api/cliente/auth/verificar - Verificar sesiÃ³n activa
 app.get('/api/cliente/auth/verificar', clienteAuth, (req, res) => {
     res.json({
         valido: true,
@@ -6859,17 +6870,17 @@ app.get('/api/cliente/auth/verificar', clienteAuth, (req, res) => {
     });
 });
 
-// POST /api/cliente/auth/logout - Cerrar sesión
+// POST /api/cliente/auth/logout - Cerrar sesiÃ³n
 app.post('/api/cliente/auth/logout', clienteAuth, async (req, res) => {
     try {
         await dbRun(
             'UPDATE clientes_app SET token_sesion = NULL WHERE id = ?',
             [req.clienteApp.id]
         );
-        res.json({ mensaje: 'Sesión cerrada exitosamente' });
+        res.json({ mensaje: 'SesiÃ³n cerrada exitosamente' });
     } catch (error) {
         console.error('Error en logout:', error);
-        res.status(500).json({ error: 'Error al cerrar sesión' });
+        res.status(500).json({ error: 'Error al cerrar sesiÃ³n' });
     }
 });
 
@@ -6878,19 +6889,19 @@ app.put('/api/cliente/perfil', clienteAuth, async (req, res) => {
     try {
         const { nombre, telefono, documento_tipo, documento_numero, pais, ciudad, direccion, fecha_nacimiento } = req.body;
         
-        // Validaciones básicas
+        // Validaciones bÃ¡sicas
         if (!nombre || !telefono || !documento_tipo || !documento_numero || !pais) {
-            return res.status(400).json({ error: 'Faltan campos obligatorios: nombre, teléfono, tipo de documento, número de documento y país' });
+            return res.status(400).json({ error: 'Faltan campos obligatorios: nombre, telÃ©fono, tipo de documento, nÃºmero de documento y paÃ­s' });
         }
         
-        // Verificar que el documento no esté registrado por otro usuario
+        // Verificar que el documento no estÃ© registrado por otro usuario
         const existeDocumento = await dbGet(
             'SELECT id FROM clientes_app WHERE documento_tipo = ? AND documento_numero = ? AND id != ?',
             [documento_tipo, documento_numero, req.clienteApp.id]
         );
         
         if (existeDocumento) {
-            return res.status(400).json({ error: 'Este documento ya está registrado' });
+            return res.status(400).json({ error: 'Este documento ya estÃ¡ registrado' });
         }
         
         await dbRun(
@@ -7144,7 +7155,7 @@ app.get('/api/cliente/cuentas-pago', clienteAuth, async (req, res) => {
 // APP CLIENTE - TASAS Y COTIZACIONES
 // =================================================================
 
-// GET /api/cliente/tasa - Obtener tasas de venta automáticas por tramos
+// GET /api/cliente/tasa - Obtener tasas de venta automÃ¡ticas por tramos
 app.get('/api/cliente/tasa', async (req, res) => {
     try {
         const [t1, t2, t3] = await Promise.all([
@@ -7153,7 +7164,7 @@ app.get('/api/cliente/tasa', async (req, res) => {
             dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaNivel3'")
         ]);
         
-        // Tasas por tramos (CLP → VES)
+        // Tasas por tramos (CLP â†’ VES)
         const tasas = {
             tramos: [
                 { minCLP: 5000, maxCLP: 99999, tasa: t1 ? parseFloat(t1.valor) : 0, label: '5.000 - 99.999 CLP' },
@@ -7230,7 +7241,7 @@ app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
 
         const solicitudId = result.lastID;
 
-        // 📱 Enviar notificación a Telegram
+        // ðŸ“± Enviar notificaciÃ³n a Telegram
         await notificarNuevaSolicitud({
             id: solicitudId,
             cliente_nombre: beneficiario.cliente_nombre,
@@ -7296,7 +7307,7 @@ app.put('/api/cliente/solicitudes/:id/comprobante', clienteAuth, async (req, res
             [comprobante_url, referencia, id]
         );
 
-        // 📱 Notificar a Telegram
+        // ðŸ“± Notificar a Telegram
         await notificarCambioEstado({
             id,
             cliente_nombre: solicitud.cliente_nombre,
@@ -7364,7 +7375,7 @@ app.get('/api/cliente/solicitudes/:id', clienteAuth, async (req, res) => {
 });
 
 // =================================================================
-// API OPERADORES - GESTIÓN DE SOLICITUDES APP
+// API OPERADORES - GESTIÃ“N DE SOLICITUDES APP
 // =================================================================
 
 // GET /api/solicitudes-app - Listar solicitudes de la app (para operadores)
@@ -7432,7 +7443,7 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
             return res.status(404).json({ error: 'Solicitud no encontrada' });
         }
 
-        // Campos a actualizar según el estado
+        // Campos a actualizar segÃºn el estado
         let updateFields = ['estado = ?', 'operador_id = ?'];
         let updateParams = [estado, operadorId];
 
@@ -7463,7 +7474,7 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
             updateParams
         );
 
-        // 📱 Notificar cambio de estado a Telegram
+        // ðŸ“± Notificar cambio de estado a Telegram
         await notificarCambioEstado({
             id,
             cliente_nombre: solicitud.cliente_nombre,
@@ -7479,19 +7490,20 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
 });
 
 // =================================================================
-// FIN: APP CLIENTE MÓVIL
+// FIN: APP CLIENTE MÃ“VIL
 // =================================================================
 
-// Iniciar el servidor solo después de que las migraciones se hayan completado
+// Iniciar el servidor solo despuÃ©s de que las migraciones se hayan completado
 runMigrations()
     .then(() => {
         app.listen(PORT, () => {
-            console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-            iniciarMonitoreoProactivo(); // ✅ Iniciar monitoreo proactivo
-            iniciarMonitoreoTasas();     // ✅ Iniciar monitoreo de tasas P2P
+            console.log(`ðŸš€ Servidor corriendo en http://localhost:${PORT}`);
+            iniciarMonitoreoProactivo(); // âœ… Iniciar monitoreo proactivo
+            iniciarMonitoreoTasas();     // âœ… Iniciar monitoreo de tasas P2P
         });
     })
     .catch(err => {
-        console.error("❌ No se pudo iniciar el servidor debido a un error en la migración de la base de datos:", err);
-        process.exit(1); // Detiene la aplicación si la BD no se puede inicializar
+        console.error("âŒ No se pudo iniciar el servidor debido a un error en la migraciÃ³n de la base de datos:", err);
+        process.exit(1); // Detiene la aplicaciÃ³n si la BD no se puede inicializar
     });
+
