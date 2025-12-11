@@ -27,6 +27,7 @@
       --primary-strong: #145DA6;
       --accent: #5C8240;
       --bg: #E3EAEE;
+      --grad-brand-soft: linear-gradient(135deg, rgba(25,116,206,0.10), rgba(47,199,184,0.10));
       --panel: #FFFFFF;
       --border: #D8E2E9;
       --text: #211C10;
@@ -49,7 +50,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg);
+      background: var(--grad-brand-soft);
       color: var(--text);
       min-height: 100vh;
       padding-bottom: 100px;
@@ -58,7 +59,7 @@
       max-width: 430px;
       margin: 0 auto;
       min-height: 100vh;
-      background: var(--bg);
+      background: transparent;
     }
     
     /* Header */
@@ -345,34 +346,124 @@
       width: 100%;
     }
 
-    /* Bottom Nav */
-    .bottom-nav {
+    /* Glass Nav */
+    .glass-nav {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: white;
-      padding: 12px 0 20px;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 36px);
+      max-width: 420px;
+      padding: 14px 18px;
+      padding-bottom: calc(14px + env(safe-area-inset-bottom, 0));
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.65);
+      box-shadow: 0 18px 36px rgba(20, 52, 102, 0.12);
       display: flex;
-      justify-content: space-around;
-      border-top: 1px solid var(--border);
-      max-width: 430px;
-      margin: 0 auto;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 120;
     }
-    .nav-item {
-      display: flex;
+    @media (max-width: 520px) {
+      .glass-nav {
+        bottom: clamp(12px, env(safe-area-inset-bottom, 0) + 6px, 20px);
+        width: calc(100% - 24px);
+        padding: 12px 14px;
+      }
+    }
+    .glass-nav-item {
+      display: inline-flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      justify-content: center;
+      gap: 6px;
       text-decoration: none;
-      color: var(--muted);
+      color: #7E8A9D;
       font-size: 11px;
+      font-weight: 600;
+      padding: 4px 6px;
+      min-width: 56px;
+      transition: color 0.25s ease;
     }
-    .nav-item.active {
+    .glass-nav-item .icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: inherit;
+      background: transparent;
+      transition: background 0.25s ease, box-shadow 0.25s ease, color 0.25s ease, transform 0.25s ease;
+    }
+    .glass-nav-item .icon svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 1.7;
+    }
+    .glass-nav-item .label {
+      font-size: 11px;
+      letter-spacing: 0.25px;
+      color: inherit;
+    }
+    .glass-nav-item:hover:not(.active) {
       color: var(--primary);
     }
-    .nav-icon {
-      font-size: 22px;
+    .glass-nav-item:hover:not(.active) .icon {
+      color: var(--primary);
+    }
+    .glass-nav-item.active {
+      color: var(--primary);
+    }
+    .glass-nav-item.active .icon {
+      color: white;
+      background: linear-gradient(120deg, var(--primary) 0%, #23C6B8 100%);
+      box-shadow: 0 10px 22px rgba(25, 116, 206, 0.22);
+    }
+    .glass-nav-item.active .label {
+      color: var(--primary);
+      text-shadow: 0 2px 6px rgba(25, 116, 206, 0.18);
+    }
+    .glass-nav-fab {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--primary);
+      transform: translateY(-12px);
+    }
+    .glass-nav-fab-button {
+      width: 60px;
+      height: 60px;
+      border-radius: 30px;
+      background: linear-gradient(135deg, var(--primary) 0%, #23C6B8 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 20px 36px rgba(25, 116, 206, 0.26);
+      border: 3px solid rgba(255, 255, 255, 0.92);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .glass-nav-fab-button svg {
+      width: 26px;
+      height: 26px;
+      color: #FFFFFF;
+      stroke-width: 1.8;
+    }
+    .glass-nav-fab-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 24px 40px rgba(25, 116, 206, 0.30);
+    }
+    .glass-nav-fab .label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.25px;
+      color: var(--primary);
     }
   </style>
 </head>
@@ -413,22 +504,53 @@
     </div>
 
     <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-      <a href="home.html" class="nav-item">
-        <span class="nav-icon">🏠</span>
-        <span>Inicio</span>
+    <nav class="glass-nav">
+      <a href="home.html" class="glass-nav-item">
+        <span class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+        </span>
+        <span class="label">Inicio</span>
       </a>
-      <a href="enviar.html" class="nav-item">
-        <span class="nav-icon">💸</span>
-        <span>Enviar</span>
+      <a href="destinatarios.html" class="glass-nav-item">
+        <span class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </span>
+        <span class="label">Destinatarios</span>
       </a>
-      <a href="historico.html" class="nav-item active">
-        <span class="nav-icon">📋</span>
-        <span>Historial</span>
+      <a href="enviar.html" class="glass-nav-fab">
+        <div class="glass-nav-fab-button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </div>
+        <span class="label">Enviar</span>
       </a>
-      <a href="perfil.html" class="nav-item">
-        <span class="nav-icon">👤</span>
-        <span>Perfil</span>
+      <a href="historico.html" class="glass-nav-item active">
+        <span class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </span>
+        <span class="label">Historial</span>
+      </a>
+      <a href="perfil.html" class="glass-nav-item">
+        <span class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </span>
+        <span class="label">Perfil</span>
       </a>
     </nav>
   </div>
