@@ -263,6 +263,29 @@
             background: #f4f7fb;
         }
 
+        .btn-ghost {
+            background: linear-gradient(135deg, rgba(25, 116, 206, 0.12) 0%, rgba(35, 198, 184, 0.12) 100%);
+            border: 1px solid rgba(25, 116, 206, 0.18);
+            color: #1974CE;
+            font-weight: 600;
+        }
+
+        .btn-ghost:hover {
+            background: linear-gradient(135deg, rgba(25, 116, 206, 0.18) 0%, rgba(35, 198, 184, 0.18) 100%);
+            border-color: rgba(25, 116, 206, 0.3);
+        }
+
+        .btn-accent {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: #fff;
+            box-shadow: 0 12px 32px rgba(16, 185, 129, 0.26);
+        }
+
+        .btn-accent:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 36px rgba(16, 185, 129, 0.32);
+        }
+
         .btn-icon {
             width: 18px;
             height: 18px;
@@ -296,6 +319,194 @@
 
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        /* Modal de login Google */
+        .login-modal {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            z-index: 50;
+        }
+
+        .login-modal.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .login-modal-dialog {
+            background: linear-gradient(160deg, #ffffff 0%, #f1f7fd 100%);
+            border-radius: 24px;
+            padding: 32px 28px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 24px 60px rgba(25, 116, 206, 0.22);
+            text-align: center;
+        }
+
+        .login-modal-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin: 0 0 8px;
+            color: var(--deep-charcoal);
+        }
+
+        .login-modal-subtitle {
+            font-size: 0.9rem;
+            color: #607184;
+            margin: 0 0 24px;
+        }
+
+        .login-modal-google {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .login-modal-close {
+            background: transparent;
+            border: none;
+            color: #607184;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 8px 16px;
+        }
+
+        .login-modal-close:hover {
+            color: var(--primary-blue);
+        }
+
+        /* Modal Simulador */
+        .simulator-modal {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            z-index: 50;
+        }
+
+        .simulator-modal.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .simulator-dialog {
+            background: linear-gradient(160deg, #ffffff 0%, #f1f7fd 100%);
+            border-radius: 24px;
+            padding: 28px 24px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 24px 60px rgba(25, 116, 206, 0.22);
+        }
+
+        .simulator-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .simulator-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin: 0;
+            color: var(--deep-charcoal);
+        }
+
+        .simulator-close {
+            border: none;
+            background: rgba(25, 116, 206, 0.1);
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            cursor: pointer;
+            color: var(--primary-blue);
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .simulator-input-group {
+            margin-bottom: 16px;
+        }
+
+        .simulator-label {
+            font-size: 0.8rem;
+            color: #607184;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .simulator-input-box {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            border: 1px solid rgba(25, 116, 206, 0.2);
+            border-radius: 14px;
+            padding: 14px 16px;
+            gap: 12px;
+        }
+
+        .simulator-input-box img {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+
+        .simulator-input-box input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--deep-charcoal);
+            background: transparent;
+            text-align: right;
+        }
+
+        .simulator-result {
+            background: linear-gradient(135deg, #1974CE 0%, #0C3C7C 60%, #23C6B8 100%);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            color: white;
+            margin-bottom: 16px;
+        }
+
+        .simulator-result-label {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            margin-bottom: 6px;
+        }
+
+        .simulator-result-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .simulator-rate {
+            font-size: 0.8rem;
+            color: #607184;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .simulator-cta {
+            width: 100%;
         }
 
         .error-message {
@@ -494,28 +705,26 @@
                 <div class="error-message" id="errorMessage"></div>
 
                 <div class="login-content" id="loginContent">
-                    <div class="trust-strip" aria-hidden="true">
-                        <span class="trust-item">
-                            <span class="trust-icon"><img src="assets/bolivares_icon.svg" alt="Liquidez inmediata"></span>
-                            Liquidez inmediata
-                        </span>
-                        <span class="trust-sep">&bull;</span>
-                        <span class="trust-item">
-                            <span class="trust-icon"><img src="assets/escudo_seguridad.svg" alt="Operacion segura"></span>
-                            Operacion segura
-                        </span>
-                        <span class="trust-sep">&bull;</span>
-                        <span class="trust-item">
-                            <span class="trust-icon"><img src="assets/tasa_top.svg" alt="Tasa #1 en envios a Venezuela"></span>
-                            Tasa #1 en envios a Venezuela
-                        </span>
-                    </div>
-
                     <div class="cta-area">
-                        <div class="google-button-container" id="googleButtonContainer" aria-label="Continuar con Google"></div>
+                        <button class="btn btn-accent" type="button" id="openLoginModal">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                            Enviar dinero
+                        </button>
+                        <button class="btn btn-secondary" type="button" id="openSimulator">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                                <line x1="8" y1="6" x2="16" y2="6"></line>
+                                <line x1="8" y1="10" x2="16" y2="10"></line>
+                                <line x1="8" y1="14" x2="12" y2="14"></line>
+                            </svg>
+                            Simulador de envío
+                        </button>
                         <div class="cta-actions">
-                            <button class="btn btn-primary" type="button" id="openRates">Ver tasas</button>
-                            <a class="btn btn-secondary" id="supportButton" href="https://wa.me/56954450213" target="_blank" rel="noopener">
+                            <button class="btn btn-ghost" type="button" id="openRates">Ver tasas</button>
+                            <a class="btn btn-ghost" id="supportButton" href="https://wa.me/56954450213" target="_blank" rel="noopener">
                                 <img src="assets/whatsapp-icon-logo-svgrepo-com.svg" alt="" class="btn-icon">
                                 Soporte
                             </a>
@@ -564,6 +773,40 @@
         </div>
     </div>
 
+    <!-- Modal Login Google -->
+    <div class="login-modal" id="loginModal" aria-hidden="true">
+        <div class="login-modal-dialog">
+            <h2 class="login-modal-title">Iniciar sesión</h2>
+            <p class="login-modal-subtitle">Inicia sesión con tu cuenta de Google para enviar dinero</p>
+            <div class="login-modal-google" id="googleButtonModal"></div>
+            <button class="login-modal-close" type="button" data-close-login>Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal Simulador -->
+    <div class="simulator-modal" id="simulatorModal" aria-hidden="true">
+        <div class="simulator-dialog">
+            <div class="simulator-header">
+                <h2 class="simulator-title">Simulador de envío</h2>
+                <button class="simulator-close" type="button" data-close-simulator>✕</button>
+            </div>
+            <div class="simulator-input-group">
+                <label class="simulator-label">TÚ ENVÍAS</label>
+                <div class="simulator-input-box">
+                    <img src="assets/banderachile.svg" alt="CLP">
+                    <input type="text" id="simMontoCLP" placeholder="0" inputmode="numeric">
+                    <span style="color:#607184;font-weight:600;">CLP</span>
+                </div>
+            </div>
+            <div class="simulator-result">
+                <p class="simulator-result-label">Destinatario recibe</p>
+                <p class="simulator-result-value" id="simMontoVES">0 VES</p>
+            </div>
+            <p class="simulator-rate" id="simTasaInfo">Tasa: 1 CLP = 0.0000 VES</p>
+            <button class="btn btn-accent simulator-cta" type="button" id="simEnviarBtn">Enviar dinero ahora</button>
+        </div>
+    </div>
+
     <script type="module">
         import { getPublicRates } from './rates/publicRates.js';
 
@@ -576,6 +819,7 @@
         let featureDots = [];
         let featureCurrent = 0;
         let featureIntervalId = null;
+        let tramosData = [];
 
         window.onload = function() {
             const token = localStorage.getItem('clienteToken');
@@ -585,6 +829,7 @@
             initFeatureCarousel();
             initGoogleWhenReady();
             initActions();
+            cargarTasasSimulador();
         };
 
         function normalizeEmail(usuario = {}) {
@@ -714,6 +959,59 @@
                     closeRatesModal();
                 }
             });
+
+            // Login Modal
+            const openLoginBtn = document.getElementById('openLoginModal');
+            const loginModal = document.getElementById('loginModal');
+            const closeLoginBtns = loginModal.querySelectorAll('[data-close-login]');
+
+            if (openLoginBtn) {
+                openLoginBtn.addEventListener('click', openLoginModal);
+            }
+
+            closeLoginBtns.forEach(btn => {
+                btn.addEventListener('click', closeLoginModal);
+            });
+
+            loginModal.addEventListener('click', (evt) => {
+                if (evt.target === loginModal) {
+                    closeLoginModal();
+                }
+            });
+
+            // Simulator Modal
+            const openSimBtn = document.getElementById('openSimulator');
+            const simModal = document.getElementById('simulatorModal');
+            const closeSimBtns = simModal.querySelectorAll('[data-close-simulator]');
+
+            if (openSimBtn) {
+                openSimBtn.addEventListener('click', openSimulatorModal);
+            }
+
+            closeSimBtns.forEach(btn => {
+                btn.addEventListener('click', closeSimulatorModal);
+            });
+
+            simModal.addEventListener('click', (evt) => {
+                if (evt.target === simModal) {
+                    closeSimulatorModal();
+                }
+            });
+
+            // Simulator input
+            const simInput = document.getElementById('simMontoCLP');
+            if (simInput) {
+                simInput.addEventListener('input', calcularSimulacion);
+            }
+
+            // Enviar desde simulador
+            const simEnviarBtn = document.getElementById('simEnviarBtn');
+            if (simEnviarBtn) {
+                simEnviarBtn.addEventListener('click', () => {
+                    closeSimulatorModal();
+                    openLoginModal();
+                });
+            }
         }
 
         async function openRatesModal() {
@@ -762,6 +1060,102 @@
             const modal = document.getElementById('ratesModal');
             modal.classList.remove('show');
             modal.setAttribute('aria-hidden', 'true');
+        }
+
+        // Login Modal functions
+        function openLoginModal() {
+            const modal = document.getElementById('loginModal');
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            
+            // Render Google button in modal if not already rendered
+            const container = document.getElementById('googleButtonModal');
+            if (container && googleInitialized && !container.hasChildNodes()) {
+                google.accounts.id.renderButton(
+                    container,
+                    { 
+                        theme: 'outline', 
+                        size: 'large', 
+                        width: 280,
+                        text: 'continue_with',
+                        shape: 'rectangular',
+                        logo_alignment: 'left'
+                    }
+                );
+            }
+        }
+
+        function closeLoginModal() {
+            const modal = document.getElementById('loginModal');
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        // Simulator Modal functions
+        function openSimulatorModal() {
+            const modal = document.getElementById('simulatorModal');
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+            document.getElementById('simMontoCLP').value = '';
+            document.getElementById('simMontoVES').textContent = '0 VES';
+        }
+
+        function closeSimulatorModal() {
+            const modal = document.getElementById('simulatorModal');
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        async function cargarTasasSimulador() {
+            try {
+                const { rates } = await getPublicRates();
+                // Convertir rates a tramosData
+                tramosData = rates.map(r => {
+                    const minMatch = r.min.match(/[\d.,]+/);
+                    const minCLP = minMatch ? parseInt(minMatch[0].replace(/\./g, '')) : 0;
+                    const tasaMatch = r.value.match(/[\d.,]+/);
+                    const tasa = tasaMatch ? parseFloat(tasaMatch[0].replace(',', '.')) : 0;
+                    return { minCLP, tasa };
+                }).sort((a, b) => b.minCLP - a.minCLP);
+                
+                // Actualizar info de tasa inicial
+                if (tramosData.length > 0) {
+                    const tasaInicial = tramosData[tramosData.length - 1].tasa;
+                    document.getElementById('simTasaInfo').textContent = `Tasa: 1 CLP = ${tasaInicial.toFixed(4)} VES`;
+                }
+            } catch (error) {
+                console.error('Error cargando tasas para simulador:', error);
+            }
+        }
+
+        function obtenerTasaPorMonto(monto) {
+            if (!tramosData.length) return 0;
+            for (const tramo of tramosData) {
+                if (monto >= tramo.minCLP) return tramo.tasa;
+            }
+            return tramosData[tramosData.length - 1]?.tasa || 0;
+        }
+
+        function calcularSimulacion() {
+            const input = document.getElementById('simMontoCLP');
+            const resultEl = document.getElementById('simMontoVES');
+            const tasaEl = document.getElementById('simTasaInfo');
+            
+            // Limpiar y formatear
+            let raw = input.value.replace(/\D/g, '');
+            const monto = parseInt(raw) || 0;
+            
+            // Formatear input
+            if (raw) {
+                input.value = parseInt(raw).toLocaleString('es-CL');
+            }
+            
+            // Calcular
+            const tasa = obtenerTasaPorMonto(monto);
+            const montoVES = Math.round(monto * tasa);
+            
+            resultEl.textContent = montoVES.toLocaleString('es-VE') + ' VES';
+            tasaEl.textContent = `Tasa: 1 CLP = ${tasa.toFixed(4)} VES`;
         }
 
         async function handleGoogleCallback(response) {
