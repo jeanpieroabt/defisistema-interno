@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedidos App | Defi Oracle</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #101828;
+      --card: #111927;
+      --accent: #22c55e;
+      --accent-2: #0ea5e9;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: #1f2937;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --ok: #22c55e;
+    }
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at 20% 20%, rgba(34,197,94,0.15), transparent 30%), radial-gradient(circle at 80% 0%, rgba(14,165,233,0.18), transparent 25%), var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .page {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .title {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .title h1 {
+      margin: 0;
+      font-size: 1.9rem;
+      letter-spacing: -0.5px;
+    }
+    .title p {
+      margin: 0;
+      color: var(--muted);
+    }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: 1px solid var(--border);
+      background: #0b1220;
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+    .btn.primary {
+      background: linear-gradient(135deg, #22c55e, #0ea5e9);
+      border: none;
+      color: #0b1220;
+      box-shadow: 0 10px 30px rgba(14,165,233,0.35);
+    }
+    .btn.danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      border: none;
+      color: #fff;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card.urgent {
+      border-color: var(--danger);
+      animation: pulse-urgent 1.5s infinite;
+    }
+    @keyframes pulse-urgent {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      50% { box-shadow: 0 0 20px 5px rgba(239, 68, 68, 0.3); }
+    }
+    .stat-label { color: var(--muted); font-size: 0.9rem; }
+    .stat-value { font-size: 1.6rem; font-weight: 800; margin-top: 6px; }
+    .stat-value.danger { color: var(--danger); }
+    .filters {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    select, input[type="text"] {
+      background: #0b1220;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      min-width: 180px;
+    }
+    .auto-refresh {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .auto-refresh input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-top: 14px;
+    }
+    thead { background: #0b1220; }
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 0.92rem;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    tbody tr.urgent-row {
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 3px solid var(--danger);
+    }
+    tbody tr.urgent-row:hover {
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      display: inline-block;
+    }
+    .badge.pendiente { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .badge.comprobante_enviado, .badge.verificando { background: rgba(14,165,233,0.15); color: #0ea5e9; }
+    .badge.procesando { background: rgba(129,140,248,0.2); color: #818cf8; }
+    .badge.completada { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .badge.cancelada, .badge.rechazada { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .badge.urgent { background: rgba(239,68,68,0.2); color: #ef4444; animation: blink 1s infinite; }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.88rem;
+    }
+    .time-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .time-badge.ok { background: rgba(34,197,94,0.2); color: #22c55e; }
+    .time-badge.warn { background: rgba(245,158,11,0.2); color: #f59e0b; }
+    .time-badge.danger { background: rgba(239,68,68,0.2); color: #ef4444; }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn.small {
+      padding: 8px 10px;
+      font-size: 0.9rem;
+    }
+    /* Modal - Copiado de usuarios-app.html */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 2rem;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal {
+      background: #1e293b;
+      border-radius: 20px;
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h2 {
+      margin: 0;
+      color: var(--text);
+      font-size: 1.5rem;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 0.5rem;
+      line-height: 1;
+    }
+    .modal-close:hover {
+      color: var(--text);
+    }
+    .modal-body {
+      padding: 2rem;
+    }
+    .modal-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .modal-section h4 {
+      margin: 0 0 12px 0;
+      color: var(--accent-2);
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .field {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .field label { color: var(--muted); font-size: 0.85rem; }
+    .field .value {
+      margin-top: 4px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 4px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .table-wrapper { overflow-x: auto; }
+    .timeline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 12px;
+    }
+    .timeline-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .timeline-item .icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .timeline-item .icon.creado { background: rgba(14,165,233,0.2); }
+    .timeline-item .icon.tomado { background: rgba(129,140,248,0.2); }
+    .timeline-item .icon.pagado { background: rgba(34,197,94,0.2); }
+    .timeline-item .info { font-size: 0.85rem; }
+    .timeline-item .info strong { display: block; color: var(--text); }
+    .timeline-item .info span { color: var(--muted); }
+
+    /* Alerta superior */
+    .alert-banner {
+      background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.3));
+      border: 1px solid var(--danger);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      animation: pulse-urgent 1.5s infinite;
+    }
+    .alert-banner.show { display: flex; }
+    .alert-banner .icon { font-size: 24px; }
+    .alert-banner .text { flex: 1; }
+    .alert-banner .text strong { display: block; font-size: 1rem; }
+    .alert-banner .text span { color: var(--muted); font-size: 0.9rem; }
+
+    /* Sonido de alerta */
+    .sound-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <audio id="alertSound" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleAcVU6jk56VyAyZ7xd7LhmsTRZPX3Ls5IHu65bNrGz6M0uHHk0Yqfsvv0qpHJ5LR59y3SSeMyunYqk0njMrp2KpNJ4zK6diqTSeMyunYqk0njMrp2KpNJ4zK6diqTSeMyunYqk0njMrp2KpNJwAA" type="audio/wav">
+  </audio>
+
+  <div class="page">
+    <div class="alert-banner" id="alertBanner">
+      <div class="icon">⚠️</div>
+      <div class="text">
+        <strong>¡Pedidos urgentes sin atender!</strong>
+        <span id="alertCount">0 pedidos llevan más de 15 minutos sin ser pagados</span>
+      </div>
+      <button class="btn danger small" onclick="filtrarUrgentes()">Ver urgentes</button>
+    </div>
+
+    <header>
+      <div class="title">
+        <h1>📱 Pedidos App Cliente</h1>
+        <p>Gestión de solicitudes desde la app móvil - Tracking de tiempos y operadores</p>
+      </div>
+      <div class="header-actions">
+        <div class="sound-toggle">
+          <input type="checkbox" id="soundEnabled" checked>
+          <label for="soundEnabled">🔔 Sonido alertas</label>
+        </div>
+        <button class="btn" onclick="location.href='home.html'">← Volver</button>
+        <button class="btn primary" onclick="cargarSolicitudes()">🔄 Actualizar</button>
+      </div>
+    </header>
+
+    <div class="stats" id="stats">
+      <div class="stat-card">
+        <div class="stat-label">📊 Total Pedidos</div>
+        <div class="stat-value" id="statTotal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">⏳ Pendientes</div>
+        <div class="stat-value" id="statPendientes">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">⚙️ Procesando</div>
+        <div class="stat-value" id="statProcesando">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">✅ Completadas</div>
+        <div class="stat-value" id="statCompletadas">0</div>
+      </div>
+      <div class="stat-card urgent" id="urgentCard" style="display: none;">
+        <div class="stat-label">🚨 URGENTES (+15 min)</div>
+        <div class="stat-value danger" id="statUrgentes">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">⏱️ Tiempo Prom. Respuesta</div>
+        <div class="stat-value" id="statTiempoPromedio">--</div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <label for="fEstado">Estado</label>
+      <select id="fEstado" onchange="cargarSolicitudes()">
+        <option value="">Todos</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="comprobante_enviado">Comprobante enviado</option>
+        <option value="verificando">Verificando</option>
+        <option value="procesando">Procesando</option>
+        <option value="completada">Completada</option>
+        <option value="rechazada">Rechazada</option>
+        <option value="cancelada">Cancelada</option>
+        <option value="urgentes">⚠️ Urgentes (+15 min)</option>
+      </select>
+      <label for="fBusqueda">Buscar</label>
+      <input type="text" id="fBusqueda" placeholder="Cliente, RUT, teléfono, banco..." oninput="filtrarLocal()">
+      <div class="auto-refresh">
+        <input type="checkbox" id="autoRefresh" checked>
+        <label for="autoRefresh">Auto-actualizar cada 30s</label>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table id="tablaPedidos">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Cliente</th>
+            <th>RUT/Documento</th>
+            <th>Teléfono</th>
+            <th>Monto</th>
+            <th>Estado</th>
+            <th>Tomado por</th>
+            <th>⏱️ Tiempo</th>
+            <th>Creado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal de detalle -->
+  <div class="modal-overlay" id="modalDetalle">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitulo">Detalle del Pedido</h2>
+        <button class="modal-close" onclick="cerrarModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Contenido cargado dinámicamente -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let cacheSolicitudes = [];
+    let autoRefreshInterval = null;
+    let lastUrgentCount = 0;
+
+    const estadoLabel = {
+      pendiente: 'Pendiente',
+      comprobante_enviado: 'Comprobante enviado',
+      verificando: 'Verificando',
+      procesando: 'Procesando',
+      completada: 'Completada',
+      rechazada: 'Rechazada',
+      cancelada: 'Cancelada'
+    };
+
+    function badgeEstado(estado, esUrgente = false) {
+      const cls = `badge ${estado || ''}${esUrgente ? ' urgent' : ''}`;
+      let texto = estadoLabel[estado] || estado;
+      if (esUrgente) texto = '⚠️ ' + texto;
+      return `<span class="${cls}">${texto}</span>`;
+    }
+
+    function fmtFecha(val) {
+      if (!val) return '—';
+      return new Date(val).toLocaleString('es-VE', { timeZone: 'America/Caracas' });
+    }
+
+    function fmtFechaCorta(val) {
+      if (!val) return '—';
+      const d = new Date(val);
+      const hoy = new Date();
+      const esHoy = d.toDateString() === hoy.toDateString();
+      if (esHoy) {
+        return d.toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
+      }
+      return d.toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit' }) + 
+             ' ' + d.toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function fmtMonto(s) {
+      return Number(s || 0).toLocaleString('es-CL');
+    }
+
+    // Calcular tiempo transcurrido
+    function calcularTiempo(fechaInicio, fechaFin = null) {
+      if (!fechaInicio) return null;
+      const inicio = new Date(fechaInicio);
+      const fin = fechaFin ? new Date(fechaFin) : new Date();
+      const diffMs = fin - inicio;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHoras = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      
+      if (diffHoras > 0) {
+        return { texto: `${diffHoras}h ${mins}m`, minutos: diffMins };
+      }
+      return { texto: `${diffMins}m`, minutos: diffMins };
+    }
+
+    function timeBadge(minutos, mostrarTexto = true) {
+      if (minutos === null || minutos === undefined) return '—';
+      let cls = 'ok';
+      let icon = '✓';
+      if (minutos > 15) {
+        cls = 'danger';
+        icon = '⚠️';
+      } else if (minutos > 10) {
+        cls = 'warn';
+        icon = '⏰';
+      }
+      const tiempo = minutos >= 60 ? `${Math.floor(minutos/60)}h ${minutos%60}m` : `${minutos}m`;
+      return `<span class="time-badge ${cls}">${icon} ${mostrarTexto ? tiempo : ''}</span>`;
+    }
+
+    // Verificar si un pedido es urgente (más de 15 minutos sin completar)
+    function esUrgente(s) {
+      if (s.estado === 'completada' || s.estado === 'cancelada' || s.estado === 'rechazada') return false;
+      const tiempo = calcularTiempo(s.fecha_solicitud);
+      return tiempo && tiempo.minutos > 15;
+    }
+
+    // Reproducir sonido de alerta
+    function playAlertSound() {
+      if (document.getElementById('soundEnabled').checked) {
+        const audio = document.getElementById('alertSound');
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      }
+    }
+
+    async function cargarSolicitudes() {
+      const estadoFiltro = document.getElementById('fEstado').value;
+      const url = estadoFiltro && estadoFiltro !== 'urgentes' 
+        ? `/api/solicitudes-app?estado=${estadoFiltro}&limit=100` 
+        : '/api/solicitudes-app?limit=100';
+      
+      try {
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) throw new Error('No se pudieron cargar los pedidos');
+        const data = await res.json();
+        cacheSolicitudes = data.solicitudes || [];
+        
+        // Calcular urgentes localmente
+        const urgentes = cacheSolicitudes.filter(esUrgente);
+        const conteosConUrgentes = { ...data.conteos, urgentes: urgentes.length };
+        
+        renderStats(conteosConUrgentes);
+        
+        // Si el filtro es urgentes, mostrar solo urgentes
+        if (estadoFiltro === 'urgentes') {
+          renderTabla(urgentes);
+        } else {
+          renderTabla(cacheSolicitudes);
+        }
+
+        // Mostrar/ocultar alerta
+        actualizarAlerta(urgentes.length);
+        
+      } catch (err) {
+        alert(err.message || 'Error al cargar pedidos');
+      }
+    }
+
+    function actualizarAlerta(urgentCount) {
+      const banner = document.getElementById('alertBanner');
+      const urgentCard = document.getElementById('urgentCard');
+      
+      if (urgentCount > 0) {
+        banner.classList.add('show');
+        urgentCard.style.display = 'block';
+        document.getElementById('alertCount').textContent = 
+          `${urgentCount} pedido${urgentCount > 1 ? 's' : ''} lleva${urgentCount > 1 ? 'n' : ''} más de 15 minutos sin ser pagado${urgentCount > 1 ? 's' : ''}`;
+        
+        // Reproducir sonido si hay nuevos urgentes
+        if (urgentCount > lastUrgentCount) {
+          playAlertSound();
+        }
+      } else {
+        banner.classList.remove('show');
+        urgentCard.style.display = 'none';
+      }
+      lastUrgentCount = urgentCount;
+    }
+
+    function filtrarUrgentes() {
+      document.getElementById('fEstado').value = 'urgentes';
+      cargarSolicitudes();
+    }
+
+    function renderStats(c) {
+      document.getElementById('statTotal').innerText = c.total || 0;
+      document.getElementById('statPendientes').innerText = c.pendientes || 0;
+      document.getElementById('statProcesando').innerText = c.procesando || 0;
+      document.getElementById('statCompletadas').innerText = c.completadas || 0;
+      document.getElementById('statUrgentes').innerText = c.urgentes || 0;
+      
+      // Calcular tiempo promedio de respuesta
+      const completadas = cacheSolicitudes.filter(s => s.estado === 'completada' && s.fecha_solicitud && s.fecha_completada);
+      if (completadas.length > 0) {
+        const tiemposMs = completadas.map(s => new Date(s.fecha_completada) - new Date(s.fecha_solicitud));
+        const promedioMs = tiemposMs.reduce((a, b) => a + b, 0) / tiemposMs.length;
+        const promedioMins = Math.floor(promedioMs / 60000);
+        document.getElementById('statTiempoPromedio').innerText = 
+          promedioMins >= 60 ? `${Math.floor(promedioMins/60)}h ${promedioMins%60}m` : `${promedioMins}m`;
+      } else {
+        document.getElementById('statTiempoPromedio').innerText = '--';
+      }
+    }
+
+    function filtrarLocal() {
+      const term = document.getElementById('fBusqueda').value.toLowerCase();
+      const estadoFiltro = document.getElementById('fEstado').value;
+      
+      let filtrado = cacheSolicitudes;
+      
+      // Filtrar por estado urgente si está seleccionado
+      if (estadoFiltro === 'urgentes') {
+        filtrado = filtrado.filter(esUrgente);
+      }
+      
+      // Filtrar por término de búsqueda
+      if (term) {
+        filtrado = filtrado.filter(s => {
+          return (
+            (s.cliente_nombre || '').toLowerCase().includes(term) ||
+            (s.cliente_documento_numero || '').toLowerCase().includes(term) ||
+            (s.cliente_telefono || '').toLowerCase().includes(term) ||
+            (s.banco || '').toLowerCase().includes(term) ||
+            (s.beneficiario_nombre || '').toLowerCase().includes(term) ||
+            (s.tomado_por_nombre || '').toLowerCase().includes(term) ||
+            String(s.id || '').includes(term)
+          );
+        });
+      }
+      
+      renderTabla(filtrado);
+    }
+
+    function renderTabla(rows) {
+      const tbody = document.querySelector('#tablaPedidos tbody');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color: var(--muted);">Sin pedidos</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = rows.map(s => {
+        const urgente = esUrgente(s);
+        const tiempoEspera = calcularTiempo(s.fecha_solicitud, s.fecha_completada);
+        const tiempoTomado = s.fecha_tomado ? calcularTiempo(s.fecha_tomado, s.fecha_completada) : null;
+        
+        // Determinar qué tiempo mostrar
+        let tiempoMostrar = tiempoEspera;
+        let tiempoLabel = 'Espera';
+        if (s.estado === 'completada' && tiempoEspera) {
+          tiempoLabel = 'Total';
+        } else if (s.estado === 'procesando' && tiempoTomado) {
+          tiempoMostrar = calcularTiempo(s.fecha_tomado);
+          tiempoLabel = 'En proceso';
+        }
+        
+        return `
+          <tr class="${urgente ? 'urgent-row' : ''}">
+            <td><strong>#${s.id}</strong></td>
+            <td>${s.cliente_nombre || '—'}</td>
+            <td><code>${s.cliente_documento_numero || '—'}</code></td>
+            <td>${s.cliente_telefono || '—'}</td>
+            <td><strong>$${fmtMonto(s.monto_origen)}</strong> ${s.moneda_origen || ''}</td>
+            <td>${badgeEstado(s.estado, urgente)}</td>
+            <td>${s.tomado_por_nombre || s.operador_nombre || '<span style="color:var(--muted)">Sin asignar</span>'}</td>
+            <td>
+              ${tiempoMostrar ? `
+                <div style="font-size:0.8rem;color:var(--muted)">${tiempoLabel}:</div>
+                ${timeBadge(tiempoMostrar.minutos)} <span style="font-weight:600">${tiempoMostrar.texto}</span>
+              ` : '—'}
+            </td>
+            <td>${fmtFechaCorta(s.fecha_solicitud)}</td>
+            <td class="actions">
+              <button class="btn small" onclick="verDetalleId(${s.id})">👁️ Ver</button>
+              ${s.cliente_telefono ? `<button class="btn small" onclick="abrirWhatsApp('${s.cliente_telefono}')">💬</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function abrirWhatsApp(telefono) {
+      const limpio = telefono.replace(/[^0-9]/g, '');
+      window.open(`https://wa.me/${limpio}`, '_blank');
+    }
+
+    function copy(text) {
+      if (!text) return;
+      navigator.clipboard.writeText(text.toString());
+    }
+
+    function campo(label, valor, copiable = true) {
+      const safe = valor !== undefined && valor !== null && valor !== '' ? valor : '—';
+      return `
+        <div class="field">
+          <label>${label}</label>
+          <div class="value">
+            <span>${safe}</span>
+            ${copiable && safe !== '—' ? `<button class="copy-btn" onclick="copy('${String(safe).replace(/'/g, "\\'")}')">📋</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function verDetalleId(id) {
+      const s = cacheSolicitudes.find(x => x.id === id);
+      if (!s) return;
+      
+      const modal = document.getElementById('modalDetalle');
+      const modalBody = document.getElementById('modalBody');
+      
+      document.getElementById('modalTitulo').innerText = `Pedido #${s.id} - ${s.cliente_nombre || 'Sin nombre'}`;
+      
+      // Calcular tiempos
+      const tiempoTotal = calcularTiempo(s.fecha_solicitud, s.fecha_completada);
+      const tiempoHastaTomar = s.fecha_tomado ? calcularTiempo(s.fecha_solicitud, s.fecha_tomado) : null;
+      const tiempoEnEspera = calcularTiempo(s.fecha_solicitud);
+      const esUrg = esUrgente(s);
+      
+      modalBody.innerHTML = `
+        <!-- Estado y tiempo -->
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
+          ${badgeEstado(s.estado, esUrg)}
+          ${s.tomado_por_nombre ? `<span style="color:var(--muted)">Tomado por: <strong style="color:var(--text)">${s.tomado_por_nombre}</strong></span>` : ''}
+          ${tiempoTotal || tiempoEnEspera ? `<span style="color:${esUrg ? 'var(--danger)' : 'var(--muted)'}">⏱️ ${s.fecha_completada ? 'Total: ' : 'Espera: '}<strong>${(tiempoTotal || tiempoEnEspera).texto}</strong></span>` : ''}
+        </div>
+
+        <!-- Timeline -->
+        <div class="modal-section">
+          <h4>⏱️ Timeline del Pedido</h4>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="icon creado">📝</div>
+              <div class="info">
+                <strong>Creado</strong>
+                <span>${fmtFecha(s.fecha_solicitud)}</span>
+              </div>
+            </div>
+            ${s.fecha_tomado ? `
+            <div class="timeline-item">
+              <div class="icon tomado">👤</div>
+              <div class="info">
+                <strong>Tomado por ${s.tomado_por_nombre || 'Operador'}</strong>
+                <span>${fmtFecha(s.fecha_tomado)} ${tiempoHastaTomar ? `(${tiempoHastaTomar.texto} después)` : ''}</span>
+              </div>
+            </div>
+            ` : ''}
+            ${s.fecha_completada ? `
+            <div class="timeline-item">
+              <div class="icon pagado">✅</div>
+              <div class="info">
+                <strong>Pagado/Completado</strong>
+                <span>${fmtFecha(s.fecha_completada)} ${tiempoTotal ? `(Total: ${tiempoTotal.texto})` : ''}</span>
+              </div>
+            </div>
+            ` : ''}
+            ${!s.fecha_completada && tiempoEnEspera ? `
+            <div class="timeline-item" style="border-color:${tiempoEnEspera.minutos > 15 ? 'var(--danger)' : 'var(--border)'}">
+              <div class="icon" style="background:${tiempoEnEspera.minutos > 15 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)'}">⏳</div>
+              <div class="info">
+                <strong>En espera</strong>
+                <span style="color:${tiempoEnEspera.minutos > 15 ? 'var(--danger)' : 'var(--warn)'}">${tiempoEnEspera.texto}</span>
+              </div>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Datos del Cliente -->
+        <div class="modal-section">
+          <h4>👤 Datos del Cliente</h4>
+          <div class="modal-grid">
+            ${campo('Nombre', s.cliente_nombre, false)}
+            ${campo('Documento/RUT', s.cliente_documento_numero ? `${(s.cliente_documento_tipo || '').toUpperCase()}: ${s.cliente_documento_numero}` : '—')}
+            ${campo('Teléfono', s.cliente_telefono)}
+            ${campo('Email', s.cliente_email)}
+          </div>
+        </div>
+
+        <!-- Datos del Beneficiario -->
+        <div class="modal-section">
+          <h4>🏦 Datos del Beneficiario</h4>
+          <div class="modal-grid">
+            ${campo('Nombre', s.beneficiario_nombre, false)}
+            ${campo('Cédula', s.beneficiario_documento)}
+            ${campo('Banco', s.banco, false)}
+            ${campo('Tipo de cuenta', s.beneficiario_tipo_cuenta, false)}
+            ${campo('Número de cuenta', s.numero_cuenta)}
+            ${campo('Teléfono', s.beneficiario_telefono)}
+          </div>
+        </div>
+
+        <!-- Datos de la Operación -->
+        <div class="modal-section">
+          <h4>💰 Datos de la Operación</h4>
+          <div class="modal-grid">
+            ${campo('Monto origen', `$${fmtMonto(s.monto_origen)} ${s.moneda_origen || ''}`)}
+            ${campo('Monto destino', `${fmtMonto(s.monto_destino)} ${s.moneda_destino || ''}`)}
+            ${campo('Tasa aplicada', s.tasa_aplicada)}
+            ${campo('Notas cliente', s.notas_cliente || '—', false)}
+            ${campo('Notas operador', s.notas_operador || '—', false)}
+          </div>
+        </div>
+
+        <!-- Botones de acción -->
+        ${s.cliente_telefono ? `
+        <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+          <button class="btn primary" onclick="abrirWhatsApp('${s.cliente_telefono}')">💬 Contactar por WhatsApp</button>
+        </div>
+        ` : ''}
+      `;
+      
+      modal.classList.add('active');
+    }
+
+    function cerrarModal() {
+      document.getElementById('modalDetalle').classList.remove('active');
+    }
+
+    // Auto-refresh
+    function setupAutoRefresh() {
+      const checkbox = document.getElementById('autoRefresh');
+      
+      if (checkbox.checked) {
+        autoRefreshInterval = setInterval(cargarSolicitudes, 30000);
+      }
+      
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+          autoRefreshInterval = setInterval(cargarSolicitudes, 30000);
+        } else {
+          clearInterval(autoRefreshInterval);
+        }
+      });
+    }
+
+    // Cerrar modal con Escape o click fuera
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') cerrarModal();
+    });
+
+    document.getElementById('modalDetalle').addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) cerrarModal();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      cargarSolicitudes();
+      setupAutoRefresh();
+    });
+  </script>
+</body>
+</html>

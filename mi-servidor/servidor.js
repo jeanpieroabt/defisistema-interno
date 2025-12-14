@@ -245,6 +245,7 @@ async function manejarCallbackTelegram(callback) {
         );
         
         let alertText = '';
+        const fechaActual = new Date().toISOString();
         
         switch(accion) {
             case 'tomar':
@@ -253,7 +254,8 @@ async function manejarCallbackTelegram(callback) {
                     alertText = `Este pedido ya fue tomado por ${pedidosTomados.get(solicitudId)}`;
                 } else {
                     pedidosTomados.set(solicitudId, operador);
-                    await dbRun(`UPDATE solicitudes_transferencia SET estado = 'procesando' WHERE id = ?`, [solicitudId]);
+                    // Guardar fecha_tomado y nombre del operador
+                    await dbRun(`UPDATE solicitudes_transferencia SET estado = 'procesando', fecha_tomado = ?, tomado_por_nombre = ? WHERE id = ?`, [fechaActual, operador, solicitudId]);
                     
                     // Obtener cuenta y cdula para los botones de copiar
                     const cuentaCopiar = solicitud?.numero_cuenta || 'No disponible';
@@ -275,7 +277,7 @@ async function manejarCallbackTelegram(callback) {
                 break;
                 
             case 'pagado':
-                await dbRun(`UPDATE solicitudes_transferencia SET estado = 'completada' WHERE id = ?`, [solicitudId]);
+                await dbRun(`UPDATE solicitudes_transferencia SET estado = 'completada', fecha_completada = ? WHERE id = ?`, [fechaActual, solicitudId]);
                 pedidosTomados.delete(solicitudId);
                 
                 const textoPagado = mensaje.text.split('\n')[0] + `\n\n✅ PAGADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
@@ -862,6 +864,11 @@ const runMigrations = async () => {
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_solicitudes_cliente ON solicitudes_transferencia(cliente_app_id)`);
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_solicitudes_estado ON solicitudes_transferencia(estado)`);
     console.log('... Índices de app cliente verificados');
+
+    // Agregar columnas para tracking de tiempo en pedidos
+    await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN fecha_tomado TEXT`).catch(() => {});
+    await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN tomado_por_nombre TEXT`).catch(() => {});
+    console.log('... Columnas de tracking de pedidos verificadas');
 
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -7799,8 +7806,12 @@ app.get('/api/solicitudes-app', apiAuth, async (req, res) => {
         let query = `
             SELECT s.*, 
                    c.nombre as cliente_nombre, c.email as cliente_email, c.telefono as cliente_telefono,
+                   c.documento_tipo as cliente_documento_tipo, c.documento_numero as cliente_documento_numero,
                    b.alias, b.nombre_completo as beneficiario_nombre, b.banco, b.numero_cuenta,
-                   u.username as operador_nombre
+                   b.documento_numero as beneficiario_documento, b.tipo_cuenta as beneficiario_tipo_cuenta,
+                   b.telefono as beneficiario_telefono,
+                   u.username as operador_nombre,
+                   s.fecha_tomado, s.tomado_por_nombre
             FROM solicitudes_transferencia s
             JOIN clientes_app c ON s.cliente_app_id = c.id
             JOIN beneficiarios b ON s.beneficiario_id = b.id
@@ -7826,7 +7837,9 @@ app.get('/api/solicitudes-app', apiAuth, async (req, res) => {
                 SUM(CASE WHEN estado = 'comprobante_enviado' THEN 1 ELSE 0 END) as con_comprobante,
                 SUM(CASE WHEN estado = 'verificando' THEN 1 ELSE 0 END) as verificando,
                 SUM(CASE WHEN estado = 'procesando' THEN 1 ELSE 0 END) as procesando,
-                SUM(CASE WHEN estado = 'completada' THEN 1 ELSE 0 END) as completadas
+                SUM(CASE WHEN estado = 'completada' THEN 1 ELSE 0 END) as completadas,
+                SUM(CASE WHEN estado IN ('pendiente', 'comprobante_enviado') 
+                    AND datetime(fecha_solicitud) <= datetime('now', '-15 minutes') THEN 1 ELSE 0 END) as urgentes
             FROM solicitudes_transferencia
         `);
 
