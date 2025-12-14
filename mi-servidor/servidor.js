@@ -139,30 +139,18 @@ async function notificarNuevaSolicitud(solicitud) {
         solicitud.beneficiario_telefono ? ` Tel: ${solicitud.beneficiario_telefono}` : null,
         '',
         `⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`,
-        ' Solicitud desde App Defi Oracle'
+        '',
+        '👉 Ingrese al sistema web para gestionar este pedido',
+        '🔗 Pedidos App Clientes'
     ].filter(line => line !== null).join('\n');
     
-    // Botones interactivos para operadores
-    const botones = [
-        [
-            { text: ' Copiar Cuenta', copy_text: { text: cuenta } },
-            { text: ' Copiar Cdula', copy_text: { text: cedula } }
-        ],
-        [
-            { text: ' TOMAR PEDIDO', callback_data: `tomar_${solicitud.id}` }
-        ],
-        [
-            { text: '✅ PAGADO', callback_data: `pagado_${solicitud.id}` },
-            { text: '❌ CANCELAR', callback_data: `cancelar_${solicitud.id}` }
-        ]
-    ];
-    
-    // Agregar botn de WhatsApp si hay telfono del cliente
+    // Solo botón de WhatsApp para contactar cliente si hay teléfono (informativo)
+    let botones = null;
     if (solicitud.cliente_telefono) {
         const telefonoLimpio = solicitud.cliente_telefono.replace(/[^0-9]/g, '');
-        botones.push([
-            { text: ' WhatsApp', url: `https://wa.me/${telefonoLimpio}` }
-        ]);
+        botones = [
+            [{ text: '📱 WhatsApp Cliente', url: `https://wa.me/${telefonoLimpio}` }]
+        ];
     }
     
     return await enviarNotificacionTelegram(mensaje, 'HTML', botones);
@@ -194,37 +182,36 @@ async function notificarCambioEstado(solicitud, nuevoEstado) {
 }
 
 // =================================================================
-// SISTEMA DE CALLBACKS DE TELEGRAM (Polling)
+// SISTEMA DE CALLBACKS DE TELEGRAM (Polling) - DESHABILITADO
+// Ahora Telegram solo envía notificaciones informativas
+// Los operadores gestionan pedidos desde la interfaz web
 // =================================================================
 let telegramUpdateOffset = 0;
-const pedidosTomados = new Map(); // Almacena qu operador tom cada pedido
+const pedidosTomados = new Map(); // Mantenido para compatibilidad
 
-// Procesar callbacks de botones de Telegram
+// Procesar callbacks de botones de Telegram - DESHABILITADO
+// Ya no se usan botones de acción en Telegram
 async function procesarTelegramCallbacks() {
-    if (!TELEGRAM_BOT_TOKEN) return;
-    
-    try {
-        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`;
-        const response = await axios.get(url, {
-            params: { offset: telegramUpdateOffset, timeout: 1 }
-        });
-        
-        if (!response.data.ok || !response.data.result.length) return;
-        
-        for (const update of response.data.result) {
-            telegramUpdateOffset = update.update_id + 1;
-            
-            if (update.callback_query) {
-                await manejarCallbackTelegram(update.callback_query);
-            }
-        }
-    } catch (error) {
-        // Silenciar errores de polling
-    }
+    // Función deshabilitada - Telegram solo notifica
+    // Los operadores deben usar la interfaz web para gestionar pedidos
+    return;
 }
 
-// Manejar cada callback
+// Manejar cada callback - DESHABILITADO
+// Los pedidos ahora se gestionan desde la interfaz web (pedidos-app.html)
 async function manejarCallbackTelegram(callback) {
+    // Función deshabilitada - responder que use la web
+    try {
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+            callback_query_id: callback.id,
+            text: '⚠️ Gestione los pedidos desde la interfaz web',
+            show_alert: true
+        });
+    } catch (e) {}
+    return;
+    
+    // ====== CÓDIGO ORIGINAL COMENTADO ======
+    /*
     const data = callback.data;
     const mensaje = callback.message;
     const operador = callback.from.first_name || callback.from.username || 'Operador';
@@ -320,12 +307,15 @@ async function manejarCallbackTelegram(callback) {
             show_alert: true
         });
     }
+    */
 }
 
-// Iniciar polling de Telegram (cada 2 segundos)
+// Iniciar polling de Telegram - SIMPLIFICADO
+// Solo para mantener compatibilidad, pero ya no procesa acciones
 function iniciarPollingTelegram() {
-    setInterval(procesarTelegramCallbacks, 2000);
-    console.log(' Sistema de callbacks Telegram iniciado');
+    // Polling reducido ya que solo es informativo
+    setInterval(procesarTelegramCallbacks, 10000); // Cada 10 segundos (antes era 2)
+    console.log('📢 Sistema de notificaciones Telegram iniciado (solo alertas)');
 }
 
 // =================================================================
@@ -7857,6 +7847,10 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
         const { estado, notas_operador, operacion_id } = req.body;
         const operadorId = req.session.userId;
 
+        // Obtener nombre del operador
+        const operador = await dbGet(`SELECT username FROM usuarios WHERE id = ?`, [operadorId]);
+        const operadorNombre = operador?.username || 'Operador';
+
         const solicitud = await dbGet(
             `SELECT s.*, c.nombre as cliente_nombre
              FROM solicitudes_transferencia s
@@ -7886,6 +7880,14 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
         if (estado === 'verificando') {
             updateFields.push('fecha_verificacion = ?');
             updateParams.push(new Date().toISOString());
+        }
+
+        // Cuando se toma el pedido (procesando), guardar fecha y nombre del operador
+        if (estado === 'procesando' && !solicitud.fecha_tomado) {
+            updateFields.push('fecha_tomado = ?');
+            updateParams.push(new Date().toISOString());
+            updateFields.push('tomado_por_nombre = ?');
+            updateParams.push(operadorNombre);
         }
 
         if (estado === 'completada') {

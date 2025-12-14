@@ -262,10 +262,112 @@
     .modal-body {
       padding: 2rem;
     }
+    /* Botones de acción del modal */
+    .action-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .action-btn {
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .action-btn.tomar {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      border: none;
+      color: white;
+    }
+    .action-btn.pagado {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border: none;
+      color: white;
+    }
+    .action-btn.cancelar {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      border: none;
+      color: white;
+    }
+    .action-btn.whatsapp {
+      background: linear-gradient(135deg, #25d366, #128c7e);
+      border: none;
+      color: white;
+    }
+    .action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    .estado-manual {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .estado-manual label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+    }
+    .estado-selector {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .select-estado {
+      flex: 1;
+      min-width: 200px;
+      padding: 12px;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    .notas-operador {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .notas-operador label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+    }
+    .nota-input {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .input-nota {
+      flex: 1;
+      min-width: 250px;
+      padding: 12px;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    .input-nota::placeholder {
+      color: var(--muted);
+    }
     .modal-section {
       margin-top: 16px;
       padding-top: 16px;
       border-top: 1px solid var(--border);
+    }
+    .modal-section:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
     }
     .modal-section h4 {
       margin: 0 0 12px 0;
@@ -845,15 +947,164 @@
           </div>
         </div>
 
-        <!-- Botones de acción -->
-        ${s.cliente_telefono ? `
-        <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
-          <button class="btn primary" onclick="abrirWhatsApp('${s.cliente_telefono}')">💬 Contactar por WhatsApp</button>
+        <!-- Acciones del pedido -->
+        <div class="modal-section">
+          <h4>⚡ Acciones</h4>
+          
+          <!-- Botones rápidos -->
+          <div class="action-buttons">
+            ${s.estado === 'pendiente' || s.estado === 'comprobante_enviado' ? `
+              <button class="btn action-btn tomar" onclick="cambiarEstadoPedido(${s.id}, 'procesando')">
+                👤 TOMAR PEDIDO
+              </button>
+            ` : ''}
+            ${s.estado === 'procesando' || s.estado === 'verificando' ? `
+              <button class="btn action-btn pagado" onclick="cambiarEstadoPedido(${s.id}, 'completada')">
+                ✅ MARCAR PAGADO
+              </button>
+            ` : ''}
+            ${s.estado !== 'cancelada' && s.estado !== 'completada' && s.estado !== 'rechazada' ? `
+              <button class="btn action-btn cancelar" onclick="cambiarEstadoPedido(${s.id}, 'cancelada')">
+                ❌ CANCELAR
+              </button>
+            ` : ''}
+            ${s.cliente_telefono ? `
+              <button class="btn action-btn whatsapp" onclick="abrirWhatsApp('${s.cliente_telefono}')">
+                💬 WhatsApp
+              </button>
+            ` : ''}
+          </div>
+
+          <!-- Cambio manual de estado -->
+          <div class="estado-manual">
+            <label>Cambiar estado manualmente:</label>
+            <div class="estado-selector">
+              <select id="selectEstado_${s.id}" class="select-estado">
+                <option value="pendiente" ${s.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
+                <option value="comprobante_enviado" ${s.estado === 'comprobante_enviado' ? 'selected' : ''}>📎 Comprobante enviado</option>
+                <option value="verificando" ${s.estado === 'verificando' ? 'selected' : ''}>🔍 Verificando</option>
+                <option value="procesando" ${s.estado === 'procesando' ? 'selected' : ''}>⚙️ Procesando</option>
+                <option value="completada" ${s.estado === 'completada' ? 'selected' : ''}>✅ Completada</option>
+                <option value="rechazada" ${s.estado === 'rechazada' ? 'selected' : ''}>🚫 Rechazada</option>
+                <option value="cancelada" ${s.estado === 'cancelada' ? 'selected' : ''}>❌ Cancelada</option>
+              </select>
+              <button class="btn primary" onclick="cambiarEstadoManual(${s.id})">
+                Aplicar cambio
+              </button>
+            </div>
+          </div>
+
+          <!-- Notas del operador -->
+          <div class="notas-operador">
+            <label>Agregar nota de operador:</label>
+            <div class="nota-input">
+              <input type="text" id="notaOperador_${s.id}" placeholder="Ej: Rechazado por banco, transferencia devuelta..." class="input-nota">
+              <button class="btn" onclick="guardarNotaOperador(${s.id})">💾 Guardar nota</button>
+            </div>
+          </div>
         </div>
-        ` : ''}
       `;
       
       modal.classList.add('active');
+    }
+
+    // Función para cambiar estado rápido
+    async function cambiarEstadoPedido(id, nuevoEstado) {
+      const confirmaciones = {
+        'procesando': '¿Tomar este pedido?',
+        'completada': '¿Marcar como PAGADO?',
+        'cancelada': '¿Cancelar este pedido?',
+        'rechazada': '¿Marcar como RECHAZADO?'
+      };
+      
+      if (!confirm(confirmaciones[nuevoEstado] || `¿Cambiar estado a ${nuevoEstado}?`)) return;
+      
+      try {
+        const res = await fetch(`/api/solicitudes-app/${id}/estado`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ estado: nuevoEstado })
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Error al cambiar estado');
+        }
+        
+        alert(`✅ Estado cambiado a: ${estadoLabel[nuevoEstado] || nuevoEstado}`);
+        cerrarModal();
+        await cargarSolicitudes();
+      } catch (err) {
+        alert('❌ Error: ' + err.message);
+      }
+    }
+
+    // Función para cambio manual de estado
+    async function cambiarEstadoManual(id) {
+      const select = document.getElementById(`selectEstado_${id}`);
+      const nuevoEstado = select.value;
+      
+      if (!confirm(`¿Cambiar estado a "${estadoLabel[nuevoEstado]}"? \n\nEsto es un cambio manual y quedará registrado.`)) return;
+      
+      try {
+        const res = await fetch(`/api/solicitudes-app/${id}/estado`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ estado: nuevoEstado })
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Error al cambiar estado');
+        }
+        
+        alert(`✅ Estado actualizado a: ${estadoLabel[nuevoEstado]}`);
+        cerrarModal();
+        await cargarSolicitudes();
+      } catch (err) {
+        alert('❌ Error: ' + err.message);
+      }
+    }
+
+    // Función para guardar nota de operador
+    async function guardarNotaOperador(id) {
+      const input = document.getElementById(`notaOperador_${id}`);
+      const nota = input.value.trim();
+      
+      if (!nota) {
+        alert('Escribe una nota primero');
+        return;
+      }
+      
+      try {
+        // Obtener estado actual del pedido
+        const solicitud = cacheSolicitudes.find(s => s.id === id);
+        
+        const res = await fetch(`/api/solicitudes-app/${id}/estado`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ 
+            estado: solicitud.estado,
+            notas_operador: nota 
+          })
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Error al guardar nota');
+        }
+        
+        alert('✅ Nota guardada');
+        input.value = '';
+        await cargarSolicitudes();
+        // Reabrir modal con datos actualizados
+        setTimeout(() => verDetalleId(id), 300);
+      } catch (err) {
+        alert('❌ Error: ' + err.message);
+      }
     }
 
     function cerrarModal() {
