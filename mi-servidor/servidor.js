@@ -7845,11 +7845,10 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { estado, notas_operador, operacion_id } = req.body;
-        const operadorId = req.session.userId;
-
-        // Obtener nombre del operador
-        const operador = await dbGet(`SELECT username FROM usuarios WHERE id = ?`, [operadorId]);
-        const operadorNombre = operador?.username || 'Operador';
+        const operadorId = req.session.user?.id;
+        const operadorNombre = req.session.user?.username || 'Operador';
+        
+        console.log('📋 Cambio estado pedido:', { operadorId, operadorNombre, estado, id });
 
         const solicitud = await dbGet(
             `SELECT s.*, c.nombre as cliente_nombre
@@ -7883,11 +7882,16 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
         }
 
         // Cuando se toma el pedido (procesando), guardar fecha y nombre del operador
-        if (estado === 'procesando' && !solicitud.fecha_tomado) {
-            updateFields.push('fecha_tomado = ?');
-            updateParams.push(new Date().toISOString());
+        if (estado === 'procesando') {
+            // Siempre actualizar quién tomó el pedido
             updateFields.push('tomado_por_nombre = ?');
             updateParams.push(operadorNombre);
+            
+            // Solo guardar fecha_tomado si no existe
+            if (!solicitud.fecha_tomado) {
+                updateFields.push('fecha_tomado = ?');
+                updateParams.push(new Date().toISOString());
+            }
         }
 
         if (estado === 'completada') {
