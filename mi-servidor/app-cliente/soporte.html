@@ -503,6 +503,111 @@
                 font-size: 1.7rem;
             }
         }
+
+        /* Banner Cómo Enviar */
+        .how-to-send-banner {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.96) 0%, rgba(243, 247, 250, 0.95) 100%);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 18px 40px rgba(25, 116, 206, 0.12);
+            border: 1px solid rgba(25, 116, 206, 0.1);
+        }
+
+        .how-to-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .how-to-icon {
+            font-size: 2.2rem;
+        }
+
+        .how-to-header h3 {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--deep-charcoal);
+        }
+
+        .how-to-header p {
+            margin: 4px 0 0;
+            color: var(--muted-gray);
+            font-size: 0.95rem;
+        }
+
+        .how-to-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 16px;
+            background: rgba(25, 116, 206, 0.04);
+            border-radius: 16px;
+            border: 1px solid rgba(25, 116, 206, 0.08);
+        }
+
+        .step-number {
+            min-width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #1974CE, #23C6B8);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .step-content strong {
+            display: block;
+            font-size: 0.95rem;
+            color: var(--deep-charcoal);
+            margin-bottom: 4px;
+        }
+
+        .step-content p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--muted-gray);
+            line-height: 1.5;
+        }
+
+        .how-to-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.04));
+            border-radius: 14px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .notice-icon {
+            font-size: 1.4rem;
+        }
+
+        .how-to-notice strong {
+            display: block;
+            font-size: 0.95rem;
+            color: #059669;
+            margin-bottom: 4px;
+        }
+
+        .how-to-notice p {
+            margin: 0;
+            font-size: 0.88rem;
+            color: var(--muted-gray);
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body class="defi-bg-strong">
@@ -522,6 +627,47 @@
                     <span class="meta-item"><span class="dot shield"></span>Operacion segura y registrada UAF</span>
                 </div>
             </header>
+
+            <!-- Banner Cómo Enviar -->
+            <section class="how-to-send-banner animate-slide-up">
+                <div class="how-to-header">
+                    <span class="how-to-icon">🚀</span>
+                    <div>
+                        <h3>¿Cómo enviar dinero?</h3>
+                        <p>Es muy simple, sigue estos pasos:</p>
+                    </div>
+                </div>
+                <div class="how-to-steps">
+                    <div class="step-item">
+                        <span class="step-number">1</span>
+                        <div class="step-content">
+                            <strong>Presiona "Enviar"</strong>
+                            <p>Indica el monto en pesos. El sistema ajusta la tasa automáticamente según el monto.</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <span class="step-number">2</span>
+                        <div class="step-content">
+                            <strong>Selecciona tu destinatario</strong>
+                            <p>Elige a quién enviarás el dinero de tu lista de beneficiarios.</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <span class="step-number">3</span>
+                        <div class="step-content">
+                            <strong>Paga desde tu cuenta personal</strong>
+                            <p>Transfiere desde una cuenta bancaria a tu nombre. No aceptamos pagos de terceros.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="how-to-notice">
+                    <span class="notice-icon">✅</span>
+                    <div>
+                        <strong>No necesitas enviarnos comprobante ni notificarnos por WhatsApp</strong>
+                        <p>El sistema procesa tu envío automáticamente. Puedes hacer seguimiento en tiempo real desde la app.</p>
+                    </div>
+                </div>
+            </section>
 
             <main class="support-main animate-slide-up">
                 <section class="panel faq-panel">

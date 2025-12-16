@@ -338,6 +338,62 @@
       color: #23C6B8;
     }
 
+    .promo-help {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      background: #e5e7eb;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      color: #6b7280;
+      cursor: help;
+      margin-left: 4px;
+    }
+
+    .promo-help:hover {
+      background: #1974CE;
+      color: white;
+    }
+
+    .promo-help .tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      margin-bottom: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 100;
+    }
+
+    .promo-help .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1f2937;
+    }
+
+    .promo-help:hover .tooltip {
+      opacity: 1;
+      visibility: visible;
+    }
+
     .promo-input-area {
       display: none;
       margin-top: 12px;
@@ -814,12 +870,18 @@
       
       <!-- Código Promocional -->
       <div class="promo-section">
-        <button type="button" class="promo-toggle" onclick="togglePromoInput()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
-          </svg>
-          ¿Tienes un código promocional?
-        </button>
+        <div style="display: flex; align-items: center;">
+          <button type="button" class="promo-toggle" onclick="togglePromoInput()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+            </svg>
+            ¿Tienes un código promocional?
+          </button>
+          <span class="promo-help">
+            ?
+            <span class="tooltip">Ingresa el código sin espacios ni guiones</span>
+          </span>
+        </div>
         <div class="promo-input-area" id="promoInputArea">
           <input type="text" id="codigoPromo" placeholder="Ingresa tu código" maxlength="20">
           <button type="button" class="btn-aplicar" id="btnAplicarCodigo" onclick="validarCodigoPromo()">Aplicar</button>
@@ -983,10 +1045,9 @@
     const API_BASE = (window.API_BASE_URL || '').replace(/\/$/, '');
     
     // ========== CONFIGURACIÓN DE HORARIO ==========
-    // Cambiar a false para activar restricción de horario (9am - 9pm)
-    const MODO_PRUEBAS = true;  // ACTIVADO PARA PRUEBAS
-    const HORA_APERTURA = 9;   // 9:00 AM
-    const HORA_CIERRE = 21;    // 9:00 PM (21:00)
+    const HORA_APERTURA = 9;   // 9:00 AM - Inicio de operaciones
+    const HORA_CIERRE = 21;    // 9:00 PM (21:00) - Fin de operaciones
+    const HORA_AMANECER = 7;   // 7:00 AM - Considerado "mañana"
     // ==============================================
     
     let currentStep = 1;
@@ -996,6 +1057,7 @@
     let timerInterval = null;
     let verificacionEstado = 'no_verificado'; // Estado de verificacion del usuario
     let totalEnviosCompletados = 0; // Contador de envios completados
+    let fueraDeHorario = false; // Indica si estamos fuera de horario
     
     // Código promocional
     let codigoPromoAplicado = null; // { codigo_id, tasa_especial, codigo }
@@ -1005,50 +1067,89 @@
     const fmtCLP = new Intl.NumberFormat('es-CL');
     const fmtVES = new Intl.NumberFormat('es-VE');
     
-    // Verifica si estamos dentro del horario de atención
-    function estaEnHorario() {
-      if (MODO_PRUEBAS) return true;
+    // Obtiene información del horario actual
+    function obtenerInfoHorario() {
       const ahora = new Date();
       const hora = ahora.getHours();
-      return hora >= HORA_APERTURA && hora < HORA_CIERRE;
-    }
-    
-    // Muestra modal de fuera de horario
-    function mostrarFueraDeHorario() {
-      const ahora = new Date();
-      const hora = ahora.getHours();
-      let mensaje = '';
       
-      if (hora < HORA_APERTURA) {
-        mensaje = `Abrimos a las ${HORA_APERTURA}:00 AM`;
-      } else {
-        mensaje = `Vuelve mañana desde las ${HORA_APERTURA}:00 AM`;
+      // Horario normal de operaciones (9am - 9pm)
+      if (hora >= HORA_APERTURA && hora < HORA_CIERRE) {
+        return { enHorario: true, tipo: 'normal', mensaje: '', icono: '' };
       }
       
-      // Crear modal de horario
-      const modalHtml = `
-        <div id="horarioModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;">
-          <div style="background:white;border-radius:20px;padding:30px;max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-            <div style="font-size:48px;margin-bottom:16px;">🌙</div>
-            <h2 style="margin:0 0 12px;color:#1974CE;font-size:20px;">Fuera de horario</h2>
-            <p style="margin:0 0 8px;color:#64748B;font-size:14px;">Nuestro horario de atención es de</p>
-            <p style="margin:0 0 20px;color:#211C10;font-size:18px;font-weight:600;">${HORA_APERTURA}:00 AM - ${HORA_CIERRE - 12}:00 PM</p>
-            <p style="margin:0 0 24px;color:#23C6B8;font-size:14px;font-weight:500;">${mensaje}</p>
-            <button onclick="window.location.href='home.html'" style="width:100%;padding:14px;background:linear-gradient(135deg,#1974CE,#145DA6);color:white;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;">
-              Volver al inicio
-            </button>
+      // Mañana temprano (7am - 9am)
+      if (hora >= HORA_AMANECER && hora < HORA_APERTURA) {
+        return {
+          enHorario: false,
+          tipo: 'manana',
+          icono: '☀️',
+          titulo: '¡Buenos días!',
+          mensaje: `Tu pedido será procesado al iniciar operaciones después de las ${HORA_APERTURA}:00 AM`,
+          submensaje: 'Puedes realizar tu envío y lo atenderemos en cuanto abramos.'
+        };
+      }
+      
+      // Noche (9pm - 11:59pm) o madrugada (12am - 7am)
+      return {
+        enHorario: false,
+        tipo: 'noche',
+        icono: '🌙',
+        titulo: 'Horario nocturno',
+        mensaje: 'Tu operación será procesada durante el día',
+        submensaje: `Nuestro horario de atención es de ${HORA_APERTURA}:00 AM a ${HORA_CIERRE - 12}:00 PM`
+      };
+    }
+    
+    // Muestra banner informativo de horario (no bloqueante)
+    function mostrarBannerHorario() {
+      const info = obtenerInfoHorario();
+      
+      if (info.enHorario) {
+        fueraDeHorario = false;
+        return; // No mostrar nada si está en horario
+      }
+      
+      fueraDeHorario = true;
+      
+      // Crear banner informativo (no bloqueante)
+      const bannerHtml = `
+        <div id="horarioBanner" style="
+          background: ${info.tipo === 'noche' ? 'linear-gradient(135deg, #1e3a5f, #2d5a87)' : 'linear-gradient(135deg, #f59e0b, #d97706)'};
+          color: white;
+          padding: 16px 20px;
+          border-radius: 16px;
+          margin: 16px 0;
+          display: flex;
+          align-items: flex-start;
+          gap: 14px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+          animation: slideDown 0.3s ease;
+        ">
+          <div style="font-size: 32px; line-height: 1;">${info.icono}</div>
+          <div style="flex: 1;">
+            <div style="font-weight: 700; font-size: 15px; margin-bottom: 4px;">${info.titulo}</div>
+            <div style="font-size: 14px; opacity: 0.95; margin-bottom: 6px;">${info.mensaje}</div>
+            <div style="font-size: 12px; opacity: 0.8;">${info.submensaje}</div>
           </div>
         </div>
+        <style>
+          @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        </style>
       `;
-      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      
+      // Insertar banner después del header
+      const topbar = document.querySelector('header.topbar');
+      if (topbar) {
+        topbar.insertAdjacentHTML('afterend', bannerHtml);
+      }
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
-      // Verificar horario de atención
-      if (!estaEnHorario()) {
-        mostrarFueraDeHorario();
-        return; // No cargar el resto si está fuera de horario
-      }
+      // Mostrar banner informativo si está fuera de horario (pero permite continuar)
+      mostrarBannerHorario();
       
       verificarSesion();
       
@@ -1617,6 +1718,11 @@
       document.getElementById('timeCreated').textContent = new Date().toLocaleString('es-CL');
       showStep(6);
       
+      // Mostrar aviso si fue enviado fuera de horario
+      if (fueraDeHorario) {
+        mostrarAvisoProcesamientoDiferido();
+      }
+      
       // Iniciar temporizador de 20 minutos para la barra de progreso
       iniciarTemporizadorETA();
       
@@ -1624,6 +1730,37 @@
       if (data?.solicitud_id) {
         iniciarPollingEstado(data.solicitud_id);
       }
+    }
+    
+    // Muestra aviso de procesamiento diferido cuando se envía fuera de horario
+    function mostrarAvisoProcesamientoDiferido() {
+      const info = obtenerInfoHorario();
+      const trackingCard = document.querySelector('.tracking-card, .step-content');
+      
+      if (!trackingCard) return;
+      
+      const avisoHtml = `
+        <div id="avisoDiferido" style="
+          background: ${info.tipo === 'noche' ? 'linear-gradient(135deg, #1e3a5f, #2d5a87)' : 'linear-gradient(135deg, #f59e0b, #d97706)'};
+          color: white;
+          padding: 18px 20px;
+          border-radius: 16px;
+          margin-top: 20px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        ">
+          <div style="font-size: 36px; line-height: 1;">${info.icono}</div>
+          <div style="flex: 1;">
+            <div style="font-weight: 700; font-size: 15px; margin-bottom: 4px;">📋 Pedido recibido correctamente</div>
+            <div style="font-size: 14px; opacity: 0.95;">${info.mensaje}</div>
+            <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">Te notificaremos cuando sea procesado</div>
+          </div>
+        </div>
+      `;
+      
+      trackingCard.insertAdjacentHTML('beforeend', avisoHtml);
     }
     
     // Temporizador visual de ETA (20 minutos)
