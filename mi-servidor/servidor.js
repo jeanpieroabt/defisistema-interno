@@ -109,48 +109,68 @@ async function enviarNotificacionTelegram(mensaje, parseMode = 'HTML', botones =
 // Función para notificar nueva solicitud de la app
 async function notificarNuevaSolicitud(solicitud) {
     // Determinar tipo de entrega
-    const tipoEntrega = solicitud.tipo_cuenta === 'pago_movil' ? ' PAGO MVIL' : ' TRANSFERENCIA';
+    const tipoEntrega = solicitud.tipo_cuenta === 'pago_movil' ? '📲 PAGO MÓVIL' : '🏦 TRANSFERENCIA';
     
     // Valores con fallback para evitar undefined
     const cuenta = solicitud.beneficiario_cuenta || 'No registrada';
     const cedula = solicitud.beneficiario_cedula || 'No registrada';
     const tipoCuenta = solicitud.beneficiario_tipo_cuenta || 'No especificado';
+    const nombreBeneficiario = solicitud.beneficiario_nombre || 'Sin nombre';
+    const banco = solicitud.beneficiario_banco || 'Sin banco';
+    const telefonoBenef = solicitud.beneficiario_telefono || '';
     
     const mensaje = [
-        ' NUEVA SOLICITUD - APP CLIENTE',
+        `🔔 NUEVO PEDIDO #${solicitud.id} - APP CLIENTE`,
         '',
-        '━━━━ CLIENTE ━━━━',
-        ` ${solicitud.cliente_nombre || 'Sin nombre'}`,
-        ` ${solicitud.cliente_email || 'Sin email'}`,
-        solicitud.cliente_telefono ? ` ${solicitud.cliente_telefono}` : null,
-        solicitud.cliente_documento ? ` ${(solicitud.cliente_documento_tipo || 'DOC').toUpperCase()}: ${solicitud.cliente_documento}` : null,
+        '━━━━━━ 👤 CLIENTE ━━━━━━',
+        `📛 ${solicitud.cliente_nombre || 'Sin nombre'}`,
+        `📧 ${solicitud.cliente_email || 'Sin email'}`,
+        solicitud.cliente_telefono ? `📱 ${solicitud.cliente_telefono}` : null,
+        solicitud.cliente_documento ? `🪪 ${(solicitud.cliente_documento_tipo || 'DOC').toUpperCase()}: ${solicitud.cliente_documento}` : null,
         '',
-        '━━━━ OPERACIN ━━━━',
-        ` Enva: $${Number(solicitud.monto_origen || 0).toLocaleString('es-CL')} ${solicitud.moneda_origen || 'CLP'}`,
-        ` Recibe: ${Number(solicitud.monto_destino || 0).toLocaleString('es-VE')} ${solicitud.moneda_destino || 'VES'}`,
-        ` Tasa: ${solicitud.tasa_aplicada || 'N/A'}`,
+        '━━━━━━ 💰 OPERACIÓN ━━━━━━',
+        `💵 Envía: $${Number(solicitud.monto_origen || 0).toLocaleString('es-CL')} ${solicitud.moneda_origen || 'CLP'}`,
+        `💴 Recibe: ${Number(solicitud.monto_destino || 0).toLocaleString('es-VE')} ${solicitud.moneda_destino || 'VES'}`,
+        `📊 Tasa: ${solicitud.tasa_aplicada || 'N/A'}`,
         '',
-        `━━━━ ${tipoEntrega} ━━━━`,
-        ` ${solicitud.beneficiario_nombre || 'Sin nombre'}`,
-        ` Cdula: ${cedula}`,
-        ` ${solicitud.beneficiario_banco || 'Sin banco'}`,
-        ` Tipo: ${tipoCuenta}`,
-        ` Cuenta: ${cuenta}`,
-        solicitud.beneficiario_telefono ? ` Tel: ${solicitud.beneficiario_telefono}` : null,
+        `━━━━━━ ${tipoEntrega} ━━━━━━`,
+        `👤 ${nombreBeneficiario}`,
+        `🪪 Cédula: ${cedula}`,
+        `🏦 ${banco}`,
+        `📋 Tipo: ${tipoCuenta}`,
+        `💳 Cuenta: ${cuenta}`,
+        telefonoBenef ? `📞 Tel: ${telefonoBenef}` : null,
         '',
         `⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`,
         '',
-        '👉 Ingrese al sistema web para gestionar este pedido',
-        '🔗 Pedidos App Clientes'
+        '⬇️ Usa los botones para gestionar este pedido'
     ].filter(line => line !== null).join('\n');
     
-    // Solo botón de WhatsApp para contactar cliente si hay teléfono (informativo)
-    let botones = null;
+    // Botones interactivos para gestionar el pedido
+    const botones = [
+        // Primera fila: Tomar pedido
+        [{ text: '📥 TOMAR PEDIDO', callback_data: `tomar_${solicitud.id}` }],
+        // Segunda fila: Botones de copiar
+        [
+            { text: '💳 Copiar Cuenta', callback_data: `copiar_cuenta_${solicitud.id}` },
+            { text: '🪪 Copiar Cédula', callback_data: `copiar_cedula_${solicitud.id}` }
+        ],
+        // Tercera fila: Más opciones de copiar
+        [
+            { text: '👤 Copiar Nombre', callback_data: `copiar_nombre_${solicitud.id}` },
+            { text: '🏦 Copiar Banco', callback_data: `copiar_banco_${solicitud.id}` }
+        ],
+        // Cuarta fila: Acciones finales
+        [
+            { text: '✅ COMPLETADO', callback_data: `completar_${solicitud.id}` },
+            { text: '❌ CANCELAR', callback_data: `cancelar_${solicitud.id}` }
+        ]
+    ];
+    
+    // Agregar WhatsApp si hay teléfono del cliente
     if (solicitud.cliente_telefono) {
         const telefonoLimpio = solicitud.cliente_telefono.replace(/[^0-9]/g, '');
-        botones = [
-            [{ text: '📱 WhatsApp Cliente', url: `https://wa.me/${telefonoLimpio}` }]
-        ];
+        botones.push([{ text: '📱 WhatsApp Cliente', url: `https://wa.me/${telefonoLimpio}` }]);
     }
     
     return await enviarNotificacionTelegram(mensaje, 'HTML', botones);
@@ -182,36 +202,46 @@ async function notificarCambioEstado(solicitud, nuevoEstado) {
 }
 
 // =================================================================
-// SISTEMA DE CALLBACKS DE TELEGRAM (Polling) - DESHABILITADO
-// Ahora Telegram solo envía notificaciones informativas
-// Los operadores gestionan pedidos desde la interfaz web
+// SISTEMA DE CALLBACKS DE TELEGRAM (Polling) - ACTIVO
+// Permite gestionar pedidos directamente desde Telegram
 // =================================================================
 let telegramUpdateOffset = 0;
-const pedidosTomados = new Map(); // Mantenido para compatibilidad
+const pedidosTomados = new Map(); // Track de pedidos tomados
 
-// Procesar callbacks de botones de Telegram - DESHABILITADO
-// Ya no se usan botones de acción en Telegram
+// Procesar callbacks de botones de Telegram
 async function procesarTelegramCallbacks() {
-    // Función deshabilitada - Telegram solo notifica
-    // Los operadores deben usar la interfaz web para gestionar pedidos
-    return;
+    await cargarConfigTelegram();
+    
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+        return;
+    }
+    
+    try {
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`;
+        const response = await axios.get(url, {
+            params: {
+                offset: telegramUpdateOffset,
+                timeout: 1,
+                allowed_updates: ['callback_query']
+            }
+        });
+        
+        if (response.data.ok && response.data.result.length > 0) {
+            for (const update of response.data.result) {
+                telegramUpdateOffset = update.update_id + 1;
+                
+                if (update.callback_query) {
+                    await manejarCallbackTelegram(update.callback_query);
+                }
+            }
+        }
+    } catch (error) {
+        // Silencioso para no llenar logs
+    }
 }
 
-// Manejar cada callback - DESHABILITADO
-// Los pedidos ahora se gestionan desde la interfaz web (pedidos-app.html)
+// Manejar cada callback de Telegram
 async function manejarCallbackTelegram(callback) {
-    // Función deshabilitada - responder que use la web
-    try {
-        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            callback_query_id: callback.id,
-            text: '⚠️ Gestione los pedidos desde la interfaz web',
-            show_alert: true
-        });
-    } catch (e) {}
-    return;
-    
-    // ====== CÓDIGO ORIGINAL COMENTADO ======
-    /*
     const data = callback.data;
     const mensaje = callback.message;
     const operador = callback.from.first_name || callback.from.username || 'Operador';
@@ -219,103 +249,175 @@ async function manejarCallbackTelegram(callback) {
     const messageId = mensaje.message_id;
     
     try {
-        // Parsear accin e ID
-        const [accion, idStr] = data.split('_');
-        const solicitudId = parseInt(idStr);
+        // Parsear acción e ID
+        const parts = data.split('_');
+        const accion = parts[0];
+        const subAccion = parts.length > 2 ? parts[1] : null;
+        const solicitudId = parseInt(parts[parts.length - 1]);
         
         // Obtener datos de la solicitud
         const solicitud = await dbGet(
-            `SELECT st.*, b.numero_cuenta, b.documento_numero, b.nombre_completo, b.banco
+            `SELECT st.*, b.numero_cuenta, b.documento_numero, b.nombre_completo, b.banco, b.telefono as benef_telefono,
+                    c.nombre as cliente_nombre, c.telefono as cliente_telefono
              FROM solicitudes_transferencia st
              LEFT JOIN beneficiarios b ON st.beneficiario_id = b.id
+             LEFT JOIN clientes_app c ON st.cliente_app_id = c.id
              WHERE st.id = ?`, [solicitudId]
         );
+        
+        if (!solicitud) {
+            await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+                callback_query_id: callback.id,
+                text: '❌ Solicitud no encontrada',
+                show_alert: true
+            });
+            return;
+        }
         
         let alertText = '';
         const fechaActual = new Date().toISOString();
         
-        switch(accion) {
-            case 'tomar':
-                // Verificar si ya fue tomado
-                if (pedidosTomados.has(solicitudId)) {
-                    alertText = `Este pedido ya fue tomado por ${pedidosTomados.get(solicitudId)}`;
-                } else {
-                    pedidosTomados.set(solicitudId, operador);
-                    // Guardar fecha_tomado y nombre del operador
-                    await dbRun(`UPDATE solicitudes_transferencia SET estado = 'procesando', fecha_tomado = ?, tomado_por_nombre = ? WHERE id = ?`, [fechaActual, operador, solicitudId]);
-                    
-                    // Obtener cuenta y cdula para los botones de copiar
-                    const cuentaCopiar = solicitud?.numero_cuenta || 'No disponible';
-                    const cedulaCopiar = solicitud?.documento_numero || 'No disponible';
-                    
-                    // Actualizar mensaje original
-                    const nuevoTexto = mensaje.text + `\n\n TOMADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
-                    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
-                        chat_id: chatId,
-                        message_id: messageId,
-                        text: nuevoTexto,
-                        reply_markup: { inline_keyboard: [
-                            [{ text: ' Copiar Cuenta', copy_text: { text: cuentaCopiar } }, { text: ' Copiar Cdula', copy_text: { text: cedulaCopiar } }],
-                            [{ text: '✅ PAGADO', callback_data: `pagado_${solicitudId}` }, { text: '❌ CANCELAR', callback_data: `cancelar_${solicitudId}` }]
-                        ]}
-                    });
-                    alertText = `Pedido #${solicitudId} tomado correctamente`;
-                }
-                break;
+        // Manejar acciones de copiar
+        if (accion === 'copiar') {
+            let textoCopiar = '';
+            let descripcion = '';
+            
+            switch(subAccion) {
+                case 'cuenta':
+                    textoCopiar = solicitud.numero_cuenta || 'No disponible';
+                    descripcion = '💳 Cuenta';
+                    break;
+                case 'cedula':
+                    textoCopiar = solicitud.documento_numero || 'No disponible';
+                    descripcion = '🪪 Cédula';
+                    break;
+                case 'nombre':
+                    textoCopiar = solicitud.nombre_completo || 'No disponible';
+                    descripcion = '👤 Nombre';
+                    break;
+                case 'banco':
+                    textoCopiar = solicitud.banco || 'No disponible';
+                    descripcion = '🏦 Banco';
+                    break;
+            }
+            
+            // Enviar mensaje con el dato para copiar
+            await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                chat_id: chatId,
+                text: `${descripcion}: \n\n<code>${textoCopiar}</code>\n\n👆 Toca para copiar`,
+                parse_mode: 'HTML',
+                reply_to_message_id: messageId
+            });
+            
+            alertText = `${descripcion} enviado para copiar`;
+        }
+        // Manejar tomar pedido
+        else if (accion === 'tomar') {
+            if (pedidosTomados.has(solicitudId)) {
+                alertText = `⚠️ Ya tomado por ${pedidosTomados.get(solicitudId)}`;
+            } else if (solicitud.estado === 'procesando' || solicitud.estado === 'completada') {
+                alertText = `⚠️ Este pedido ya está ${solicitud.estado}`;
+            } else {
+                pedidosTomados.set(solicitudId, operador);
+                await dbRun(
+                    `UPDATE solicitudes_transferencia SET estado = 'procesando', fecha_tomado = ?, tomado_por_nombre = ? WHERE id = ?`,
+                    [fechaActual, operador, solicitudId]
+                );
                 
-            case 'pagado':
-                await dbRun(`UPDATE solicitudes_transferencia SET estado = 'completada', fecha_completada = ? WHERE id = ?`, [fechaActual, solicitudId]);
-                pedidosTomados.delete(solicitudId);
+                // Actualizar mensaje con estado tomado
+                const textoActualizado = mensaje.text + `\n\n✅ TOMADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
                 
-                const textoPagado = mensaje.text.split('\n')[0] + `\n\n✅ PAGADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
+                // Mantener botones de copiar y agregar completar/cancelar
+                const botonesActualizados = [
+                    [
+                        { text: '💳 Copiar Cuenta', callback_data: `copiar_cuenta_${solicitudId}` },
+                        { text: '🪪 Copiar Cédula', callback_data: `copiar_cedula_${solicitudId}` }
+                    ],
+                    [
+                        { text: '👤 Copiar Nombre', callback_data: `copiar_nombre_${solicitudId}` },
+                        { text: '🏦 Copiar Banco', callback_data: `copiar_banco_${solicitudId}` }
+                    ],
+                    [
+                        { text: '✅ COMPLETADO', callback_data: `completar_${solicitudId}` },
+                        { text: '❌ CANCELAR', callback_data: `cancelar_${solicitudId}` }
+                    ]
+                ];
+                
                 await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
                     chat_id: chatId,
                     message_id: messageId,
-                    text: textoPagado,
-                    reply_markup: { inline_keyboard: [] }
+                    text: textoActualizado,
+                    reply_markup: { inline_keyboard: botonesActualizados }
                 });
-                alertText = `Pedido #${solicitudId} marcado como PAGADO`;
-                break;
                 
-            case 'cancelar':
-                await dbRun(`UPDATE solicitudes_transferencia SET estado = 'cancelada' WHERE id = ?`, [solicitudId]);
-                pedidosTomados.delete(solicitudId);
-                
-                const textoCancelado = mensaje.text.split('\n')[0] + `\n\n❌ CANCELADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
-                await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
-                    chat_id: chatId,
-                    message_id: messageId,
-                    text: textoCancelado,
-                    reply_markup: { inline_keyboard: [] }
-                });
-                alertText = `Pedido #${solicitudId} CANCELADO`;
-                break;
+                alertText = `✅ Pedido #${solicitudId} tomado`;
+            }
+        }
+        // Manejar completar
+        else if (accion === 'completar') {
+            await dbRun(
+                `UPDATE solicitudes_transferencia SET estado = 'completada', fecha_completada = ? WHERE id = ?`,
+                [fechaActual, solicitudId]
+            );
+            pedidosTomados.delete(solicitudId);
+            
+            const textoCompletado = mensaje.text.split('\n\n✅ TOMADO')[0] + 
+                `\n\n🎉 COMPLETADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
+            
+            await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                chat_id: chatId,
+                message_id: messageId,
+                text: textoCompletado,
+                reply_markup: { inline_keyboard: [] }
+            });
+            
+            alertText = `🎉 Pedido #${solicitudId} COMPLETADO`;
+        }
+        // Manejar cancelar
+        else if (accion === 'cancelar') {
+            await dbRun(
+                `UPDATE solicitudes_transferencia SET estado = 'cancelada' WHERE id = ?`,
+                [solicitudId]
+            );
+            pedidosTomados.delete(solicitudId);
+            
+            const textoCancelado = mensaje.text.split('\n\n✅ TOMADO')[0].split('\n\n⬇️')[0] + 
+                `\n\n❌ CANCELADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
+            
+            await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                chat_id: chatId,
+                message_id: messageId,
+                text: textoCancelado,
+                reply_markup: { inline_keyboard: [] }
+            });
+            
+            alertText = `❌ Pedido #${solicitudId} CANCELADO`;
         }
         
         // Responder al callback
         await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
             callback_query_id: callback.id,
             text: alertText,
-            show_alert: accion === 'tomar' && pedidosTomados.has(solicitudId) && pedidosTomados.get(solicitudId) !== operador
+            show_alert: false
         });
         
     } catch (error) {
         console.error('Error procesando callback Telegram:', error.message);
-        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            callback_query_id: callback.id,
-            text: 'Error procesando accin',
-            show_alert: true
-        });
+        try {
+            await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+                callback_query_id: callback.id,
+                text: '❌ Error procesando acción',
+                show_alert: true
+            });
+        } catch (e) {}
     }
-    */
 }
 
-// Iniciar polling de Telegram - SIMPLIFICADO
-// Solo para mantener compatibilidad, pero ya no procesa acciones
+// Iniciar polling de Telegram - ACTIVO
 function iniciarPollingTelegram() {
-    // Polling reducido ya que solo es informativo
-    setInterval(procesarTelegramCallbacks, 10000); // Cada 10 segundos (antes era 2)
-    console.log('📢 Sistema de notificaciones Telegram iniciado (solo alertas)');
+    // Polling cada 2 segundos para respuesta rápida a botones
+    setInterval(procesarTelegramCallbacks, 2000);
+    console.log('📢 Sistema de Telegram iniciado (notificaciones + botones interactivos)');
 }
 
 // =================================================================
