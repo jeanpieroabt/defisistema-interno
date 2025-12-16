@@ -147,18 +147,19 @@ async function notificarNuevaSolicitud(solicitud) {
     ].filter(line => line !== null).join('\n');
     
     // Botones interactivos para gestionar el pedido
+    // Usar copy_text para copiar automáticamente al portapapeles
     const botones = [
         // Primera fila: Tomar pedido
         [{ text: '📥 TOMAR PEDIDO', callback_data: `tomar_${solicitud.id}` }],
-        // Segunda fila: Botones de copiar
+        // Segunda fila: Botones de copiar automático
         [
-            { text: '💳 Copiar Cuenta', callback_data: `copiar_cuenta_${solicitud.id}` },
-            { text: '🪪 Copiar Cédula', callback_data: `copiar_cedula_${solicitud.id}` }
+            { text: `💳 ${cuenta}`, copy_text: { text: cuenta } },
+            { text: `🪪 ${cedula}`, copy_text: { text: cedula } }
         ],
         // Tercera fila: Más opciones de copiar
         [
-            { text: '👤 Copiar Nombre', callback_data: `copiar_nombre_${solicitud.id}` },
-            { text: '🏦 Copiar Banco', callback_data: `copiar_banco_${solicitud.id}` }
+            { text: `👤 ${nombreBeneficiario.substring(0, 15)}`, copy_text: { text: nombreBeneficiario } },
+            { text: `🏦 ${banco.substring(0, 12)}`, copy_text: { text: banco } }
         ],
         // Cuarta fila: Acciones finales
         [
@@ -277,42 +278,8 @@ async function manejarCallbackTelegram(callback) {
         let alertText = '';
         const fechaActual = new Date().toISOString();
         
-        // Manejar acciones de copiar
-        if (accion === 'copiar') {
-            let textoCopiar = '';
-            let descripcion = '';
-            
-            switch(subAccion) {
-                case 'cuenta':
-                    textoCopiar = solicitud.numero_cuenta || 'No disponible';
-                    descripcion = '💳 Cuenta';
-                    break;
-                case 'cedula':
-                    textoCopiar = solicitud.documento_numero || 'No disponible';
-                    descripcion = '🪪 Cédula';
-                    break;
-                case 'nombre':
-                    textoCopiar = solicitud.nombre_completo || 'No disponible';
-                    descripcion = '👤 Nombre';
-                    break;
-                case 'banco':
-                    textoCopiar = solicitud.banco || 'No disponible';
-                    descripcion = '🏦 Banco';
-                    break;
-            }
-            
-            // Enviar mensaje con el dato para copiar
-            await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                chat_id: chatId,
-                text: `${descripcion}: \n\n<code>${textoCopiar}</code>\n\n👆 Toca para copiar`,
-                parse_mode: 'HTML',
-                reply_to_message_id: messageId
-            });
-            
-            alertText = `${descripcion} enviado para copiar`;
-        }
         // Manejar tomar pedido
-        else if (accion === 'tomar') {
+        if (accion === 'tomar') {
             if (pedidosTomados.has(solicitudId)) {
                 alertText = `⚠️ Ya tomado por ${pedidosTomados.get(solicitudId)}`;
             } else if (solicitud.estado === 'procesando' || solicitud.estado === 'completada') {
@@ -327,15 +294,21 @@ async function manejarCallbackTelegram(callback) {
                 // Actualizar mensaje con estado tomado
                 const textoActualizado = mensaje.text + `\n\n✅ TOMADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
                 
-                // Mantener botones de copiar y agregar completar/cancelar
+                // Datos para botones de copiar automático
+                const cuenta = solicitud.numero_cuenta || 'No disponible';
+                const cedula = solicitud.documento_numero || 'No disponible';
+                const nombre = solicitud.nombre_completo || 'No disponible';
+                const banco = solicitud.banco || 'No disponible';
+                
+                // Botones con copy_text para copiar automáticamente
                 const botonesActualizados = [
                     [
-                        { text: '💳 Copiar Cuenta', callback_data: `copiar_cuenta_${solicitudId}` },
-                        { text: '🪪 Copiar Cédula', callback_data: `copiar_cedula_${solicitudId}` }
+                        { text: `💳 ${cuenta}`, copy_text: { text: cuenta } },
+                        { text: `🪪 ${cedula}`, copy_text: { text: cedula } }
                     ],
                     [
-                        { text: '👤 Copiar Nombre', callback_data: `copiar_nombre_${solicitudId}` },
-                        { text: '🏦 Copiar Banco', callback_data: `copiar_banco_${solicitudId}` }
+                        { text: `👤 ${nombre.substring(0, 15)}`, copy_text: { text: nombre } },
+                        { text: `🏦 ${banco.substring(0, 12)}`, copy_text: { text: banco } }
                     ],
                     [
                         { text: '✅ COMPLETADO', callback_data: `completar_${solicitudId}` },
@@ -3980,7 +3953,7 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             await dbRun(`
                 UPDATE tareas 
                 SET estado = 'cancelada', 
-                    resolucion_agente = 'Tarea obsoleta - reemplazada por nueva tarea automática'
+                    observaciones = 'Tarea obsoleta - reemplazada por nueva tarea automática'
                 WHERE cliente_id = ? 
                 AND tipo = 'automatica'
                 AND estado IN ('pendiente', 'en_progreso')
@@ -6293,7 +6266,7 @@ async function generarTareasAutomaticas() {
             await dbRun(`
                 UPDATE tareas 
                 SET estado = 'cancelada', 
-                    resolucion_agente = 'Tarea obsoleta - reemplazada por nueva tarea automática'
+                    observaciones = 'Tarea obsoleta - reemplazada por nueva tarea automática'
                 WHERE cliente_id = ? 
                 AND tipo = 'automatica'
                 AND estado IN ('pendiente', 'en_progreso')
