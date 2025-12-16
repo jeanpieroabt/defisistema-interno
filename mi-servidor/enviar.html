@@ -1,0 +1,1882 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1974CE">
+  <title>Enviar dinero - Defi Oracle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+          <script>
+        (function() {
+            const stored = localStorage.getItem('apiBaseUrlOverride');
+            const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname) || location.protocol === 'file:';
+            if (isLocal) {
+                window.API_BASE_URL = location.origin || 'http://localhost:3000';
+                localStorage.setItem('apiBaseUrlOverride', window.API_BASE_URL);
+                return;
+            }
+            if (stored) {
+                window.API_BASE_URL = stored;
+                return;
+            }
+            window.API_BASE_URL = window.API_BASE_URL || 'https://defisistema-interno.onrender.com';
+        })();
+    </script>
+<style>
+    :root {
+      --primary: #1974CE;
+      --primary-strong: #145DA6;
+      --accent: #5C8240;
+      --bg: #E3EAEE;
+      --panel: #FFFFFF;
+      --panel-2: #F8FAFC;
+      --border: #D8E2E9;
+      --text: #211C10;
+      --text-dim: #64748B;
+      --muted: #9AA1A1;
+      --success: #4ADE80;
+      --warning: #FBBF24;
+      --danger: #EF4444;
+      --neon: #00F6FF;
+      --neon-glow: rgba(0, 246, 255, 0.4);
+      --brand-teal: #23C6B8;
+      --brand-teal-soft: rgba(35, 198, 184, 0.14);
+      --radius-sm: 10px;
+      --radius-md: 14px;
+      --radius-lg: 18px;
+      --radius-xl: 22px;
+      --shadow-1: 0 20px 60px rgba(14, 77, 157, 0.08);
+      --shadow-2: 0 12px 36px rgba(14, 77, 157, 0.06);
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-7: 32px;
+      --space-8: 40px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, rgba(25,116,206,0.10), rgba(47,199,184,0.10));
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .app-shell {
+      max-width: 430px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: var(--space-5) var(--space-5) 110px;
+      background: transparent;
+    }
+    header.topbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-4);
+      background: linear-gradient(120deg, #1974CE 0%, #145DA6 52%, #0C3C7C 70%, #23C6B8 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-2);
+      position: sticky;
+      top: var(--space-4);
+      z-index: 10;
+      backdrop-filter: blur(12px);
+    }
+
+    .back-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.2s ease;
+    }
+    .back-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--primary);
+    }
+    .titles h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+    .titles p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+
+    .btn-primary {
+      width: 100%;
+      min-height: 54px;
+      border: none;
+      border-radius: 16px;
+      background: linear-gradient(120deg, #1974CE 0%, #145DA6 52%, #0C3C7C 70%, #23C6B8 100%);
+      color: #FFFFFF;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      position: relative;
+      z-index: 0;
+      overflow: hidden;
+      box-shadow: 0 16px 34px rgba(25, 116, 206, 0.28);
+      transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
+    }
+    .btn-primary::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border-radius: 14px;
+      background: linear-gradient(140deg, rgba(255, 255, 255, 0.18) 0%, rgba(216, 226, 233, 0.08) 60%, rgba(92, 130, 64, 0.16) 100%);
+      opacity: 0.85;
+      z-index: -1;
+      transition: opacity 0.2s ease;
+    }
+    .btn-primary::after {
+      content: "";
+      position: absolute;
+      top: -120%;
+      left: -20%;
+      width: 200%;
+      height: 140%;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 60%);
+      opacity: 0;
+      transform: rotate(12deg);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: -2;
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 22px 48px rgba(25, 116, 206, 0.35);
+      filter: brightness(1.04);
+    }
+    .btn-primary:hover::after {
+      opacity: 1;
+      transform: rotate(0deg);
+    }
+    .btn-primary:active {
+      transform: translateY(1px);
+      filter: brightness(0.95);
+      box-shadow: 0 12px 24px rgba(12, 60, 124, 0.45);
+    }
+    .btn-primary:disabled {
+      background: linear-gradient(135deg, rgba(216, 226, 233, 0.92) 0%, rgba(227, 234, 238, 0.92) 100%);
+      color: #9AA1A1;
+      cursor: not-allowed;
+      box-shadow: 0 6px 14px rgba(148, 163, 184, 0.25);
+      filter: none;
+    }
+    .btn-primary:disabled::before { opacity: 0.35; }
+    .btn-primary:disabled::after { opacity: 0; }
+
+    .progress {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      margin: var(--space-4) 0 var(--space-5);
+    }
+    .progress .step {
+      height: 5px;
+      border-radius: 999px;
+      background: #E2E8F0;
+      position: relative;
+      overflow: hidden;
+    }
+    .progress .step::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(90deg, var(--primary), var(--neon), var(--primary));
+      transition: transform 0.25s ease;
+    }
+    .progress .step.active::after { transform: translateX(0); }
+    .progress .step.done { background: var(--brand-teal); }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 18px;
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+      padding: var(--space-6);
+      margin-bottom: var(--space-5);
+      transition: box-shadow 0.3s ease;
+    }
+
+    #step1.card {
+      background: linear-gradient(160deg, #FFFFFF 0%, rgba(216, 226, 233, 0.35) 45%, rgba(25, 116, 206, 0.06) 100%);
+      border-radius: 20px;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+      border: 1px solid rgba(25, 116, 206, 0.08);
+      display: grid;
+      gap: var(--space-4);
+    }
+    .card-title { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+    .card-sub { margin: 0 0 18px; color: var(--text-dim); font-size: 13px; }
+    #step1 .card-title { margin-bottom: 0; }
+    #step1 .card-sub { margin-bottom: 0; }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: var(--space-4);
+    }
+    #step1 .field { margin-bottom: 0; }
+    .label-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .input-shell {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: #FFFFFF;
+      border-radius: 16px;
+      padding: 14px 18px;
+      min-height: 56px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .input-shell:hover {
+      border-color: rgba(35, 198, 184, 0.32);
+    }
+    .input-shell:focus-within {
+      border-color: var(--brand-teal);
+      box-shadow: 0 0 0 3px rgba(35, 198, 184, 0.12);
+    }
+    .label-flag {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .label-flag span {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: var(--text);
+    }
+    .input-shell input {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      padding: 0;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-align: right;
+      outline: none;
+      width: 100%;
+    }
+    .input-with-flag {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex: 1;
+      gap: 12px;
+    }
+
+    .flag-inline {
+      font-size: 18px;
+      opacity: 0.9;
+    }
+
+    .flag-icon {
+      width: 22px;
+      height: 16px;
+      border-radius: 3px;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+      flex-shrink: 0;
+      display: inline-block;
+      object-fit: cover;
+    }
+
+    .tasa-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: 999px;
+      color: var(--primary);
+      font-size: 13px;
+      width: fit-content;
+      margin: 0;
+    }
+
+    /* Código promocional */
+    .promo-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px dashed #e0e0e0;
+    }
+
+    .promo-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #1974CE;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+
+    .promo-toggle:hover {
+      color: #23C6B8;
+    }
+
+    .promo-help {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      background: #e5e7eb;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      color: #6b7280;
+      cursor: help;
+      margin-left: 4px;
+    }
+
+    .promo-help:hover {
+      background: #1974CE;
+      color: white;
+    }
+
+    .promo-help .tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      margin-bottom: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 100;
+    }
+
+    .promo-help .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1f2937;
+    }
+
+    .promo-help:hover .tooltip {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .promo-input-area {
+      display: none;
+      margin-top: 12px;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .promo-input-area.active {
+      display: flex;
+    }
+
+    .promo-input-area input {
+      flex: 1;
+      padding: 12px 14px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 14px;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .promo-input-area input:focus {
+      outline: none;
+      border-color: #1974CE;
+    }
+
+    .promo-input-area input.valid {
+      border-color: #10B981;
+      background: #F0FDF4;
+    }
+
+    .promo-input-area input.invalid {
+      border-color: #EF4444;
+      background: #FEF2F2;
+    }
+
+    .btn-aplicar {
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #1974CE 0%, #23C6B8 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-aplicar:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .promo-result {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .promo-result.success {
+      display: block;
+      background: linear-gradient(135deg, rgba(25, 116, 206, 0.1) 0%, rgba(35, 198, 184, 0.1) 100%);
+      border: 1px solid rgba(25, 116, 206, 0.3);
+      color: #1974CE;
+    }
+
+    .promo-result.error {
+      display: block;
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #DC2626;
+    }
+
+    .promo-tasa-especial {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, #1974CE 0%, #23C6B8 100%);
+      border-radius: 999px;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      width: fit-content;
+      margin-top: 8px;
+    }
+
+
+    .method-grid { display: grid; gap: 12px; }
+    .method-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: #FFFFFF;
+      cursor: pointer;
+      transition: border-color 0.2s ease, transform 0.12s ease, box-shadow 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .method-card:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,0.05); }
+    .method-card.active { 
+      border-color: var(--brand-teal); 
+      background: var(--brand-teal-soft);
+      box-shadow: 0 0 0 1px var(--brand-teal);
+    }
+    .method-card.active .method-icon {
+      background: rgba(18, 184, 196, 0.16);
+      border-color: rgba(18, 184, 196, 0.35);
+      color: var(--brand-teal);
+    }
+    .method-icon {
+      width: 46px; height: 46px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      color: var(--primary);
+      font-size: 20px;
+    }
+    .method-text h4 { margin: 0 0 4px; font-size: 15px; }
+    .method-text p { margin: 0; color: var(--muted); font-size: 13px; }
+    .badge { padding: 6px 10px; border-radius: 12px; font-size: 12px; }
+    .badge.green { background: var(--brand-teal-soft); color: var(--brand-teal); border: 1px solid rgba(18, 184, 196, 0.28); }
+
+    .recipient-search {
+      position: relative;
+    }
+    .recipient-search input {
+      width: 100%;
+      padding: 12px 14px 12px 42px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      color: var(--text);
+      outline: none;
+    }
+    .recipient-search span {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 16px;
+    }
+    .recipient-list { margin-top: 14px; display: grid; gap: 10px; max-height: 360px; overflow-y: auto; }
+    .recipient-card {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      padding: 14px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      cursor: pointer;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .recipient-card.active { border-color: var(--brand-teal); background: var(--brand-teal-soft); }
+    .avatar {
+      width: 44px; height: 44px;
+      border-radius: 14px;
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .add-recipient {
+      border: 1px dashed var(--border);
+      background: var(--panel-2);
+      padding: 14px;
+      border-radius: var(--radius-lg);
+      text-align: center;
+      color: var(--primary);
+      cursor: pointer;
+      transition: border-color 0.2s ease;
+    }
+    .add-recipient:hover { border-color: var(--primary); }
+
+    .summary-card {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-1);
+    }
+    .summary-head {
+      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+      padding: var(--space-6);
+      color: #FFFFFF;
+      text-align: center;
+    }
+    .summary-head .label { font-size: 12px; opacity: 0.9; }
+    .summary-head .amount { font-size: 30px; font-weight: 800; margin: 6px 0 0; }
+    .summary-body { padding: var(--space-6); display: grid; gap: 12px; }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .row:last-child { border-bottom: none; padding-bottom: 0; }
+    .row .label { color: var(--text-dim); font-size: 13px; }
+    .row .value { font-weight: 600; }
+    .highlight {
+      background: var(--brand-teal-soft);
+      border: 1px solid rgba(18, 184, 196, 0.32);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+    }
+
+    .timer {
+      text-align: center;
+      padding: 16px;
+      border-radius: var(--radius-lg);
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      color: var(--primary);
+      font-weight: 600;
+      margin-bottom: var(--space-4);
+    }
+    .pay-card .detail { margin-bottom: 14px; }
+    .detail .label { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+    .detail .value {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      font-weight: 600;
+    }
+    .copy {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      color: var(--primary);
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .alert {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      color: #B45309;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .tracking {
+      text-align: center;
+      padding: var(--space-6);
+    }
+    .tracking .big { font-size: 46px; margin-bottom: 10px; }
+    .track-code {
+      display: inline-block;
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      padding: 10px 16px;
+      border-radius: 12px;
+      color: var(--primary);
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      margin: 12px 0 20px;
+    }
+    .timeline { margin-top: 12px; display: grid; gap: 12px; text-align: left; }
+    .tl-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      position: relative;
+      padding-bottom: 12px;
+    }
+    .tl-item:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 11px;
+      top: 24px;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .dot {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--border);
+      color: var(--text);
+      font-size: 12px;
+    }
+    .tl-item.done .dot { background: var(--brand-teal); color: white; }
+    .tl-item.active .dot { background: var(--primary); color: white; animation: pulse 1.6s infinite; }
+    .tl-item.cancelled .dot { background: #e74c3c; color: white; }
+    .tl-item.cancelled .title { color: #e74c3c; }
+    .tl-body p { margin: 0; }
+    .tl-body .title { font-weight: 600; }
+    .tl-body .time { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    /* ETA Banner - Compacto */
+    .eta-banner {
+      background: linear-gradient(120deg, var(--primary) 0%, #0C3C7C 60%, #23C6B8 100%);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin: 16px 0;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 15px rgba(25, 116, 206, 0.25);
+    }
+    .eta-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .eta-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .eta-title {
+      font-size: 14px;
+      opacity: 1;
+      margin: 0 0 4px 0;
+      font-weight: 600;
+    }
+    .eta-time {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0;
+    }
+    .eta-progress-container {
+      background: rgba(255,255,255,0.25);
+      border-radius: 6px;
+      height: 6px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .eta-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #00F6FF 0%, #fff 100%);
+      border-radius: 6px;
+      width: 100%;
+      transition: width 1s linear;
+    }
+    .eta-banner.completed {
+      background: linear-gradient(120deg, #11998e 0%, #38ef7d 100%);
+    }
+    .eta-banner.completed .eta-time {
+      font-size: 14px;
+    }
+
+    @keyframes pulse {
+      0%,100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+
+    .footer {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      max-width: 430px;
+      margin: 0 auto;
+      padding: var(--space-5) var(--space-5) var(--space-6);
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -12px 35px rgba(14, 77, 157, 0.1);
+    }
+    .btn-secondary {
+      width: 100%;
+      height: 52px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 2000;
+    }
+    .modal {
+      max-width: 420px;
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-1);
+      color: var(--text);
+    }
+    .modal h3 { margin: 0 0 10px; font-size: 18px; }
+    .modal p { margin: 6px 0; color: var(--text-dim); }
+    .modal .actions { display: grid; gap: 10px; margin-top: 16px; }
+    .pill-danger {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #DC2626;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+    textarea, select { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="back-btn" onclick="goBack()">←</button>
+      <div class="titles">
+        <h1>Enviar dinero</h1>
+      </div>
+    </header>
+
+    <div class="progress" id="progressBar">
+      <div class="step active"></div>
+      <div class="step"></div>
+      <div class="step"></div>
+      <div class="step"></div>
+      <div class="step"></div>
+      <div class="step"></div>
+    </div>
+
+    <!-- Paso 1: Monto -->
+    <section class="card" id="step1">
+      <h3 class="card-title">¿Cuánto quieres enviar?</h3>
+      <p class="card-sub">Ingresa el monto en CLP o VES. Calculamos la tasa automáticamente por tramo.</p>
+
+      <div class="field">
+        <div class="label-row">Tú envías</div>
+        <div class="input-shell">
+          <div class="label-flag">
+            <img class="flag-icon" alt="Chile" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='40' viewBox='0 0 60 40'%3E%3Cpath fill='%23fff' d='M0 0h60v20H0z'/%3E%3Cpath fill='%23d52b1e' d='M0 20h60v20H0z'/%3E%3Cpath fill='%2300399c' d='M0 0h20v20H0z'/%3E%3Cpath fill='%23fff' d='m10 3.5 1.175 3.613 3.787.013-3.05 2.19 1.161 3.618L10 10.68 6.927 12.94l1.16-3.618-3.05-2.19 3.788-.013z'/%3E%3C/svg%3E"/>
+          </div>
+          <div class="input-with-flag">
+            <input type="text" id="montoCLP" placeholder="0" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="label-row">Recibe</div>
+        <div class="input-shell">
+          <div class="label-flag">
+            <img class="flag-icon" alt="Venezuela" src="assets/BANDERAVENEZUELA.svg"/>
+          </div>
+          <div class="input-with-flag">
+            <input type="text" id="montoVES" placeholder="0" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="tasa-pill">Tasa: <strong id="tasaDisplay">1 CLP = 0 VES</strong></div>
+      
+      <!-- Código Promocional -->
+      <div class="promo-section">
+        <div style="display: flex; align-items: center;">
+          <button type="button" class="promo-toggle" onclick="togglePromoInput()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+            </svg>
+            ¿Tienes un código promocional?
+          </button>
+          <span class="promo-help">
+            ?
+            <span class="tooltip">Ingresa el código sin espacios ni guiones</span>
+          </span>
+        </div>
+        <div class="promo-input-area" id="promoInputArea">
+          <input type="text" id="codigoPromo" placeholder="Ingresa tu código" maxlength="20">
+          <button type="button" class="btn-aplicar" id="btnAplicarCodigo" onclick="validarCodigoPromo()">Aplicar</button>
+        </div>
+        <div class="promo-result" id="promoResult"></div>
+        <div class="promo-tasa-especial" id="promoTasaEspecial" style="display:none;">
+          🎉 Tasa especial: <strong id="tasaPromoDisplay">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- Paso 2: Método -->
+    <section class="card" id="step2" style="display:none;">
+      <h3 class="card-title">Método de entrega</h3>
+      <p class="card-sub">Elige cómo deseas entregar el dinero.</p>
+      <div class="method-grid">
+        <div class="method-card active" data-method="transferencia" onclick="selectMethod('transferencia')">
+          <div class="method-icon">📱</div>
+          <div class="method-text">
+            <h4>Transferencia bancaria</h4>
+            <p>Depósito directo en cuenta</p>
+          </div>
+          <span class="badge green">Rápido</span>
+        </div>
+        <div class="method-card" data-method="pago_movil" onclick="selectMethod('pago_movil')">
+          <div class="method-icon">📱</div>
+          <div class="method-text">
+            <h4>Pago Móvil</h4>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Paso 3: Destinatario -->
+    <section class="card" id="step3" style="display:none;">
+      <h3 class="card-title">¿A quién envías?</h3>
+      <p class="card-sub">Selecciona o agrega un destinatario.</p>
+      <div class="recipient-search">
+        <span>🔍</span>
+        <input type="text" id="searchRecipient" placeholder="Buscar destinatario" oninput="filtrarDestinatariosEnvio()">
+      </div>
+      <div class="recipient-list" id="recipientListSelect"></div>
+      <div class="add-recipient" onclick="agregarNuevoDestinatario()">+ Agregar nuevo destinatario</div>
+    </section>
+
+    <!-- Paso 4: Resumen -->
+    <section class="card" id="step4" style="display:none;">
+      <h3 class="card-title">Confirma tu envío</h3>
+      <p class="card-sub">Revisa los datos antes de continuar.</p>
+      <div class="summary-card">
+        <div class="summary-head">
+          <div class="label">Tú envías</div>
+          <div class="amount" id="resumenEnvias">$0 CLP</div>
+        </div>
+        <div class="summary-body">
+          <div class="row"><span class="label">Destinatario</span><span class="value" id="resumenDestinatario">-</span></div>
+          <div class="row"><span class="label">Método</span><span class="value" id="resumenMetodo">-</span></div>
+          <div class="row"><span class="label">Banco</span><span class="value" id="resumenBanco">-</span></div>
+          <div class="row"><span class="label">Tasa</span><span class="value" id="resumenTasa">-</span></div>
+          <div class="row"><span class="label">Comisión</span><span class="value" style="color:var(--brand-teal);">$0 CLP</span></div>
+          <div class="highlight row" style="border:none; padding:0;">
+            <div style="width:100%; display:flex; justify-content:space-between; padding:10px 0;">
+              <span class="label" style="color:var(--text-dim);">Recibe</span>
+              <span class="value" id="resumenRecibe" style="color:var(--brand-teal); font-size:18px;">Bs. 0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Paso 5: Pago -->
+    <section class="card" id="step5" style="display:none;">
+      <h3 class="card-title">Realiza tu pago</h3>
+      <p class="card-sub">Transfiere a la cuenta indicada.</p>
+      <div class="timer">
+        Tiempo restante para pagar
+        <div style="font-size:28px; margin-top:6px;" id="timerValue">30:00</div>
+      </div>
+      <div class="card pay-card" style="padding: var(--space-5); background: var(--panel); border:1px solid var(--border);">
+        <div class="detail"><div class="label">Banco</div><div class="value"><span>BANCO ESTADO</span></div></div>
+        <div class="detail"><div class="label">Tipo de cuenta</div><div class="value"><span>CUENTA VISTA O PRO</span></div></div>
+        <div class="detail"><div class="label">Numero de cuenta</div><div class="value"><span id="paymentCuenta">31670327933</span><button class="copy" onclick="copiar('paymentCuenta')">Copiar</button></div></div>
+        <div class="detail"><div class="label">RUT</div><div class="value"><span id="paymentRut">77.354.262-7</span><button class="copy" onclick="copiar('paymentRut')">Copiar</button></div></div>
+        <div class="detail"><div class="label">Monto a transferir</div><div class="value"><span id="paymentMonto">$0 CLP</span><button class="copy" onclick="copiar('paymentMonto')">Copiar</button></div></div>
+        <div class="alert">⚠️ Asegurate de transferir el monto exacto. Tu envio se procesara al recibir el pago.</div>
+      </div>
+    </section>
+
+    <!-- Paso 6: Tracking -->
+    <section class="card" id="step6" style="display:none; text-align:center;">
+      <div class="tracking">
+        <div class="big">✔</div>
+        <h3 style="margin:0 0 6px;">Solicitud creada!</h3>
+        <p style="color: var(--muted); margin:0 0 14px;">Te notificaremos cuando el dinero llegue.</p>
+        <div class="track-code" id="trackingCode">CASH-000000</div>
+        
+        <!-- Banner de tiempo estimado -->
+        <div class="eta-banner" id="etaBanner">
+          <div class="eta-icon">🚀</div>
+          <div class="eta-content">
+            <p class="eta-title">Tiempo estimado de entrega</p>
+            <p class="eta-time" id="etaTime">15 min</p>
+            <div class="eta-progress-container">
+              <div class="eta-progress-bar" id="etaProgressBar"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="timeline">
+          <div class="tl-item done" id="timelineCreada">
+            <div class="dot">✅</div>
+            <div class="tl-body"><p class="title">Solicitud creada</p><p class="time" id="timeCreated">-</p></div>
+          </div>
+          <div class="tl-item" id="timelineProceso">
+            <div class="dot">⏳</div>
+            <div class="tl-body"><p class="title">Procesando envío</p><p class="time" id="timeProceso">Pendiente</p></div>
+          </div>
+          <div class="tl-item" id="timelineEntregado">
+            <div class="dot">⏳</div>
+            <div class="tl-body"><p class="title" id="titleEntregado">Dinero entregado</p><p class="time" id="timeEntregado">Pendiente</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+    <div class="footer" id="footer">
+    <button class="btn-primary" id="btnNext" onclick="nextStep()">Continuar</button>
+  </div>
+
+  <!-- Modal Compliance -->
+  <div class="modal-backdrop" id="complianceModal">
+    <div class="modal">
+      <h3>Verificacion de cuenta</h3>
+      <p><strong>No se permiten transferencias desde cuentas de terceros o cuentas empresa.</strong></p>
+      <p style="margin-top:-4px;">Si detectamos que el pago no proviene de una cuenta personal a tu nombre, la transaccion se cancelara automaticamente.</p>
+      <div class="actions">
+        <button class="btn-primary" style="height:52px;" onclick="confirmarCuentaPropia()">Si, es mi cuenta personal</button>
+        <button class="btn-secondary" style="height:52px;" onclick="mostrarNoEsMiCuenta()">No es mi cuenta</button>
+      </div>
+      <div id="noEsMiCuentaSection" style="display:none; margin-top:16px;">
+        <div class="pill-danger">Solo aceptamos pagos desde cuentas personales a nombre del usuario registrado.</div>
+        <label style="color: var(--text); font-size:13px; margin-top:10px;">Cuentanos tu situacion</label>
+        <select id="motivoNoCuenta">
+          <option value="">Selecciona un motivo</option>
+          <option value="tercero">Pago desde cuenta de familiar/amigo</option>
+          <option value="empresa">Mi cuenta es empresarial</option>
+          <option value="otro_nombre">La cuenta esta a otro nombre</option>
+          <option value="otro">Otro motivo</option>
+        </select>
+        <textarea id="detalleNoCuenta" placeholder="Detalle adicional (opcional)" rows="3" style="margin-top:10px;"></textarea>
+        <div class="actions">
+          <button class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #b91c1c);" onclick="cancelarPorCuenta()">Entendido, cancelar operacion</button>
+          <button class="btn-secondary" onclick="volverVerificacion()">Volver</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = (window.API_BASE_URL || '').replace(/\/$/, '');
+    
+    // ========== CONFIGURACIÓN DE HORARIO ==========
+    const HORA_APERTURA = 9;   // 9:00 AM - Inicio de operaciones
+    const HORA_CIERRE = 21;    // 9:00 PM (21:00) - Fin de operaciones
+    const HORA_AMANECER = 7;   // 7:00 AM - Considerado "mañana"
+    // ==============================================
+    
+    let currentStep = 1;
+    let tasa = 0.045;
+    let tramos = [];
+    let destinatarios = [];
+    let timerInterval = null;
+    let verificacionEstado = 'no_verificado'; // Estado de verificacion del usuario
+    let totalEnviosCompletados = 0; // Contador de envios completados
+    let fueraDeHorario = false; // Indica si estamos fuera de horario
+    
+    // Código promocional
+    let codigoPromoAplicado = null; // { codigo_id, tasa_especial, codigo }
+    let usandoTasaPromo = false;
+    
+    const envio = { montoCLP: 0, montoVES: 0, metodo: 'transferencia', destinatario: null };
+    const fmtCLP = new Intl.NumberFormat('es-CL');
+    const fmtVES = new Intl.NumberFormat('es-VE');
+    
+    // Obtiene información del horario actual
+    function obtenerInfoHorario() {
+      const ahora = new Date();
+      const hora = ahora.getHours();
+      
+      // Horario normal de operaciones (9am - 9pm)
+      if (hora >= HORA_APERTURA && hora < HORA_CIERRE) {
+        return { enHorario: true, tipo: 'normal', mensaje: '', icono: '' };
+      }
+      
+      // Mañana temprano (7am - 9am)
+      if (hora >= HORA_AMANECER && hora < HORA_APERTURA) {
+        return {
+          enHorario: false,
+          tipo: 'manana',
+          icono: '☀️',
+          titulo: '¡Buenos días!',
+          mensaje: `Tu pedido será procesado al iniciar operaciones después de las ${HORA_APERTURA}:00 AM`,
+          submensaje: 'Puedes realizar tu envío y lo atenderemos en cuanto abramos.'
+        };
+      }
+      
+      // Noche (9pm - 11:59pm) o madrugada (12am - 7am)
+      return {
+        enHorario: false,
+        tipo: 'noche',
+        icono: '🌙',
+        titulo: 'Horario nocturno',
+        mensaje: 'Tu operación será procesada durante el día',
+        submensaje: `Nuestro horario de atención es de ${HORA_APERTURA}:00 AM a ${HORA_CIERRE - 12}:00 PM`
+      };
+    }
+    
+    // Muestra banner informativo de horario (no bloqueante)
+    function mostrarBannerHorario() {
+      const info = obtenerInfoHorario();
+      
+      if (info.enHorario) {
+        fueraDeHorario = false;
+        return; // No mostrar nada si está en horario
+      }
+      
+      fueraDeHorario = true;
+      
+      // Crear banner informativo (no bloqueante)
+      const bannerHtml = `
+        <div id="horarioBanner" style="
+          background: ${info.tipo === 'noche' ? 'linear-gradient(135deg, #1e3a5f, #2d5a87)' : 'linear-gradient(135deg, #f59e0b, #d97706)'};
+          color: white;
+          padding: 16px 20px;
+          border-radius: 16px;
+          margin: 16px 0;
+          display: flex;
+          align-items: flex-start;
+          gap: 14px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+          animation: slideDown 0.3s ease;
+        ">
+          <div style="font-size: 32px; line-height: 1;">${info.icono}</div>
+          <div style="flex: 1;">
+            <div style="font-weight: 700; font-size: 15px; margin-bottom: 4px;">${info.titulo}</div>
+            <div style="font-size: 14px; opacity: 0.95; margin-bottom: 6px;">${info.mensaje}</div>
+            <div style="font-size: 12px; opacity: 0.8;">${info.submensaje}</div>
+          </div>
+        </div>
+        <style>
+          @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        </style>
+      `;
+      
+      // Insertar banner después del header
+      const topbar = document.querySelector('header.topbar');
+      if (topbar) {
+        topbar.insertAdjacentHTML('afterend', bannerHtml);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Mostrar banner informativo si está fuera de horario (pero permite continuar)
+      mostrarBannerHorario();
+      
+      verificarSesion();
+      
+      // Verificar estado de verificación del usuario
+      await verificarEstadoVerificacion();
+      
+      cargarTasa();
+      cargarDestinatarios();
+      bindAmountInputs();
+      updateFromCLP(envio.montoCLP);
+      actualizarTasaDisplay();
+      updateProgressUI();
+      showStep(1);
+    });
+
+    // Verificar si el usuario necesita verificación para enviar
+    async function verificarEstadoVerificacion() {
+      const token = localStorage.getItem('clienteToken');
+      if (!token) return;
+
+      try {
+        // Obtener estado de verificación
+        const respVerif = await fetch(`${API_BASE}/api/cliente/verificacion/estado`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (respVerif.ok) {
+          const data = await respVerif.json();
+          verificacionEstado = data.estado || 'no_verificado';
+        }
+
+        // Obtener estadísticas (envíos completados)
+        const respStats = await fetch(`${API_BASE}/api/cliente/estadisticas`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (respStats.ok) {
+          const stats = await respStats.json();
+          totalEnviosCompletados = stats.total_envios || 0;
+        }
+
+        // Si tiene envíos completados y no está verificado, mostrar bloqueo
+        if (totalEnviosCompletados > 0 && verificacionEstado !== 'verificado') {
+          mostrarRequiereVerificacion();
+        }
+      } catch (error) {
+        console.error('Error verificando estado:', error);
+      }
+    }
+
+    // Mostrar modal de bloqueo por verificación pendiente
+    function mostrarRequiereVerificacion() {
+      let mensaje = '';
+      let botonTexto = 'Ir a verificar mi cuenta';
+
+      if (verificacionEstado === 'pendiente') {
+        mensaje = 'Tu solicitud de verificación está siendo revisada. Te notificaremos cuando sea aprobada.';
+        botonTexto = 'Volver al inicio';
+      } else if (verificacionEstado === 'rechazado') {
+        mensaje = 'Tu verificación fue rechazada. Por favor, sube nuevamente tus documentos para poder continuar enviando.';
+      } else {
+        mensaje = 'Para continuar realizando envíos, necesitas verificar tu cuenta subiendo tu documento de identidad.';
+      }
+
+      const modalHtml = `
+        <div id="verificacionRequiredModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;">
+          <div style="background:white;border-radius:24px;max-width:380px;width:100%;padding:32px;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.25);">
+            <div style="width:80px;height:80px;margin:0 auto 20px;background:linear-gradient(135deg,rgba(25,116,206,0.1),rgba(35,198,184,0.1));border-radius:50%;display:flex;align-items:center;justify-content:center;">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1974CE" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <path d="M12 8v4"></path>
+                <circle cx="12" cy="16" r="1"></circle>
+              </svg>
+            </div>
+            <h3 style="margin:0 0 12px;color:#211C10;font-size:22px;font-weight:700;">Verificación requerida</h3>
+            <p style="margin:0 0 24px;color:#64748B;font-size:15px;line-height:1.5;">${mensaje}</p>
+            <button onclick="${verificacionEstado === 'pendiente' ? "window.location.href='home.html'" : "window.location.href='perfil.html'"}" style="width:100%;padding:16px;background:linear-gradient(135deg,#1974CE,#145DA6);color:white;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px rgba(25,116,206,0.3);">
+              ${botonTexto}
+            </button>
+            <button onclick="window.location.href='home.html'" style="width:100%;padding:14px;background:transparent;color:#64748B;border:none;font-size:14px;font-weight:500;cursor:pointer;margin-top:12px;">
+              Volver al inicio
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    function verificarSesion() {
+      const token = localStorage.getItem('clienteToken');
+      if (!token) window.location.href = 'login.html';
+    }
+
+    async function cargarTasa() {
+      try {
+        const r = await fetch(`${API_BASE}/api/cliente/tasa`);
+        if (r.ok) {
+          const data = await r.json();
+          tramos = data.tramos || [];
+          tasa = data.tasaDefecto || tasa;
+        }
+      } catch (_) { /* deja valores por defecto */ }
+      updateFromCLP(envio.montoCLP);
+    }
+
+    async function cargarDestinatarios() {
+      const token = localStorage.getItem('clienteToken');
+      try {
+        const r = await fetch(`${API_BASE}/api/cliente/beneficiarios`, { headers: { 'Authorization': `Bearer ${token}` } });
+        destinatarios = r.ok ? await r.json() : [];
+      } catch (error) {
+        console.error('Error al cargar destinatarios', error);
+        destinatarios = [];
+      }
+      checkPreselection();
+      renderizarDestinatariosEnvio();
+    }
+
+    function bindAmountInputs() {
+      const clpInput = document.getElementById('montoCLP');
+      const vesInput = document.getElementById('montoVES');
+
+      if (clpInput) {
+        clpInput.addEventListener('input', e => {
+          const val = sanitizeInteger(e.target.value);
+          const cursorPos = e.target.selectionStart;
+          const oldLen = e.target.value.length;
+          e.target.value = val ? fmtCLP.format(val) : '';
+          const newLen = e.target.value.length;
+          const newPos = Math.max(0, cursorPos + (newLen - oldLen));
+          e.target.setSelectionRange(newPos, newPos);
+          updateFromCLP(val, { source: 'input' });
+        });
+        clpInput.addEventListener('focus', e => {
+          const val = sanitizeInteger(e.target.value);
+          e.target.value = val ? fmtCLP.format(val) : '';
+        });
+        clpInput.addEventListener('blur', e => {
+          const val = sanitizeInteger(e.target.value);
+          e.target.value = val ? fmtCLP.format(val) : '';
+          updateFromCLP(val, { source: 'blur' });
+        });
+      }
+
+      if (vesInput) {
+        vesInput.addEventListener('input', e => {
+          const val = sanitizeInteger(e.target.value);
+          const cursorPos = e.target.selectionStart;
+          const oldLen = e.target.value.length;
+          e.target.value = val ? fmtVES.format(val) : '';
+          const newLen = e.target.value.length;
+          const newPos = Math.max(0, cursorPos + (newLen - oldLen));
+          e.target.setSelectionRange(newPos, newPos);
+          updateFromVES(val, { source: 'input', element: vesInput });
+        });
+        vesInput.addEventListener('focus', e => {
+          const val = sanitizeInteger(e.target.value);
+          e.target.value = val ? fmtVES.format(val) : '';
+        });
+        vesInput.addEventListener('blur', e => {
+          const val = sanitizeInteger(e.target.value);
+          e.target.value = val ? fmtVES.format(val) : '';
+          updateFromVES(val, { source: 'blur', element: vesInput });
+        });
+      }
+    }
+
+    function sanitizeInteger(value) {
+      const cleaned = (value || '').toString().replace(/[^0-9]/g, '');
+      return cleaned ? parseInt(cleaned, 10) : 0;
+    }
+
+    function setCLPInputValue(value) {
+      const input = document.getElementById('montoCLP');
+      if (!input) return;
+      input.value = value ? fmtCLP.format(value) : '';
+    }
+
+    function setVESInputValue(value) {
+      const input = document.getElementById('montoVES');
+      if (!input) return;
+      input.value = value ? fmtVES.format(value) : '';
+    }
+
+    function obtenerTasaPorMonto(montoCLP) {
+      // Si hay código promo aplicado, usar tasa especial
+      if (usandoTasaPromo && codigoPromoAplicado) {
+        return codigoPromoAplicado.tasa_especial;
+      }
+      if (!tramos || tramos.length === 0) return tasa;
+      for (let i = tramos.length - 1; i >= 0; i--) {
+        if (montoCLP >= (tramos[i].minCLP || 0)) return tramos[i].tasa || tasa;
+      }
+      return tasa;
+    }
+
+    function actualizarTasaDisplay() {
+      const t = obtenerTasaPorMonto(envio.montoCLP || 0);
+      const label = document.getElementById('tasaDisplay');
+      if (label) label.textContent = `1 CLP = ${t.toFixed(4)} VES`;
+      
+      // Mostrar/ocultar indicador de tasa promo
+      const promoTasa = document.getElementById('promoTasaEspecial');
+      const tasaPromoDisplay = document.getElementById('tasaPromoDisplay');
+      if (promoTasa && tasaPromoDisplay) {
+        if (usandoTasaPromo && codigoPromoAplicado) {
+          promoTasa.style.display = 'flex';
+          tasaPromoDisplay.textContent = `1 CLP = ${codigoPromoAplicado.tasa_especial.toFixed(4)} VES`;
+        } else {
+          promoTasa.style.display = 'none';
+        }
+      }
+    }
+
+    // Funciones de código promocional
+    function togglePromoInput() {
+      const area = document.getElementById('promoInputArea');
+      if (area) {
+        area.classList.toggle('active');
+        if (area.classList.contains('active')) {
+          document.getElementById('codigoPromo').focus();
+        }
+      }
+    }
+
+    async function validarCodigoPromo() {
+      const input = document.getElementById('codigoPromo');
+      const resultEl = document.getElementById('promoResult');
+      const btn = document.getElementById('btnAplicarCodigo');
+      const codigo = input.value.trim().toUpperCase();
+      const token = localStorage.getItem('clienteToken');
+
+      if (!codigo) {
+        input.classList.add('invalid');
+        resultEl.className = 'promo-result error';
+        resultEl.textContent = 'Ingresa un código';
+        return;
+      }
+
+      if (!token) {
+        resultEl.className = 'promo-result error';
+        resultEl.textContent = 'Sesión no válida';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Validando...';
+
+      try {
+        const response = await fetch(`${API_BASE}/api/cliente/validar-codigo`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ codigo })
+        });
+
+        const data = await response.json();
+
+        if (data.valido) {
+          input.classList.remove('invalid');
+          input.classList.add('valid');
+          input.disabled = true;
+          btn.style.display = 'none';
+          
+          codigoPromoAplicado = {
+            codigo_id: data.codigo_id,
+            tasa_especial: data.tasa_especial,
+            codigo: codigo
+          };
+          usandoTasaPromo = true;
+          
+          resultEl.className = 'promo-result success';
+          resultEl.innerHTML = `🎉 <strong>${codigo}</strong> aplicado. ${data.mensaje || ''}`;
+          
+          // Recalcular con la nueva tasa
+          updateFromCLP(envio.montoCLP);
+        } else {
+          input.classList.remove('valid');
+          input.classList.add('invalid');
+          resultEl.className = 'promo-result error';
+          resultEl.textContent = data.mensaje || 'Código no válido';
+          
+          codigoPromoAplicado = null;
+          usandoTasaPromo = false;
+        }
+      } catch (error) {
+        console.error('Error validando código:', error);
+        input.classList.add('invalid');
+        resultEl.className = 'promo-result error';
+        resultEl.textContent = 'Error al validar el código';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Aplicar';
+      }
+    }
+
+    function quitarCodigoPromo() {
+      const input = document.getElementById('codigoPromo');
+      const resultEl = document.getElementById('promoResult');
+      const btn = document.getElementById('btnAplicarCodigo');
+      
+      input.value = '';
+      input.disabled = false;
+      input.classList.remove('valid', 'invalid');
+      btn.style.display = 'block';
+      resultEl.className = 'promo-result';
+      resultEl.textContent = '';
+      
+      codigoPromoAplicado = null;
+      usandoTasaPromo = false;
+      
+      updateFromCLP(envio.montoCLP);
+    }
+
+    function updateFromCLP(value = 0) {
+      const clp = Math.max(0, Math.trunc(value || 0));
+      envio.montoCLP = clp;
+      const tasaActual = obtenerTasaPorMonto(clp);
+      const ves = Math.max(0, Math.trunc(clp * tasaActual));
+      envio.montoVES = ves;
+      setCLPInputValue(clp);
+      setVESInputValue(ves);
+      actualizarTasaDisplay();
+    }
+
+    function updateFromVES(value = 0, ctx = {}) {
+      const ves = Math.max(0, Math.trunc(value || 0));
+      const baseTasa = tramos.length > 0 ? tramos[0].tasa : tasa;
+      if (!baseTasa) return;
+      const clpEstimado = Math.max(0, Math.trunc(ves / baseTasa));
+      const tasaActual = obtenerTasaPorMonto(clpEstimado);
+      const vesCalculado = Math.max(0, Math.trunc(clpEstimado * tasaActual));
+      envio.montoCLP = clpEstimado;
+      envio.montoVES = ctx.source === 'input' ? ves : vesCalculado;
+      setCLPInputValue(clpEstimado);
+      setVESInputValue(ctx.source === 'input' ? ves : vesCalculado);
+      actualizarTasaDisplay();
+    }
+
+    function selectMethod(m) {
+      envio.metodo = m;
+      document.querySelectorAll('.method-card').forEach(el => el.classList.toggle('active', el.dataset.method === m));
+    }
+
+    function renderizarDestinatariosEnvio() {
+      const container = document.getElementById('recipientListSelect');
+      if (!container) return;
+      const search = (document.getElementById('searchRecipient')?.value || '').toLowerCase();
+      let filtrados = destinatarios || [];
+      if (search) filtrados = filtrados.filter(d =>
+        (d.nombre_completo || '').toLowerCase().includes(search) ||
+        (d.alias || '').toLowerCase().includes(search)
+      );
+      if (filtrados.length === 0) {
+        container.innerHTML = `<div class="add-recipient" onclick="agregarNuevoDestinatario()">No tienes destinatarios guardados. Agrega uno nuevo.</div>`;
+        return;
+      }
+      container.innerHTML = filtrados.map(d => {
+        const active = envio.destinatario?.id === d.id;
+        return `<div class="recipient-card ${active ? 'active' : ''}" onclick="selectDestinatario(${d.id})">
+          <div class="avatar">${getInitials(d.nombre_completo || '')}</div>
+          <div>
+            <div style="font-weight:700;">${d.nombre_completo || ''} ${d.alias ? `<span style='color: var(--muted)' >(${d.alias})</span>` : ''}</div>
+            <div style="color: var(--muted); font-size:12px;">${d.banco || ''}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function getInitials(nombre) {
+      return (nombre || '').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0,2).toUpperCase() || 'D';
+    }
+
+    function filtrarDestinatariosEnvio() { renderizarDestinatariosEnvio(); }
+
+    function selectDestinatario(id) {
+      envio.destinatario = (destinatarios || []).find(d => d.id === id) || null;
+      renderizarDestinatariosEnvio();
+    }
+
+    function agregarNuevoDestinatario() {
+      sessionStorage.setItem('selectRecipientReturn', 'enviar.html');
+      window.location.href = 'destinatario-form.html';
+    }
+
+    function checkPreselection() {
+      const selectedId = sessionStorage.getItem('selectedRecipientId');
+      if (selectedId) {
+        envio.destinatario = (destinatarios || []).find(d => d.id == selectedId) || null;
+        sessionStorage.removeItem('selectedRecipientId');
+      }
+    }
+
+    function updateProgressUI() {
+      const steps = document.querySelectorAll('.progress .step');
+      steps.forEach((s, idx) => {
+        s.classList.remove('active','done');
+        if (idx + 1 < currentStep) s.classList.add('done');
+        if (idx + 1 === currentStep) s.classList.add('active');
+      });
+    }
+
+    function showStep(step) {
+      ['step1','step2','step3','step4','step5','step6'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      const target = document.getElementById(`step${step}`);
+      if (target) target.style.display = 'block';
+      currentStep = step;
+      updateProgressUI();
+      updateFooter();
+      if (step === 5) prepararDatosPago();
+    }
+
+    function updateFooter() {
+      const footer = document.getElementById('footer');
+      if (!footer) return;
+      if (currentStep === 6) {
+        footer.innerHTML = `<div style="display:grid; gap:10px;"><button class='btn-secondary' onclick="window.location.href='home.html'">Ir al inicio</button><button class='btn-primary' onclick="verHistorial()">Ver historial</button></div>`;
+        return;
+      }
+      const label = currentStep === 5 ? 'Ya realice el pago' : currentStep === 4 ? 'Confirmar envio' : 'Continuar';
+      footer.innerHTML = `<button class='btn-primary' id='btnNext' onclick='nextStep()'>${label}</button>`;
+    }
+
+    function goBack() {
+      if (currentStep === 1 || currentStep === 6) {
+        window.location.href = 'home.html';
+        return;
+      }
+      document.getElementById('complianceModal').style.display = 'none';
+      showStep(Math.max(1, currentStep - 1));
+    }
+
+    function nextStep() {
+      if (currentStep === 1) {
+        if (!envio.montoCLP || envio.montoCLP < 5000) { alert('El monto mínimo es $5.000 CLP'); return; }
+        if (envio.montoCLP > 2000000) { alert('El monto máximo por envío es $2.000.000 CLP'); return; }
+      }
+      if (currentStep === 3 && !envio.destinatario) { alert('Selecciona un destinatario'); return; }
+      if (currentStep === 3) prepararResumen();
+      if (currentStep === 4) { document.getElementById('complianceModal').style.display = 'flex'; return; }
+      if (currentStep === 5) { crearSolicitud(); return; }
+      if (currentStep < 6) showStep(currentStep + 1);
+    }
+
+    function prepararResumen() {
+      const tasaActual = obtenerTasaPorMonto(envio.montoCLP);
+      const envia = envio.montoCLP || 0;
+      const recibe = envio.montoVES || 0;
+      document.getElementById('resumenEnvias').textContent = `$${fmtCLP.format(envia)} CLP`;
+      document.getElementById('resumenDestinatario').textContent = envio.destinatario?.alias || envio.destinatario?.nombre_completo || '-';
+      document.getElementById('resumenMetodo').textContent = envio.metodo === 'pago_movil' ? 'Pago movil' : 'Transferencia';
+      document.getElementById('resumenBanco').textContent = envio.destinatario?.banco || '-';
+      document.getElementById('resumenTasa').textContent = `1 CLP = ${tasaActual.toFixed(4)} VES`;
+      document.getElementById('resumenRecibe').textContent = `Bs. ${fmtVES.format(recibe)}`;
+    }
+
+    function confirmarCuentaPropia() {
+      document.getElementById('complianceModal').style.display = 'none';
+      showStep(5);
+    }
+
+    function mostrarNoEsMiCuenta() {
+      document.getElementById('noEsMiCuentaSection').style.display = 'block';
+    }
+
+    function volverVerificacion() {
+      document.getElementById('noEsMiCuentaSection').style.display = 'none';
+    }
+
+    function cancelarPorCuenta() {
+      const motivo = document.getElementById('motivoNoCuenta').value;
+      const detalle = document.getElementById('detalleNoCuenta').value;
+      console.log('Operacion cancelada - Motivo:', motivo, 'Detalle:', detalle);
+      alert('Tu operacion ha sido cancelada. Si necesitas ayuda, contactanos en Soporte.');
+      document.getElementById('complianceModal').style.display = 'none';
+      window.location.href = 'home.html';
+    }
+
+    function prepararDatosPago() {
+      const montoLabel = document.getElementById('paymentMonto');
+      if (montoLabel) montoLabel.textContent = `$${fmtCLP.format(envio.montoCLP || 0)} CLP`;
+      startTimer();
+    }
+
+    function startTimer() {
+      let minutes = 30, seconds = 0;
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (seconds === 0) {
+          if (minutes === 0) {
+            clearInterval(timerInterval);
+            alert('El tiempo ha expirado. Por favor, inicia una nueva solicitud.');
+            window.location.href = 'home.html';
+            return;
+          }
+          minutes--; seconds = 59;
+        } else { seconds--; }
+        document.getElementById('timerValue').textContent = `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+      }, 1000);
+    }
+
+    function copiar(id) {
+      const txt = document.getElementById(id).textContent;
+      navigator.clipboard.writeText(txt).then(() => {
+        const btn = event.target;
+        const prev = btn.textContent;
+        btn.textContent = 'Copiado';
+        setTimeout(() => btn.textContent = prev, 1600);
+      });
+    }
+
+    async function crearSolicitud() {
+      // Verificar que el usuario puede enviar (si tiene envíos previos, debe estar verificado)
+      if (totalEnviosCompletados > 0 && verificacionEstado !== 'verificado') {
+        mostrarRequiereVerificacion();
+        return;
+      }
+
+      if (timerInterval) clearInterval(timerInterval);
+      const token = localStorage.getItem('clienteToken');
+      const tasaAplicada = obtenerTasaPorMonto(envio.montoCLP);
+      const solicitud = {
+        beneficiario_id: envio.destinatario?.id,
+        monto_origen: envio.montoCLP,
+        moneda_origen: 'CLP',
+        monto_destino: envio.montoVES,
+        moneda_destino: 'VES',
+        tasa_aplicada: tasaAplicada,
+        metodo_entrega: envio.metodo,
+        codigo_promo: codigoPromoAplicado?.codigo || null
+      };
+      try {
+        const r = await fetch(`${API_BASE}/api/cliente/solicitudes`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(solicitud)
+        });
+        if (r.ok) {
+          const data = await r.json();
+          
+          // Registrar uso del código promocional si se aplicó
+          if (codigoPromoAplicado && data.solicitud_id) {
+            try {
+              await fetch(`${API_BASE}/api/cliente/usar-codigo`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  codigo_id: codigoPromoAplicado.codigo_id, 
+                  solicitud_id: data.solicitud_id 
+                })
+              });
+            } catch (e) { console.error('Error registrando uso de código:', e); }
+          }
+          
+          mostrarTracking(data);
+        } else { mostrarTrackingDemo(); }
+      } catch { mostrarTrackingDemo(); }
+    }
+
+    function mostrarTracking(data) {
+      const codigo = data?.solicitud_id ? `CASH-${data.solicitud_id}` : (data?.codigo || ('CASH-' + Date.now()));
+      document.getElementById('trackingCode').textContent = codigo;
+      document.getElementById('timeCreated').textContent = new Date().toLocaleString('es-CL');
+      showStep(6);
+      
+      // Mostrar aviso si fue enviado fuera de horario
+      if (fueraDeHorario) {
+        mostrarAvisoProcesamientoDiferido();
+      }
+      
+      // Iniciar temporizador de 20 minutos para la barra de progreso
+      iniciarTemporizadorETA();
+      
+      // Iniciar polling para actualizar estado
+      if (data?.solicitud_id) {
+        iniciarPollingEstado(data.solicitud_id);
+      }
+    }
+    
+    // Muestra aviso de procesamiento diferido cuando se envía fuera de horario
+    function mostrarAvisoProcesamientoDiferido() {
+      const info = obtenerInfoHorario();
+      const trackingCard = document.querySelector('.tracking-card, .step-content');
+      
+      if (!trackingCard) return;
+      
+      const avisoHtml = `
+        <div id="avisoDiferido" style="
+          background: ${info.tipo === 'noche' ? 'linear-gradient(135deg, #1e3a5f, #2d5a87)' : 'linear-gradient(135deg, #f59e0b, #d97706)'};
+          color: white;
+          padding: 18px 20px;
+          border-radius: 16px;
+          margin-top: 20px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        ">
+          <div style="font-size: 36px; line-height: 1;">${info.icono}</div>
+          <div style="flex: 1;">
+            <div style="font-weight: 700; font-size: 15px; margin-bottom: 4px;">📋 Pedido recibido correctamente</div>
+            <div style="font-size: 14px; opacity: 0.95;">${info.mensaje}</div>
+            <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">Te notificaremos cuando sea procesado</div>
+          </div>
+        </div>
+      `;
+      
+      trackingCard.insertAdjacentHTML('beforeend', avisoHtml);
+    }
+    
+    // Temporizador visual de ETA (20 minutos)
+    let etaTimerInterval = null;
+    const ETA_DURATION = 20 * 60 * 1000; // 20 minutos en ms
+    
+    function iniciarTemporizadorETA() {
+      const progressBar = document.getElementById('etaProgressBar');
+      const etaBanner = document.getElementById('etaBanner');
+      const startTime = Date.now();
+      
+      if (etaTimerInterval) clearInterval(etaTimerInterval);
+      
+      etaTimerInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, ETA_DURATION - elapsed);
+        const percentage = (remaining / ETA_DURATION) * 100;
+        
+        progressBar.style.width = percentage + '%';
+        
+        // Si llega a 0, detener el timer
+        if (remaining <= 0) {
+          clearInterval(etaTimerInterval);
+          progressBar.style.width = '0%';
+        }
+      }, 1000);
+    }
+    
+    function completarETA() {
+      const etaBanner = document.getElementById('etaBanner');
+      const etaTitle = etaBanner.querySelector('.eta-title');
+      const etaTime = etaBanner.querySelector('.eta-time');
+      const progressBar = document.getElementById('etaProgressBar');
+      
+      if (etaTimerInterval) clearInterval(etaTimerInterval);
+      
+      etaBanner.classList.add('completed');
+      etaTitle.textContent = '¡Listo!';
+      etaTime.textContent = 'Pedido entregado ✓';
+      progressBar.style.width = '100%';
+    }
+    
+    function ocultarETA() {
+      const etaBanner = document.getElementById('etaBanner');
+      if (etaTimerInterval) clearInterval(etaTimerInterval);
+      etaBanner.style.display = 'none';
+    }
+
+    function mostrarTrackingDemo() {
+      document.getElementById('trackingCode').textContent = 'CASH-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+      document.getElementById('timeCreated').textContent = new Date().toLocaleString('es-CL');
+      showStep(6);
+    }
+    
+    // Polling para actualizar estado en tiempo real
+    let pollingInterval = null;
+    function iniciarPollingEstado(solicitudId) {
+      if (pollingInterval) clearInterval(pollingInterval);
+      
+      pollingInterval = setInterval(async () => {
+        try {
+          const token = localStorage.getItem('clienteToken');
+          const r = await fetch(`${API_BASE}/api/cliente/solicitudes/${solicitudId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (r.ok) {
+            const sol = await r.json();
+            actualizarTimeline(sol.estado);
+            
+            // Detener polling si está completada o cancelada
+            if (sol.estado === 'completada' || sol.estado === 'cancelada') {
+              clearInterval(pollingInterval);
+            }
+          }
+        } catch(e) { console.log('Error polling:', e); }
+      }, 5000); // Cada 5 segundos
+    }
+    
+    function actualizarTimeline(estado) {
+      const proceso = document.getElementById('timelineProceso');
+      const entregado = document.getElementById('timelineEntregado');
+      const titleEntregado = document.getElementById('titleEntregado');
+      const timeProceso = document.getElementById('timeProceso');
+      const timeEntregado = document.getElementById('timeEntregado');
+      
+      if (estado === 'procesando') {
+        proceso.classList.add('active');
+        proceso.querySelector('.dot').textContent = '🔄';
+        timeProceso.textContent = 'En proceso';
+      } else if (estado === 'completada') {
+        proceso.classList.remove('active');
+        proceso.classList.add('done');
+        proceso.querySelector('.dot').textContent = '✅';
+        timeProceso.textContent = 'Completado';
+        
+        entregado.classList.add('done');
+        entregado.querySelector('.dot').textContent = '✅';
+        titleEntregado.textContent = 'Dinero entregado';
+        timeEntregado.textContent = new Date().toLocaleString('es-CL');
+        
+        // Marcar ETA como completado
+        completarETA();
+      } else if (estado === 'cancelada') {
+        proceso.classList.remove('active');
+        entregado.classList.add('cancelled');
+        entregado.querySelector('.dot').textContent = '❌';
+        titleEntregado.textContent = 'Solicitud cancelada';
+        timeEntregado.textContent = new Date().toLocaleString('es-CL');
+        entregado.style.color = '#e74c3c';
+        
+        // Ocultar ETA si se cancela
+        ocultarETA();
+      }
+    }
+
+    function verHistorial() { window.location.href = 'historico.html'; }
+  </script>
+</body>
+</html>
