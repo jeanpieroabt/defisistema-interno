@@ -118,34 +118,38 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(255, 255, 255, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.6);
+            background: transparent;
+            border: none;
             border-radius: var(--radius-xl);
-            padding: 20px var(--space-xl);
-            box-shadow: var(--shadow-soft);
-            backdrop-filter: blur(12px);
+            padding: 0;
+            box-shadow: none;
+            backdrop-filter: none;
+            overflow: hidden;
         }
 
         .brand-banner-logo {
             display: flex;
             align-items: center;
             justify-content: center;
-            filter: drop-shadow(0 4px 12px rgba(25, 116, 206, 0.25)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+            width: 100%;
         }
 
         .brand-banner-logo img {
-            height: 55px;
-            width: auto;
+            width: 100%;
+            height: auto;
+            max-height: 120px;
+            object-fit: cover;
+            border-radius: var(--radius-xl);
             display: block;
         }
 
         @media (max-width: 420px) {
             .brand-banner {
-                padding: 16px;
+                padding: 0;
             }
 
             .brand-banner-logo img {
-                height: 48px;
+                max-height: 100px;
             }
         }
 
@@ -793,7 +797,7 @@
                 <!-- Brand Banner -->
                 <div class="brand-banner animate-in">
                     <div class="brand-banner-logo">
-                        <img src="./assets/letra%202Recurso%2015@2x.png" alt="DefiOracle logo">
+                        <img src="./assets/banerreferido.png" alt="Gana 10.000 CLP por cada invitado - DefiOracle">
                     </div>
                 </div>
 

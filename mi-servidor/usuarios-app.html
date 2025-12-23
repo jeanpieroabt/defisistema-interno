@@ -621,6 +621,165 @@
         max-height: calc(100vh - 2rem);
       }
     }
+
+    /* Tabs de navegación */
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      background: white;
+      padding: 0.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .nav-tab {
+      flex: 1;
+      padding: 1rem 1.5rem;
+      border: none;
+      background: transparent;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #6b7280;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .nav-tab:hover {
+      background: #f3f4f6;
+    }
+
+    .nav-tab.active {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+    }
+
+    .nav-tab .badge {
+      background: rgba(255,255,255,0.2);
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+    }
+
+    .nav-tab.active .badge {
+      background: rgba(255,255,255,0.3);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Estilos para bonos */
+    .bonos-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .bonos-table th,
+    .bonos-table td {
+      padding: 1rem 1.5rem;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .bonos-table th {
+      background: #f8fafc;
+      font-weight: 700;
+      color: #374151;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .bono-estado {
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .bono-estado.pendiente { background: #e5e7eb; color: #6b7280; }
+    .bono-estado.completado { background: #dcfce7; color: #16a34a; }
+    .bono-estado.reclamado { background: #fef3c7; color: #d97706; }
+    .bono-estado.pagado { background: #dbeafe; color: #2563eb; }
+    .bono-estado.expirado { background: #f3f4f6; color: #9ca3af; }
+    .bono-estado.cancelado { background: #fee2e2; color: #dc2626; }
+
+    .btn-aprobar {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+      margin-right: 0.5rem;
+    }
+
+    .btn-aprobar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16,185,129,0.4);
+    }
+
+    .btn-rechazar {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .btn-rechazar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(239,68,68,0.4);
+    }
+
+    .bonos-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .bono-stat-card {
+      background: white;
+      padding: 1rem;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .bono-stat-card .value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 0;
+    }
+
+    .bono-stat-card .label {
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-transform: uppercase;
+    }
+
+    .bono-stat-card.reclamados .value { color: #d97706; }
+    .bono-stat-card.completados .value { color: #16a34a; }
+    .bono-stat-card.pagados .value { color: #2563eb; }
   </style>
 </head>
 <body>
@@ -632,8 +791,20 @@
       </a>
     </div>
 
-    <!-- Estadísticas -->
-    <div class="stats-grid">
+    <!-- Tabs de navegación -->
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="cambiarTab('usuarios')">
+        👥 Usuarios
+      </button>
+      <button class="nav-tab" onclick="cambiarTab('bonos')" id="tabBonos">
+        🎁 Bonos de Referidos <span class="badge" id="bonosPendientesBadge">0</span>
+      </button>
+    </div>
+
+    <!-- TAB: Usuarios -->
+    <div class="tab-content active" id="tabUsuarios">
+      <!-- Estadísticas -->
+      <div class="stats-grid">
       <div class="stat-card">
         <div class="icon">👥</div>
         <p class="value" id="totalUsers">-</p>
@@ -681,6 +852,52 @@
 
       <div class="pagination" id="pagination"></div>
     </div>
+    </div>
+    <!-- FIN TAB Usuarios -->
+
+    <!-- TAB: Bonos de Referidos -->
+    <div class="tab-content" id="tabBonosContent">
+      <div class="bonos-stats" id="bonosStats">
+        <div class="bono-stat-card reclamados">
+          <p class="value" id="bonosReclamados">0</p>
+          <div class="label">Por Revisar</div>
+        </div>
+        <div class="bono-stat-card completados">
+          <p class="value" id="bonosCompletados">0</p>
+          <div class="label">Completados</div>
+        </div>
+        <div class="bono-stat-card pagados">
+          <p class="value" id="bonosPagados">0</p>
+          <div class="label">Pagados</div>
+        </div>
+      </div>
+
+      <div class="main-panel">
+        <div class="panel-header">
+          <h2>🎁 Gestión de Bonos</h2>
+          <div class="filters">
+            <select class="filter-select" id="bonoEstadoFilter" onchange="cargarBonos()">
+              <option value="">Todos los estados</option>
+              <option value="reclamado">🔔 Por Revisar</option>
+              <option value="completado">✅ Completados</option>
+              <option value="pagado">💳 Pagados</option>
+              <option value="pendiente">⏳ En Progreso</option>
+              <option value="expirado">⌛ Expirados</option>
+              <option value="cancelado">❌ Cancelados</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="bonosTableContainer">
+          <div class="loading">
+            <div class="loading-spinner"></div>
+            <p>Cargando bonos...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- FIN TAB Bonos -->
+
   </div>
 
   <!-- Modal de detalle -->
@@ -1112,6 +1329,206 @@
     document.getElementById('userModal').addEventListener('click', (e) => {
       if (e.target.classList.contains('modal-overlay')) closeModal();
     });
+
+    // =============================================
+    // FUNCIONES DE BONOS DE REFERIDOS
+    // =============================================
+
+    function cambiarTab(tab) {
+      // Actualizar tabs
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      if (tab === 'usuarios') {
+        document.querySelector('.nav-tab:first-child').classList.add('active');
+        document.getElementById('tabUsuarios').classList.add('active');
+      } else {
+        document.getElementById('tabBonos').classList.add('active');
+        document.getElementById('tabBonosContent').classList.add('active');
+        cargarBonos();
+      }
+    }
+
+    async function cargarBonos() {
+      const container = document.getElementById('bonosTableContainer');
+      const estado = document.getElementById('bonoEstadoFilter').value;
+      
+      container.innerHTML = `
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          <p>Cargando bonos...</p>
+        </div>
+      `;
+
+      try {
+        const url = estado ? `/api/bonos-referidos?estado=${estado}` : '/api/bonos-referidos';
+        const res = await fetch(url);
+        const data = await res.json();
+
+        // Actualizar estadísticas
+        if (data.estadisticas) {
+          document.getElementById('bonosReclamados').textContent = (data.estadisticas.reclamados || 0) + (data.estadisticas.completados || 0);
+          document.getElementById('bonosCompletados').textContent = data.estadisticas.completados || 0;
+          document.getElementById('bonosPagados').textContent = data.estadisticas.pagados || 0;
+          document.getElementById('bonosPendientesBadge').textContent = data.estadisticas.reclamados || 0;
+        }
+
+        if (!data.bonos || data.bonos.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="icon">🎁</div>
+              <h3>No hay bonos</h3>
+              <p>No se encontraron bonos con los filtros seleccionados</p>
+            </div>
+          `;
+          return;
+        }
+
+        const estadoTexto = {
+          'pendiente': '⏳ En Progreso',
+          'completado': '✅ Completado',
+          'reclamado': '🔔 Por Revisar',
+          'pagado': '💳 Pagado',
+          'expirado': '⌛ Expirado',
+          'cancelado': '❌ Cancelado'
+        };
+
+        container.innerHTML = `
+          <table class="bonos-table">
+            <thead>
+              <tr>
+                <th>Referidor</th>
+                <th>Referido</th>
+                <th>Progreso</th>
+                <th>Monto Bono</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.bonos.map(bono => `
+                <tr>
+                  <td>
+                    <div class="user-info-cell">
+                      <span class="user-name">${escapeHtml(bono.referidor_nombre)}</span>
+                      <span class="user-email">${escapeHtml(bono.referidor_email)}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="user-info-cell">
+                      <span class="user-name">${escapeHtml(bono.referido_nombre)}</span>
+                      <span class="user-email">${escapeHtml(bono.referido_email)}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <div style="flex: 1; background: #e5e7eb; height: 8px; border-radius: 4px; overflow: hidden;">
+                        <div style="width: ${Math.min(100, ((bono.monto_acumulado || 0) / (bono.meta_monto || 100000)) * 100)}%; height: 100%; background: linear-gradient(90deg, #10b981, #2D8CDB);"></div>
+                      </div>
+                      <span style="font-size: 0.8rem; color: #6b7280;">${Math.round(((bono.monto_acumulado || 0) / (bono.meta_monto || 100000)) * 100)}%</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.25rem;">
+                      $${formatMoney(bono.monto_acumulado || 0)} / $${formatMoney(bono.meta_monto || 100000)}
+                    </div>
+                  </td>
+                  <td style="font-weight: 700; color: #10b981;">$${formatMoney(bono.bono_monto || 10000)}</td>
+                  <td><span class="bono-estado ${bono.estado}">${estadoTexto[bono.estado] || bono.estado}</span></td>
+                  <td>
+                    ${(bono.estado === 'completado' || bono.estado === 'reclamado') ? `
+                      <button class="btn-aprobar" onclick="aprobarBono(${bono.id}, '${escapeHtml(bono.referidor_nombre)}')">
+                        ✅ Aprobar
+                      </button>
+                      <button class="btn-rechazar" onclick="rechazarBono(${bono.id}, '${escapeHtml(bono.referidor_nombre)}')">
+                        ❌ Rechazar
+                      </button>
+                    ` : bono.estado === 'pagado' && bono.codigo_cupon ? `
+                      <span style="font-family: monospace; background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">
+                        ${bono.codigo_cupon}
+                      </span>
+                    ` : '-'}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (error) {
+        console.error('Error cargando bonos:', error);
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">⚠️</div>
+            <h3>Error</h3>
+            <p>No se pudieron cargar los bonos</p>
+          </div>
+        `;
+      }
+    }
+
+    async function aprobarBono(bonoId, referidorNombre) {
+      if (!confirm(`¿Aprobar el bono de ${referidorNombre}?\n\nSe generará un cupón de $10.000 CLP automáticamente.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/bonos-referidos/${bonoId}/aprobar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          alert(`✅ Bono aprobado!\n\nCupón generado: ${data.codigo_cupon}\nMonto: $${formatMoney(data.monto)} CLP`);
+          cargarBonos();
+        } else {
+          alert('Error: ' + (data.error || 'No se pudo aprobar el bono'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
+      }
+    }
+
+    async function rechazarBono(bonoId, referidorNombre) {
+      const motivo = prompt(`¿Por qué deseas rechazar el bono de ${referidorNombre}?\n\n(Este motivo quedará registrado)`, 'Cancelado por motivos internos');
+      
+      if (motivo === null) return; // Canceló el prompt
+
+      try {
+        const res = await fetch(`/api/bonos-referidos/${bonoId}/rechazar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ motivo })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          alert('❌ Bono rechazado correctamente');
+          cargarBonos();
+        } else {
+          alert('Error: ' + (data.error || 'No se pudo rechazar el bono'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
+      }
+    }
+
+    // Cargar badge de bonos pendientes al inicio
+    async function cargarBadgeBonos() {
+      try {
+        const res = await fetch('/api/bonos-referidos?estado=reclamado');
+        const data = await res.json();
+        const count = data.estadisticas?.reclamados || 0;
+        document.getElementById('bonosPendientesBadge').textContent = count;
+      } catch (e) {
+        console.error('Error cargando badge:', e);
+      }
+    }
+
+    // Ejecutar al cargar
+    cargarBadgeBonos();
   </script>
 </body>
 </html>

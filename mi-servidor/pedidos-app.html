@@ -939,7 +939,13 @@
         <div class="modal-section">
           <h4>💰 Datos de la Operación</h4>
           <div class="modal-grid">
-            ${campo('Monto origen', `$${fmtMonto(s.monto_origen)} ${s.moneda_origen || ''}`)}
+            ${s.cupon_descuento_clp > 0 ? `
+              ${campo('Monto pagado', `$${fmtMonto(s.monto_sin_cupon || s.monto_origen)} CLP`)}
+              ${campo('Bono/Cupón', `<span style="color: #10b981; font-weight: 700;">+$${fmtMonto(s.cupon_descuento_clp)} CLP</span><br><small style="color: #6b7280;">${s.cupon_codigo || 'Cupón'}</small>`, false)}
+              ${campo('Total efectivo', `<span style="color: #2563eb; font-weight: 700;">$${fmtMonto((s.monto_sin_cupon || s.monto_origen) + s.cupon_descuento_clp)} CLP</span>`, false)}
+            ` : `
+              ${campo('Monto origen', `$${fmtMonto(s.monto_origen)} ${s.moneda_origen || ''}`)}
+            `}
             ${campo('Monto destino', `${fmtMonto(s.monto_destino)} ${s.moneda_destino || ''}`)}
             ${campo('Tasa aplicada', s.tasa_aplicada)}
             ${campo('Notas cliente', s.notas_cliente || '—', false)}

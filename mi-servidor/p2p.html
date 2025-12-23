@@ -708,8 +708,8 @@
                        paisSeleccionado === 'BOB' ? data.tasa_base_clp_bob :
                        data.tasa_base_clp_ars;
       
-      // Determinar decimales según país (PEN usa 6, otros 4)
-      const decimales = paisSeleccionado === 'PEN' ? 6 : 4;
+      // Determinar decimales según país (PEN usa 6, BOB usa 5, otros 4)
+      const decimales = paisSeleccionado === 'PEN' ? 6 : paisSeleccionado === 'BOB' ? 5 : 4;
       
       content.innerHTML = `
         <div class="cards-grid" id="tasasBaseSection">

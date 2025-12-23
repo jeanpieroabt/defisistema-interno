@@ -328,11 +328,19 @@ async function manejarCallbackTelegram(callback) {
         }
         // Manejar completar
         else if (accion === 'completar') {
+            // Obtener datos de la solicitud antes de completar
+            const solicitud = await dbGet('SELECT cliente_app_id, monto_origen FROM solicitudes_transferencia WHERE id = ?', [solicitudId]);
+            
             await dbRun(
                 `UPDATE solicitudes_transferencia SET estado = 'completada', fecha_completada = ? WHERE id = ?`,
                 [fechaActual, solicitudId]
             );
             pedidosTomados.delete(solicitudId);
+            
+            // Actualizar progreso de referido si aplica
+            if (solicitud && solicitud.cliente_app_id && solicitud.monto_origen) {
+                await actualizarProgresoReferido(solicitud.cliente_app_id, solicitud.monto_origen);
+            }
             
             const textoCompletado = mensaje.text.split('\n\n✅ TOMADO')[0] + 
                 `\n\n🎉 COMPLETADO POR: ${operador}\n⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`;
@@ -908,6 +916,12 @@ const runMigrations = async () => {
         FOREIGN KEY (creado_por) REFERENCES usuarios(id)
     )`);
     console.log('Tabla codigos_promocionales verificada');
+    
+    // Agregar columnas para descuento en CLP
+    await dbRun(`ALTER TABLE codigos_promocionales ADD COLUMN tipo_descuento TEXT DEFAULT 'tasa'`).catch(() => {});
+    await dbRun(`ALTER TABLE codigos_promocionales ADD COLUMN monto_descuento_clp REAL DEFAULT 0`).catch(() => {});
+    await dbRun(`ALTER TABLE codigos_promocionales ADD COLUMN cliente_exclusivo_id INTEGER`).catch(() => {});
+    await dbRun(`ALTER TABLE codigos_promocionales ADD COLUMN bono_referido_id INTEGER`).catch(() => {});
 
     // Tabla de uso de codigos promocionales
     await dbRun(`CREATE TABLE IF NOT EXISTS uso_codigos_promocionales (
@@ -933,7 +947,55 @@ const runMigrations = async () => {
     // Agregar columnas para tracking de tiempo en pedidos
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN fecha_tomado TEXT`).catch(() => {});
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN tomado_por_nombre TEXT`).catch(() => {});
+    // Agregar columnas para cupones/bonos
+    await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN cupon_codigo TEXT`).catch(() => {});
+    await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN cupon_descuento_clp REAL DEFAULT 0`).catch(() => {});
+    await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN monto_sin_cupon REAL`).catch(() => {});
     console.log('... Columnas de tracking de pedidos verificadas');
+
+    // =================================================================
+    // SISTEMA DE REFERIDOS
+    // =================================================================
+    
+    // Agregar columna codigo_referido a clientes_app (codigo unico del usuario para referir)
+    await dbRun(`ALTER TABLE clientes_app ADD COLUMN codigo_referido TEXT`).catch(() => {});
+    // Agregar columna referido_por (id del usuario que lo refirio)
+    await dbRun(`ALTER TABLE clientes_app ADD COLUMN referido_por INTEGER`).catch(() => {});
+    // Agregar columna fecha_referido
+    await dbRun(`ALTER TABLE clientes_app ADD COLUMN fecha_referido TEXT`).catch(() => {});
+    
+    // Tabla de referidos y bonos
+    await dbRun(`CREATE TABLE IF NOT EXISTS referidos_bonos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        referidor_id INTEGER NOT NULL,
+        referido_id INTEGER NOT NULL,
+        monto_acumulado REAL DEFAULT 0,
+        meta_monto REAL DEFAULT 100000,
+        dias_limite INTEGER DEFAULT 45,
+        fecha_inicio TEXT NOT NULL,
+        fecha_limite TEXT NOT NULL,
+        bono_monto REAL DEFAULT 10000,
+        estado TEXT DEFAULT 'pendiente' CHECK(estado IN ('pendiente', 'completado', 'reclamado', 'pagado', 'expirado', 'cancelado')),
+        fecha_completado TEXT,
+        fecha_reclamado TEXT,
+        fecha_pagado TEXT,
+        codigo_cupon TEXT,
+        notas TEXT,
+        FOREIGN KEY (referidor_id) REFERENCES clientes_app(id),
+        FOREIGN KEY (referido_id) REFERENCES clientes_app(id),
+        UNIQUE(referidor_id, referido_id)
+    )`);
+    console.log('... Tabla referidos_bonos verificada');
+    
+    // Agregar columnas adicionales si no existen
+    await dbRun(`ALTER TABLE referidos_bonos ADD COLUMN fecha_reclamado TEXT`).catch(() => {});
+    await dbRun(`ALTER TABLE referidos_bonos ADD COLUMN codigo_cupon TEXT`).catch(() => {});
+    
+    // Indices para busquedas rapidas de referidos
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_referidos_referidor ON referidos_bonos(referidor_id)`).catch(() => {});
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_referidos_estado ON referidos_bonos(estado)`).catch(() => {});
+    await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_codigo_referido ON clientes_app(codigo_referido) WHERE codigo_referido IS NOT NULL`).catch(() => {});
+    console.log('... Indices de referidos verificados');
 
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
@@ -6318,6 +6380,31 @@ function iniciarMonitoreoProactivo() {
     setTimeout(generarTareasAutomaticas, 10000); // Primera ejecución 10 segundos después del inicio
     intervaloGeneracionTareas = setInterval(generarTareasAutomaticas, INTERVALO_GENERACION_TAREAS);
     console.log('"‹ Sistema de generación automática de tareas iniciado (cada 24 horas)');
+    
+    // Verificar bonos de referidos expirados cada 6 horas
+    setTimeout(verificarBonosExpirados, 30000);
+    setInterval(verificarBonosExpirados, 6 * 60 * 60 * 1000);
+    console.log('&#127873; Sistema de verificación de bonos de referidos iniciado (cada 6 horas)');
+}
+
+// Funcion para verificar bonos de referidos expirados
+async function verificarBonosExpirados() {
+    try {
+        const ahora = new Date().toISOString();
+        
+        // Marcar como expirados los bonos que pasaron su fecha limite
+        const result = await dbRun(`
+            UPDATE referidos_bonos 
+            SET estado = 'expirado' 
+            WHERE estado = 'pendiente' AND fecha_limite < ?
+        `, [ahora]);
+        
+        if (result.changes > 0) {
+            console.log(`... ${result.changes} bonos de referidos marcados como expirados`);
+        }
+    } catch (error) {
+        console.error('Error verificando bonos expirados:', error);
+    }
 }
 
 // =================================================================
@@ -7329,6 +7416,305 @@ app.get('/api/cliente/estadisticas', clienteAuth, async (req, res) => {
 });
 
 // =================================================================
+// APP CLIENTE - SISTEMA DE REFERIDOS
+// =================================================================
+
+// Funcion para generar codigo de referido unico
+function generarCodigoReferido(nombre) {
+    const prefijo = nombre.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X');
+    const random = crypto.randomBytes(3).toString('hex').toUpperCase();
+    return `${prefijo}${random}`;
+}
+
+// GET /api/cliente/referidos/mi-codigo - Obtener o generar mi codigo de referido
+app.get('/api/cliente/referidos/mi-codigo', clienteAuth, async (req, res) => {
+    try {
+        const clienteId = req.clienteApp.id;
+        let cliente = await dbGet('SELECT codigo_referido, nombre FROM clientes_app WHERE id = ?', [clienteId]);
+        
+        // Si no tiene codigo, generarlo
+        if (!cliente.codigo_referido) {
+            let codigoUnico = false;
+            let intentos = 0;
+            let nuevoCodigo;
+            
+            while (!codigoUnico && intentos < 10) {
+                nuevoCodigo = generarCodigoReferido(cliente.nombre || 'USR');
+                const existe = await dbGet('SELECT id FROM clientes_app WHERE codigo_referido = ?', [nuevoCodigo]);
+                if (!existe) {
+                    codigoUnico = true;
+                }
+                intentos++;
+            }
+            
+            if (!codigoUnico) {
+                return res.status(500).json({ error: 'No se pudo generar codigo unico' });
+            }
+            
+            await dbRun('UPDATE clientes_app SET codigo_referido = ? WHERE id = ?', [nuevoCodigo, clienteId]);
+            cliente.codigo_referido = nuevoCodigo;
+        }
+        
+        res.json({
+            codigo: cliente.codigo_referido,
+            link: `https://defioracle.com/registro?ref=${cliente.codigo_referido}`
+        });
+    } catch (error) {
+        console.error('Error obteniendo codigo referido:', error);
+        res.status(500).json({ error: 'Error al obtener codigo de referido' });
+    }
+});
+
+// POST /api/cliente/referidos/aplicar - Aplicar codigo de referido (usuario nuevo)
+app.post('/api/cliente/referidos/aplicar', clienteAuth, async (req, res) => {
+    try {
+        const { codigo } = req.body;
+        const clienteId = req.clienteApp.id;
+        
+        if (!codigo) {
+            return res.status(400).json({ error: 'Codigo de referido requerido' });
+        }
+        
+        // Verificar que el usuario no tenga ya un referidor
+        const cliente = await dbGet('SELECT referido_por, fecha_registro FROM clientes_app WHERE id = ?', [clienteId]);
+        if (cliente.referido_por) {
+            return res.status(400).json({ error: 'Ya tienes un codigo de referido aplicado' });
+        }
+        
+        // Buscar el referidor por codigo
+        const referidor = await dbGet('SELECT id, nombre FROM clientes_app WHERE codigo_referido = ? AND activo = 1', [codigo.toUpperCase()]);
+        if (!referidor) {
+            return res.status(404).json({ error: 'Codigo de referido no valido' });
+        }
+        
+        // No puede referirse a si mismo
+        if (referidor.id === clienteId) {
+            return res.status(400).json({ error: 'No puedes usar tu propio codigo' });
+        }
+        
+        const ahora = new Date().toISOString();
+        
+        // Calcular fecha limite (45 dias desde ahora)
+        const fechaLimite = new Date();
+        fechaLimite.setDate(fechaLimite.getDate() + 45);
+        
+        // Actualizar cliente con referidor
+        await dbRun('UPDATE clientes_app SET referido_por = ?, fecha_referido = ? WHERE id = ?', 
+            [referidor.id, ahora, clienteId]);
+        
+        // Crear registro de bono pendiente
+        await dbRun(`
+            INSERT INTO referidos_bonos (referidor_id, referido_id, fecha_inicio, fecha_limite)
+            VALUES (?, ?, ?, ?)
+        `, [referidor.id, clienteId, ahora, fechaLimite.toISOString()]);
+        
+        res.json({
+            success: true,
+            mensaje: `Codigo aplicado! Fuiste referido por ${referidor.nombre}`,
+            referidor: referidor.nombre
+        });
+    } catch (error) {
+        console.error('Error aplicando codigo referido:', error);
+        res.status(500).json({ error: 'Error al aplicar codigo de referido' });
+    }
+});
+
+// GET /api/cliente/referidos/mis-referidos - Ver mis referidos y estado de bonos
+app.get('/api/cliente/referidos/mis-referidos', clienteAuth, async (req, res) => {
+    try {
+        const clienteId = req.clienteApp.id;
+        
+        // Obtener todos mis referidos con su estado de bono y si el cupon fue usado
+        const referidos = await dbAll(`
+            SELECT 
+                c.id,
+                c.nombre,
+                c.email,
+                c.fecha_referido,
+                rb.id as bono_id,
+                rb.monto_acumulado,
+                rb.meta_monto,
+                rb.estado as estado_bono,
+                rb.fecha_limite,
+                rb.bono_monto,
+                rb.fecha_completado,
+                rb.fecha_pagado,
+                rb.codigo_cupon,
+                rb.notas,
+                (SELECT COUNT(*) FROM uso_codigos_promocionales ucp 
+                 JOIN codigos_promocionales cp ON cp.id = ucp.codigo_id 
+                 WHERE cp.codigo = rb.codigo_cupon) as cupon_usado
+            FROM clientes_app c
+            JOIN referidos_bonos rb ON rb.referido_id = c.id
+            WHERE rb.referidor_id = ?
+            ORDER BY c.fecha_referido DESC
+        `, [clienteId]);
+        
+        // Calcular estadisticas
+        const stats = {
+            total_referidos: referidos.length,
+            bonos_completados: referidos.filter(r => r.estado_bono === 'completado' || r.estado_bono === 'pagado').length,
+            bonos_pendientes: referidos.filter(r => r.estado_bono === 'pendiente').length,
+            bonos_expirados: referidos.filter(r => r.estado_bono === 'expirado').length,
+            total_ganado: referidos.filter(r => r.estado_bono === 'pagado').reduce((sum, r) => sum + (r.bono_monto || 0), 0),
+            total_por_cobrar: referidos.filter(r => r.estado_bono === 'completado' || r.estado_bono === 'reclamado').reduce((sum, r) => sum + (r.bono_monto || 0), 0)
+        };
+        
+        res.json({
+            referidos: referidos.map(r => ({
+                id: r.id,
+                bono_id: r.bono_id,
+                nombre: r.nombre,
+                fecha_referido: r.fecha_referido,
+                monto_acumulado: r.monto_acumulado || 0,
+                meta_monto: r.meta_monto || 100000,
+                progreso: Math.min(100, ((r.monto_acumulado || 0) / (r.meta_monto || 100000)) * 100).toFixed(1),
+                estado_bono: r.estado_bono,
+                fecha_limite: r.fecha_limite,
+                bono_monto: r.bono_monto || 10000,
+                fecha_completado: r.fecha_completado,
+                fecha_pagado: r.fecha_pagado,
+                codigo_cupon: r.codigo_cupon,
+                cupon_usado: r.cupon_usado > 0,
+                notas: r.notas
+            })),
+            estadisticas: stats
+        });
+    } catch (error) {
+        console.error('Error obteniendo referidos:', error);
+        res.status(500).json({ error: 'Error al obtener referidos' });
+    }
+});
+
+// GET /api/cliente/referidos/mi-referidor - Ver quien me refirio
+app.get('/api/cliente/referidos/mi-referidor', clienteAuth, async (req, res) => {
+    try {
+        const cliente = await dbGet(`
+            SELECT c.referido_por, r.nombre as referidor_nombre, c.fecha_referido
+            FROM clientes_app c
+            LEFT JOIN clientes_app r ON r.id = c.referido_por
+            WHERE c.id = ?
+        `, [req.clienteApp.id]);
+        
+        if (!cliente.referido_por) {
+            return res.json({ tiene_referidor: false });
+        }
+        
+        res.json({
+            tiene_referidor: true,
+            referidor: cliente.referidor_nombre,
+            fecha: cliente.fecha_referido
+        });
+    } catch (error) {
+        console.error('Error obteniendo referidor:', error);
+        res.status(500).json({ error: 'Error al obtener informacion de referidor' });
+    }
+});
+
+// POST /api/cliente/referidos/reclamar/:bonoId - Reclamar bono de referido
+app.post('/api/cliente/referidos/reclamar/:bonoId', clienteAuth, async (req, res) => {
+    try {
+        const clienteId = req.clienteApp.id;
+        const bonoId = req.params.bonoId;
+        
+        // Verificar que el bono existe y pertenece al cliente
+        const bono = await dbGet(`
+            SELECT rb.*, c.nombre as referido_nombre
+            FROM referidos_bonos rb
+            JOIN clientes_app c ON c.id = rb.referido_id
+            WHERE rb.id = ? AND rb.referidor_id = ? AND rb.estado = 'completado'
+        `, [bonoId, clienteId]);
+        
+        if (!bono) {
+            return res.status(400).json({ error: 'Bono no encontrado o no disponible para reclamar' });
+        }
+        
+        // Marcar como reclamado
+        await dbRun(`UPDATE referidos_bonos SET estado = 'reclamado', fecha_reclamado = ? WHERE id = ?`, 
+            [new Date().toISOString(), bonoId]);
+        
+        // Notificar a admin
+        await enviarNotificacionTelegram(
+            `&#127873; <b>SOLICITUD DE BONO DE REFERIDO</b>\n\n` +
+            `&#128100; Solicitante: ${req.clienteApp.nombre}\n` +
+            `&#128101; Referido: ${bono.referido_nombre}\n` +
+            `&#128176; Monto: $${bono.bono_monto.toLocaleString('es-CL')} CLP\n\n` +
+            `Revisar en panel de administracion`
+        );
+        
+        res.json({ 
+            success: true, 
+            mensaje: 'Bono reclamado exitosamente. El equipo de administracion revisara tu solicitud.' 
+        });
+    } catch (error) {
+        console.error('Error reclamando bono:', error);
+        res.status(500).json({ error: 'Error al reclamar bono' });
+    }
+});
+
+// Funcion para actualizar progreso de referidos cuando se completa un envio
+async function actualizarProgresoReferido(clienteId, montoEnvio) {
+    try {
+        // Buscar si este cliente tiene un bono pendiente
+        const bono = await dbGet(`
+            SELECT rb.*, c.nombre as referidor_nombre
+            FROM referidos_bonos rb
+            JOIN clientes_app c ON c.id = rb.referidor_id
+            WHERE rb.referido_id = ? AND rb.estado = 'pendiente'
+        `, [clienteId]);
+        
+        if (!bono) return null;
+        
+        // Verificar si no ha expirado
+        const ahora = new Date();
+        const fechaLimite = new Date(bono.fecha_limite);
+        
+        if (ahora > fechaLimite) {
+            // Marcar como expirado
+            await dbRun('UPDATE referidos_bonos SET estado = ? WHERE id = ?', ['expirado', bono.id]);
+            return { expirado: true };
+        }
+        
+        // Actualizar monto acumulado
+        const nuevoMonto = (bono.monto_acumulado || 0) + montoEnvio;
+        await dbRun('UPDATE referidos_bonos SET monto_acumulado = ? WHERE id = ?', [nuevoMonto, bono.id]);
+        
+        // Verificar si alcanzo la meta
+        if (nuevoMonto >= bono.meta_monto) {
+            await dbRun('UPDATE referidos_bonos SET estado = ?, fecha_completado = ? WHERE id = ?', 
+                ['completado', ahora.toISOString(), bono.id]);
+            
+            // Notificar por Telegram
+            const cliente = await dbGet('SELECT nombre FROM clientes_app WHERE id = ?', [clienteId]);
+            const mensaje = `&#127881; <b>BONO DE REFERIDO ACTIVADO!</b>\n\n` +
+                `&#128100; Referidor: ${bono.referidor_nombre}\n` +
+                `&#128101; Referido: ${cliente.nombre}\n` +
+                `&#128176; Bono: $${bono.bono_monto.toLocaleString('es-CL')} CLP\n\n` +
+                `El referido supero $${bono.meta_monto.toLocaleString('es-CL')} en envios.\n` +
+                `Estado: Pendiente de pago`;
+            
+            await enviarNotificacionTelegram(mensaje);
+            
+            return { 
+                completado: true, 
+                bono_monto: bono.bono_monto,
+                referidor: bono.referidor_nombre 
+            };
+        }
+        
+        return { 
+            actualizado: true, 
+            monto_acumulado: nuevoMonto,
+            meta: bono.meta_monto,
+            progreso: (nuevoMonto / bono.meta_monto * 100).toFixed(1)
+        };
+    } catch (error) {
+        console.error('Error actualizando progreso referido:', error);
+        return null;
+    }
+}
+
+// =================================================================
 // APP CLIENTE - VERIFICACION DE CUENTA
 // =================================================================
 
@@ -7697,15 +8083,22 @@ app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
             [moneda_origen]
         );
 
+        // Extraer información de cupón si viene
+        const cuponCodigo = req.body.cupon_codigo || null;
+        const cuponDescuentoCLP = req.body.cupon_descuento_clp || 0;
+        const montoSinCupon = req.body.monto_sin_cupon || monto_origen;
+
         // Crear la solicitud
         const fechaSolicitud = new Date().toISOString();
         const result = await dbRun(
             `INSERT INTO solicitudes_transferencia 
              (cliente_app_id, beneficiario_id, cuenta_pago_id, monto_origen, moneda_origen, 
-              monto_destino, moneda_destino, tasa_aplicada, estado, fecha_solicitud)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?)`,
+              monto_destino, moneda_destino, tasa_aplicada, estado, fecha_solicitud,
+              cupon_codigo, cupon_descuento_clp, monto_sin_cupon)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, ?, ?)`,
             [clienteId, beneficiario_id, cuentaPago?.id || 1, monto_origen, moneda_origen,
-             monto_destino, moneda_destino, tasa_aplicada, fechaSolicitud]
+             monto_destino, moneda_destino, tasa_aplicada, fechaSolicitud,
+             cuponCodigo, cuponDescuentoCLP, montoSinCupon]
         );
 
         const solicitudId = result.lastID;
@@ -7981,6 +8374,11 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
             updateParams
         );
 
+        // Actualizar progreso de referido si se completa la solicitud
+        if (estado === 'completada' && solicitud.cliente_app_id && solicitud.monto_origen) {
+            await actualizarProgresoReferido(solicitud.cliente_app_id, solicitud.monto_origen);
+        }
+
         // " Notificar cambio de estado a Telegram
         await notificarCambioEstado({
             id,
@@ -7999,6 +8397,146 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
 // =================================================================
 // FIN: APP CLIENTE M"VIL
 // =================================================================
+
+// =================================================================
+// ENDPOINTS DE BONOS DE REFERIDOS (ADMIN)
+// =================================================================
+
+// GET /api/bonos-referidos - Listar todos los bonos de referidos
+app.get('/api/bonos-referidos', apiAuth, async (req, res) => {
+    try {
+        const { estado } = req.query;
+        let query = `
+            SELECT 
+                rb.*,
+                referidor.nombre as referidor_nombre,
+                referidor.email as referidor_email,
+                referido.nombre as referido_nombre,
+                referido.email as referido_email
+            FROM referidos_bonos rb
+            JOIN clientes_app referidor ON referidor.id = rb.referidor_id
+            JOIN clientes_app referido ON referido.id = rb.referido_id
+        `;
+        const params = [];
+        
+        if (estado) {
+            query += ' WHERE rb.estado = ?';
+            params.push(estado);
+        }
+        
+        query += ' ORDER BY rb.fecha_reclamado DESC, rb.fecha_completado DESC';
+        
+        const bonos = await dbAll(query, params);
+        
+        // Contar por estado
+        const stats = await dbGet(`
+            SELECT 
+                SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+                SUM(CASE WHEN estado = 'completado' THEN 1 ELSE 0 END) as completados,
+                SUM(CASE WHEN estado = 'reclamado' THEN 1 ELSE 0 END) as reclamados,
+                SUM(CASE WHEN estado = 'pagado' THEN 1 ELSE 0 END) as pagados,
+                SUM(CASE WHEN estado = 'expirado' THEN 1 ELSE 0 END) as expirados,
+                SUM(CASE WHEN estado = 'cancelado' THEN 1 ELSE 0 END) as cancelados
+            FROM referidos_bonos
+        `);
+        
+        res.json({ bonos, estadisticas: stats });
+    } catch (error) {
+        console.error('Error listando bonos referidos:', error);
+        res.status(500).json({ error: 'Error al listar bonos' });
+    }
+});
+
+// POST /api/bonos-referidos/:id/aprobar - Aprobar bono y generar cupon
+app.post('/api/bonos-referidos/:id/aprobar', apiAuth, async (req, res) => {
+    try {
+        const bonoId = req.params.id;
+        
+        // Obtener el bono
+        const bono = await dbGet(`
+            SELECT rb.*, c.nombre as referidor_nombre, c.email as referidor_email
+            FROM referidos_bonos rb
+            JOIN clientes_app c ON c.id = rb.referidor_id
+            WHERE rb.id = ? AND rb.estado IN ('completado', 'reclamado')
+        `, [bonoId]);
+        
+        if (!bono) {
+            return res.status(400).json({ error: 'Bono no encontrado o no esta disponible para aprobar' });
+        }
+        
+        // Generar codigo de cupon unico
+        const codigoCupon = 'BONO-' + bono.referidor_id + '-' + Date.now().toString(36).toUpperCase();
+        
+        // Crear el cupon de descuento en CLP
+        await dbRun(`
+            INSERT INTO codigos_promocionales (
+                codigo, descripcion, tasa_especial, tipo_descuento, monto_descuento_clp,
+                usos_maximos, cliente_exclusivo_id, bono_referido_id, activo, fecha_creacion
+            ) VALUES (?, ?, 0, 'monto_clp', ?, 1, ?, ?, 1, datetime('now'))
+        `, [
+            codigoCupon,
+            `Bono por referir a ${bono.referido_nombre || 'usuario'}`,
+            bono.bono_monto,
+            bono.referidor_id,
+            bonoId
+        ]);
+        
+        // Actualizar el bono como pagado
+        await dbRun(`
+            UPDATE referidos_bonos 
+            SET estado = 'pagado', fecha_pagado = ?, codigo_cupon = ?
+            WHERE id = ?
+        `, [new Date().toISOString(), codigoCupon, bonoId]);
+        
+        // Notificar al usuario (aqui podria enviar email o notificacion push)
+        console.log(`Cupon ${codigoCupon} generado para cliente ${bono.referidor_nombre} (ID: ${bono.referidor_id})`);
+        
+        res.json({ 
+            success: true, 
+            mensaje: 'Bono aprobado y cupon generado',
+            codigo_cupon: codigoCupon,
+            monto: bono.bono_monto
+        });
+    } catch (error) {
+        console.error('Error aprobando bono:', error);
+        res.status(500).json({ error: 'Error al aprobar bono' });
+    }
+});
+
+// POST /api/bonos-referidos/:id/rechazar - Rechazar/cancelar bono
+app.post('/api/bonos-referidos/:id/rechazar', apiAuth, async (req, res) => {
+    try {
+        const bonoId = req.params.id;
+        const { motivo } = req.body;
+        
+        // Obtener el bono
+        const bono = await dbGet(`
+            SELECT rb.*, c.nombre as referidor_nombre
+            FROM referidos_bonos rb
+            JOIN clientes_app c ON c.id = rb.referidor_id
+            WHERE rb.id = ? AND rb.estado IN ('completado', 'reclamado')
+        `, [bonoId]);
+        
+        if (!bono) {
+            return res.status(400).json({ error: 'Bono no encontrado o no esta disponible para cancelar' });
+        }
+        
+        // Marcar como cancelado
+        await dbRun(`
+            UPDATE referidos_bonos 
+            SET estado = 'cancelado', notas = ?
+            WHERE id = ?
+        `, [motivo || 'Cancelado por motivos internos', bonoId]);
+        
+        res.json({ 
+            success: true, 
+            mensaje: 'Bono cancelado correctamente'
+        });
+    } catch (error) {
+        console.error('Error rechazando bono:', error);
+        res.status(500).json({ error: 'Error al rechazar bono' });
+    }
+});
 
 // Iniciar el servidor solo después de que las migraciones se hayan completado
 
@@ -8088,6 +8626,150 @@ app.put('/api/clientes-app/:id/verificacion', apiAuth, async (req, res) => {
         res.json({ success: true, estado: nuevoEstado });
     } catch (error) {
         res.status(500).json({ error: 'Error al actualizar verificacion' });
+    }
+});
+
+// =================================================================
+// ENDPOINTS DE BONOS DE REFERIDOS (ADMIN)
+// =================================================================
+
+// GET /api/referidos/bonos - Listar todos los bonos (admin)
+app.get('/api/referidos/bonos', apiAuth, async (req, res) => {
+    try {
+        const { estado } = req.query;
+        
+        let query = `
+            SELECT 
+                rb.*,
+                referidor.nombre as referidor_nombre,
+                referidor.email as referidor_email,
+                referidor.telefono as referidor_telefono,
+                referido.nombre as referido_nombre,
+                referido.email as referido_email
+            FROM referidos_bonos rb
+            JOIN clientes_app referidor ON referidor.id = rb.referidor_id
+            JOIN clientes_app referido ON referido.id = rb.referido_id
+        `;
+        
+        const params = [];
+        if (estado) {
+            query += ' WHERE rb.estado = ?';
+            params.push(estado);
+        }
+        
+        query += ' ORDER BY rb.fecha_inicio DESC';
+        
+        const bonos = await dbAll(query, params);
+        
+        // Calcular estadisticas
+        const stats = {
+            pendientes: bonos.filter(b => b.estado === 'pendiente').length,
+            completados: bonos.filter(b => b.estado === 'completado').length,
+            pagados: bonos.filter(b => b.estado === 'pagado').length,
+            expirados: bonos.filter(b => b.estado === 'expirado').length,
+            total_por_pagar: bonos.filter(b => b.estado === 'completado').reduce((sum, b) => sum + (b.bono_monto || 0), 0)
+        };
+        
+        res.json({ bonos, estadisticas: stats });
+    } catch (error) {
+        console.error('Error listando bonos de referidos:', error);
+        res.status(500).json({ error: 'Error al listar bonos de referidos' });
+    }
+});
+
+// GET /api/referidos/bonos/pendientes-pago - Bonos listos para pagar
+app.get('/api/referidos/bonos/pendientes-pago', apiAuth, async (req, res) => {
+    try {
+        const bonos = await dbAll(`
+            SELECT 
+                rb.*,
+                referidor.nombre as referidor_nombre,
+                referidor.email as referidor_email,
+                referidor.telefono as referidor_telefono,
+                referido.nombre as referido_nombre
+            FROM referidos_bonos rb
+            JOIN clientes_app referidor ON referidor.id = rb.referidor_id
+            JOIN clientes_app referido ON referido.id = rb.referido_id
+            WHERE rb.estado = 'completado'
+            ORDER BY rb.fecha_completado ASC
+        `);
+        
+        res.json({
+            bonos,
+            total_por_pagar: bonos.reduce((sum, b) => sum + (b.bono_monto || 0), 0),
+            cantidad: bonos.length
+        });
+    } catch (error) {
+        console.error('Error listando bonos pendientes:', error);
+        res.status(500).json({ error: 'Error al listar bonos pendientes' });
+    }
+});
+
+// PUT /api/referidos/bonos/:id/pagar - Marcar bono como pagado
+app.put('/api/referidos/bonos/:id/pagar', apiAuth, async (req, res) => {
+    try {
+        const { notas } = req.body;
+        const bonoId = req.params.id;
+        
+        const bono = await dbGet('SELECT * FROM referidos_bonos WHERE id = ?', [bonoId]);
+        if (!bono) {
+            return res.status(404).json({ error: 'Bono no encontrado' });
+        }
+        
+        if (bono.estado !== 'completado') {
+            return res.status(400).json({ error: 'Solo se pueden pagar bonos en estado completado' });
+        }
+        
+        await dbRun(
+            "UPDATE referidos_bonos SET estado = 'pagado', fecha_pagado = datetime('now'), notas = ? WHERE id = ?",
+            [notas || null, bonoId]
+        );
+        
+        // Notificar al referidor
+        const referidor = await dbGet('SELECT nombre, email FROM clientes_app WHERE id = ?', [bono.referidor_id]);
+        const referido = await dbGet('SELECT nombre FROM clientes_app WHERE id = ?', [bono.referido_id]);
+        
+        const mensaje = `&#128176; <b>BONO DE REFERIDO PAGADO</b>\n\n` +
+            `&#128100; Beneficiario: ${referidor.nombre}\n` +
+            `&#128176; Monto: $${bono.bono_monto.toLocaleString('es-CL')} CLP\n` +
+            `&#127873; Por referir a: ${referido.nombre}\n\n` +
+            `&#9989; Pagado por: ${req.session?.user?.username || 'Admin'}`;
+        
+        await enviarNotificacionTelegram(mensaje);
+        
+        res.json({ success: true, mensaje: 'Bono marcado como pagado' });
+    } catch (error) {
+        console.error('Error pagando bono:', error);
+        res.status(500).json({ error: 'Error al marcar bono como pagado' });
+    }
+});
+
+// GET /api/referidos/estadisticas - Estadisticas generales del programa
+app.get('/api/referidos/estadisticas', apiAuth, async (req, res) => {
+    try {
+        const stats = await dbGet(`
+            SELECT
+                COUNT(*) as total_bonos,
+                SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
+                SUM(CASE WHEN estado = 'completado' THEN 1 ELSE 0 END) as completados,
+                SUM(CASE WHEN estado = 'pagado' THEN 1 ELSE 0 END) as pagados,
+                SUM(CASE WHEN estado = 'expirado' THEN 1 ELSE 0 END) as expirados,
+                SUM(CASE WHEN estado = 'completado' THEN bono_monto ELSE 0 END) as total_por_pagar,
+                SUM(CASE WHEN estado = 'pagado' THEN bono_monto ELSE 0 END) as total_pagado
+            FROM referidos_bonos
+        `);
+        
+        const usuariosConCodigo = await dbGet('SELECT COUNT(*) as total FROM clientes_app WHERE codigo_referido IS NOT NULL');
+        const usuariosReferidos = await dbGet('SELECT COUNT(*) as total FROM clientes_app WHERE referido_por IS NOT NULL');
+        
+        res.json({
+            bonos: stats,
+            usuarios_con_codigo: usuariosConCodigo?.total || 0,
+            usuarios_referidos: usuariosReferidos?.total || 0
+        });
+    } catch (error) {
+        console.error('Error obteniendo estadisticas de referidos:', error);
+        res.status(500).json({ error: 'Error al obtener estadisticas' });
     }
 });
 
@@ -8187,6 +8869,11 @@ app.post('/api/cliente/validar-codigo', clienteAuth, async (req, res) => {
             return res.json({ valido: false, mensaje: 'Cdigo no vlido o inactivo' });
         }
 
+        // Verificar si es un cupón exclusivo para un cliente específico
+        if (codigoPromo.cliente_exclusivo_id && codigoPromo.cliente_exclusivo_id !== clienteId) {
+            return res.json({ valido: false, mensaje: 'Este cupón no está disponible para tu cuenta' });
+        }
+
         // Verificar fecha de inicio
         if (codigoPromo.fecha_inicio) {
             const inicio = new Date(codigoPromo.fecha_inicio);
@@ -8230,11 +8917,16 @@ app.post('/api/cliente/validar-codigo', clienteAuth, async (req, res) => {
             }
         }
 
+        // Determinar tipo de descuento y respuesta
+        const tipoDescuento = codigoPromo.tipo_descuento || 'tasa';
+        
         // Cdigo vlido
         res.json({
             valido: true,
             codigo_id: codigoPromo.id,
-            tasa_especial: codigoPromo.tasa_especial,
+            tipo_descuento: tipoDescuento,
+            tasa_especial: tipoDescuento === 'tasa' ? codigoPromo.tasa_especial : null,
+            monto_descuento_clp: tipoDescuento === 'monto_clp' ? codigoPromo.monto_descuento_clp : null,
             descripcion: codigoPromo.descripcion,
             mensaje: codigoPromo.descripcion || 'Cdigo aplicado!'
         });

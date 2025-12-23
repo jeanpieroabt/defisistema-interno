@@ -461,6 +461,351 @@
             visibility: visible;
         }
 
+        /* Estilos para Seccion de Referidos */
+        .referido-card {
+            background: rgba(255, 255, 255, 0.94);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            box-shadow: var(--shadow-soft);
+            margin-bottom: var(--space-md);
+        }
+
+        .referido-card.referido-activo {
+            background: linear-gradient(135deg, rgba(92, 130, 64, 0.08), rgba(47, 199, 184, 0.08));
+            border: 1px solid rgba(92, 130, 64, 0.2);
+        }
+
+        .referido-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            cursor: pointer;
+        }
+
+        .referido-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            background: rgba(25, 116, 206, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-blue);
+            flex-shrink: 0;
+        }
+
+        .referido-info {
+            flex: 1;
+        }
+
+        .referido-info h4 {
+            font-size: var(--font-base);
+            font-weight: 700;
+            color: var(--dark-slate);
+            margin: 0 0 2px 0;
+        }
+
+        .referido-info p {
+            font-size: var(--font-sm);
+            color: var(--neutral-gray);
+            margin: 0;
+        }
+
+        .codigo-box {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            background: var(--light-bg);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            margin-top: var(--space-md);
+        }
+
+        .codigo-valor {
+            flex: 1;
+            font-size: var(--font-xl);
+            font-weight: 800;
+            color: var(--primary-blue);
+            letter-spacing: 2px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn-copiar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--white);
+            border: 1px solid rgba(25, 116, 206, 0.3);
+            border-radius: var(--radius-sm);
+            color: var(--primary-blue);
+            font-size: var(--font-sm);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-copiar:hover {
+            background: var(--primary-blue);
+            color: var(--white);
+        }
+
+        .btn-compartir {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px;
+            margin-top: var(--space-md);
+            background: var(--grad-brand-button);
+            border: none;
+            border-radius: var(--radius-md);
+            color: var(--white);
+            font-size: var(--font-base);
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: var(--shadow-button);
+            transition: all 0.2s ease;
+        }
+
+        .btn-compartir:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-button-hover);
+        }
+
+        .input-codigo-wrapper {
+            display: flex;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .input-codigo {
+            flex: 1;
+            padding: 12px 14px;
+            border: 2px solid rgba(25, 116, 206, 0.2);
+            border-radius: var(--radius-md);
+            font-size: var(--font-base);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .input-codigo:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(25, 116, 206, 0.1);
+        }
+
+        .btn-aplicar {
+            padding: 12px 20px;
+            background: var(--accent-green);
+            border: none;
+            border-radius: var(--radius-md);
+            color: var(--white);
+            font-size: var(--font-base);
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-aplicar:hover {
+            background: #4a6b33;
+        }
+
+        .referido-nota {
+            font-size: var(--font-xs);
+            color: var(--neutral-gray);
+            margin-top: var(--space-sm);
+            text-align: center;
+        }
+
+        .referidos-lista {
+            margin-top: var(--space-md);
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            padding-top: var(--space-md);
+        }
+
+        .referido-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            padding: var(--space-md) 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .referido-item:last-child {
+            border-bottom: none;
+        }
+
+        .referido-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-full);
+            background: var(--secondary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--primary-blue);
+            font-size: var(--font-sm);
+        }
+
+        .referido-detalle {
+            flex: 1;
+        }
+
+        .referido-nombre {
+            font-weight: 600;
+            font-size: var(--font-sm);
+            color: var(--dark-slate);
+        }
+
+        .referido-progreso-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .referido-progreso-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--light-bg);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .referido-progreso-fill {
+            height: 100%;
+            background: var(--grad-brand-button);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .referido-progreso-text {
+            font-size: var(--font-xs);
+            color: var(--neutral-gray);
+            min-width: 45px;
+            text-align: right;
+        }
+
+        .referido-estado {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: var(--font-xs);
+            font-weight: 700;
+        }
+
+        .referido-estado.pendiente {
+            background: rgba(249, 115, 22, 0.12);
+            color: #F97316;
+        }
+
+        .referido-estado.completado {
+            background: rgba(92, 130, 64, 0.12);
+            color: #5C8240;
+        }
+
+        .referido-estado.pagado {
+            background: rgba(25, 116, 206, 0.12);
+            color: var(--primary-blue);
+        }
+
+        .referido-estado.usado {
+            background: rgba(156, 163, 175, 0.12);
+            color: #6B7280;
+        }
+
+        .referido-estado.expirado {
+            background: rgba(156, 163, 175, 0.12);
+            color: #6B7280;
+        }
+
+        .referidos-empty {
+            text-align: center;
+            padding: var(--space-xl);
+            color: var(--neutral-gray);
+        }
+
+        .referidos-empty svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: var(--space-sm);
+            opacity: 0.5;
+        }
+
+        .referido-acciones {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+
+        .btn-reclamar-bono {
+            background: linear-gradient(135deg, #3B7D3C, #4A9D4B);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-reclamar-bono:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(59, 125, 60, 0.3);
+        }
+
+        .cupon-info {
+            background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+            border: 1px dashed #D97706;
+            padding: 6px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 6px;
+            transition: all 0.2s;
+        }
+
+        .cupon-info:hover {
+            transform: scale(1.02);
+            background: linear-gradient(135deg, #FDE68A, #FCD34D);
+        }
+
+        .cupon-codigo {
+            font-weight: 700;
+            color: #92400E;
+            font-size: 12px;
+            display: block;
+        }
+
+        .cupon-info small {
+            color: #B45309;
+            font-size: 10px;
+        }
+
+        .referido-item.cancelado {
+            opacity: 0.5;
+            background: #FEE2E2;
+        }
+
+        .referido-estado.reclamado {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+
+        .referido-estado.cancelado {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
         .modal-container {
             background: var(--white);
             border-radius: var(--radius-xxl);
@@ -993,6 +1338,113 @@
                             <div class="action-text">
                                 <span class="action-title">Cerrar sesion</span>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECCION DE REFERIDOS -->
+                <section id="seccionReferidos">
+                    <h3 class="section-title">&#127873; Programa de Referidos</h3>
+                    
+                    <!-- Mi Codigo de Referido -->
+                    <div class="referido-card">
+                        <div class="referido-header">
+                            <div class="referido-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                    <path d="M21 21v-2a4 4 0 0 0-3-3.87"></path>
+                                </svg>
+                            </div>
+                            <div class="referido-info">
+                                <h4>Tu Codigo de Referido</h4>
+                                <p>Comparte y gana $10.000 CLP por cada amigo</p>
+                            </div>
+                        </div>
+                        <div class="codigo-box">
+                            <span class="codigo-valor" id="miCodigoReferido">Cargando...</span>
+                            <button class="btn-copiar" onclick="copiarCodigoReferido()">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                Copiar
+                            </button>
+                        </div>
+                        <button class="btn-compartir" onclick="compartirCodigoReferido()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="18" cy="5" r="3"></circle>
+                                <circle cx="6" cy="12" r="3"></circle>
+                                <circle cx="18" cy="19" r="3"></circle>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                            </svg>
+                            Compartir con amigos
+                        </button>
+                    </div>
+
+                    <!-- Aplicar Codigo (si no tiene referidor) -->
+                    <div class="referido-card" id="cardAplicarCodigo" style="display: none;">
+                        <div class="referido-header">
+                            <div class="referido-icon" style="background: rgba(92, 130, 64, 0.12); color: #5C8240;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                            </div>
+                            <div class="referido-info">
+                                <h4>&#191;Tienes un codigo de referido?</h4>
+                                <p>Ingresalo aqui para desbloquear tu Tasa Preferencial</p>
+                            </div>
+                        </div>
+                        <div class="input-codigo-wrapper">
+                            <input type="text" id="inputCodigoReferido" placeholder="Ej: JUA4F2B1" maxlength="10" class="input-codigo">
+                            <button class="btn-aplicar" onclick="aplicarCodigoReferido()">Aplicar</button>
+                        </div>
+                        <p class="referido-nota" id="notaReferidor"></p>
+                    </div>
+
+                    <!-- Ya tiene referidor -->
+                    <div class="referido-card referido-activo" id="cardReferidoPor" style="display: none;">
+                        <div class="referido-header">
+                            <div class="referido-icon" style="background: rgba(92, 130, 64, 0.12); color: #5C8240;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                            </div>
+                            <div class="referido-info">
+                                <h4>Fuiste referido por</h4>
+                                <p id="nombreReferidor">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mis Referidos -->
+                    <div class="referido-card" id="cardMisReferidos">
+                        <div class="referido-header" onclick="toggleMisReferidos()">
+                            <div class="referido-icon" style="background: rgba(249, 115, 22, 0.12); color: #F97316;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                            </div>
+                            <div class="referido-info">
+                                <h4>Mis Referidos</h4>
+                                <p id="statsReferidos">0 referidos - $0 ganado</p>
+                            </div>
+                            <span class="action-chevron" id="chevronReferidos">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </span>
+                        </div>
+                        <div class="referidos-lista" id="listaReferidos" style="display: none;">
+                            <!-- Lista de referidos se carga dinamicamente -->
                         </div>
                     </div>
                 </section>
@@ -1675,6 +2127,273 @@
                 btn.textContent = 'Enviar documentos';
             }
         }
+
+        // =================================================================
+        // FUNCIONES DE REFERIDOS
+        // =================================================================
+        
+        let miCodigoReferido = '';
+        let misReferidosData = [];
+
+        async function cargarDatosReferidos() {
+            const token = localStorage.getItem('clienteToken');
+            
+            try {
+                // Cargar mi codigo de referido
+                const resCodigo = await fetch(`${API_BASE}/api/cliente/referidos/mi-codigo`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (resCodigo.ok) {
+                    const dataCodigo = await resCodigo.json();
+                    miCodigoReferido = dataCodigo.codigo;
+                    document.getElementById('miCodigoReferido').textContent = dataCodigo.codigo;
+                }
+
+                // Verificar si ya tiene referidor
+                const resReferidor = await fetch(`${API_BASE}/api/cliente/referidos/mi-referidor`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (resReferidor.ok) {
+                    const dataReferidor = await resReferidor.json();
+                    if (dataReferidor.tiene_referidor) {
+                        document.getElementById('cardAplicarCodigo').style.display = 'none';
+                        document.getElementById('cardReferidoPor').style.display = 'block';
+                        document.getElementById('nombreReferidor').textContent = dataReferidor.referidor;
+                    } else {
+                        document.getElementById('cardAplicarCodigo').style.display = 'block';
+                        document.getElementById('cardReferidoPor').style.display = 'none';
+                    }
+                }
+
+                // Cargar mis referidos
+                const resReferidos = await fetch(`${API_BASE}/api/cliente/referidos/mis-referidos`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (resReferidos.ok) {
+                    const dataReferidos = await resReferidos.json();
+                    misReferidosData = dataReferidos.referidos;
+                    actualizarUIReferidos(dataReferidos);
+                }
+            } catch (error) {
+                console.error('Error cargando datos de referidos:', error);
+            }
+        }
+
+        function actualizarUIReferidos(data) {
+            const stats = data.estadisticas;
+            let statsText = `${stats.total_referidos} referido${stats.total_referidos !== 1 ? 's' : ''}`;
+            
+            // Mostrar total por cobrar o ganado
+            const totalPorCobrar = stats.total_por_cobrar || 0;
+            const totalGanado = stats.total_ganado || 0;
+            
+            if (totalPorCobrar > 0) {
+                statsText += ` - $${totalPorCobrar.toLocaleString('es-CL')} por cobrar`;
+            }
+            if (totalGanado > 0) {
+                statsText += ` - $${totalGanado.toLocaleString('es-CL')} cobrado`;
+            }
+            if (totalPorCobrar === 0 && totalGanado === 0) {
+                statsText += ` - $0 ganado`;
+            }
+            
+            document.getElementById('statsReferidos').textContent = statsText;
+
+            const listaEl = document.getElementById('listaReferidos');
+            
+            if (data.referidos.length === 0) {
+                listaEl.innerHTML = `
+                    <div class="referidos-empty">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <p>Aun no tienes referidos</p>
+                        <p style="font-size: 12px;">Comparte tu codigo para empezar a ganar</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listaEl.innerHTML = data.referidos.map(r => {
+                const initials = r.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                const estadoClass = r.cupon_usado ? 'usado' : r.estado_bono;
+                let estadoText = {
+                    'pendiente': 'En progreso',
+                    'completado': 'Bono listo',
+                    'reclamado': 'En revision',
+                    'pagado': 'Cupon activo',
+                    'expirado': 'Expirado',
+                    'cancelado': 'Cancelado'
+                }[r.estado_bono] || r.estado_bono;
+                
+                // Si el cupon ya fue usado, cambiar el texto
+                if (r.estado_bono === 'pagado' && r.cupon_usado) {
+                    estadoText = 'Cupon usado';
+                }
+
+                // Mostrar boton de reclamar solo si el bono esta completado
+                const botonReclamar = r.estado_bono === 'completado' ? 
+                    `<button class="btn-reclamar-bono" onclick="reclamarBono(${r.bono_id}, '${r.nombre}')">
+                        &#127873; Reclamar
+                    </button>` : '';
+                
+                // Mostrar cupon si esta pagado
+                const infoCupon = r.estado_bono === 'pagado' && r.codigo_cupon ? 
+                    `<div class="cupon-info" onclick="copiarCupon('${r.codigo_cupon}')">
+                        <span class="cupon-codigo">&#127915; ${r.codigo_cupon}</span>
+                        <small>Toca para copiar</small>
+                    </div>` : '';
+
+                return `
+                    <div class="referido-item ${r.estado_bono === 'cancelado' ? 'cancelado' : ''}">
+                        <div class="referido-avatar">${initials}</div>
+                        <div class="referido-detalle">
+                            <div class="referido-nombre">${r.nombre}</div>
+                            <div class="referido-progreso-wrapper">
+                                <div class="referido-progreso-bar">
+                                    <div class="referido-progreso-fill" style="width: ${r.progreso}%"></div>
+                                </div>
+                                <span class="referido-progreso-text">${r.progreso}%</span>
+                            </div>
+                            ${infoCupon}
+                        </div>
+                        <div class="referido-acciones">
+                            <span class="referido-estado ${estadoClass}">${estadoText}</span>
+                            ${botonReclamar}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function reclamarBono(bonoId, nombreReferido) {
+            if (!confirm('¿Deseas reclamar el bono por referir a ' + nombreReferido + '?\\n\\nEl equipo de administracion revisara tu solicitud.')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/cliente/referidos/reclamar/' + bonoId, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('clienteToken')
+                    }
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    mostrarToast(data.mensaje || 'Bono reclamado exitosamente', 'success');
+                    cargarDatosReferidos(); // Recargar lista
+                } else {
+                    mostrarToast(data.error || 'Error al reclamar bono', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarToast('Error al reclamar bono', 'error');
+            }
+        }
+
+        function copiarCupon(codigo) {
+            navigator.clipboard.writeText(codigo).then(() => {
+                mostrarToast('Cupon copiado: ' + codigo, 'success');
+            }).catch(() => {
+                mostrarToast('Cupon: ' + codigo, 'info');
+            });
+        }
+
+        function toggleMisReferidos() {
+            const lista = document.getElementById('listaReferidos');
+            const chevron = document.getElementById('chevronReferidos');
+            
+            if (lista.style.display === 'none') {
+                lista.style.display = 'block';
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                lista.style.display = 'none';
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function copiarCodigoReferido() {
+            if (!miCodigoReferido) return;
+            
+            navigator.clipboard.writeText(miCodigoReferido).then(() => {
+                mostrarToast('Codigo copiado al portapapeles', 'success');
+            }).catch(() => {
+                // Fallback para navegadores sin clipboard API
+                const input = document.createElement('input');
+                input.value = miCodigoReferido;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                mostrarToast('Codigo copiado al portapapeles', 'success');
+            });
+        }
+
+        function compartirCodigoReferido() {
+            if (!miCodigoReferido) return;
+            
+            const mensaje = `Ey 🙌 Si vas a enviar dinero, hazlo por Defi Oracle: defioracleapp.com\nUsa mi codigo ${miCodigoReferido}.\nCuando superes $100.000 CLP enviados (puede ser en varias transacciones), se activa el bono del referido.\nTu aprovechas una excelente tasa para que te llegue mas dinero y un buen servicio, y yo recibo el bono 🤝`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Defi Oracle - Codigo de Referido',
+                    text: mensaje
+                }).catch(() => {});
+            } else {
+                // Fallback: copiar mensaje
+                navigator.clipboard.writeText(mensaje).then(() => {
+                    mostrarToast('Mensaje copiado. Pegalo en WhatsApp o donde quieras', 'success');
+                });
+            }
+        }
+
+        async function aplicarCodigoReferido() {
+            const input = document.getElementById('inputCodigoReferido');
+            const codigo = input.value.trim().toUpperCase();
+            
+            if (!codigo) {
+                mostrarToast('Ingresa un codigo de referido', 'error');
+                return;
+            }
+
+            const token = localStorage.getItem('clienteToken');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/cliente/referidos/aplicar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ codigo })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    mostrarToast(result.mensaje, 'success');
+                    document.getElementById('cardAplicarCodigo').style.display = 'none';
+                    document.getElementById('cardReferidoPor').style.display = 'block';
+                    document.getElementById('nombreReferidor').textContent = result.referidor;
+                } else {
+                    mostrarToast(result.error || 'Codigo no valido', 'error');
+                }
+            } catch (error) {
+                console.error('Error aplicando codigo:', error);
+                mostrarToast('Error de conexion. Intenta de nuevo.', 'error');
+            }
+        }
+
+        // Cargar datos de referidos al inicio
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarDatosReferidos();
+        });
+
         function cerrarSesion() {
             localStorage.removeItem('clienteToken');
             localStorage.removeItem('clienteData');

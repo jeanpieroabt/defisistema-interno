@@ -890,6 +890,7 @@
         <div class="promo-tasa-especial" id="promoTasaEspecial" style="display:none;">
           🎉 Tasa especial: <strong id="tasaPromoDisplay">0</strong>
         </div>
+        <div id="ahorroDescuento" style="display:none;"></div>
       </div>
     </section>
 
@@ -1060,8 +1061,9 @@
     let fueraDeHorario = false; // Indica si estamos fuera de horario
     
     // Código promocional
-    let codigoPromoAplicado = null; // { codigo_id, tasa_especial, codigo }
+    let codigoPromoAplicado = null; // { codigo_id, tasa_especial, codigo, tipo_descuento, monto_descuento_clp }
     let usandoTasaPromo = false;
+    let descuentoCLPAplicado = 0; // Monto de descuento en CLP
     
     const envio = { montoCLP: 0, montoVES: 0, metodo: 'transferencia', destinatario: null };
     const fmtCLP = new Intl.NumberFormat('es-CL');
@@ -1333,8 +1335,8 @@
     }
 
     function obtenerTasaPorMonto(montoCLP) {
-      // Si hay código promo aplicado, usar tasa especial
-      if (usandoTasaPromo && codigoPromoAplicado) {
+      // Si hay código promo aplicado con tasa especial, usar tasa especial
+      if (usandoTasaPromo && codigoPromoAplicado && codigoPromoAplicado.tipo_descuento === 'tasa') {
         return codigoPromoAplicado.tasa_especial;
       }
       if (!tramos || tramos.length === 0) return tasa;
@@ -1349,13 +1351,17 @@
       const label = document.getElementById('tasaDisplay');
       if (label) label.textContent = `1 CLP = ${t.toFixed(4)} VES`;
       
-      // Mostrar/ocultar indicador de tasa promo
+      // Mostrar/ocultar indicador de tasa promo o descuento CLP
       const promoTasa = document.getElementById('promoTasaEspecial');
       const tasaPromoDisplay = document.getElementById('tasaPromoDisplay');
       if (promoTasa && tasaPromoDisplay) {
         if (usandoTasaPromo && codigoPromoAplicado) {
           promoTasa.style.display = 'flex';
-          tasaPromoDisplay.textContent = `1 CLP = ${codigoPromoAplicado.tasa_especial.toFixed(4)} VES`;
+          if (codigoPromoAplicado.tipo_descuento === 'monto_clp') {
+            tasaPromoDisplay.textContent = `Descuento: $${codigoPromoAplicado.monto_descuento_clp.toLocaleString('es-CL')} CLP`;
+          } else {
+            tasaPromoDisplay.textContent = `1 CLP = ${codigoPromoAplicado.tasa_especial.toFixed(4)} VES`;
+          }
         } else {
           promoTasa.style.display = 'none';
         }
@@ -1416,15 +1422,25 @@
           
           codigoPromoAplicado = {
             codigo_id: data.codigo_id,
+            tipo_descuento: data.tipo_descuento || 'tasa',
             tasa_especial: data.tasa_especial,
+            monto_descuento_clp: data.monto_descuento_clp || 0,
             codigo: codigo
           };
           usandoTasaPromo = true;
           
-          resultEl.className = 'promo-result success';
-          resultEl.innerHTML = `🎉 <strong>${codigo}</strong> aplicado. ${data.mensaje || ''}`;
+          // Si es descuento en CLP, guardar el monto
+          if (data.tipo_descuento === 'monto_clp') {
+            descuentoCLPAplicado = data.monto_descuento_clp || 0;
+            resultEl.className = 'promo-result success';
+            resultEl.innerHTML = `🎉 <strong>${codigo}</strong> aplicado. ${data.mensaje || ''}<br><strong style="color: #10b981;">Descuento: $${descuentoCLPAplicado.toLocaleString('es-CL')} CLP</strong>`;
+          } else {
+            descuentoCLPAplicado = 0;
+            resultEl.className = 'promo-result success';
+            resultEl.innerHTML = `🎉 <strong>${codigo}</strong> aplicado. ${data.mensaje || ''}`;
+          }
           
-          // Recalcular con la nueva tasa
+          // Recalcular con la nueva tasa/descuento
           updateFromCLP(envio.montoCLP);
         } else {
           input.classList.remove('valid');
@@ -1460,6 +1476,7 @@
       
       codigoPromoAplicado = null;
       usandoTasaPromo = false;
+      descuentoCLPAplicado = 0;
       
       updateFromCLP(envio.montoCLP);
     }
@@ -1468,11 +1485,43 @@
       const clp = Math.max(0, Math.trunc(value || 0));
       envio.montoCLP = clp;
       const tasaActual = obtenerTasaPorMonto(clp);
-      const ves = Math.max(0, Math.trunc(clp * tasaActual));
+      
+      // Si hay descuento en CLP, calcular el VES basado en el monto total (como si pagara más)
+      let clpEfectivo = clp;
+      if (descuentoCLPAplicado > 0 && codigoPromoAplicado?.tipo_descuento === 'monto_clp') {
+        clpEfectivo = clp + descuentoCLPAplicado; // El usuario recibe como si enviara más
+      }
+      
+      const ves = Math.max(0, Math.trunc(clpEfectivo * tasaActual));
       envio.montoVES = ves;
       setCLPInputValue(clp);
       setVESInputValue(ves);
       actualizarTasaDisplay();
+      
+      // Mostrar el ahorro si hay descuento CLP
+      mostrarAhorroCLP(clp, clpEfectivo, ves);
+    }
+    
+    function mostrarAhorroCLP(clpOriginal, clpEfectivo, vesRecibe) {
+      const ahorroEl = document.getElementById('ahorroDescuento');
+      if (!ahorroEl) return;
+      
+      if (descuentoCLPAplicado > 0 && clpOriginal > 0) {
+        const vesNormal = Math.trunc(clpOriginal * obtenerTasaPorMonto(clpOriginal));
+        const vesBonificado = vesRecibe - vesNormal;
+        ahorroEl.innerHTML = `
+          <div style="background: linear-gradient(135deg, #dcfce7, #bbf7d0); padding: 12px 16px; border-radius: 12px; margin-top: 12px;">
+            <div style="color: #166534; font-weight: 700; font-size: 14px;">🎁 Bono Aplicado</div>
+            <div style="color: #15803d; font-size: 13px; margin-top: 4px;">
+              Tu destinatario recibe <strong>+${vesBonificado.toLocaleString('es-VE')} VES</strong> extra gracias a tu bono de $${descuentoCLPAplicado.toLocaleString('es-CL')} CLP
+            </div>
+          </div>
+        `;
+        ahorroEl.style.display = 'block';
+      } else {
+        ahorroEl.style.display = 'none';
+        ahorroEl.innerHTML = '';
+      }
     }
 
     function updateFromVES(value = 0, ctx = {}) {
@@ -1674,6 +1723,13 @@
       if (timerInterval) clearInterval(timerInterval);
       const token = localStorage.getItem('clienteToken');
       const tasaAplicada = obtenerTasaPorMonto(envio.montoCLP);
+      
+      // Calcular monto sin cupón (lo que realmente pagó el cliente)
+      let montoSinCupon = envio.montoCLP;
+      if (descuentoCLPAplicado > 0 && codigoPromoAplicado?.tipo_descuento === 'monto_clp') {
+        montoSinCupon = envio.montoCLP; // Lo que pagó
+      }
+      
       const solicitud = {
         beneficiario_id: envio.destinatario?.id,
         monto_origen: envio.montoCLP,
@@ -1682,7 +1738,11 @@
         moneda_destino: 'VES',
         tasa_aplicada: tasaAplicada,
         metodo_entrega: envio.metodo,
-        codigo_promo: codigoPromoAplicado?.codigo || null
+        codigo_promo: codigoPromoAplicado?.codigo || null,
+        // Info del cupón de descuento CLP
+        cupon_codigo: codigoPromoAplicado?.tipo_descuento === 'monto_clp' ? codigoPromoAplicado.codigo : null,
+        cupon_descuento_clp: descuentoCLPAplicado || 0,
+        monto_sin_cupon: montoSinCupon
       };
       try {
         const r = await fetch(`${API_BASE}/api/cliente/solicitudes`, {
