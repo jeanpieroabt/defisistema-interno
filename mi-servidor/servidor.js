@@ -2923,7 +2923,7 @@ async function consultarBinanceP2P(fiat, tradeType, payTypes = [], transAmount =
  */
 async function obtenerTasaVentaVES() {
     try {
-        const anuncios = await consultarBinanceP2P('VES', 'SELL', ['Bancamiga'], 50000);
+        const anuncios = await consultarBinanceP2P('VES', 'SELL', ['Bancamiga'], 200000);
         
         if (!anuncios || anuncios.length === 0) {
             throw new Error('No se encontraron ofertas de venta USDT por VES con Bancamiga');
@@ -2933,12 +2933,12 @@ async function obtenerTasaVentaVES() {
         const ofertasValidas = anuncios
             .filter(ad => {
                 const minLimit = parseFloat(ad.adv?.minSingleTransAmount || 0);
-                return minLimit <= 50000;
+                return minLimit <= 200000;
             })
             .sort((a, b) => parseFloat(b.adv?.price || 0) - parseFloat(a.adv?.price || 0));
 
         if (ofertasValidas.length === 0) {
-            throw new Error('No hay ofertas válidas con monto mínimo <= 50,000 VES');
+            throw new Error('No hay ofertas válidas con monto mínimo <= 200,000 VES');
         }
 
         const mejorOferta = ofertasValidas[0];
@@ -3166,7 +3166,7 @@ app.get('/api/p2p/tasas-ves-clp', apiAuth, async (req, res) => {
             metadata: {
                 fuente: 'Binance P2P',
                 banco_ves: 'Bancamiga',
-                min_ves: 50000,
+                min_ves: 200000,
                 timestamp: new Date().toISOString()
             }
         };
