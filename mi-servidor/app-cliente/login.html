@@ -1474,8 +1474,18 @@
                 dot.addEventListener('click', () => goToCard(index));
             });
 
+            // Helper para verificar si el elemento es interactivo
+            function isInteractiveElement(element) {
+                const tagName = element.tagName.toLowerCase();
+                return ['button', 'a', 'input', 'select', 'textarea'].includes(tagName) ||
+                       element.closest('button, a, input, select, textarea');
+            }
+
             // Touch events para swipe
             carousel.addEventListener('touchstart', (e) => {
+                // Ignorar si se toca un elemento interactivo
+                if (isInteractiveElement(e.target)) return;
+
                 startX = e.touches[0].clientX;
                 isDragging = true;
                 carousel.style.transition = 'none';
@@ -1493,10 +1503,10 @@
                 if (!isDragging) return;
                 isDragging = false;
                 carousel.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-                
+
                 const diff = currentX - startX;
                 const threshold = carousel.offsetWidth * 0.2;
-                
+
                 if (diff > threshold && currentCard > 0) {
                     goToCard(currentCard - 1);
                 } else if (diff < -threshold && currentCard < cards.length - 1) {
@@ -1508,6 +1518,9 @@
 
             // Mouse events para desktop
             carousel.addEventListener('mousedown', (e) => {
+                // Ignorar si se hace clic en un elemento interactivo
+                if (isInteractiveElement(e.target)) return;
+
                 startX = e.clientX;
                 isDragging = true;
                 carousel.style.transition = 'none';
@@ -1527,10 +1540,10 @@
                 isDragging = false;
                 carousel.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
                 carousel.style.cursor = '';
-                
+
                 const diff = currentX - startX;
                 const threshold = carousel.offsetWidth * 0.15;
-                
+
                 if (diff > threshold && currentCard > 0) {
                     goToCard(currentCard - 1);
                 } else if (diff < -threshold && currentCard < cards.length - 1) {
