@@ -190,6 +190,12 @@
         }
 
         .select-wrapper { position: relative; }
+        .select-wrapper select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 40px;
+        }
         .select-wrapper::after {
             content: "";
             position: absolute;
@@ -347,9 +353,9 @@
                         <h2 class="form-section-title">Datos bancarios</h2>
 
                         <div class="input-group">
-                            <label class="input-label">Banco *</label>
+                            <label class="input-label">Banco</label>
                             <div class="select-wrapper">
-                                <select id="banco" required>
+                                <select id="banco">
                                     <option value="">Seleccionar banco</option>
                                     <option value="0102">Banco de Venezuela</option>
                                     <option value="0104">Venezolano de Crédito</option>
@@ -380,7 +386,7 @@
                         </div>
 
                         <div class="input-group">
-                            <label class="input-label">Número de cuenta *</label>
+                            <label class="input-label">Número de cuenta</label>
                             <input type="text" class="input" id="numeroCuenta" placeholder="20 dígitos" maxlength="20" inputmode="numeric" autocomplete="off">
                             <p class="input-hint">Solo números, sin espacios ni guiones.</p>
                         </div>
@@ -397,6 +403,8 @@
                                         <option value="0412">+58 412</option>
                                         <option value="0424">+58 424</option>
                                         <option value="0416">+58 416</option>
+                                        <option value="0422">+58 422</option>
+                                        <option value="0426">+58 426</option>
                                     </select>
                                 </div>
                                 <input type="text" class="input" id="telefonoNumero" placeholder="7 dígitos" maxlength="7" inputmode="tel">
@@ -413,7 +421,7 @@
                         </div>
                     </section>
 
-                    <p class="form-note">Validamos sesión con tu cuenta de Google para asociar cada destinatario al cliente autenticado.</p>
+                    <p class="form-note">Debes agregar al menos los datos bancarios o el número de pago móvil para guardar el destinatario.</p>
                 </main>
             </div>
 
@@ -577,7 +585,7 @@
         }
 
         function normalizarPrefijo(prefijo) {
-            const permitidos = ['0412', '0414', '0424', '0416'];
+            const permitidos = ['0412', '0414', '0424', '0416', '0422', '0426'];
             let limpio = (prefijo || '').toString().replace(/[^0-9]/g, '');
             if (limpio.length === 3) limpio = `0${limpio}`;
             if (!permitidos.includes(limpio)) limpio = '0414';
@@ -648,12 +656,27 @@
             const email = document.getElementById("email").value.trim();
             const tipoDocForm = document.querySelector('input[name="tipoDoc"]:checked')?.value || "V";
 
-            if (!nombres || !apellidos || !numeroDocRaw || !bancoValor || !numeroCuenta) {
+            // Validar campos personales obligatorios
+            if (!nombres || !apellidos || !numeroDocRaw) {
                 return { valido: false, mensaje: "Completa todos los campos obligatorios." };
             }
 
-            if (numeroCuenta.length !== 20) {
-                return { valido: false, mensaje: "El numero de cuenta debe tener 20 digitos." };
+            // Verificar que al menos tenga pago móvil o datos bancarios
+            const tienePagoMovil = telefonoNumero.length === 7;
+            const tieneDatosBancarios = bancoValor && numeroCuenta;
+
+            if (!tienePagoMovil && !tieneDatosBancarios) {
+                return { valido: false, mensaje: "Debes agregar al menos los datos bancarios o el número de pago móvil." };
+            }
+
+            // Si tiene datos bancarios, validar que estén completos
+            if (tieneDatosBancarios) {
+                if (!bancoValor) {
+                    return { valido: false, mensaje: "Selecciona un banco." };
+                }
+                if (numeroCuenta.length !== 20) {
+                    return { valido: false, mensaje: "El numero de cuenta debe tener 20 digitos." };
+                }
             }
 
             if (["V", "E", "J"].includes(tipoDocForm) && !/^[0-9]{6,15}$/.test(numeroDocRaw)) {
@@ -686,9 +709,9 @@
                 nombre_completo: nombreCompleto,
                 documento_tipo: tipoDocMap[tipoDocForm] || "cedula",
                 documento_numero: numeroDocRaw.replace(/\s+/g, ""),
-                banco: bancoNombre,
-                tipo_cuenta: "corriente",
-                numero_cuenta: numeroCuenta,
+                banco: bancoNombre || null,
+                tipo_cuenta: tieneDatosBancarios ? "corriente" : null,
+                numero_cuenta: numeroCuenta || null,
                 pais: "Venezuela",
                 telefono: telefonoCompleto,
                 email: email || null,
