@@ -174,35 +174,23 @@
             background: var(--primary-blue);
         }
 
-        /* Carrusel de tarjetas con vista parcial (Peeking Cards) */
+        /* Carrusel de tarjetas */
         .cards-carousel-container {
             width: 100%;
             max-width: 420px;
             position: relative;
-            overflow: visible;
-            padding: 0 30px;
+            overflow: hidden;
         }
 
         .cards-carousel {
             display: flex;
             transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             touch-action: pan-y pinch-zoom;
-            gap: 20px;
         }
 
         .carousel-card {
-            flex: 0 0 calc(100% - 60px);
-            min-width: calc(100% - 60px);
-            opacity: 0.4;
-            transform: scale(0.9);
-            transition: opacity 0.4s ease, transform 0.4s ease;
-            pointer-events: none;
-        }
-
-        .carousel-card.active-card {
-            opacity: 1;
-            transform: scale(1);
-            pointer-events: all;
+            flex: 0 0 100%;
+            min-width: 100%;
         }
 
         .cards-dots {
@@ -813,19 +801,6 @@
 
             .login-benefit {
                 padding: 14px 16px;
-            }
-
-            .cards-carousel-container {
-                padding: 0 15px;
-            }
-
-            .carousel-card {
-                flex: 0 0 calc(100% - 30px);
-                min-width: calc(100% - 30px);
-            }
-
-            .cards-carousel {
-                gap: 15px;
             }
         }
     </style>
@@ -1471,45 +1446,118 @@
         }
 
         // ============================================
-        // CARRUSEL DE TARJETAS (Peeking Cards - Click en dots únicamente)
+        // CARRUSEL DE TARJETAS (Swipe + Click en dots)
         // ============================================
         (function initCardsCarousel() {
             const carousel = document.getElementById('cardsCarousel');
             const dots = document.querySelectorAll('.cards-dot');
             const cards = document.querySelectorAll('.carousel-card');
             let currentCard = 0;
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
 
             function goToCard(index) {
                 if (index < 0) index = 0;
                 if (index >= cards.length) index = cards.length - 1;
 
                 currentCard = index;
+                carousel.style.transform = `translateX(-${currentCard * 100}%)`;
 
-                // Calcular el desplazamiento considerando el gap de 20px entre tarjetas
-                const cardWidth = cards[0].offsetWidth;
-                const gap = 20;
-                const offset = currentCard * (cardWidth + gap);
-                carousel.style.transform = `translateX(-${offset}px)`;
-
-                // Actualizar clase active-card
-                cards.forEach((card, i) => {
-                    card.classList.toggle('active-card', i === currentCard);
-                });
-
-                // Actualizar dots
                 dots.forEach((dot, i) => {
                     dot.classList.toggle('active', i === currentCard);
                 });
             }
 
-            // Inicializar primera tarjeta como activa
-            if (cards.length > 0) {
-                cards[0].classList.add('active-card');
+            // Helper para verificar si el elemento es interactivo
+            function isInteractiveElement(element) {
+                const tagName = element.tagName.toLowerCase();
+                return ['button', 'a', 'input', 'select', 'textarea'].includes(tagName) ||
+                       element.closest('button, a, input, select, textarea');
             }
 
             // Click en los dots para cambiar de tarjeta
             dots.forEach((dot, index) => {
                 dot.addEventListener('click', () => goToCard(index));
+            });
+
+            // Touch events para swipe
+            carousel.addEventListener('touchstart', (e) => {
+                if (isInteractiveElement(e.target)) return;
+
+                startX = e.touches[0].clientX;
+                isDragging = true;
+                carousel.style.transition = 'none';
+            }, { passive: true });
+
+            carousel.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                currentX = e.touches[0].clientX;
+                const diff = currentX - startX;
+                const offset = -currentCard * 100 + (diff / carousel.offsetWidth) * 100;
+                carousel.style.transform = `translateX(${offset}%)`;
+            }, { passive: true });
+
+            carousel.addEventListener('touchend', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                carousel.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+
+                const diff = currentX - startX;
+                const threshold = carousel.offsetWidth * 0.2;
+
+                if (diff > threshold && currentCard > 0) {
+                    goToCard(currentCard - 1);
+                } else if (diff < -threshold && currentCard < cards.length - 1) {
+                    goToCard(currentCard + 1);
+                } else {
+                    goToCard(currentCard);
+                }
+            });
+
+            // Mouse events para desktop
+            carousel.addEventListener('mousedown', (e) => {
+                if (isInteractiveElement(e.target)) return;
+
+                startX = e.clientX;
+                isDragging = true;
+                carousel.style.transition = 'none';
+                carousel.style.cursor = 'grabbing';
+            });
+
+            carousel.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                currentX = e.clientX;
+                const diff = currentX - startX;
+                const offset = -currentCard * 100 + (diff / carousel.offsetWidth) * 100;
+                carousel.style.transform = `translateX(${offset}%)`;
+            });
+
+            carousel.addEventListener('mouseup', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                carousel.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                carousel.style.cursor = '';
+
+                const diff = currentX - startX;
+                const threshold = carousel.offsetWidth * 0.15;
+
+                if (diff > threshold && currentCard > 0) {
+                    goToCard(currentCard - 1);
+                } else if (diff < -threshold && currentCard < cards.length - 1) {
+                    goToCard(currentCard + 1);
+                } else {
+                    goToCard(currentCard);
+                }
+            });
+
+            carousel.addEventListener('mouseleave', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    carousel.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    carousel.style.cursor = '';
+                    goToCard(currentCard);
+                }
             });
         })();
 
