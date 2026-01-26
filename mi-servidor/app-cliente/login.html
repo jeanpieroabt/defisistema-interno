@@ -122,7 +122,6 @@
             padding: 0;
             position: relative;
             overflow: hidden;
-            min-height: 220px;
             box-shadow: inset 0 0 0 1px rgba(25, 116, 206, 0.06);
         }
 
@@ -140,13 +139,14 @@
             opacity: 1;
             transform: translateX(0);
             pointer-events: all;
+            position: relative;
         }
 
         .feature-banner {
             width: 100%;
-            height: 100%;
-            min-height: 220px;
-            object-fit: cover;
+            height: auto;
+            display: block;
+            object-fit: contain;
         }
 
         .feature-dots {
@@ -797,14 +797,6 @@
             .login-card {
                 padding: 32px 22px;
                 border-radius: 24px;
-            }
-
-            .feature-carousel {
-                padding: 20px 18px 32px;
-            }
-
-            .feature-slide {
-                inset: 20px 18px 48px;
             }
 
             .login-benefit {
