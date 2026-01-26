@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const cors = require('cors');
 const fs = require('fs');
 const multer = require('multer');
+const compression = require('compression');
 
 // Configuracion de multer para uploads
 const upload = multer({
@@ -413,10 +414,37 @@ const PORT = process.env.PORT || 3000;
 // Zona horaria ajustada a Caracas, Venezuela
 process.env.TZ = process.env.TZ || 'America/Caracas';
 
+// Habilitar compresión Gzip/Brotli para todas las respuestas
+app.use(compression({
+    level: 6, // Nivel de compresión (0-9, 6 es el balance óptimo)
+    threshold: 1024 // Comprimir solo archivos > 1KB
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('.'));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Middleware para configurar headers de caché en archivos estáticos
+const setStaticCacheHeaders = (res, path) => {
+    // Archivos inmutables (imágenes, fuentes, assets)
+    if (path.match(/\.(jpg|jpeg|png|gif|svg|webp|woff|woff2|ttf|eot)$/i)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // 1 año
+    }
+    // Archivos CSS y JS (versionados)
+    else if (path.match(/\.(css|js)$/i)) {
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 día
+    }
+    // HTML (sin caché agresivo para permitir actualizaciones)
+    else if (path.match(/\.html$/i)) {
+        res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate'); // 1 hora con revalidación
+    }
+    // Otros archivos
+    else {
+        res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hora
+    }
+};
+
+app.use(express.static('.', { setHeaders: setStaticCacheHeaders }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { setHeaders: setStaticCacheHeaders }));
 // CORS para frontend (localhost y dominios render)
 const allowedOrigins = [
     'http://localhost:3000',
@@ -7212,8 +7240,8 @@ const clienteAuth = async (req, res, next) => {
     }
 };
 
-// Servir archivos estáticos de la app cliente
-app.use('/app-cliente', express.static(path.join(__dirname, 'app-cliente')));
+// Servir archivos estáticos de la app cliente con headers de caché optimizados
+app.use('/app-cliente', express.static(path.join(__dirname, 'app-cliente'), { setHeaders: setStaticCacheHeaders }));
 app.get('/favicon.ico', (req, res) => {
     res.sendFile(path.join(__dirname, 'app-cliente', 'assets', 'defioracle-logo.png'));
 });

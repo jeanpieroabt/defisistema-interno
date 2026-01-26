@@ -6,7 +6,13 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1974CE">
     <title>Defi Oracle - Envios CLP a VES</title>
-    
+
+    <!-- Resource Hints - Precarga de dominios críticos -->
+    <link rel="dns-prefetch" href="https://accounts.google.com">
+    <link rel="preconnect" href="https://accounts.google.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+
     <!-- Google Sign-In -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -822,13 +828,13 @@
 
                         <div class="feature-carousel" aria-live="polite">
                             <div class="feature-slide active" id="feature-slide-0" aria-hidden="false">
-                                <img src="assets/BANERBIENVENIDA.jpeg?v=3" alt="Banner bienvenida" class="feature-banner">
+                                <img src="assets/BANERBIENVENIDA.jpeg?v=3" alt="Banner bienvenida" class="feature-banner" loading="eager">
                             </div>
                             <div class="feature-slide" id="feature-slide-1" aria-hidden="true">
-                                <img src="assets/BANERCENA.jpeg?v=3" alt="Banner cena" class="feature-banner">
+                                <img src="assets/BANERCENA.jpeg?v=3" alt="Banner cena" class="feature-banner" loading="lazy">
                             </div>
                             <div class="feature-slide" id="feature-slide-2" aria-hidden="true">
-                                <img src="assets/baner2.jpeg?v=3" alt="Banner 2" class="feature-banner">
+                                <img src="assets/baner2.jpeg?v=3" alt="Banner 2" class="feature-banner" loading="lazy">
                             </div>
                             <div class="feature-dots" role="tablist" aria-label="Destacados">
                                 <button class="feature-dot active" type="button" aria-label="Destacado 1" data-slide="0"></button>
@@ -888,19 +894,19 @@
                             <div class="testimonials-images-track" id="testimonialsTrack">
                                 <!-- Imagen 1 -->
                                 <div class="testimonial-image-slide">
-                                    <img src="assets/testimonios/testimonio1.jpeg" alt="Comentario de cliente" class="testimonial-screenshot">
+                                    <img src="assets/testimonios/testimonio1.jpeg" alt="Comentario de cliente" class="testimonial-screenshot" loading="lazy">
                                 </div>
                                 <!-- Imagen 2 -->
                                 <div class="testimonial-image-slide">
-                                    <img src="assets/testimonios/testimonio2.jpeg" alt="Comentario de cliente" class="testimonial-screenshot">
+                                    <img src="assets/testimonios/testimonio2.jpeg" alt="Comentario de cliente" class="testimonial-screenshot" loading="lazy">
                                 </div>
                                 <!-- Imagen 3 -->
                                 <div class="testimonial-image-slide">
-                                    <img src="assets/testimonios/testimonio3.jpeg" alt="Comentario de cliente" class="testimonial-screenshot">
+                                    <img src="assets/testimonios/testimonio3.jpeg" alt="Comentario de cliente" class="testimonial-screenshot" loading="lazy">
                                 </div>
                                 <!-- Imagen 4 -->
                                 <div class="testimonial-image-slide">
-                                    <img src="assets/testimonios/testimonio4.jpeg" alt="Comentario de cliente" class="testimonial-screenshot">
+                                    <img src="assets/testimonios/testimonio4.jpeg" alt="Comentario de cliente" class="testimonial-screenshot" loading="lazy">
                                 </div>
                             </div>
                             <div class="testimonials-dots" id="testimonialsDots">

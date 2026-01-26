@@ -6,8 +6,12 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1974CE">
     <title>Inicio - Defi Oracle</title>
-    
-    <!-- Google Fonts - Inter -->
+
+    <!-- Resource Hints - Precarga de dominios críticos -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+
+    <!-- Google Fonts - Inter (optimizado con display=swap para evitar FOIT) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -797,7 +801,7 @@
                 <!-- Brand Banner -->
                 <div class="brand-banner animate-in">
                     <div class="brand-banner-logo">
-                        <img src="./assets/banerreferido.png" alt="Gana 10.000 CLP por cada invitado - DefiOracle">
+                        <img src="./assets/banerreferido.png" alt="Gana 10.000 CLP por cada invitado - DefiOracle" loading="lazy">
                     </div>
                 </div>
 
@@ -1145,14 +1149,14 @@
             window.location.href = `tracking.html?id=${id}`;
         }
 
-        // Polling para actualizar historial cada 10 segundos
+        // Polling para actualizar historial cada 30 segundos (optimizado para reducir carga de red)
         let pollingHistorialInterval = null;
         function iniciarPollingHistorial() {
             if (pollingHistorialInterval) clearInterval(pollingHistorialInterval);
-            
+
             pollingHistorialInterval = setInterval(() => {
                 cargarHistorial();
-            }, 10000); // Cada 10 segundos
+            }, 30000); // Cada 30 segundos (reducido de 10s para mejor rendimiento)
         }
         
         // Detener polling cuando la página no está visible

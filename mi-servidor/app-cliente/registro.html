@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#1974CE">
     <title>Completar registro - Defi Oracle</title>
+
+    <!-- Resource Hints - Precarga de dominios críticos -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+
     <script>
         (function() {
             const stored = localStorage.getItem('apiBaseUrlOverride');
@@ -92,7 +97,7 @@
     <div class="app">
         <div class="topbar">
             <div class="logo">
-                <img src="assets/defioracle-logo.png" alt="Defi Oracle">
+                <img src="assets/defioracle-logo.png" alt="Defi Oracle" loading="eager">
                 <div>
                     <div class="eyebrow">Verificacion</div>
                     <h1>Completa tus datos</h1>
