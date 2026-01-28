@@ -313,10 +313,13 @@
             z-index: 1000;
             padding: 1rem;
             backdrop-filter: blur(5px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
-        
+
         .modal-overlay.active {
             display: flex !important;
+            opacity: 1;
         }
         
         .modal-content {
@@ -636,17 +639,24 @@
         const API_BASE = '';
         let codigos = [];
         let editandoId = null;
-        
+
+        // Log para debugging
+        console.log('Script de promociones cargado correctamente');
+
         // Verificar autenticación via sesión
         async function verificarSesion() {
             try {
+                console.log('Verificando sesión...');
                 const response = await fetch('/api/user-info', { credentials: 'include' });
                 if (!response.ok) {
+                    console.error('Sesión no válida, redirigiendo a login');
                     window.location.href = 'login.html';
                     return false;
                 }
+                console.log('Sesión válida');
                 return true;
             } catch (e) {
+                console.error('Error al verificar sesión:', e);
                 window.location.href = 'login.html';
                 return false;
             }
@@ -654,24 +664,32 @@
         
         async function cargarCodigos() {
             try {
+                console.log('Cargando códigos promocionales...');
                 const response = await fetch(`${API_BASE}/api/codigos-promocionales`, {
                     credentials: 'include'
                 });
-                
+
+                console.log('Response status:', response.status);
+
                 if (response.status === 401 || response.status === 403) {
                     alert('Sesión expirada. Por favor inicia sesión nuevamente.');
                     window.location.href = 'login.html';
                     return;
                 }
-                
-                if (!response.ok) throw new Error('Error al cargar códigos');
-                
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error('Error al cargar códigos: ' + response.status);
+                }
+
                 codigos = await response.json();
+                console.log('Códigos cargados:', codigos.length);
                 renderizarCodigos();
                 actualizarStats();
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error al cargar los códigos promocionales. Verifica tu conexión.');
+                console.error('Error completo:', error);
+                alert('Error al cargar los códigos promocionales. Detalles: ' + error.message);
             }
         }
         
@@ -796,20 +814,44 @@
         }
         
         function abrirModalNuevo() {
+            console.log('Abriendo modal para nuevo código');
             editandoId = null;
+
+            const modal = document.getElementById('modalCodigo');
+            const form = document.getElementById('formCodigo');
+            const codigoInput = document.getElementById('codigo');
+
+            if (!modal || !form || !codigoInput) {
+                console.error('Elementos del modal no encontrados');
+                alert('Error: No se pudo abrir el formulario. Recarga la página.');
+                return;
+            }
+
             document.getElementById('modalTitulo').textContent = 'Nuevo Código Promocional';
-            document.getElementById('formCodigo').reset();
+            form.reset();
             document.getElementById('codigoId').value = '';
             document.getElementById('activo').value = '1';
-            document.getElementById('codigo').disabled = false;
-            document.getElementById('modalCodigo').classList.add('active');
+            codigoInput.disabled = false;
+            modal.classList.add('active');
+
+            // Forzar el display del modal
+            modal.style.display = 'flex';
+
+            console.log('Modal abierto, clases:', modal.className);
         }
         
         function editarCodigo(id) {
+            console.log('Editando código ID:', id);
             const codigo = codigos.find(c => c.id === id);
-            if (!codigo) return;
-            
+            if (!codigo) {
+                console.error('Código no encontrado:', id);
+                alert('Error: Código no encontrado');
+                return;
+            }
+
             editandoId = id;
+            const modal = document.getElementById('modalCodigo');
+
             document.getElementById('modalTitulo').textContent = 'Editar Código Promocional';
             document.getElementById('codigoId').value = id;
             document.getElementById('codigo').value = codigo.codigo;
@@ -821,39 +863,79 @@
             document.getElementById('fechaInicio').value = codigo.fecha_inicio ? codigo.fecha_inicio.split('T')[0] : '';
             document.getElementById('fechaExpiracion').value = codigo.fecha_expiracion ? codigo.fecha_expiracion.split('T')[0] : '';
             document.getElementById('soloPrimerEnvio').checked = codigo.solo_primer_envio;
-            
-            document.getElementById('modalCodigo').classList.add('active');
+
+            modal.classList.add('active');
+            modal.style.display = 'flex';
+
+            console.log('Modal de edición abierto');
         }
         
         function cerrarModal() {
-            document.getElementById('modalCodigo').classList.remove('active');
+            console.log('Cerrando modal');
+            const modal = document.getElementById('modalCodigo');
+            if (modal) {
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+            }
             editandoId = null;
+            console.log('Modal cerrado');
         }
         
         async function guardarCodigo() {
+            console.log('Guardando código...');
+
+            // Validar que todos los campos existan
+            const codigoInput = document.getElementById('codigo');
+            const tasaInput = document.getElementById('tasaEspecial');
+
+            if (!codigoInput || !tasaInput) {
+                console.error('Elementos del formulario no encontrados');
+                alert('Error: Formulario no válido. Recarga la página.');
+                return;
+            }
+
             const data = {
-                codigo: document.getElementById('codigo').value.toUpperCase().trim(),
+                codigo: codigoInput.value.toUpperCase().trim(),
                 descripcion: document.getElementById('descripcion').value.trim() || null,
-                tasa_especial: parseFloat(document.getElementById('tasaEspecial').value),
+                tasa_especial: parseFloat(tasaInput.value),
                 usos_maximos: document.getElementById('usosMaximos').value ? parseInt(document.getElementById('usosMaximos').value) : null,
                 activo: document.getElementById('activo').value === '1',
                 fecha_inicio: document.getElementById('fechaInicio').value || null,
                 fecha_expiracion: document.getElementById('fechaExpiracion').value || null,
                 solo_primer_envio: document.getElementById('soloPrimerEnvio').checked
             };
-            
-            if (!data.codigo || !data.tasa_especial) {
-                alert('Código y tasa especial son requeridos');
+
+            console.log('Datos a guardar:', data);
+
+            // Validaciones
+            if (!data.codigo) {
+                alert('El código es requerido');
+                codigoInput.focus();
                 return;
             }
-            
+
+            if (!data.tasa_especial || isNaN(data.tasa_especial) || data.tasa_especial <= 0) {
+                alert('La tasa especial debe ser un número mayor a 0');
+                tasaInput.focus();
+                return;
+            }
+
+            // Validar formato del código
+            if (!/^[A-Z0-9]+$/.test(data.codigo)) {
+                alert('El código solo puede contener letras mayúsculas y números, sin espacios ni caracteres especiales');
+                codigoInput.focus();
+                return;
+            }
+
             try {
-                const url = editandoId 
+                const url = editandoId
                     ? `${API_BASE}/api/codigos-promocionales/${editandoId}`
                     : `${API_BASE}/api/codigos-promocionales`;
-                
+
                 const method = editandoId ? 'PUT' : 'POST';
-                
+
+                console.log(`Enviando ${method} a ${url}`);
+
                 const response = await fetch(url, {
                     method,
                     headers: {
@@ -862,60 +944,113 @@
                     credentials: 'include',
                     body: JSON.stringify(data)
                 });
-                
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(result.error || 'Error al guardar');
+
+                console.log('Response status:', response.status);
+
+                let result;
+                try {
+                    result = await response.json();
+                } catch (e) {
+                    console.error('Error al parsear respuesta:', e);
+                    result = {};
                 }
-                
+
+                if (!response.ok) {
+                    console.error('Error del servidor:', result);
+                    throw new Error(result.error || result.message || `Error del servidor: ${response.status}`);
+                }
+
+                console.log('Código guardado exitosamente');
                 cerrarModal();
-                cargarCodigos();
+                await cargarCodigos();
                 alert(editandoId ? 'Código actualizado correctamente' : 'Código creado correctamente');
             } catch (error) {
-                console.error('Error:', error);
-                alert(error.message || 'Error al guardar el código');
+                console.error('Error completo al guardar:', error);
+                alert('Error al guardar el código: ' + error.message);
             }
         }
         
         async function eliminarCodigo(id) {
+            console.log('Eliminando código ID:', id);
             const codigo = codigos.find(c => c.id === id);
-            if (!codigo) return;
-            
-            if (!confirm(`¿Eliminar el código "${codigo.codigo}"?\n\nEsta acción no se puede deshacer.`)) {
+            if (!codigo) {
+                console.error('Código no encontrado:', id);
+                alert('Error: Código no encontrado');
                 return;
             }
-            
+
+            if (!confirm(`¿Eliminar el código "${codigo.codigo}"?\n\nEsta acción no se puede deshacer.`)) {
+                console.log('Eliminación cancelada por el usuario');
+                return;
+            }
+
             try {
+                console.log('Enviando solicitud DELETE');
                 const response = await fetch(`${API_BASE}/api/codigos-promocionales/${id}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
-                
-                if (!response.ok) throw new Error('Error al eliminar');
-                
-                cargarCodigos();
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error al eliminar:', errorText);
+                    throw new Error('Error al eliminar: ' + response.status);
+                }
+
+                console.log('Código eliminado exitosamente');
+                alert('Código eliminado correctamente');
+                await cargarCodigos();
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error al eliminar el código');
+                console.error('Error completo al eliminar:', error);
+                alert('Error al eliminar el código: ' + error.message);
             }
         }
         
         // Cerrar modal con Escape
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') cerrarModal();
-        });
-        
-        // Cerrar modal al hacer clic fuera
-        document.getElementById('modalCodigo').addEventListener('click', (e) => {
-            if (e.target === document.getElementById('modalCodigo')) {
+            if (e.key === 'Escape') {
+                console.log('Tecla Escape presionada');
                 cerrarModal();
             }
         });
-        
-        // Cargar al iniciar (verificar sesión primero)
-        verificarSesion().then(ok => {
-            if (ok) cargarCodigos();
+
+        // Cerrar modal al hacer clic fuera
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM completamente cargado');
+
+            const modal = document.getElementById('modalCodigo');
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        console.log('Click en overlay del modal');
+                        cerrarModal();
+                    }
+                });
+                console.log('Event listener del modal configurado');
+            } else {
+                console.error('Modal no encontrado en el DOM');
+            }
+
+            // Verificar que todos los botones principales existan
+            const btnNuevo = document.querySelector('.btn-primary');
+            if (btnNuevo) {
+                console.log('Botón "Nuevo Código" encontrado');
+            } else {
+                console.error('Botón "Nuevo Código" no encontrado');
+            }
+
+            // Cargar al iniciar (verificar sesión primero)
+            verificarSesion().then(ok => {
+                if (ok) {
+                    cargarCodigos();
+                } else {
+                    console.error('Sesión no válida');
+                }
+            }).catch(error => {
+                console.error('Error al inicializar:', error);
+            });
         });
     </script>
 </body>

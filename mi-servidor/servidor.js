@@ -2533,7 +2533,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
         const hoy = new Date();
         const fechaHoy = hoyLocalYYYYMMDD();
         
-        // Clientes inactivos (30-60 días)
+        // Clientes inactivos (30-60 dias)
         const inactivos = await dbAll(`
             SELECT c.id, c.nombre, MAX(o.fecha) as ultima_operacion, COUNT(o.id) as total_ops
             FROM clientes c
@@ -2570,7 +2570,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
                     accion_realizada: null
                 });
             } else {
-                // Retornar alerta existente con acción si existe
+                // Retornar alerta existente con accion si existe
                 alertas.push({
                     id: alertaExistente.id,
                     tipo: alertaExistente.tipo,
@@ -2586,7 +2586,7 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
             }
         }
         
-        // Clientes críticos (+60 días)
+        // Clientes criticos (+60 dias)
         const criticos = await dbAll(`
             SELECT c.id, c.nombre, MAX(o.fecha) as ultima_operacion
             FROM clientes c
@@ -2635,66 +2635,11 @@ app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res)
                 });
             }
         }
-        
-        // Disminución de frecuencia
-        const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-        const hace60 = new Date(hoy.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-        
-        const clientesActivos = await dbAll(`
-            SELECT DISTINCT o.cliente_id 
-            FROM operaciones o
-            JOIN clientes c ON o.cliente_id = c.id
-            WHERE o.fecha >= ?
-            AND julianday('now') - julianday(c.fecha_creacion) > 7
-        `, [hace60]);
-        
-        for (const c of clientesActivos) {
-            const recientes = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ?`, [c.cliente_id, hace30]);
-            const anteriores = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [c.cliente_id, hace60, hace30]);
-            
-            if (anteriores.cnt >= 3 && recientes.cnt < anteriores.cnt * 0.5) {
-                const cliente = await dbGet(`SELECT nombre, id FROM clientes WHERE id = ?`, [c.cliente_id]);
-                const ultimaOp = await dbGet(`SELECT MAX(fecha) as fecha FROM operaciones WHERE cliente_id = ?`, [c.cliente_id]);
-                
-                const alertaExistente = await dbGet(`
-                    SELECT * FROM alertas 
-                    WHERE cliente_id = ? AND tipo = 'disminucion' AND activa = 1
-                `, [c.cliente_id]);
-                
-                if (!alertaExistente) {
-                    const result = await dbRun(`
-                        INSERT INTO alertas(cliente_id, tipo, severidad, ultima_operacion, fecha_creacion)
-                        VALUES (?, 'disminucion', 'warning', ?, ?)
-                    `, [c.cliente_id, ultimaOp.fecha, fechaHoy]);
-                    
-                    alertas.push({
-                        id: result.lastID,
-                        tipo: 'disminucion',
-                        severidad: 'warning',
-                        cliente_id: c.cliente_id,
-                        cliente_nombre: cliente.nombre,
-                        mensaje: `Reducción de actividad: ${anteriores.cnt} ops †' ${recientes.cnt} ops`,
-                        ops_anterior: anteriores.cnt,
-                        ops_reciente: recientes.cnt,
-                        accion_realizada: null
-                    });
-                } else {
-                    alertas.push({
-                        id: alertaExistente.id,
-                        tipo: alertaExistente.tipo,
-                        severidad: alertaExistente.severidad,
-                        cliente_id: c.cliente_id,
-                        cliente_nombre: cliente.nombre,
-                        mensaje: `Reducción de actividad: ${anteriores.cnt} ops †' ${recientes.cnt} ops`,
-                        ops_anterior: anteriores.cnt,
-                        ops_reciente: recientes.cnt,
-                        accion_realizada: alertaExistente.accion_realizada,
-                        fecha_accion: alertaExistente.fecha_accion
-                    });
-                }
-            }
-        }
-        
+
+        // ALERTAS DE DISMINUCION DE FRECUENCIA DESACTIVADAS
+        // Las alertas por cambios en la frecuencia de operaciones han sido desactivadas
+        // Se mantienen solo alertas de inactividad (30-60 dias) y criticas (+60 dias)
+
         res.json(alertas);
     } catch (error) {
         console.error('Error en alertas:', error);
