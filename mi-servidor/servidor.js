@@ -3,6 +3,9 @@
 // Defi Oracle - Backend (Auth, Envíos, Histórico, Tasas, Compras, Operadores)
 // =======================================================
 
+// Cargar variables de entorno desde .env
+require('dotenv').config();
+
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
@@ -14,6 +17,7 @@ const cors = require('cors');
 const fs = require('fs');
 const multer = require('multer');
 const compression = require('compression');
+const openaiHelper = require('./openai-helper');
 
 // Configuracion de multer para uploads
 const upload = multer({
@@ -3606,60 +3610,24 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
             tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
         }
         
-        // Generar mensaje con IA (OpenAI)
+        // Generar mensaje con IA (OpenAI) usando helper optimizado
         const nombreCliente = tarea.cliente_nombre || 'Cliente';
-        
-        try {
-            const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
-            
-            let promptMensaje = '';
-            
-            if (tipoEstrategia === 'inactivo_recordatorio') {
-                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje amigable de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: cálido, cercano, pregunta cómo está. NO menciones descuentos ni promociones (solo recordatorio). NO uses placeholders. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 ‡‡‡‡. Máximo 4 líneas. IMPORTANTE: Sé CREATIVO y VARÍA el estilo - evita usar siempre la misma estructura o frases. Cada mensaje debe sentirse único y personalizado. ANTI-SPAM: Escribe como humano, NO como bot comercial. Evita mayúsculas excesivas, !!!, lenguaje de ventas. Preferir conversación natural.`;
-                
-            } else if (tipoEstrategia === 'inactivo_promocion') {
-                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero a Venezuela. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa promocional: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. Tono: cercano, hazle saber que lo extrañamos. NO uses placeholders como [Tu Nombre]. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 ‡‡‡‡. Máximo 5 líneas. IMPORTANTE: Sé CREATIVO - varía el tono, la estructura y las palabras. Cada mensaje debe ser único. ANTI-SPAM: Lenguaje humano y natural, NO promocional agresivo. Evita: OFERTAS!!!, TODO EN MAYSCULAS, lenguaje de marketing. Sé conversacional.`;
-                
-            } else if (tipoEstrategia === 'critico_reactivacion') {
-                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa ESPECIAL de reactivación: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. Tono: urgente pero cálido, transmite que lo extrañamos. NO menciones "pérdidas" ni "riesgos". NO incluyas placeholders como [Tu Nombre] o [Tu Empresa]. El mensaje es DIRECTO del equipo DefiOracle. Emojis: ️' (máximo 3). Horario: 08:00-21:00 ‡‡‡‡. Máximo 6 líneas. IMPORTANTE: Sé MUY CREATIVO - cada mensaje debe tener diferente estructura, estilo y expresiones. Personaliza según el contexto. ANTI-SPAM: Urgencia SIN agresividad comercial. Evita: !!URGENTE!!, OFERTA LIMITADA!!!, mayúsculas excesivas. Preferir: lenguaje directo pero amigable.`;
-                
-            } else if (tipoEstrategia === 'reduccion_actividad') {
-                promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje para ${nombreCliente} que antes enviaba dinero con más frecuencia pero ahora no tanto. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: preocupación genuina, pregunta si todo está bien o si podemos mejorar. Ofrece tasa EXCLUSIVA solo para él/ella: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. NO uses palabras corporativas como "retención", "estrategia", "fidelización". Lenguaje cercano y familiar. NO placeholders. Emojis moderados (2-3 máx). Horario: 08:00-21:00 ‡‡‡‡. Máximo 5 líneas. IMPORTANTE: Varía la forma de expresar preocupación y oferta. Sé único y creativo en cada mensaje. ANTI-SPAM: Tono empático y humano, NO ventas. Evita: frases genéricas de marketing, exclamaciones excesivas. Parecer conversación real.`;
-            }
-            
-            const responseIA = await axios.post('https://api.openai.com/v1/chat/completions', {
-                model: 'gpt-4o-mini',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cálidos y profesionales en español para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderación (2-3 máximo). Enfoque: remesas familiares, no inversiones ni pérdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayúsculas, múltiples signos de exclamación (!!!), lenguaje muy formal o corporativo, frases genéricas de marketing. Preferir: conversación natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo. PRIVACIDAD: NO menciones situaciones personales/familiares del cliente ("apoyo a casa", "seres queridos", "familia"). Solo usar: "enviar dinero a Venezuela" o "hacer un envío".'
-                    },
-                    {
-                        role: 'user',
-                        content: promptMensaje
-                    }
-                ],
-                max_tokens: 200,
-                temperature: 0.9
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            mensajeGenerado = responseIA.data.choices[0].message.content.trim();
-            
-        } catch (errorIA) {
-            console.error('Error generando mensaje con IA:', errorIA.message);
-            // Fallback a mensaje predeterminado si falla la IA
-            if (tipoEstrategia === 'inactivo_recordatorio') {
-                mensajeGenerado = `Hola ${nombreCliente}! '‹\n\nHace tiempo que no te vemos por aquí. ¿Todo bien? ˜\n\nEstamos disponibles 08:00-21:00 todos los días para tus operaciones. ‡‡‡‡\n\n¡Esperamos verte pronto!`;
-            } else {
-                mensajeGenerado = `Hola ${nombreCliente}! '‹\n\nTenemos una tasa especial para ti: ${tasaPromocional ? tasaPromocional.toFixed(3) : ''} VES/CLP '\n\n¡Contáctanos! Disponibles 08:00-21:00 ‡‡‡‡`;
-            }
+
+        const resultIA = await openaiHelper.generateTaskMessage({
+            nombreCliente,
+            diasInactivo,
+            tasaPromocional,
+            tipoEstrategia
+        });
+
+        if (resultIA.success) {
+            mensajeGenerado = resultIA.message;
+            console.log(`   ✅ Mensaje IA generado. Tokens: ${resultIA.usage.inputTokens} in + ${resultIA.usage.outputTokens} out | Costo: $${resultIA.usage.cost.toFixed(6)}`);
+        } else {
+            mensajeGenerado = resultIA.message; // Ya trae el fallback automatico
+            console.warn(`   ⚠️ Usando mensaje fallback. Error: ${resultIA.error}`);
         }
-        
+
         // Preparar metadata
         const metadata = {
             tasa_original: tasaOriginal,
@@ -5089,22 +5057,22 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
         // Agregar mensaje actual del usuario
         messages.push({ role: 'user', content: userMessage });
         
-        // Primera llamada a OpenAI con function calling
-        let response = await axios.post('https://api.openai.com/v1/chat/completions', {
-            model: 'gpt-4o-mini',
-            messages: messages,
-            functions: agentFunctions,
-            function_call: "auto",
-            max_tokens: 500,
-            temperature: 0.8
-        }, {
-            headers: {
-                'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                'Content-Type': 'application/json'
+        // Primera llamada a OpenAI con function calling usando helper optimizado
+        const resultChatbot = await openaiHelper.chatbotWithFunctions(messages, agentFunctions);
+
+        if (!resultChatbot.success) {
+            console.error(' Error chatbot OpenAI:', resultChatbot.error);
+
+            // Error especifico de API key
+            if (resultChatbot.errorCode === 'invalid_api_key') {
+                return ` **Configuración pendiente**\n\nLo siento, la API key de OpenAI no está configurada correctamente.\n\n**Administrador:** Configure la variable de entorno \`OPENAI_API_KEY\` en Render con una key válida de https://platform.openai.com/api-keys`;
             }
-        });
-        
-        let responseMessage = response.data.choices[0].message;
+
+            // Respuesta generica humanizada
+            return `Entiendo tu consulta, ${username}. Como asistente de DefiOracle.cl puedo ayudarte con conversiones, datos bancarios, tareas, y más. ¿Podrías darme más detalles de lo que necesitas?\n\n_Nota: El servicio de IA está experimentando problemas técnicos._`;
+        }
+
+        let responseMessage = resultChatbot.message;
         
         // Si OpenAI decidió llamar una función
         if (responseMessage.function_call) {
@@ -5649,69 +5617,22 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
                             }
                             
-                            // 7. Generar mensaje con OpenAI según estrategia
+                            // 7. Generar mensaje con OpenAI usando helper optimizado
                             const nombreCliente = tarea.cliente_nombre || 'Cliente';
-                            
-                            try {
-                                let promptMensaje = '';
-                                
-                                if (tipoEstrategia === 'inactivo_recordatorio') {
-                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje amigable de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: cálido, cercano, pregunta cómo está. NO menciones descuentos ni promociones (solo recordatorio). NO uses placeholders. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 ‡‡‡‡. Máximo 4 líneas. IMPORTANTE: Sé CREATIVO y VARÍA el estilo - evita usar siempre la misma estructura o frases. Cada mensaje debe sentirse único y personalizado. ANTI-SPAM: Escribe como humano, NO como bot comercial. Evita mayúsculas excesivas, !!!, lenguaje de ventas. Preferir conversación natural.`;
-                                    
-                                } else if (tipoEstrategia === 'inactivo_promocion') {
-                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero a Venezuela. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa promocional: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. Tono: cercano, hazle saber que lo extrañamos. NO uses placeholders como [Tu Nombre]. Mensaje directo de DefiOracle. Emojis apropiados (2-3 máx). Horario: 08:00-21:00 ‡‡‡‡. Máximo 5 líneas. IMPORTANTE: Sé CREATIVO - varía el tono, la estructura y las palabras. Cada mensaje debe ser único. ANTI-SPAM: Lenguaje humano y natural, NO promocional agresivo. Evita: OFERTAS!!!, TODO EN MAYSCULAS, lenguaje de marketing. Sé conversacional.`;
-                                    
-                                } else if (tipoEstrategia === 'critico_reactivacion') {
-                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje de WhatsApp para ${nombreCliente} que lleva ${diasInactivo} días sin enviar dinero. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Ofrece tasa ESPECIAL de reactivación: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. Tono: urgente pero cálido, transmite que lo extrañamos. NO menciones "pérdidas" ni "riesgos". NO incluyas placeholders como [Tu Nombre] o [Tu Empresa]. El mensaje es DIRECTO del equipo DefiOracle. Emojis: ️' (máximo 3). Horario: 08:00-21:00 ‡‡‡‡. Máximo 6 líneas. IMPORTANTE: Sé MUY CREATIVO - cada mensaje debe tener diferente estructura, estilo y expresiones. Personaliza según el contexto. ANTI-SPAM: Urgencia SIN agresividad comercial. Evita: !!URGENTE!!, OFERTA LIMITADA!!!, mayúsculas excesivas. Preferir: lenguaje directo pero amigable.`;
-                                    
-                                } else if (tipoEstrategia === 'reduccion_actividad') {
-                                    promptMensaje = `Eres DefiOracle, empresa de remesas Chile-Venezuela. Genera un mensaje para ${nombreCliente} que antes enviaba dinero con más frecuencia pero ahora no tanto. IMPORTANTE: INICIA el mensaje con un saludo personalizado usando el nombre del cliente (Hola ${nombreCliente}, Hola Juan, etc). Tono: preocupación genuina, pregunta si todo está bien o si podemos mejorar. Ofrece tasa EXCLUSIVA solo para él/ella: ${tasaPromocional.toFixed(3)} VES/CLP, válida SOLO HOY hasta las 21:00. NO uses palabras corporativas como "retención", "estrategia", "fidelización". Lenguaje cercano y familiar. NO placeholders. Emojis moderados (2-3 máx). Horario: 08:00-21:00 ‡‡‡‡. Máximo 5 líneas. IMPORTANTE: Varía la forma de expresar preocupación y oferta. Sé único y creativo en cada mensaje. ANTI-SPAM: Tono empático y humano, NO ventas. Evita: frases genéricas de marketing, exclamaciones excesivas. Parecer conversación real.`;
-                                }
-                                
-                                // Llamar a OpenAI para generar el mensaje
-                                const responseIA = await axios.post('https://api.openai.com/v1/chat/completions', {
-                                    model: 'gpt-4o-mini',
-                                    messages: [
-                                        {
-                                            role: 'system',
-                                            content: 'Eres DefiOracle, empresa chilena de remesas que ayuda a enviar dinero desde Chile hacia Venezuela usando USDT como puente. Genera mensajes directos, cálidos y profesionales en español para WhatsApp. NUNCA uses placeholders como [Tu Nombre], [Tu Empresa], [Firma] - el mensaje ya es de DefiOracle. Usa emojis con moderación (2-3 máximo). Enfoque: remesas familiares, no inversiones ni pérdidas financieras. IMPORTANTE ANTI-SPAM: Escribe como humano real, NO como bot. Evita: palabras todo en mayúsculas, múltiples signos de exclamación (!!!), lenguaje muy formal o corporativo, frases genéricas de marketing. Preferir: conversación natural, tuteo, preguntas genuinas, tono cercano como si fuera un amigo. PRIVACIDAD: NO menciones situaciones personales/familiares del cliente ("apoyo a casa", "seres queridos", "familia"). Solo usar: "enviar dinero a Venezuela" o "hacer un envío".'
-                                        },
-                                        {
-                                            role: 'user',
-                                            content: promptMensaje
-                                        }
-                                    ],
-                                    max_tokens: 200,
-                                    temperature: 0.9
-                                }, {
-                                    headers: {
-                                        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                                        'Content-Type': 'application/json'
-                                    }
-                                });
-                                
-                                mensajeGenerado = responseIA.data.choices[0].message.content.trim();
-                                
-                            } catch (errorIA) {
-                                console.error('Error generando mensaje con OpenAI (chatbot):', errorIA.message);
-                                
-                                // Fallback a mensajes de plantilla si OpenAI falla
-                                if (tipoEstrategia === 'inactivo_recordatorio') {
-                                    mensajeGenerado = `Hola ${nombreCliente}! '‹\n\nHace tiempo que no te vemos por aquí. ¿Todo bien? ˜\n\nEstamos disponibles 08:00-21:00 todos los días para tus operaciones. ‡‡‡‡\n\n¡Esperamos verte pronto!`;
-                                    
-                                } else if (tipoEstrategia === 'inactivo_promocion') {
-                                    mensajeGenerado = `Hola ${nombreCliente}! '‹\n\nTe extrañamos! Hace ${diasInactivo} días que no haces una operación con nosotros. ˜\n\nPorque nos importa tu regreso, tenemos una tasa de regalo especial para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP '\n\n¡Esperamos verte pronto! Disponibles 08:00-21:00 todos los días. ‡‡‡‡`;
-                                    
-                                } else if (tipoEstrategia === 'critico_reactivacion') {
-                                    const fechaLimite = new Date();
-                                    fechaLimite.setDate(fechaLimite.getDate() + 7);
-                                    const fechaLimiteStr = fechaLimite.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
-                                    
-                                    mensajeGenerado = `Hola ${nombreCliente}! '‹\n\nHan pasado más de ${diasInactivo} días desde tu última operación con nosotros. ˜\n\n️ No queremos perderte como cliente! Por eso te ofrecemos una tasa ESPECIAL de reactivación:\n\n' ${tasaPromocional.toFixed(3)} VES por cada CLP\n(2% de descuento especial!)\n\nEsta oferta es válida solo por 7 días. Escríbenos antes del ${fechaLimiteStr}.\n\nDisponibles 08:00-21:00 todos los días. ‡‡‡‡`;
-                                    
-                                } else if (tipoEstrategia === 'reduccion_actividad') {
-                                    mensajeGenerado = `Hola ${nombreCliente}! '‹\n\nNotamos que antes hacías más operaciones con nosotros. "\n\n¿Hay algo que podamos mejorar? ¿Nuestro servicio te está satisfaciendo?\n\nQueremos que sigas confiando en nosotros, por eso te ofrecemos una tasa especial: ${tasaPromocional.toFixed(3)} VES/CLP '\n\nEscríbenos y cuéntanos cómo te podemos ayudar mejor. ™\n\nDisponibles 08:00-21:00 todos los días. ‡‡‡‡`;
-                                }
+
+                            const resultIA = await openaiHelper.generateTaskMessage({
+                                nombreCliente,
+                                diasInactivo,
+                                tasaPromocional,
+                                tipoEstrategia
+                            });
+
+                            if (resultIA.success) {
+                                mensajeGenerado = resultIA.message;
+                                console.log(`   ✅ Mensaje IA (chatbot) generado. Tokens: ${resultIA.usage.inputTokens} in + ${resultIA.usage.outputTokens} out | Costo: $${resultIA.usage.cost.toFixed(6)}`);
+                            } else {
+                                mensajeGenerado = resultIA.message; // Fallback automatico
+                                console.warn(`   ⚠️ Usando mensaje fallback (chatbot). Error: ${resultIA.error}`);
                             }
                             
                             // 8. Preparar metadata
@@ -5765,20 +5686,16 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                 content: JSON.stringify(functionResult)
             });
             
-            // Segunda llamada a OpenAI para que genere respuesta final con los datos
-            response = await axios.post('https://api.openai.com/v1/chat/completions', {
+            // Segunda llamada a OpenAI para que genere respuesta final con los datos (sin functions)
+            const resultFinal = await openaiHelper.callOpenAI({
                 model: 'gpt-4o-mini',
                 messages: messages,
-                max_tokens: 500,
-                temperature: 0.8
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json'
-                }
+                maxTokens: 500,
+                temperature: 0.8,
+                useCache: false
             });
-            
-            return response.data.choices[0].message.content;
+
+            return resultFinal.message.content;
         }
         
         // Si no llamó ninguna función, retornar respuesta directa
@@ -5796,6 +5713,60 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
         return `Entiendo tu consulta, ${username}. Como asistente de DefiOracle.cl puedo ayudarte con conversiones, datos bancarios, tareas, y más. ¿Podrías darme más detalles de lo que necesitas?\n\n_Nota: El servicio de IA está experimentando problemas técnicos._`;
     }
 }
+
+// =====================================================
+// ENDPOINT: Estadisticas de uso de OpenAI
+// =====================================================
+app.get('/api/openai/stats', apiAuth, onlyMaster, (req, res) => {
+    try {
+        const stats = openaiHelper.getStats();
+        res.json({
+            success: true,
+            stats: stats,
+            mensaje: 'Estadisticas de uso de OpenAI obtenidas exitosamente'
+        });
+    } catch (error) {
+        console.error('Error obteniendo stats de OpenAI:', error);
+        res.status(500).json({
+            error: true,
+            mensaje: 'Error al obtener estadisticas'
+        });
+    }
+});
+
+// Endpoint para resetear estadisticas de OpenAI (solo master)
+app.post('/api/openai/stats/reset', apiAuth, onlyMaster, (req, res) => {
+    try {
+        openaiHelper.resetStats();
+        res.json({
+            success: true,
+            mensaje: 'Estadisticas reseteadas exitosamente'
+        });
+    } catch (error) {
+        console.error('Error reseteando stats:', error);
+        res.status(500).json({
+            error: true,
+            mensaje: 'Error al resetear estadisticas'
+        });
+    }
+});
+
+// Endpoint para limpiar cache de OpenAI (solo master)
+app.post('/api/openai/cache/clear', apiAuth, onlyMaster, (req, res) => {
+    try {
+        openaiHelper.clearCache();
+        res.json({
+            success: true,
+            mensaje: 'Cache limpiado exitosamente'
+        });
+    } catch (error) {
+        console.error('Error limpiando cache:', error);
+        res.status(500).json({
+            error: true,
+            mensaje: 'Error al limpiar cache'
+        });
+    }
+});
 
 // Endpoint para ver logs del sistema (solo master)
 app.get('/api/logs/sistema', apiAuth, onlyMaster, (req, res) => {
