@@ -174,32 +174,43 @@
             background: white;
             border-radius: 16px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-            overflow: hidden;
+            overflow-x: auto;
+            overflow-y: hidden;
             position: relative;
         }
 
         /* Indicador de scroll horizontal */
         .codes-table::after {
-            content: '→';
+            content: '→ Desliza';
             position: absolute;
-            right: 0;
+            right: 10px;
             top: 50%;
             transform: translateY(-50%);
-            background: linear-gradient(to left, rgba(255,255,255,0.95), transparent);
-            padding: 10px 20px;
-            font-size: 24px;
-            color: #6B7280;
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.9) 20%, rgba(255,255,255,0.95) 100%);
+            padding: 10px 25px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #9333EA;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.3s;
+            z-index: 10;
+            border-radius: 8px;
+            box-shadow: -4px 0 8px rgba(0,0,0,0.1);
         }
 
         .codes-table.has-scroll::after {
             opacity: 1;
         }
 
+        /* Ocultar indicador al hacer scroll */
+        .codes-table.scrolled::after {
+            opacity: 0;
+        }
+
         .codes-table table {
             width: 100%;
+            min-width: 900px;
             border-collapse: collapse;
         }
         
@@ -247,6 +258,10 @@
         }
         
         .codes-table tr:hover {
+            background: #fafafa;
+        }
+
+        .codes-table tr:hover td:nth-child(7) {
             background: #fafafa;
         }
         
@@ -760,13 +775,19 @@
                 return;
             }
 
-            // Detectar si hay scroll horizontal
+            // Detectar si hay scroll horizontal y configurar listener
             setTimeout(() => {
                 const container = document.querySelector('.codes-table');
                 if (container) {
                     const hasScroll = container.scrollWidth > container.clientWidth;
                     container.classList.toggle('has-scroll', hasScroll);
                     console.log(`Scroll horizontal: ${hasScroll ? 'SI' : 'NO'} (${container.scrollWidth}px > ${container.clientWidth}px)`);
+
+                    // Detectar cuando se hace scroll para ocultar el indicador
+                    container.addEventListener('scroll', () => {
+                        const scrolledAmount = container.scrollLeft;
+                        container.classList.toggle('scrolled', scrolledAmount > 50);
+                    });
                 }
             }, 100);
             
