@@ -3884,30 +3884,45 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
         console.log(`... Con promocion_enviada: ${conPromocion.length}`);
         console.log(` Sin acción (NULL o vacío): ${sinAccion.length}`);
         
-        // Obtener alertas activas SIN acción realizada (sin mensaje_enviado ni promocion_enviada)
-        // Permitir reasignar si: 1) sin tarea, 2) tarea eliminada, 3) tarea cancelada, 4) tarea de días anteriores
+        // Obtener alertas activas SIN accion realizada (sin mensaje_enviado ni promocion_enviada)
+        // Permitir crear tarea SOLO si: 1) sin tarea vinculada, 2) tarea eliminada, 3) tarea completada/cancelada
+        // NO crear si ya existe una tarea pendiente o en_progreso
         const alertasSinResolver = await dbAll(`
-            SELECT a.* 
+            SELECT a.*
             FROM alertas a
-            WHERE a.activa = 1 
+            WHERE a.activa = 1
             AND (a.accion_realizada IS NULL OR a.accion_realizada = '')
             AND (
-                a.tarea_id IS NULL 
+                a.tarea_id IS NULL
                 OR NOT EXISTS (SELECT 1 FROM tareas t WHERE t.id = a.tarea_id)
                 OR EXISTS (
-                    SELECT 1 FROM tareas t 
-                    WHERE t.id = a.tarea_id 
-                    AND (t.estado = 'cancelada' OR t.fecha_creacion < ?)
+                    SELECT 1 FROM tareas t
+                    WHERE t.id = a.tarea_id
+                    AND t.estado IN ('completada', 'cancelada')
                 )
             )
-        `, [fechaHoy]);
+        `);
         
         console.log(` Alertas que cumplen condiciones para generar tareas: ${alertasSinResolver.length}`);
-        
-        // Verificar si hay alguna con accion_realizada que no debería estar
+
+        // Verificar estado de tareas vinculadas para debugging
+        for (const alerta of alertasSinResolver.slice(0, 5)) {
+            if (alerta.tarea_id) {
+                const tareaVinculada = await dbGet(`SELECT id, estado, fecha_creacion FROM tareas WHERE id = ?`, [alerta.tarea_id]);
+                if (tareaVinculada) {
+                    console.log(`   Alerta ${alerta.id} -> Tarea ${tareaVinculada.id} (${tareaVinculada.estado}, ${tareaVinculada.fecha_creacion})`);
+                } else {
+                    console.log(`   Alerta ${alerta.id} -> Tarea ${alerta.tarea_id} (eliminada)`);
+                }
+            } else {
+                console.log(`   Alerta ${alerta.id} -> Sin tarea vinculada`);
+            }
+        }
+
+        // Verificar si hay alguna con accion_realizada que no deberia estar
         const errorAccion = alertasSinResolver.filter(a => a.accion_realizada && a.accion_realizada !== '');
         if (errorAccion.length > 0) {
-            console.log(`️ ERROR: ${errorAccion.length} alertas con accion_realizada pasaron el filtro:`);
+            console.log(` ERROR: ${errorAccion.length} alertas con accion_realizada pasaron el filtro:`);
             errorAccion.slice(0, 5).forEach(a => {
                 console.log(`   - ID ${a.id}: accion_realizada="${a.accion_realizada}"`);
             });
@@ -3984,16 +3999,21 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
             if (diasInactivo > 60) prioridad = 'urgente';
             else if (diasInactivo >= 45) prioridad = 'alta';
             
-            // ANTES de crear nueva tarea, cancelar tareas pendientes antiguas del mismo cliente
-            await dbRun(`
-                UPDATE tareas 
-                SET estado = 'cancelada', 
-                    observaciones = 'Tarea obsoleta - reemplazada por nueva tarea automática'
-                WHERE cliente_id = ? 
+            // ANTES de crear nueva tarea, cancelar SOLO tareas PENDIENTES antiguas del mismo cliente
+            // NO cancelar tareas en_progreso (el operador esta trabajando en ellas)
+            const canceladas = await dbRun(`
+                UPDATE tareas
+                SET estado = 'cancelada',
+                    observaciones = 'Tarea obsoleta - reemplazada por nueva tarea automatica'
+                WHERE cliente_id = ?
                 AND tipo = 'automatica'
-                AND estado IN ('pendiente', 'en_progreso')
+                AND estado = 'pendiente'
                 AND fecha_creacion < ?
             `, [alerta.cliente_id, fechaHoy]);
+
+            if (canceladas.changes > 0) {
+                console.log(`   Canceladas ${canceladas.changes} tareas obsoletas del cliente ${alerta.cliente_id}`);
+            }
             
             // Crear tarea con días REALES
             const titulo = `Reactivar cliente: ${cliente ? cliente.nombre : 'Desconocido'}`;
@@ -6297,16 +6317,21 @@ async function generarTareasAutomaticas() {
             if (diasInactivo > 60) prioridad = 'urgente';
             else if (diasInactivo >= 45) prioridad = 'alta';
             
-            // ANTES de crear nueva tarea, cancelar tareas pendientes antiguas del mismo cliente
-            await dbRun(`
-                UPDATE tareas 
-                SET estado = 'cancelada', 
-                    observaciones = 'Tarea obsoleta - reemplazada por nueva tarea automática'
-                WHERE cliente_id = ? 
+            // ANTES de crear nueva tarea, cancelar SOLO tareas PENDIENTES antiguas del mismo cliente
+            // NO cancelar tareas en_progreso (el operador esta trabajando en ellas)
+            const canceladas = await dbRun(`
+                UPDATE tareas
+                SET estado = 'cancelada',
+                    observaciones = 'Tarea obsoleta - reemplazada por nueva tarea automatica'
+                WHERE cliente_id = ?
                 AND tipo = 'automatica'
-                AND estado IN ('pendiente', 'en_progreso')
+                AND estado = 'pendiente'
                 AND fecha_creacion < ?
             `, [alerta.cliente_id, fechaHoy]);
+
+            if (canceladas.changes > 0) {
+                console.log(`   Canceladas ${canceladas.changes} tareas obsoletas del cliente ${alerta.cliente_id}`);
+            }
             
             // Crear tarea con días REALES
             const titulo = `Reactivar cliente: ${cliente ? cliente.nombre : 'Desconocido'}`;
