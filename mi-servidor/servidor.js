@@ -448,7 +448,9 @@ const setStaticCacheHeaders = (res, path) => {
 };
 
 app.use(express.static('.', { setHeaders: setStaticCacheHeaders }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { setHeaders: setStaticCacheHeaders }));
+// Servir uploads desde DATA_DIR si esta configurado (disco persistente en Render), sino desde directorio actual
+const UPLOADS_BASE_DIR = process.env.DATA_DIR || __dirname;
+app.use('/uploads', express.static(path.join(UPLOADS_BASE_DIR, 'uploads'), { setHeaders: setStaticCacheHeaders }));
 // CORS para frontend (localhost y dominios render)
 const allowedOrigins = [
     'http://localhost:3000',
@@ -7723,8 +7725,9 @@ app.post('/api/cliente/verificacion/solicitar', clienteAuth, upload.fields([
         const docFrente = req.files['doc_frente'][0];
         const docReverso = req.files['doc_reverso'][0];
 
-        // Guardar archivos en carpeta uploads
-        const uploadsDir = path.join(__dirname, 'uploads', 'verificaciones', clienteId.toString());
+        // Guardar archivos en carpeta uploads (usa DATA_DIR si esta configurado para disco persistente)
+        const uploadsBaseDir = process.env.DATA_DIR || __dirname;
+        const uploadsDir = path.join(uploadsBaseDir, 'uploads', 'verificaciones', clienteId.toString());
         if (!fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
         }
