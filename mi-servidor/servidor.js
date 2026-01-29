@@ -6928,14 +6928,14 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
       const domingos_trabajados = domingosResult.domingos || 0;
 
       // 4. CALCULAR PAGOS
-      // Sistema quincenal: 135 horas - $0.555/hora = $75 USD base
-      const TASA_POR_HORA = 0.555;
+      // Sistema quincenal: 135 horas - $0.94/hora = $127 USD base
+      const TASA_POR_HORA = 0.94;
       const HORAS_MAXIMAS_QUINCENA = 135;
       const horas_a_pagar = Math.min(horas_trabajadas, HORAS_MAXIMAS_QUINCENA);
       const sueldo_base = horas_a_pagar * TASA_POR_HORA; // Pago por horas trabajadas hasta el tope
       
       const bono_atencion_rapida = 0; // Se agrega manualmente desde el botón Bonos
-      const bono_asistencia = horas_trabajadas >= HORAS_MAXIMAS_QUINCENA ? 15.00 : 0; // $15 quincenal por cumplir 135 horas
+      const bono_asistencia = horas_trabajadas >= 80 ? 15.00 : 0; // $15 quincenal por cumplir 80 horas
       const comision_ventas = millones_comisionables * 2.00; // $2 por millón CLP
       const bono_domingos = domingos_trabajados * 8.00; // $8 por domingo
       const bonos_extra = 0; // Se pueden agregar manualmente después
