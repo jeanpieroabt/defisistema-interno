@@ -6,464 +6,899 @@
   <title>Pedidos App | Defi Oracle</title>
   <link rel="stylesheet" href="style.css">
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
     :root {
-      --bg: #0f172a;
-      --panel: #101828;
-      --card: #111927;
-      --accent: #22c55e;
-      --accent-2: #0ea5e9;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --border: #1f2937;
-      --danger: #ef4444;
-      --warn: #f59e0b;
-      --ok: #22c55e;
+      --bg-primary: #0a1929;
+      --bg-secondary: #132f4c;
+      --bg-card: rgba(19, 47, 76, 0.6);
+      --blue-primary: #2D8CDB;
+      --blue-light: #5BA3E0;
+      --green-primary: #2EC7A3;
+      --green-light: #5CD4B8;
+      --text-primary: #F8FAFC;
+      --text-secondary: #CBD5E1;
+      --text-muted: #94A3B8;
+      --border: rgba(45, 140, 219, 0.2);
+      --success: #2EC7A3;
+      --warning: #F59E0B;
+      --danger: #EF4444;
     }
-    body {
+
+    * {
       margin: 0;
-      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at 20% 20%, rgba(34,197,94,0.15), transparent 30%), radial-gradient(circle at 80% 0%, rgba(14,165,233,0.18), transparent 25%), var(--bg);
-      color: var(--text);
-      min-height: 100vh;
+      padding: 0;
+      box-sizing: border-box;
     }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(45, 140, 219, 0.15), transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(46, 199, 163, 0.12), transparent 50%),
+        radial-gradient(circle at 40% 80%, rgba(167, 139, 250, 0.08), transparent 50%),
+        linear-gradient(180deg, var(--bg-primary) 0%, #0d0220 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      background-attachment: fixed;
+    }
+
     .page {
       max-width: 1600px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 32px 24px;
     }
+
+    /* Header con glassmorphism */
     header {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 24px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 32px rgba(45, 140, 219, 0.1);
+    }
+
+    .header-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 16px;
+      gap: 20px;
       flex-wrap: wrap;
+      margin-bottom: 16px;
     }
+
     .title {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
+
     .title h1 {
-      margin: 0;
-      font-size: 1.9rem;
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--blue-light), var(--green-primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
       letter-spacing: -0.5px;
     }
+
     .title p {
-      margin: 0;
-      color: var(--muted);
+      color: var(--text-secondary);
+      font-size: 0.95rem;
     }
+
     .header-actions {
       display: flex;
-      gap: 10px;
+      gap: 12px;
       align-items: center;
       flex-wrap: wrap;
     }
+
     .btn {
-      border: 1px solid var(--border);
-      background: #0b1220;
-      color: var(--text);
-      padding: 10px 14px;
-      border-radius: 10px;
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: none;
       cursor: pointer;
-      transition: all 0.2s;
       font-weight: 600;
-    }
-    .btn.primary {
-      background: linear-gradient(135deg, #22c55e, #0ea5e9);
-      border: none;
-      color: #0b1220;
-      box-shadow: 0 10px 30px rgba(14,165,233,0.35);
-    }
-    .btn.danger {
-      background: linear-gradient(135deg, #ef4444, #dc2626);
-      border: none;
-      color: #fff;
-    }
-    .btn:hover { transform: translateY(-1px); }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin: 16px 0;
-    }
-    .stat-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px;
+      font-size: 0.95rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       overflow: hidden;
     }
-    .stat-card.urgent {
-      border-color: var(--danger);
-      animation: pulse-urgent 1.5s infinite;
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
     }
-    @keyframes pulse-urgent {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-      50% { box-shadow: 0 0 20px 5px rgba(239, 68, 68, 0.3); }
+
+    .btn:hover::before {
+      width: 300px;
+      height: 300px;
     }
-    .stat-label { color: var(--muted); font-size: 0.9rem; }
-    .stat-value { font-size: 1.6rem; font-weight: 800; margin-top: 6px; }
-    .stat-value.danger { color: var(--danger); }
-    .filters {
-      background: var(--panel);
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(45, 140, 219, 0.3);
+    }
+
+    .btn.primary {
+      background: linear-gradient(135deg, var(--blue-primary), var(--green-primary));
+      color: white;
+      box-shadow: 0 4px 16px rgba(45, 140, 219, 0.3);
+    }
+
+    .btn.secondary {
+      background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px;
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
+      color: var(--text-primary);
     }
-    select, input[type="text"] {
-      background: #0b1220;
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 12px;
-      min-width: 180px;
+
+    .btn.danger {
+      background: linear-gradient(135deg, #EF4444, #DC2626);
+      color: white;
     }
-    .auto-refresh {
+
+    .btn.small {
+      padding: 8px 14px;
+      font-size: 0.875rem;
+    }
+
+    .sound-toggle {
       display: flex;
       align-items: center;
       gap: 8px;
+      padding: 10px 16px;
+      background: rgba(45, 140, 219, 0.1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .sound-toggle input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--blue-primary);
+      cursor: pointer;
+    }
+
+    /* Banner de alerta mejorado */
+    .alert-banner {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.2));
+      backdrop-filter: blur(10px);
+      border: 2px solid var(--danger);
+      border-radius: 20px;
+      padding: 20px 28px;
+      margin-bottom: 24px;
+      display: none;
+      align-items: center;
+      gap: 16px;
+      animation: pulse-urgent 2s infinite;
+      box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2);
+    }
+
+    .alert-banner.show {
+      display: flex;
+    }
+
+    @keyframes pulse-urgent {
+      0%, 100% {
+        box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2);
+        border-color: var(--danger);
+      }
+      50% {
+        box-shadow: 0 12px 40px rgba(239, 68, 68, 0.4);
+        border-color: #F87171;
+      }
+    }
+
+    .alert-banner .icon {
+      font-size: 32px;
+      animation: shake 0.5s infinite;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-5deg); }
+      75% { transform: rotate(5deg); }
+    }
+
+    .alert-banner .text {
+      flex: 1;
+    }
+
+    .alert-banner .text strong {
+      display: block;
+      font-size: 1.1rem;
+      color: white;
+      margin-bottom: 4px;
+    }
+
+    .alert-banner .text span {
+      color: var(--text-secondary);
+    }
+
+    /* Stats cards mejoradas */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--blue-primary), var(--green-primary));
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--blue-light);
+      box-shadow: 0 12px 32px rgba(45, 140, 219, 0.2);
+    }
+
+    .stat-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .stat-card.urgent {
+      border-color: var(--danger);
+      background: rgba(239, 68, 68, 0.05);
+      animation: pulse-card 2s infinite;
+    }
+
+    @keyframes pulse-card {
+      0%, 100% {
+        box-shadow: 0 8px 24px rgba(239, 68, 68, 0.2);
+      }
+      50% {
+        box-shadow: 0 12px 32px rgba(239, 68, 68, 0.4);
+      }
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--blue-light), var(--green-primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-value.danger {
+      background: linear-gradient(135deg, #EF4444, #F87171);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Filtros mejorados */
+    .filters {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 16px rgba(45, 140, 219, 0.1);
+    }
+
+    .filters label {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    select, input[type="text"] {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      min-width: 200px;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+    }
+
+    select:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: var(--blue-light);
+      box-shadow: 0 0 0 3px rgba(45, 140, 219, 0.1);
+    }
+
+    .auto-refresh {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       margin-left: auto;
-      font-size: 0.9rem;
-      color: var(--muted);
+      padding: 10px 16px;
+      background: rgba(45, 140, 219, 0.1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
     }
+
     .auto-refresh input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      accent-color: var(--accent);
+      width: 20px;
+      height: 20px;
+      accent-color: var(--blue-primary);
+      cursor: pointer;
     }
+
+    /* Tabla mejorada */
+    .table-wrapper {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(45, 140, 219, 0.1);
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      background: var(--panel);
-      border-radius: 16px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-      margin-top: 14px;
     }
-    thead { background: #0b1220; }
-    th, td {
-      padding: 12px 14px;
+
+    thead {
+      background: linear-gradient(135deg, rgba(45, 140, 219, 0.2), rgba(46, 199, 163, 0.2));
+      border-bottom: 2px solid var(--border);
+    }
+
+    th {
+      padding: 18px 16px;
       text-align: left;
-      font-size: 0.92rem;
-      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-primary);
     }
-    tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+    td {
+      padding: 16px;
+      border-bottom: 1px solid rgba(45, 140, 219, 0.1);
+      font-size: 0.95rem;
+    }
+
+    tbody tr {
+      transition: all 0.3s ease;
+    }
+
+    tbody tr:hover {
+      background: rgba(45, 140, 219, 0.05);
+    }
+
     tbody tr.urgent-row {
-      background: rgba(239, 68, 68, 0.1);
-      border-left: 3px solid var(--danger);
+      background: rgba(239, 68, 68, 0.08);
+      border-left: 4px solid var(--danger);
     }
+
     tbody tr.urgent-row:hover {
-      background: rgba(239, 68, 68, 0.15);
+      background: rgba(239, 68, 68, 0.12);
     }
+
+    /* Badges modernos */
     .badge {
-      padding: 6px 10px;
+      padding: 6px 14px;
       border-radius: 999px;
       font-weight: 700;
-      font-size: 0.8rem;
-      display: inline-block;
-    }
-    .badge.pendiente { background: rgba(245,158,11,0.15); color: #f59e0b; }
-    .badge.comprobante_enviado, .badge.verificando { background: rgba(14,165,233,0.15); color: #0ea5e9; }
-    .badge.procesando { background: rgba(129,140,248,0.2); color: #818cf8; }
-    .badge.completada { background: rgba(34,197,94,0.15); color: #22c55e; }
-    .badge.cancelada, .badge.rechazada { background: rgba(239,68,68,0.15); color: #ef4444; }
-    .badge.urgent { background: rgba(239,68,68,0.2); color: #ef4444; animation: blink 1s infinite; }
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    .pill {
+      font-size: 0.8125rem;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 6px 10px;
-      font-size: 0.88rem;
     }
+
+    .badge.pendiente {
+      background: rgba(245, 158, 11, 0.15);
+      color: #FBBF24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge.comprobante_enviado, .badge.verificando {
+      background: rgba(45, 140, 219, 0.15);
+      color: var(--blue-light);
+      border: 1px solid rgba(45, 140, 219, 0.3);
+    }
+
+    .badge.procesando {
+      background: rgba(46, 199, 163, 0.15);
+      color: var(--green-light);
+      border: 1px solid rgba(46, 199, 163, 0.3);
+    }
+
+    .badge.completada {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge.cancelada, .badge.rechazada {
+      background: rgba(239, 68, 68, 0.15);
+      color: #F87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge.urgent {
+      animation: pulse-badge 1.5s infinite;
+    }
+
+    @keyframes pulse-badge {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+      }
+    }
+
     .time-badge {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: 600;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      font-weight: 700;
     }
-    .time-badge.ok { background: rgba(34,197,94,0.2); color: #22c55e; }
-    .time-badge.warn { background: rgba(245,158,11,0.2); color: #f59e0b; }
-    .time-badge.danger { background: rgba(239,68,68,0.2); color: #ef4444; }
+
+    .time-badge.ok {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34D399;
+    }
+
+    .time-badge.warn {
+      background: rgba(245, 158, 11, 0.2);
+      color: #FBBF24;
+    }
+
+    .time-badge.danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #F87171;
+    }
+
     .actions {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
     }
-    .btn.small {
-      padding: 8px 10px;
-      font-size: 0.9rem;
-    }
-    /* Modal - Copiado de usuarios-app.html */
+
+    /* Modal mejorado */
     .modal-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
       display: none;
       align-items: center;
       justify-content: center;
       z-index: 1000;
       padding: 2rem;
     }
+
     .modal-overlay.active {
       display: flex;
+      animation: fadeIn 0.3s ease;
     }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
     .modal {
-      background: #1e293b;
-      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(21, 5, 37, 0.95), rgba(10, 1, 24, 0.95));
+      backdrop-filter: blur(40px);
+      border: 1px solid var(--border);
+      border-radius: 28px;
       max-width: 900px;
       width: 100%;
       max-height: 90vh;
       overflow-y: auto;
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+      box-shadow: 0 32px 64px rgba(45, 140, 219, 0.3);
+      animation: slideUp 0.3s ease;
     }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(40px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
     .modal-header {
-      padding: 1.5rem 2rem;
+      padding: 32px;
       border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      background: linear-gradient(135deg, rgba(45, 140, 219, 0.1), rgba(46, 199, 163, 0.1));
     }
+
     .modal-header h2 {
-      margin: 0;
-      color: var(--text);
-      font-size: 1.5rem;
+      font-size: 1.75rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--blue-light), var(--green-primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
+
     .modal-close {
-      background: none;
-      border: none;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
       font-size: 1.5rem;
       cursor: pointer;
-      color: var(--muted);
-      padding: 0.5rem;
-      line-height: 1;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
     }
+
     .modal-close:hover {
-      color: var(--text);
+      background: rgba(239, 68, 68, 0.3);
+      transform: rotate(90deg);
     }
+
     .modal-body {
-      padding: 2rem;
+      padding: 32px;
     }
-    /* Botones de acción del modal */
-    .action-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .action-btn {
-      padding: 12px 20px;
-      font-size: 0.95rem;
-      font-weight: 700;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .action-btn.tomar {
-      background: linear-gradient(135deg, #8b5cf6, #6366f1);
-      border: none;
-      color: white;
-    }
-    .action-btn.pagado {
-      background: linear-gradient(135deg, #22c55e, #16a34a);
-      border: none;
-      color: white;
-    }
-    .action-btn.cancelar {
-      background: linear-gradient(135deg, #ef4444, #dc2626);
-      border: none;
-      color: white;
-    }
-    .action-btn.whatsapp {
-      background: linear-gradient(135deg, #25d366, #128c7e);
-      border: none;
-      color: white;
-    }
-    .action-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-    }
-    .estado-manual {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    .estado-manual label {
-      display: block;
-      color: var(--muted);
-      font-size: 0.9rem;
-      margin-bottom: 10px;
-    }
-    .estado-selector {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .select-estado {
-      flex: 1;
-      min-width: 200px;
-      padding: 12px;
-      background: #1e293b;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-size: 0.95rem;
-    }
-    .notas-operador {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-    }
-    .notas-operador label {
-      display: block;
-      color: var(--muted);
-      font-size: 0.9rem;
-      margin-bottom: 10px;
-    }
-    .nota-input {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .input-nota {
-      flex: 1;
-      min-width: 250px;
-      padding: 12px;
-      background: #1e293b;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-size: 0.95rem;
-    }
-    .input-nota::placeholder {
-      color: var(--muted);
-    }
+
     .modal-section {
-      margin-top: 16px;
-      padding-top: 16px;
+      margin-top: 28px;
+      padding-top: 28px;
       border-top: 1px solid var(--border);
     }
+
     .modal-section:first-child {
       margin-top: 0;
       padding-top: 0;
       border-top: none;
     }
+
     .modal-section h4 {
-      margin: 0 0 12px 0;
-      color: var(--accent-2);
-      font-size: 0.95rem;
+      margin: 0 0 20px 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--blue-light), var(--green-primary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
+
     .modal-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
     }
+
     .field {
-      background: rgba(255,255,255,0.02);
+      background: rgba(45, 140, 219, 0.05);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 12px;
+      border-radius: 14px;
+      padding: 14px 18px;
+      transition: all 0.3s ease;
     }
-    .field label { color: var(--muted); font-size: 0.85rem; }
+
+    .field:hover {
+      background: rgba(45, 140, 219, 0.08);
+      border-color: var(--blue-light);
+    }
+
+    .field label {
+      color: var(--text-muted);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
     .field .value {
-      margin-top: 4px;
+      margin-top: 8px;
       font-weight: 700;
+      color: var(--text-primary);
       display: flex;
       justify-content: space-between;
-      gap: 8px;
       align-items: center;
+      gap: 10px;
     }
+
     .copy-btn {
-      background: none;
+      background: rgba(45, 140, 219, 0.2);
       border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 4px 8px;
+      color: var(--blue-light);
+      padding: 6px 10px;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.875rem;
+      transition: all 0.3s ease;
     }
-    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .table-wrapper { overflow-x: auto; }
+
+    .copy-btn:hover {
+      background: rgba(45, 140, 219, 0.3);
+      color: var(--text-primary);
+      transform: scale(1.05);
+    }
+
+    /* Botones de acción del modal */
+    .action-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .action-btn {
+      padding: 14px 24px;
+      font-size: 1rem;
+      font-weight: 700;
+      border-radius: 12px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .action-btn::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    .action-btn:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(45, 140, 219, 0.4);
+    }
+
+    .action-btn.tomar {
+      background: linear-gradient(135deg, var(--blue-primary), var(--blue-light));
+      color: white;
+    }
+
+    .action-btn.pagado {
+      background: linear-gradient(135deg, #10B981, #34D399);
+      color: white;
+    }
+
+    .action-btn.cancelar {
+      background: linear-gradient(135deg, #EF4444, #DC2626);
+      color: white;
+    }
+
+    .action-btn.whatsapp {
+      background: linear-gradient(135deg, #25D366, #128C7E);
+      color: white;
+    }
+
+    .estado-manual, .notas-operador {
+      background: rgba(45, 140, 219, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .estado-manual label, .notas-operador label {
+      display: block;
+      color: var(--text-secondary);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .estado-selector, .nota-input {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .select-estado, .input-nota {
+      flex: 1;
+      min-width: 220px;
+      padding: 14px 18px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+    }
+
+    .select-estado:focus, .input-nota:focus {
+      outline: none;
+      border-color: var(--blue-light);
+      box-shadow: 0 0 0 3px rgba(45, 140, 219, 0.1);
+    }
+
+    .input-nota::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Timeline mejorado */
     .timeline {
       display: flex;
       flex-wrap: wrap;
       gap: 16px;
-      margin-top: 12px;
+      margin-top: 16px;
     }
+
     .timeline-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      background: rgba(255,255,255,0.03);
-      border-radius: 10px;
+      gap: 12px;
+      padding: 14px 18px;
+      background: rgba(45, 140, 219, 0.05);
+      border-radius: 14px;
       border: 1px solid var(--border);
+      transition: all 0.3s ease;
     }
+
+    .timeline-item:hover {
+      background: rgba(45, 140, 219, 0.08);
+      transform: translateX(4px);
+    }
+
     .timeline-item .icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+      font-size: 18px;
     }
-    .timeline-item .icon.creado { background: rgba(14,165,233,0.2); }
-    .timeline-item .icon.tomado { background: rgba(129,140,248,0.2); }
-    .timeline-item .icon.pagado { background: rgba(34,197,94,0.2); }
-    .timeline-item .info { font-size: 0.85rem; }
-    .timeline-item .info strong { display: block; color: var(--text); }
-    .timeline-item .info span { color: var(--muted); }
 
-    /* Alerta superior */
-    .alert-banner {
-      background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.3));
-      border: 1px solid var(--danger);
-      border-radius: 12px;
-      padding: 12px 16px;
-      margin-bottom: 16px;
-      display: none;
-      align-items: center;
-      gap: 12px;
-      animation: pulse-urgent 1.5s infinite;
+    .timeline-item .icon.creado {
+      background: linear-gradient(135deg, var(--blue-primary), var(--blue-light));
     }
-    .alert-banner.show { display: flex; }
-    .alert-banner .icon { font-size: 24px; }
-    .alert-banner .text { flex: 1; }
-    .alert-banner .text strong { display: block; font-size: 1rem; }
-    .alert-banner .text span { color: var(--muted); font-size: 0.9rem; }
 
-    /* Sonido de alerta */
-    .sound-toggle {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.85rem;
-      color: var(--muted);
+    .timeline-item .icon.tomado {
+      background: linear-gradient(135deg, var(--green-primary), var(--green-light));
+    }
+
+    .timeline-item .icon.pagado {
+      background: linear-gradient(135deg, #10B981, #34D399);
+    }
+
+    .timeline-item .info {
+      font-size: 0.875rem;
+    }
+
+    .timeline-item .info strong {
+      display: block;
+      color: var(--text-primary);
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .timeline-item .info span {
+      color: var(--text-muted);
+    }
+
+    /* Scrollbar personalizado */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, var(--blue-primary), var(--green-primary));
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(135deg, var(--blue-light), var(--green-light));
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .page {
+        padding: 20px 16px;
+      }
+
+      header {
+        padding: 20px;
+      }
+
+      .title h1 {
+        font-size: 1.5rem;
+      }
+
+      .stats {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+      }
+
+      .modal {
+        margin: 16px;
+      }
+
+      .modal-header, .modal-body {
+        padding: 20px;
+      }
     }
   </style>
 </head>
@@ -473,6 +908,7 @@
   </audio>
 
   <div class="page">
+    <!-- Banner de alerta -->
     <div class="alert-banner" id="alertBanner">
       <div class="icon">⚠️</div>
       <div class="text">
@@ -482,21 +918,25 @@
       <button class="btn danger small" onclick="filtrarUrgentes()">Ver urgentes</button>
     </div>
 
+    <!-- Header -->
     <header>
-      <div class="title">
-        <h1>📱 Pedidos App Cliente</h1>
-        <p>Gestión de solicitudes desde la app móvil - Tracking de tiempos y operadores</p>
-      </div>
-      <div class="header-actions">
-        <div class="sound-toggle">
-          <input type="checkbox" id="soundEnabled" checked>
-          <label for="soundEnabled">🔔 Sonido alertas</label>
+      <div class="header-top">
+        <div class="title">
+          <h1>📱 Pedidos App Cliente</h1>
+          <p>Gestión en tiempo real de solicitudes móviles con tracking avanzado</p>
         </div>
-        <button class="btn" onclick="location.href='home.html'">← Volver</button>
-        <button class="btn primary" onclick="cargarSolicitudes()">🔄 Actualizar</button>
+        <div class="header-actions">
+          <div class="sound-toggle">
+            <input type="checkbox" id="soundEnabled" checked>
+            <label for="soundEnabled">🔔 Alertas sonoras</label>
+          </div>
+          <button class="btn secondary" onclick="location.href='home.html'">← Volver</button>
+          <button class="btn primary" onclick="cargarSolicitudes()">🔄 Actualizar</button>
+        </div>
       </div>
     </header>
 
+    <!-- Stats -->
     <div class="stats" id="stats">
       <div class="stat-card">
         <div class="stat-label">📊 Total Pedidos</div>
@@ -524,6 +964,7 @@
       </div>
     </div>
 
+    <!-- Filtros -->
     <div class="filters">
       <label for="fEstado">Estado</label>
       <select id="fEstado" onchange="cargarSolicitudes()">
@@ -545,6 +986,7 @@
       </div>
     </div>
 
+    <!-- Tabla -->
     <div class="table-wrapper">
       <table id="tablaPedidos">
         <thead>
@@ -614,7 +1056,7 @@
       if (esHoy) {
         return d.toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
       }
-      return d.toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit' }) + 
+      return d.toLocaleDateString('es-VE', { timeZone: 'America/Caracas', day: '2-digit', month: '2-digit' }) +
              ' ' + d.toLocaleTimeString('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit' });
     }
 
@@ -622,7 +1064,6 @@
       return Number(s || 0).toLocaleString('es-CL');
     }
 
-    // Calcular tiempo transcurrido
     function calcularTiempo(fechaInicio, fechaFin = null) {
       if (!fechaInicio) return null;
       const inicio = new Date(fechaInicio);
@@ -631,7 +1072,7 @@
       const diffMins = Math.floor(diffMs / 60000);
       const diffHoras = Math.floor(diffMins / 60);
       const mins = diffMins % 60;
-      
+
       if (diffHoras > 0) {
         return { texto: `${diffHoras}h ${mins}m`, minutos: diffMins };
       }
@@ -653,14 +1094,12 @@
       return `<span class="time-badge ${cls}">${icon} ${mostrarTexto ? tiempo : ''}</span>`;
     }
 
-    // Verificar si un pedido es urgente (más de 15 minutos sin completar)
     function esUrgente(s) {
       if (s.estado === 'completada' || s.estado === 'cancelada' || s.estado === 'rechazada') return false;
       const tiempo = calcularTiempo(s.fecha_solicitud);
       return tiempo && tiempo.minutos > 15;
     }
 
-    // Reproducir sonido de alerta
     function playAlertSound() {
       if (document.getElementById('soundEnabled').checked) {
         const audio = document.getElementById('alertSound');
@@ -671,32 +1110,29 @@
 
     async function cargarSolicitudes() {
       const estadoFiltro = document.getElementById('fEstado').value;
-      const url = estadoFiltro && estadoFiltro !== 'urgentes' 
-        ? `/api/solicitudes-app?estado=${estadoFiltro}&limit=100` 
+      const url = estadoFiltro && estadoFiltro !== 'urgentes'
+        ? `/api/solicitudes-app?estado=${estadoFiltro}&limit=100`
         : '/api/solicitudes-app?limit=100';
-      
+
       try {
         const res = await fetch(url, { credentials: 'include' });
         if (!res.ok) throw new Error('No se pudieron cargar los pedidos');
         const data = await res.json();
         cacheSolicitudes = data.solicitudes || [];
-        
-        // Calcular urgentes localmente
+
         const urgentes = cacheSolicitudes.filter(esUrgente);
         const conteosConUrgentes = { ...data.conteos, urgentes: urgentes.length };
-        
+
         renderStats(conteosConUrgentes);
-        
-        // Si el filtro es urgentes, mostrar solo urgentes
+
         if (estadoFiltro === 'urgentes') {
           renderTabla(urgentes);
         } else {
           renderTabla(cacheSolicitudes);
         }
 
-        // Mostrar/ocultar alerta
         actualizarAlerta(urgentes.length);
-        
+
       } catch (err) {
         alert(err.message || 'Error al cargar pedidos');
       }
@@ -705,14 +1141,13 @@
     function actualizarAlerta(urgentCount) {
       const banner = document.getElementById('alertBanner');
       const urgentCard = document.getElementById('urgentCard');
-      
+
       if (urgentCount > 0) {
         banner.classList.add('show');
         urgentCard.style.display = 'block';
-        document.getElementById('alertCount').textContent = 
+        document.getElementById('alertCount').textContent =
           `${urgentCount} pedido${urgentCount > 1 ? 's' : ''} lleva${urgentCount > 1 ? 'n' : ''} más de 15 minutos sin ser pagado${urgentCount > 1 ? 's' : ''}`;
-        
-        // Reproducir sonido si hay nuevos urgentes
+
         if (urgentCount > lastUrgentCount) {
           playAlertSound();
         }
@@ -734,14 +1169,13 @@
       document.getElementById('statProcesando').innerText = c.procesando || 0;
       document.getElementById('statCompletadas').innerText = c.completadas || 0;
       document.getElementById('statUrgentes').innerText = c.urgentes || 0;
-      
-      // Calcular tiempo promedio de respuesta
+
       const completadas = cacheSolicitudes.filter(s => s.estado === 'completada' && s.fecha_solicitud && s.fecha_completada);
       if (completadas.length > 0) {
         const tiemposMs = completadas.map(s => new Date(s.fecha_completada) - new Date(s.fecha_solicitud));
         const promedioMs = tiemposMs.reduce((a, b) => a + b, 0) / tiemposMs.length;
         const promedioMins = Math.floor(promedioMs / 60000);
-        document.getElementById('statTiempoPromedio').innerText = 
+        document.getElementById('statTiempoPromedio').innerText =
           promedioMins >= 60 ? `${Math.floor(promedioMins/60)}h ${promedioMins%60}m` : `${promedioMins}m`;
       } else {
         document.getElementById('statTiempoPromedio').innerText = '--';
@@ -751,15 +1185,13 @@
     function filtrarLocal() {
       const term = document.getElementById('fBusqueda').value.toLowerCase();
       const estadoFiltro = document.getElementById('fEstado').value;
-      
+
       let filtrado = cacheSolicitudes;
-      
-      // Filtrar por estado urgente si está seleccionado
+
       if (estadoFiltro === 'urgentes') {
         filtrado = filtrado.filter(esUrgente);
       }
-      
-      // Filtrar por término de búsqueda
+
       if (term) {
         filtrado = filtrado.filter(s => {
           return (
@@ -773,23 +1205,22 @@
           );
         });
       }
-      
+
       renderTabla(filtrado);
     }
 
     function renderTabla(rows) {
       const tbody = document.querySelector('#tablaPedidos tbody');
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color: var(--muted);">Sin pedidos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:40px; color: var(--text-muted); font-size: 1.1rem;">📭 No hay pedidos para mostrar</td></tr>';
         return;
       }
-      
+
       tbody.innerHTML = rows.map(s => {
         const urgente = esUrgente(s);
         const tiempoEspera = calcularTiempo(s.fecha_solicitud, s.fecha_completada);
         const tiempoTomado = s.fecha_tomado ? calcularTiempo(s.fecha_tomado, s.fecha_completada) : null;
-        
-        // Determinar qué tiempo mostrar
+
         let tiempoMostrar = tiempoEspera;
         let tiempoLabel = 'Espera';
         if (s.estado === 'completada' && tiempoEspera) {
@@ -798,26 +1229,26 @@
           tiempoMostrar = calcularTiempo(s.fecha_tomado);
           tiempoLabel = 'En proceso';
         }
-        
+
         return `
           <tr class="${urgente ? 'urgent-row' : ''}">
-            <td><strong>#${s.id}</strong></td>
+            <td><strong style="color: var(--blue-light);">#${s.id}</strong></td>
             <td>${s.cliente_nombre || '—'}</td>
-            <td><code>${s.cliente_documento_numero || '—'}</code></td>
+            <td><code style="background: rgba(45, 140, 219, 0.1); padding: 4px 8px; border-radius: 6px;">${s.cliente_documento_numero || '—'}</code></td>
             <td>${s.cliente_telefono || '—'}</td>
-            <td><strong>$${fmtMonto(s.monto_origen)}</strong> ${s.moneda_origen || ''}</td>
+            <td><strong style="font-size: 1.05rem;">$${fmtMonto(s.monto_origen)}</strong> <span style="color: var(--text-muted);">${s.moneda_origen || ''}</span></td>
             <td>${badgeEstado(s.estado, urgente)}</td>
-            <td>${s.tomado_por_nombre || s.operador_nombre || '<span style="color:var(--muted)">Sin asignar</span>'}</td>
+            <td>${s.tomado_por_nombre || s.operador_nombre || '<span style="color:var(--text-muted)">Sin asignar</span>'}</td>
             <td>
               ${tiempoMostrar ? `
-                <div style="font-size:0.8rem;color:var(--muted)">${tiempoLabel}:</div>
-                ${timeBadge(tiempoMostrar.minutos)} <span style="font-weight:600">${tiempoMostrar.texto}</span>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">${tiempoLabel}:</div>
+                ${timeBadge(tiempoMostrar.minutos)} <span style="font-weight:700">${tiempoMostrar.texto}</span>
               ` : '—'}
             </td>
             <td>${fmtFechaCorta(s.fecha_solicitud)}</td>
             <td class="actions">
-              <button class="btn small" onclick="verDetalleId(${s.id})">👁️ Ver</button>
-              ${s.cliente_telefono ? `<button class="btn small" onclick="abrirWhatsApp('${s.cliente_telefono}')">💬</button>` : ''}
+              <button class="btn small primary" onclick="verDetalleId(${s.id})">👁️ Ver</button>
+              ${s.cliente_telefono ? `<button class="btn small secondary" onclick="abrirWhatsApp('${s.cliente_telefono}')">💬</button>` : ''}
             </td>
           </tr>
         `;
@@ -850,24 +1281,23 @@
     function verDetalleId(id) {
       const s = cacheSolicitudes.find(x => x.id === id);
       if (!s) return;
-      
+
       const modal = document.getElementById('modalDetalle');
       const modalBody = document.getElementById('modalBody');
-      
+
       document.getElementById('modalTitulo').innerText = `Pedido #${s.id} - ${s.cliente_nombre || 'Sin nombre'}`;
-      
-      // Calcular tiempos
+
       const tiempoTotal = calcularTiempo(s.fecha_solicitud, s.fecha_completada);
       const tiempoHastaTomar = s.fecha_tomado ? calcularTiempo(s.fecha_solicitud, s.fecha_tomado) : null;
       const tiempoEnEspera = calcularTiempo(s.fecha_solicitud);
       const esUrg = esUrgente(s);
-      
+
       modalBody.innerHTML = `
         <!-- Estado y tiempo -->
-        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:24px;">
           ${badgeEstado(s.estado, esUrg)}
-          ${s.tomado_por_nombre ? `<span style="color:var(--muted)">Tomado por: <strong style="color:var(--text)">${s.tomado_por_nombre}</strong></span>` : ''}
-          ${tiempoTotal || tiempoEnEspera ? `<span style="color:${esUrg ? 'var(--danger)' : 'var(--muted)'}">⏱️ ${s.fecha_completada ? 'Total: ' : 'Espera: '}<strong>${(tiempoTotal || tiempoEnEspera).texto}</strong></span>` : ''}
+          ${s.tomado_por_nombre ? `<span style="color:var(--text-muted)">Tomado por: <strong style="color:var(--text-primary)">${s.tomado_por_nombre}</strong></span>` : ''}
+          ${tiempoTotal || tiempoEnEspera ? `<span style="color:${esUrg ? 'var(--danger)' : 'var(--text-muted)'}">⏱️ ${s.fecha_completada ? 'Total: ' : 'Espera: '}<strong>${(tiempoTotal || tiempoEnEspera).texto}</strong></span>` : ''}
         </div>
 
         <!-- Timeline -->
@@ -904,7 +1334,7 @@
               <div class="icon" style="background:${tiempoEnEspera.minutos > 15 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)'}">⏳</div>
               <div class="info">
                 <strong>En espera</strong>
-                <span style="color:${tiempoEnEspera.minutos > 15 ? 'var(--danger)' : 'var(--warn)'}">${tiempoEnEspera.texto}</span>
+                <span style="color:${tiempoEnEspera.minutos > 15 ? 'var(--danger)' : 'var(--warning)'}">${tiempoEnEspera.texto}</span>
               </div>
             </div>
             ` : ''}
@@ -956,8 +1386,7 @@
         <!-- Acciones del pedido -->
         <div class="modal-section">
           <h4>⚡ Acciones</h4>
-          
-          <!-- Botones rápidos -->
+
           <div class="action-buttons">
             ${s.estado === 'pendiente' || s.estado === 'comprobante_enviado' ? `
               <button class="btn action-btn tomar" onclick="cambiarEstadoPedido(${s.id}, 'procesando')">
@@ -981,7 +1410,6 @@
             ` : ''}
           </div>
 
-          <!-- Cambio manual de estado -->
           <div class="estado-manual">
             <label>Cambiar estado manualmente:</label>
             <div class="estado-selector">
@@ -1000,21 +1428,19 @@
             </div>
           </div>
 
-          <!-- Notas del operador -->
           <div class="notas-operador">
             <label>Agregar nota de operador:</label>
             <div class="nota-input">
               <input type="text" id="notaOperador_${s.id}" placeholder="Ej: Rechazado por banco, transferencia devuelta..." class="input-nota">
-              <button class="btn" onclick="guardarNotaOperador(${s.id})">💾 Guardar nota</button>
+              <button class="btn primary" onclick="guardarNotaOperador(${s.id})">💾 Guardar nota</button>
             </div>
           </div>
         </div>
       `;
-      
+
       modal.classList.add('active');
     }
 
-    // Función para cambiar estado rápido
     async function cambiarEstadoPedido(id, nuevoEstado) {
       const confirmaciones = {
         'procesando': '¿Tomar este pedido?',
@@ -1022,9 +1448,9 @@
         'cancelada': '¿Cancelar este pedido?',
         'rechazada': '¿Marcar como RECHAZADO?'
       };
-      
+
       if (!confirm(confirmaciones[nuevoEstado] || `¿Cambiar estado a ${nuevoEstado}?`)) return;
-      
+
       try {
         const res = await fetch(`/api/solicitudes-app/${id}/estado`, {
           method: 'PUT',
@@ -1032,12 +1458,12 @@
           credentials: 'include',
           body: JSON.stringify({ estado: nuevoEstado })
         });
-        
+
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || 'Error al cambiar estado');
         }
-        
+
         alert(`✅ Estado cambiado a: ${estadoLabel[nuevoEstado] || nuevoEstado}`);
         cerrarModal();
         await cargarSolicitudes();
@@ -1046,13 +1472,12 @@
       }
     }
 
-    // Función para cambio manual de estado
     async function cambiarEstadoManual(id) {
       const select = document.getElementById(`selectEstado_${id}`);
       const nuevoEstado = select.value;
-      
+
       if (!confirm(`¿Cambiar estado a "${estadoLabel[nuevoEstado]}"? \n\nEsto es un cambio manual y quedará registrado.`)) return;
-      
+
       try {
         const res = await fetch(`/api/solicitudes-app/${id}/estado`, {
           method: 'PUT',
@@ -1060,12 +1485,12 @@
           credentials: 'include',
           body: JSON.stringify({ estado: nuevoEstado })
         });
-        
+
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || 'Error al cambiar estado');
         }
-        
+
         alert(`✅ Estado actualizado a: ${estadoLabel[nuevoEstado]}`);
         cerrarModal();
         await cargarSolicitudes();
@@ -1074,39 +1499,36 @@
       }
     }
 
-    // Función para guardar nota de operador
     async function guardarNotaOperador(id) {
       const input = document.getElementById(`notaOperador_${id}`);
       const nota = input.value.trim();
-      
+
       if (!nota) {
         alert('Escribe una nota primero');
         return;
       }
-      
+
       try {
-        // Obtener estado actual del pedido
         const solicitud = cacheSolicitudes.find(s => s.id === id);
-        
+
         const res = await fetch(`/api/solicitudes-app/${id}/estado`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             estado: solicitud.estado,
-            notas_operador: nota 
+            notas_operador: nota
           })
         });
-        
+
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || 'Error al guardar nota');
         }
-        
+
         alert('✅ Nota guardada');
         input.value = '';
         await cargarSolicitudes();
-        // Reabrir modal con datos actualizados
         setTimeout(() => verDetalleId(id), 300);
       } catch (err) {
         alert('❌ Error: ' + err.message);
@@ -1117,14 +1539,13 @@
       document.getElementById('modalDetalle').classList.remove('active');
     }
 
-    // Auto-refresh
     function setupAutoRefresh() {
       const checkbox = document.getElementById('autoRefresh');
-      
+
       if (checkbox.checked) {
         autoRefreshInterval = setInterval(cargarSolicitudes, 30000);
       }
-      
+
       checkbox.addEventListener('change', () => {
         if (checkbox.checked) {
           autoRefreshInterval = setInterval(cargarSolicitudes, 30000);
@@ -1134,7 +1555,6 @@
       });
     }
 
-    // Cerrar modal con Escape o click fuera
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') cerrarModal();
     });
