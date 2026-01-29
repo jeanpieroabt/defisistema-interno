@@ -6,23 +6,24 @@
   <title>Pedidos App | Defi Oracle</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
     :root {
-      --bg-primary: #0a1929;
-      --bg-secondary: #132f4c;
-      --bg-card: rgba(19, 47, 76, 0.6);
-      --blue-primary: #2D8CDB;
+      --bg-dark: #0F1419;
+      --bg-card: #1A1F26;
+      --bg-card-hover: #222831;
+      --blue: #2D8CDB;
       --blue-light: #5BA3E0;
-      --green-primary: #2EC7A3;
+      --green: #2EC7A3;
       --green-light: #5CD4B8;
-      --text-primary: #F8FAFC;
-      --text-secondary: #CBD5E1;
-      --text-muted: #94A3B8;
-      --border: rgba(45, 140, 219, 0.2);
-      --success: #2EC7A3;
+      --text-primary: #FFFFFF;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+      --border: #2A313C;
+      --success: #10B981;
       --warning: #F59E0B;
       --danger: #EF4444;
+      --shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
     }
 
     * {
@@ -32,32 +33,27 @@
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background:
-        radial-gradient(circle at 20% 10%, rgba(45, 140, 219, 0.15), transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(46, 199, 163, 0.12), transparent 50%),
-        radial-gradient(circle at 40% 80%, rgba(167, 139, 250, 0.08), transparent 50%),
-        linear-gradient(180deg, var(--bg-primary) 0%, #0d0220 100%);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-dark);
       color: var(--text-primary);
       min-height: 100vh;
-      background-attachment: fixed;
+      padding: 0;
+      line-height: 1.5;
     }
 
     .page {
-      max-width: 1600px;
+      max-width: 1400px;
       margin: 0 auto;
-      padding: 32px 24px;
+      padding: 24px;
     }
 
-    /* Header con glassmorphism */
+    /* Header moderno */
     header {
       background: var(--bg-card);
-      backdrop-filter: blur(20px);
       border: 1px solid var(--border);
-      border-radius: 24px;
+      border-radius: 16px;
       padding: 24px 32px;
       margin-bottom: 24px;
-      box-shadow: 0 8px 32px rgba(45, 140, 219, 0.1);
     }
 
     .header-top {
@@ -66,186 +62,168 @@
       justify-content: space-between;
       gap: 20px;
       flex-wrap: wrap;
-      margin-bottom: 16px;
     }
 
     .title {
       display: flex;
-      flex-direction: column;
-      gap: 8px;
+      align-items: center;
+      gap: 16px;
     }
 
-    .title h1 {
-      font-size: 2rem;
+    .logo-container {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, var(--blue), var(--green));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(45, 140, 219, 0.3);
+      flex-shrink: 0;
+    }
+
+    .logo-container svg {
+      width: 32px;
+      height: 32px;
+      fill: white;
+    }
+
+    .title-text h1 {
+      font-size: 1.75rem;
       font-weight: 800;
-      background: linear-gradient(135deg, var(--blue-light), var(--green-primary));
+      background: linear-gradient(135deg, var(--blue), var(--green));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      background-clip: text;
-      letter-spacing: -0.5px;
+      margin-bottom: 4px;
     }
 
-    .title p {
+    .title-text p {
       color: var(--text-secondary);
-      font-size: 0.95rem;
+      font-size: 0.875rem;
     }
 
     .header-actions {
       display: flex;
       gap: 12px;
-      align-items: center;
       flex-wrap: wrap;
+      align-items: center;
     }
 
+    /* Botones modernos */
     .btn {
-      padding: 12px 20px;
-      border-radius: 12px;
+      padding: 10px 20px;
       border: none;
-      cursor: pointer;
+      border-radius: 10px;
       font-weight: 600;
-      font-size: 0.95rem;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .btn::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 0;
-      height: 0;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.1);
-      transform: translate(-50%, -50%);
-      transition: width 0.6s, height 0.6s;
-    }
-
-    .btn:hover::before {
-      width: 300px;
-      height: 300px;
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(45, 140, 219, 0.3);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
     }
 
     .btn.primary {
-      background: linear-gradient(135deg, var(--blue-primary), var(--green-primary));
+      background: linear-gradient(135deg, var(--blue), var(--green));
       color: white;
-      box-shadow: 0 4px 16px rgba(45, 140, 219, 0.3);
     }
 
     .btn.secondary {
-      background: var(--bg-secondary);
+      background: var(--bg-dark);
       border: 1px solid var(--border);
       color: var(--text-primary);
     }
 
-    .btn.danger {
-      background: linear-gradient(135deg, #EF4444, #DC2626);
-      color: white;
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
     }
 
     .btn.small {
-      padding: 8px 14px;
-      font-size: 0.875rem;
+      padding: 6px 14px;
+      font-size: 0.8125rem;
     }
 
+    .btn.danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    /* Toggles */
     .sound-toggle {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 16px;
-      background: rgba(45, 140, 219, 0.1);
+      padding: 8px 14px;
+      background: var(--bg-dark);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      font-size: 0.875rem;
+      border-radius: 10px;
+      font-size: 0.8125rem;
       color: var(--text-secondary);
     }
 
     .sound-toggle input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      accent-color: var(--blue-primary);
+      width: 18px;
+      height: 18px;
+      accent-color: var(--blue);
       cursor: pointer;
     }
 
-    /* Banner de alerta mejorado */
+    /* Banner de alerta */
     .alert-banner {
-      background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.2));
-      backdrop-filter: blur(10px);
-      border: 2px solid var(--danger);
-      border-radius: 20px;
-      padding: 20px 28px;
-      margin-bottom: 24px;
       display: none;
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.3));
+      border: 2px solid var(--danger);
+      border-radius: 12px;
+      padding: 16px 24px;
+      margin-bottom: 24px;
       align-items: center;
       gap: 16px;
-      animation: pulse-urgent 2s infinite;
-      box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2);
+      animation: pulse 2s infinite;
     }
 
     .alert-banner.show {
       display: flex;
     }
 
-    @keyframes pulse-urgent {
-      0%, 100% {
-        box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2);
-        border-color: var(--danger);
-      }
-      50% {
-        box-shadow: 0 12px 40px rgba(239, 68, 68, 0.4);
-        border-color: #F87171;
-      }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.9; }
     }
 
     .alert-banner .icon {
-      font-size: 32px;
-      animation: shake 0.5s infinite;
-    }
-
-    @keyframes shake {
-      0%, 100% { transform: rotate(0deg); }
-      25% { transform: rotate(-5deg); }
-      75% { transform: rotate(5deg); }
+      font-size: 1.5rem;
     }
 
     .alert-banner .text {
       flex: 1;
     }
 
-    .alert-banner .text strong {
+    .alert-banner strong {
       display: block;
-      font-size: 1.1rem;
-      color: white;
+      font-size: 0.875rem;
       margin-bottom: 4px;
     }
 
-    .alert-banner .text span {
+    .alert-banner span {
+      font-size: 0.8125rem;
       color: var(--text-secondary);
     }
 
     /* Stats cards mejoradas */
     .stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 16px;
       margin-bottom: 24px;
     }
 
     .stat-card {
       background: var(--bg-card);
-      backdrop-filter: blur(20px);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 24px;
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
       position: relative;
       overflow: hidden;
-      transition: all 0.3s ease;
     }
 
     .stat-card::before {
@@ -253,17 +231,17 @@
       position: absolute;
       top: 0;
       left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, var(--blue-primary), var(--green-primary));
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, var(--blue), var(--green));
       transform: scaleX(0);
-      transition: transform 0.3s ease;
+      transition: transform 0.3s;
     }
 
     .stat-card:hover {
-      transform: translateY(-4px);
-      border-color: var(--blue-light);
-      box-shadow: 0 12px 32px rgba(45, 140, 219, 0.2);
+      transform: translateY(-2px);
+      border-color: var(--blue);
+      box-shadow: var(--shadow);
     }
 
     .stat-card:hover::before {
@@ -272,219 +250,233 @@
 
     .stat-card.urgent {
       border-color: var(--danger);
-      background: rgba(239, 68, 68, 0.05);
-      animation: pulse-card 2s infinite;
-    }
-
-    @keyframes pulse-card {
-      0%, 100% {
-        box-shadow: 0 8px 24px rgba(239, 68, 68, 0.2);
-      }
-      50% {
-        box-shadow: 0 12px 32px rgba(239, 68, 68, 0.4);
-      }
     }
 
     .stat-label {
-      color: var(--text-muted);
-      font-size: 0.875rem;
-      font-weight: 500;
-      margin-bottom: 12px;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      margin-bottom: 8px;
     }
 
     .stat-value {
       font-size: 2rem;
       font-weight: 800;
-      background: linear-gradient(135deg, var(--blue-light), var(--green-primary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--text-primary);
     }
 
     .stat-value.danger {
-      background: linear-gradient(135deg, #EF4444, #F87171);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--danger);
     }
 
-    /* Filtros mejorados */
+    /* Filtros modernos */
     .filters {
       background: var(--bg-card);
-      backdrop-filter: blur(20px);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 24px;
+      border-radius: 12px;
+      padding: 20px;
       display: flex;
       gap: 16px;
       flex-wrap: wrap;
       align-items: center;
       margin-bottom: 24px;
-      box-shadow: 0 4px 16px rgba(45, 140, 219, 0.1);
     }
 
     .filters label {
       color: var(--text-muted);
       font-weight: 600;
-      font-size: 0.875rem;
+      font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
     select, input[type="text"] {
-      background: var(--bg-secondary);
-      color: var(--text-primary);
+      background: var(--bg-dark);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px 16px;
-      min-width: 200px;
-      font-size: 0.95rem;
-      transition: all 0.3s ease;
+      color: var(--text-primary);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      transition: all 0.2s;
     }
 
     select:focus, input[type="text"]:focus {
       outline: none;
-      border-color: var(--blue-light);
-      box-shadow: 0 0 0 3px rgba(45, 140, 219, 0.1);
+      border-color: var(--blue);
     }
 
     .auto-refresh {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       margin-left: auto;
-      padding: 10px 16px;
-      background: rgba(45, 140, 219, 0.1);
+      padding: 8px 14px;
+      background: var(--bg-dark);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      font-size: 0.875rem;
+      border-radius: 8px;
+      font-size: 0.8125rem;
       color: var(--text-secondary);
     }
 
     .auto-refresh input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      accent-color: var(--blue-primary);
+      width: 18px;
+      height: 18px;
+      accent-color: var(--blue);
       cursor: pointer;
     }
 
-    /* Tabla mejorada */
-    .table-wrapper {
+    /* Grid de pedidos (cards) */
+    .pedidos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 16px;
+    }
+
+    /* Card de pedido individual */
+    .pedido-card {
       background: var(--bg-card);
-      backdrop-filter: blur(20px);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: 0 8px 32px rgba(45, 140, 219, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+      cursor: pointer;
+      position: relative;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
+    .pedido-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--blue);
+      background: var(--bg-card-hover);
+      box-shadow: var(--shadow);
     }
 
-    thead {
-      background: linear-gradient(135deg, rgba(45, 140, 219, 0.2), rgba(46, 199, 163, 0.2));
-      border-bottom: 2px solid var(--border);
-    }
-
-    th {
-      padding: 18px 16px;
-      text-align: left;
-      font-size: 0.875rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-primary);
-    }
-
-    td {
-      padding: 16px;
-      border-bottom: 1px solid rgba(45, 140, 219, 0.1);
-      font-size: 0.95rem;
-    }
-
-    tbody tr {
-      transition: all 0.3s ease;
-    }
-
-    tbody tr:hover {
-      background: rgba(45, 140, 219, 0.05);
-    }
-
-    tbody tr.urgent-row {
-      background: rgba(239, 68, 68, 0.08);
+    .pedido-card.urgent {
       border-left: 4px solid var(--danger);
+      background: rgba(239, 68, 68, 0.05);
     }
 
-    tbody tr.urgent-row:hover {
-      background: rgba(239, 68, 68, 0.12);
+    .pedido-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .pedido-id {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--blue-light);
+    }
+
+    .pedido-time {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    .pedido-cliente {
+      margin-bottom: 12px;
+    }
+
+    .cliente-nombre {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .cliente-info {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .pedido-monto {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .pedido-monto span {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .pedido-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .pedido-operador {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
     }
 
     /* Badges modernos */
     .badge {
-      padding: 6px 14px;
-      border-radius: 999px;
-      font-weight: 700;
-      font-size: 0.8125rem;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .badge.pendiente {
-      background: rgba(245, 158, 11, 0.15);
+      background: rgba(245, 158, 11, 0.2);
       color: #FBBF24;
-      border: 1px solid rgba(245, 158, 11, 0.3);
     }
 
     .badge.comprobante_enviado, .badge.verificando {
-      background: rgba(45, 140, 219, 0.15);
+      background: rgba(45, 140, 219, 0.2);
       color: var(--blue-light);
-      border: 1px solid rgba(45, 140, 219, 0.3);
     }
 
     .badge.procesando {
-      background: rgba(46, 199, 163, 0.15);
+      background: rgba(46, 199, 163, 0.2);
       color: var(--green-light);
-      border: 1px solid rgba(46, 199, 163, 0.3);
     }
 
     .badge.completada {
-      background: rgba(16, 185, 129, 0.15);
+      background: rgba(16, 185, 129, 0.2);
       color: #34D399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
     }
 
-    .badge.cancelada, .badge.rechazada {
-      background: rgba(239, 68, 68, 0.15);
+    .badge.rechazada, .badge.cancelada {
+      background: rgba(239, 68, 68, 0.2);
       color: #F87171;
-      border: 1px solid rgba(239, 68, 68, 0.3);
     }
 
     .badge.urgent {
-      animation: pulse-badge 1.5s infinite;
+      animation: pulse-badge 2s infinite;
     }
 
     @keyframes pulse-badge {
-      0%, 100% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-      }
-      50% {
-        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
-      }
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
     }
 
     .time-badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 0.8125rem;
-      font-weight: 700;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
     }
 
     .time-badge.ok {
@@ -500,54 +492,37 @@
     .time-badge.danger {
       background: rgba(239, 68, 68, 0.2);
       color: #F87171;
+      animation: pulse-badge 2s infinite;
     }
 
-    .actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    /* Modal mejorado */
+    /* Modal */
     .modal-overlay {
+      display: none;
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(8px);
-      display: none;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 1000;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
-      padding: 2rem;
+      padding: 20px;
+      backdrop-filter: blur(4px);
     }
 
-    .modal-overlay.active {
+    .modal-overlay.show {
       display: flex;
-      animation: fadeIn 0.3s ease;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-      }
-      to {
-        opacity: 1;
-      }
     }
 
     .modal {
-      background: linear-gradient(135deg, rgba(21, 5, 37, 0.95), rgba(10, 1, 24, 0.95));
-      backdrop-filter: blur(40px);
+      background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 28px;
+      border-radius: 16px;
       max-width: 900px;
       width: 100%;
       max-height: 90vh;
       overflow-y: auto;
-      box-shadow: 0 32px 64px rgba(45, 140, 219, 0.3);
       animation: slideUp 0.3s ease;
     }
 
@@ -563,7 +538,7 @@
     }
 
     .modal-header {
-      padding: 32px;
+      padding: 24px 32px;
       border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
@@ -572,32 +547,31 @@
     }
 
     .modal-header h2 {
-      font-size: 1.75rem;
+      font-size: 1.5rem;
       font-weight: 800;
-      background: linear-gradient(135deg, var(--blue-light), var(--green-primary));
+      background: linear-gradient(135deg, var(--blue-light), var(--green));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      background-clip: text;
     }
 
     .modal-close {
       background: rgba(239, 68, 68, 0.2);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
       font-size: 1.5rem;
       cursor: pointer;
-      color: var(--text-primary);
+      transition: all 0.2s;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.3s ease;
     }
 
     .modal-close:hover {
-      background: rgba(239, 68, 68, 0.3);
-      transform: rotate(90deg);
+      background: var(--danger);
+      color: white;
     }
 
     .modal-body {
@@ -605,28 +579,21 @@
     }
 
     .modal-section {
-      margin-top: 28px;
-      padding-top: 28px;
-      border-top: 1px solid var(--border);
+      margin-bottom: 32px;
     }
 
-    .modal-section:first-child {
-      margin-top: 0;
-      padding-top: 0;
-      border-top: none;
+    .modal-section:last-child {
+      margin-bottom: 0;
     }
 
     .modal-section h4 {
-      margin: 0 0 20px 0;
-      font-size: 1.1rem;
+      margin-bottom: 16px;
+      font-size: 1rem;
       font-weight: 700;
-      background: linear-gradient(135deg, var(--blue-light), var(--green-primary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--blue-light);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .modal-grid {
@@ -636,98 +603,75 @@
     }
 
     .field {
-      background: rgba(45, 140, 219, 0.05);
+      background: var(--bg-dark);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px 18px;
-      transition: all 0.3s ease;
+      border-radius: 10px;
+      padding: 12px 16px;
+      transition: all 0.2s;
     }
 
     .field:hover {
-      background: rgba(45, 140, 219, 0.08);
-      border-color: var(--blue-light);
+      border-color: var(--blue);
     }
 
     .field label {
       color: var(--text-muted);
-      font-size: 0.8125rem;
+      font-size: 0.75rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      display: block;
+      margin-bottom: 4px;
     }
 
     .field .value {
-      margin-top: 8px;
-      font-weight: 700;
       color: var(--text-primary);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
+      font-size: 0.875rem;
+      font-weight: 500;
     }
 
     .copy-btn {
       background: rgba(45, 140, 219, 0.2);
       border: 1px solid var(--border);
       color: var(--blue-light);
-      padding: 6px 10px;
-      border-radius: 8px;
+      padding: 4px 8px;
+      border-radius: 6px;
       cursor: pointer;
-      font-size: 0.875rem;
-      transition: all 0.3s ease;
+      font-size: 0.75rem;
+      margin-left: 8px;
+      transition: all 0.2s;
     }
 
     .copy-btn:hover {
-      background: rgba(45, 140, 219, 0.3);
-      color: var(--text-primary);
-      transform: scale(1.05);
+      background: var(--blue);
+      color: white;
     }
 
-    /* Botones de acción del modal */
     .action-buttons {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      margin-bottom: 24px;
+      margin-top: 20px;
     }
 
     .action-btn {
-      padding: 14px 24px;
-      font-size: 1rem;
-      font-weight: 700;
-      border-radius: 12px;
-      cursor: pointer;
+      padding: 12px 24px;
       border: none;
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .action-btn::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 0;
-      height: 0;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.2);
-      transform: translate(-50%, -50%);
-      transition: width 0.6s, height 0.6s;
-    }
-
-    .action-btn:hover::before {
-      width: 300px;
-      height: 300px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
     }
 
     .action-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 12px 32px rgba(45, 140, 219, 0.4);
+      box-shadow: var(--shadow);
     }
 
     .action-btn.tomar {
-      background: linear-gradient(135deg, var(--blue-primary), var(--blue-light));
+      background: linear-gradient(135deg, var(--blue), var(--blue-light));
       color: white;
     }
 
@@ -737,7 +681,7 @@
     }
 
     .action-btn.cancelar {
-      background: linear-gradient(135deg, #EF4444, #DC2626);
+      background: var(--danger);
       color: white;
     }
 
@@ -747,54 +691,49 @@
     }
 
     .estado-manual, .notas-operador {
-      background: rgba(45, 140, 219, 0.05);
+      background: var(--bg-dark);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 12px;
       padding: 20px;
       margin-bottom: 20px;
     }
 
     .estado-manual label, .notas-operador label {
       display: block;
-      color: var(--text-secondary);
-      font-size: 0.9375rem;
+      color: var(--text-muted);
       font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       margin-bottom: 12px;
     }
 
-    .estado-selector, .nota-input {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
     .select-estado, .input-nota {
-      flex: 1;
-      min-width: 220px;
-      padding: 14px 18px;
-      background: var(--bg-secondary);
+      width: 100%;
+      background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 8px;
       color: var(--text-primary);
-      font-size: 0.95rem;
-      transition: all 0.3s ease;
+      font-size: 0.875rem;
+      padding: 12px;
+      font-family: inherit;
+      transition: all 0.2s;
     }
 
     .select-estado:focus, .input-nota:focus {
       outline: none;
-      border-color: var(--blue-light);
-      box-shadow: 0 0 0 3px rgba(45, 140, 219, 0.1);
+      border-color: var(--blue);
     }
 
-    .input-nota::placeholder {
-      color: var(--text-muted);
+    .input-nota {
+      min-height: 80px;
+      resize: vertical;
     }
 
-    /* Timeline mejorado */
     .timeline {
       display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
+      flex-direction: column;
+      gap: 12px;
       margin-top: 16px;
     }
 
@@ -802,34 +741,33 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 14px 18px;
-      background: rgba(45, 140, 219, 0.05);
-      border-radius: 14px;
+      padding: 12px 16px;
+      background: var(--bg-dark);
+      border-radius: 10px;
       border: 1px solid var(--border);
-      transition: all 0.3s ease;
+      transition: all 0.2s;
     }
 
     .timeline-item:hover {
-      background: rgba(45, 140, 219, 0.08);
-      transform: translateX(4px);
+      border-color: var(--blue);
     }
 
     .timeline-item .icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 1rem;
     }
 
     .timeline-item .icon.creado {
-      background: linear-gradient(135deg, var(--blue-primary), var(--blue-light));
+      background: linear-gradient(135deg, var(--blue), var(--blue-light));
     }
 
     .timeline-item .icon.tomado {
-      background: linear-gradient(135deg, var(--green-primary), var(--green-light));
+      background: linear-gradient(135deg, var(--green), var(--green-light));
     }
 
     .timeline-item .icon.pagado {
@@ -837,32 +775,29 @@
     }
 
     .timeline-item .info {
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      flex: 1;
     }
 
     .timeline-item .info strong {
-      display: block;
       color: var(--text-primary);
-      font-weight: 700;
+      display: block;
       margin-bottom: 2px;
     }
 
-    .timeline-item .info span {
-      color: var(--text-muted);
-    }
-
-    /* Scrollbar personalizado */
+    /* Scrollbar */
     ::-webkit-scrollbar {
-      width: 10px;
-      height: 10px;
+      width: 8px;
+      height: 8px;
     }
 
     ::-webkit-scrollbar-track {
-      background: var(--bg-primary);
+      background: var(--bg-dark);
     }
 
     ::-webkit-scrollbar-thumb {
-      background: linear-gradient(135deg, var(--blue-primary), var(--green-primary));
+      background: linear-gradient(135deg, var(--blue), var(--green));
       border-radius: 10px;
     }
 
@@ -873,30 +808,54 @@
     /* Responsive */
     @media (max-width: 768px) {
       .page {
-        padding: 20px 16px;
+        padding: 16px;
       }
 
-      header {
-        padding: 20px;
+      .header-top {
+        flex-direction: column;
+        align-items: flex-start;
       }
 
-      .title h1 {
+      .title {
+        width: 100%;
+      }
+
+      .logo-container {
+        width: 48px;
+        height: 48px;
+      }
+
+      .logo-container svg {
+        width: 28px;
+        height: 28px;
+      }
+
+      .title-text h1 {
         font-size: 1.5rem;
+      }
+
+      .title-text p {
+        font-size: 0.8125rem;
+      }
+
+      .header-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .pedidos-grid {
+        grid-template-columns: 1fr;
       }
 
       .stats {
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      }
-
-      .stat-value {
-        font-size: 1.5rem;
+        grid-template-columns: repeat(2, 1fr);
       }
 
       .modal {
-        margin: 16px;
+        margin: 20px;
       }
 
-      .modal-header, .modal-body {
+      .modal-body {
         padding: 20px;
       }
     }
@@ -922,8 +881,15 @@
     <header>
       <div class="header-top">
         <div class="title">
-          <h1>📱 Pedidos App Cliente</h1>
-          <p>Gestión en tiempo real de solicitudes móviles con tracking avanzado</p>
+          <div class="logo-container">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17 2H7C5.9 2 5 2.9 5 4V20C5 21.1 5.9 22 7 22H17C18.1 22 19 21.1 19 20V4C19 2.9 18.1 2 17 2M17 18H7V6H17V18M9 8H11V13H9V8M13 8H15V13H13V8M9 14H15V16H9V14Z"/>
+            </svg>
+          </div>
+          <div class="title-text">
+            <h1>Pedidos App Cliente</h1>
+            <p>Gestión en tiempo real de solicitudes móviles con tracking avanzado</p>
+          </div>
         </div>
         <div class="header-actions">
           <div class="sound-toggle">
@@ -986,25 +952,9 @@
       </div>
     </div>
 
-    <!-- Tabla -->
-    <div class="table-wrapper">
-      <table id="tablaPedidos">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Cliente</th>
-            <th>RUT/Documento</th>
-            <th>Teléfono</th>
-            <th>Monto</th>
-            <th>Estado</th>
-            <th>Tomado por</th>
-            <th>⏱️ Tiempo</th>
-            <th>Creado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <!-- Grid de pedidos (cards) -->
+    <div class="pedidos-grid" id="pedidosGrid">
+      <!-- Pedidos se cargan dinámicamente -->
     </div>
   </div>
 
@@ -1079,8 +1029,8 @@
       return { texto: `${diffMins}m`, minutos: diffMins };
     }
 
-    function timeBadge(minutos, mostrarTexto = true) {
-      if (minutos === null || minutos === undefined) return '—';
+    function timeBadge(minutos) {
+      if (minutos === null || minutos === undefined) return '';
       let cls = 'ok';
       let icon = '✓';
       if (minutos > 15) {
@@ -1091,7 +1041,7 @@
         icon = '⏰';
       }
       const tiempo = minutos >= 60 ? `${Math.floor(minutos/60)}h ${minutos%60}m` : `${minutos}m`;
-      return `<span class="time-badge ${cls}">${icon} ${mostrarTexto ? tiempo : ''}</span>`;
+      return `<span class="time-badge ${cls}">${icon} ${tiempo}</span>`;
     }
 
     function esUrgente(s) {
@@ -1126,9 +1076,9 @@
         renderStats(conteosConUrgentes);
 
         if (estadoFiltro === 'urgentes') {
-          renderTabla(urgentes);
+          renderPedidos(urgentes);
         } else {
-          renderTabla(cacheSolicitudes);
+          renderPedidos(cacheSolicitudes);
         }
 
         actualizarAlerta(urgentes.length);
@@ -1198,125 +1148,232 @@
             (s.cliente_nombre || '').toLowerCase().includes(term) ||
             (s.cliente_documento_numero || '').toLowerCase().includes(term) ||
             (s.cliente_telefono || '').toLowerCase().includes(term) ||
-            (s.banco || '').toLowerCase().includes(term) ||
-            (s.beneficiario_nombre || '').toLowerCase().includes(term) ||
-            (s.tomado_por_nombre || '').toLowerCase().includes(term) ||
-            String(s.id || '').includes(term)
+            (s.banco_destino || '').toLowerCase().includes(term) ||
+            (s.cuenta_destino || '').toLowerCase().includes(term)
           );
         });
       }
 
-      renderTabla(filtrado);
+      renderPedidos(filtrado);
     }
 
-    function renderTabla(rows) {
-      const tbody = document.querySelector('#tablaPedidos tbody');
-      if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:40px; color: var(--text-muted); font-size: 1.1rem;">📭 No hay pedidos para mostrar</td></tr>';
+    function renderPedidos(solicitudes) {
+      const grid = document.getElementById('pedidosGrid');
+
+      if (!solicitudes || solicitudes.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-muted);">No hay pedidos para mostrar</div>';
         return;
       }
 
-      tbody.innerHTML = rows.map(s => {
+      grid.innerHTML = solicitudes.map(s => {
         const urgente = esUrgente(s);
-        const tiempoEspera = calcularTiempo(s.fecha_solicitud, s.fecha_completada);
-        const tiempoTomado = s.fecha_tomado ? calcularTiempo(s.fecha_tomado, s.fecha_completada) : null;
-
-        let tiempoMostrar = tiempoEspera;
-        let tiempoLabel = 'Espera';
-        if (s.estado === 'completada' && tiempoEspera) {
-          tiempoLabel = 'Total';
-        } else if (s.estado === 'procesando' && tiempoTomado) {
-          tiempoMostrar = calcularTiempo(s.fecha_tomado);
-          tiempoLabel = 'En proceso';
-        }
+        const tiempo = calcularTiempo(s.fecha_solicitud);
+        const tiempoMostrar = tiempo ? timeBadge(tiempo.minutos) : '';
 
         return `
-          <tr class="${urgente ? 'urgent-row' : ''}">
-            <td><strong style="color: var(--blue-light);">#${s.id}</strong></td>
-            <td>${s.cliente_nombre || '—'}</td>
-            <td><code style="background: rgba(45, 140, 219, 0.1); padding: 4px 8px; border-radius: 6px;">${s.cliente_documento_numero || '—'}</code></td>
-            <td>${s.cliente_telefono || '—'}</td>
-            <td><strong style="font-size: 1.05rem;">$${fmtMonto(s.monto_origen)}</strong> <span style="color: var(--text-muted);">${s.moneda_origen || ''}</span></td>
-            <td>${badgeEstado(s.estado, urgente)}</td>
-            <td>${s.tomado_por_nombre || s.operador_nombre || '<span style="color:var(--text-muted)">Sin asignar</span>'}</td>
-            <td>
-              ${tiempoMostrar ? `
-                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">${tiempoLabel}:</div>
-                ${timeBadge(tiempoMostrar.minutos)} <span style="font-weight:700">${tiempoMostrar.texto}</span>
-              ` : '—'}
-            </td>
-            <td>${fmtFechaCorta(s.fecha_solicitud)}</td>
-            <td class="actions">
-              <button class="btn small primary" onclick="verDetalleId(${s.id})">👁️ Ver</button>
-              ${s.cliente_telefono ? `<button class="btn small secondary" onclick="abrirWhatsApp('${s.cliente_telefono}')">💬</button>` : ''}
-            </td>
-          </tr>
+          <div class="pedido-card ${urgente ? 'urgent' : ''}" onclick="verDetalle(${s.id})">
+            <div class="pedido-header">
+              <div class="pedido-id">#${s.id}</div>
+              <div class="pedido-time">
+                ${fmtFechaCorta(s.fecha_solicitud)}
+                ${tiempoMostrar}
+              </div>
+            </div>
+            <div class="pedido-cliente">
+              <div class="cliente-nombre">${s.cliente_nombre || '—'}</div>
+              <div class="cliente-info">
+                <span>📄 ${s.cliente_documento_numero || '—'}</span>
+                <span>📞 ${s.cliente_telefono || '—'}</span>
+              </div>
+            </div>
+            <div class="pedido-monto">
+              $${fmtMonto(s.monto_origen)} <span>${s.moneda_origen || ''}</span>
+            </div>
+            <div class="pedido-footer">
+              <div class="pedido-operador">
+                ${s.tomado_por_nombre || s.operador_nombre || 'Sin asignar'}
+              </div>
+              ${badgeEstado(s.estado, urgente)}
+            </div>
+          </div>
         `;
       }).join('');
     }
 
-    function abrirWhatsApp(telefono) {
-      const limpio = telefono.replace(/[^0-9]/g, '');
-      window.open(`https://wa.me/${limpio}`, '_blank');
-    }
+    async function verDetalle(id) {
+      const s = cacheSolicitudes.find(x => x.id === id);
+      if (!s) {
+        alert('No se encontró el pedido');
+        return;
+      }
 
-    function copy(text) {
-      if (!text) return;
-      navigator.clipboard.writeText(text.toString());
-    }
+      const urgente = esUrgente(s);
+      const tiempoCreado = calcularTiempo(s.fecha_solicitud);
+      const tiempoTomado = s.fecha_tomado ? calcularTiempo(s.fecha_tomado) : null;
+      const tiempoTotal = s.fecha_completada ? calcularTiempo(s.fecha_solicitud, s.fecha_completada) : null;
 
-    function campo(label, valor, copiable = true) {
-      const safe = valor !== undefined && valor !== null && valor !== '' ? valor : '—';
-      return `
-        <div class="field">
-          <label>${label}</label>
-          <div class="value">
-            <span>${safe}</span>
-            ${copiable && safe !== '—' ? `<button class="copy-btn" onclick="copy('${String(safe).replace(/'/g, "\\'")}')">📋</button>` : ''}
+      let tiempoMostrar = '';
+      if (s.estado === 'completada' && tiempoTotal) {
+        tiempoMostrar = `<div class="field"><label>⏱️ Tiempo Total</label><div class="value">${tiempoTotal.texto}</div></div>`;
+      } else if (s.estado === 'procesando' && tiempoTomado) {
+        tiempoMostrar = `<div class="field"><label>⏱️ En Proceso</label><div class="value">${tiempoTomado.texto}</div></div>`;
+      } else if (tiempoCreado) {
+        tiempoMostrar = `<div class="field"><label>⏱️ Tiempo Espera</label><div class="value">${tiempoCreado.texto}</div></div>`;
+      }
+
+      const esOperador = true; // Ajustar según el rol del usuario
+
+      let acciones = '';
+      if (esOperador) {
+        if (s.estado === 'pendiente' || s.estado === 'comprobante_enviado') {
+          acciones += `<button class="action-btn tomar" onclick="tomarPedido(${s.id})">📋 Tomar Pedido</button>`;
+        }
+        if (s.estado === 'procesando' || s.estado === 'verificando') {
+          acciones += `<button class="action-btn pagado" onclick="marcarPagado(${s.id})">✅ Marcar como Pagado</button>`;
+        }
+        if (s.estado !== 'completada' && s.estado !== 'cancelada') {
+          acciones += `<button class="action-btn cancelar" onclick="cancelarPedido(${s.id})">❌ Cancelar</button>`;
+        }
+        if (s.cliente_telefono) {
+          const tel = s.cliente_telefono.replace(/\D/g, '');
+          acciones += `<button class="action-btn whatsapp" onclick="window.open('https://wa.me/${tel}', '_blank')">💬 WhatsApp</button>`;
+        }
+      }
+
+      const html = `
+        <div class="modal-section">
+          <h4>📊 Información del Cliente</h4>
+          <div class="modal-grid">
+            <div class="field">
+              <label>Nombre</label>
+              <div class="value">${s.cliente_nombre || '—'}</div>
+            </div>
+            <div class="field">
+              <label>${s.cliente_tipo_documento || 'Documento'}</label>
+              <div class="value">
+                ${s.cliente_documento_numero || '—'}
+                ${s.cliente_documento_numero ? `<button class="copy-btn" onclick="copiar('${s.cliente_documento_numero}')">📋</button>` : ''}
+              </div>
+            </div>
+            <div class="field">
+              <label>Teléfono</label>
+              <div class="value">${s.cliente_telefono || '—'}</div>
+            </div>
+            <div class="field">
+              <label>Email</label>
+              <div class="value">${s.cliente_email || '—'}</div>
+            </div>
           </div>
         </div>
-      `;
-    }
 
-    function verDetalleId(id) {
-      const s = cacheSolicitudes.find(x => x.id === id);
-      if (!s) return;
-
-      const modal = document.getElementById('modalDetalle');
-      const modalBody = document.getElementById('modalBody');
-
-      document.getElementById('modalTitulo').innerText = `Pedido #${s.id} - ${s.cliente_nombre || 'Sin nombre'}`;
-
-      const tiempoTotal = calcularTiempo(s.fecha_solicitud, s.fecha_completada);
-      const tiempoHastaTomar = s.fecha_tomado ? calcularTiempo(s.fecha_solicitud, s.fecha_tomado) : null;
-      const tiempoEnEspera = calcularTiempo(s.fecha_solicitud);
-      const esUrg = esUrgente(s);
-
-      modalBody.innerHTML = `
-        <!-- Estado y tiempo -->
-        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:24px;">
-          ${badgeEstado(s.estado, esUrg)}
-          ${s.tomado_por_nombre ? `<span style="color:var(--text-muted)">Tomado por: <strong style="color:var(--text-primary)">${s.tomado_por_nombre}</strong></span>` : ''}
-          ${tiempoTotal || tiempoEnEspera ? `<span style="color:${esUrg ? 'var(--danger)' : 'var(--text-muted)'}">⏱️ ${s.fecha_completada ? 'Total: ' : 'Espera: '}<strong>${(tiempoTotal || tiempoEnEspera).texto}</strong></span>` : ''}
+        <div class="modal-section">
+          <h4>💰 Detalles de la Transacción</h4>
+          <div class="modal-grid">
+            <div class="field">
+              <label>Monto Origen</label>
+              <div class="value">$${fmtMonto(s.monto_origen)} ${s.moneda_origen || ''}</div>
+            </div>
+            <div class="field">
+              <label>Monto Destino</label>
+              <div class="value">${fmtMonto(s.monto_destino)} ${s.moneda_destino || ''}</div>
+            </div>
+            <div class="field">
+              <label>Tasa</label>
+              <div class="value">${s.tasa || '—'}</div>
+            </div>
+            <div class="field">
+              <label>Estado</label>
+              <div class="value">${badgeEstado(s.estado, urgente)}</div>
+            </div>
+          </div>
         </div>
 
-        <!-- Timeline -->
         <div class="modal-section">
-          <h4>⏱️ Timeline del Pedido</h4>
+          <h4>🏦 Datos Bancarios</h4>
+          <div class="modal-grid">
+            <div class="field">
+              <label>Banco Destino</label>
+              <div class="value">${s.banco_destino || '—'}</div>
+            </div>
+            <div class="field">
+              <label>Cuenta Destino</label>
+              <div class="value">
+                ${s.cuenta_destino || '—'}
+                ${s.cuenta_destino ? `<button class="copy-btn" onclick="copiar('${s.cuenta_destino}')">📋</button>` : ''}
+              </div>
+            </div>
+            <div class="field">
+              <label>Tipo Cuenta</label>
+              <div class="value">${s.tipo_cuenta_destino || '—'}</div>
+            </div>
+          </div>
+        </div>
+
+        ${s.comprobante_pago_path ? `
+        <div class="modal-section">
+          <h4>📸 Comprobante de Pago</h4>
+          <a href="${s.comprobante_pago_path}" target="_blank" class="btn secondary">Ver comprobante</a>
+        </div>
+        ` : ''}
+
+        ${s.notas_operador ? `
+        <div class="modal-section">
+          <h4>📝 Notas del Operador</h4>
+          <div class="field">
+            <div class="value">${s.notas_operador}</div>
+          </div>
+        </div>
+        ` : ''}
+
+        ${esOperador ? `
+        <div class="modal-section">
+          <h4>⚙️ Gestión del Pedido</h4>
+          <div class="estado-manual">
+            <label>Cambiar Estado</label>
+            <select class="select-estado" id="modalEstado">
+              <option value="pendiente" ${s.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+              <option value="comprobante_enviado" ${s.estado === 'comprobante_enviado' ? 'selected' : ''}>Comprobante enviado</option>
+              <option value="verificando" ${s.estado === 'verificando' ? 'selected' : ''}>Verificando</option>
+              <option value="procesando" ${s.estado === 'procesando' ? 'selected' : ''}>Procesando</option>
+              <option value="completada" ${s.estado === 'completada' ? 'selected' : ''}>Completada</option>
+              <option value="rechazada" ${s.estado === 'rechazada' ? 'selected' : ''}>Rechazada</option>
+              <option value="cancelada" ${s.estado === 'cancelada' ? 'selected' : ''}>Cancelada</option>
+            </select>
+          </div>
+          <div class="notas-operador">
+            <label>Notas Internas</label>
+            <textarea class="input-nota" id="modalNotas" placeholder="Añadir notas sobre este pedido...">${s.notas_operador || ''}</textarea>
+          </div>
+          <button class="btn primary" onclick="guardarCambios(${s.id})">💾 Guardar Cambios</button>
+        </div>
+        ` : ''}
+
+        ${acciones ? `
+        <div class="modal-section">
+          <h4>⚡ Acciones Rápidas</h4>
+          <div class="action-buttons">
+            ${acciones}
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="modal-section">
+          <h4>📅 Línea de Tiempo</h4>
           <div class="timeline">
             <div class="timeline-item">
               <div class="icon creado">📝</div>
               <div class="info">
-                <strong>Creado</strong>
-                <span>${fmtFecha(s.fecha_solicitud)}</span>
+                <strong>Pedido Creado</strong>
+                ${fmtFecha(s.fecha_solicitud)}
+                ${tiempoCreado ? `(hace ${tiempoCreado.texto})` : ''}
               </div>
             </div>
             ${s.fecha_tomado ? `
             <div class="timeline-item">
               <div class="icon tomado">👤</div>
               <div class="info">
-                <strong>Tomado por ${s.tomado_por_nombre || 'Operador'}</strong>
-                <span>${fmtFecha(s.fecha_tomado)} ${tiempoHastaTomar ? `(${tiempoHastaTomar.texto} después)` : ''}</span>
+                <strong>Tomado por ${s.tomado_por_nombre || s.operador_nombre || 'Operador'}</strong>
+                ${fmtFecha(s.fecha_tomado)}
               </div>
             </div>
             ` : ''}
@@ -1324,249 +1381,128 @@
             <div class="timeline-item">
               <div class="icon pagado">✅</div>
               <div class="info">
-                <strong>Pagado/Completado</strong>
-                <span>${fmtFecha(s.fecha_completada)} ${tiempoTotal ? `(Total: ${tiempoTotal.texto})` : ''}</span>
-              </div>
-            </div>
-            ` : ''}
-            ${!s.fecha_completada && tiempoEnEspera ? `
-            <div class="timeline-item" style="border-color:${tiempoEnEspera.minutos > 15 ? 'var(--danger)' : 'var(--border)'}">
-              <div class="icon" style="background:${tiempoEnEspera.minutos > 15 ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)'}">⏳</div>
-              <div class="info">
-                <strong>En espera</strong>
-                <span style="color:${tiempoEnEspera.minutos > 15 ? 'var(--danger)' : 'var(--warning)'}">${tiempoEnEspera.texto}</span>
+                <strong>Completado</strong>
+                ${fmtFecha(s.fecha_completada)}
+                ${tiempoTotal ? `(${tiempoTotal.texto} total)` : ''}
               </div>
             </div>
             ` : ''}
           </div>
         </div>
 
-        <!-- Datos del Cliente -->
+        ${tiempoMostrar ? `
         <div class="modal-section">
-          <h4>👤 Datos del Cliente</h4>
           <div class="modal-grid">
-            ${campo('Nombre', s.cliente_nombre, false)}
-            ${campo('Documento/RUT', s.cliente_documento_numero ? `${(s.cliente_documento_tipo || '').toUpperCase()}: ${s.cliente_documento_numero}` : '—')}
-            ${campo('Teléfono', s.cliente_telefono)}
-            ${campo('Email', s.cliente_email)}
+            ${tiempoMostrar}
           </div>
         </div>
-
-        <!-- Datos del Beneficiario -->
-        <div class="modal-section">
-          <h4>🏦 Datos del Beneficiario</h4>
-          <div class="modal-grid">
-            ${campo('Nombre', s.beneficiario_nombre, false)}
-            ${campo('Cédula', s.beneficiario_documento)}
-            ${campo('Banco', s.banco, false)}
-            ${campo('Tipo de cuenta', s.beneficiario_tipo_cuenta, false)}
-            ${campo('Número de cuenta', s.numero_cuenta)}
-            ${campo('Teléfono', s.beneficiario_telefono)}
-          </div>
-        </div>
-
-        <!-- Datos de la Operación -->
-        <div class="modal-section">
-          <h4>💰 Datos de la Operación</h4>
-          <div class="modal-grid">
-            ${s.cupon_descuento_clp > 0 ? `
-              ${campo('Monto pagado', `$${fmtMonto(s.monto_sin_cupon || s.monto_origen)} CLP`)}
-              ${campo('Bono/Cupón', `<span style="color: #10b981; font-weight: 700;">+$${fmtMonto(s.cupon_descuento_clp)} CLP</span><br><small style="color: #6b7280;">${s.cupon_codigo || 'Cupón'}</small>`, false)}
-              ${campo('Total efectivo', `<span style="color: #2563eb; font-weight: 700;">$${fmtMonto((s.monto_sin_cupon || s.monto_origen) + s.cupon_descuento_clp)} CLP</span>`, false)}
-            ` : `
-              ${campo('Monto origen', `$${fmtMonto(s.monto_origen)} ${s.moneda_origen || ''}`)}
-            `}
-            ${campo('Monto destino', `${fmtMonto(s.monto_destino)} ${s.moneda_destino || ''}`)}
-            ${campo('Tasa aplicada', s.tasa_aplicada)}
-            ${campo('Notas cliente', s.notas_cliente || '—', false)}
-            ${campo('Notas operador', s.notas_operador || '—', false)}
-          </div>
-        </div>
-
-        <!-- Acciones del pedido -->
-        <div class="modal-section">
-          <h4>⚡ Acciones</h4>
-
-          <div class="action-buttons">
-            ${s.estado === 'pendiente' || s.estado === 'comprobante_enviado' ? `
-              <button class="btn action-btn tomar" onclick="cambiarEstadoPedido(${s.id}, 'procesando')">
-                👤 TOMAR PEDIDO
-              </button>
-            ` : ''}
-            ${s.estado === 'procesando' || s.estado === 'verificando' ? `
-              <button class="btn action-btn pagado" onclick="cambiarEstadoPedido(${s.id}, 'completada')">
-                ✅ MARCAR PAGADO
-              </button>
-            ` : ''}
-            ${s.estado !== 'cancelada' && s.estado !== 'completada' && s.estado !== 'rechazada' ? `
-              <button class="btn action-btn cancelar" onclick="cambiarEstadoPedido(${s.id}, 'cancelada')">
-                ❌ CANCELAR
-              </button>
-            ` : ''}
-            ${s.cliente_telefono ? `
-              <button class="btn action-btn whatsapp" onclick="abrirWhatsApp('${s.cliente_telefono}')">
-                💬 WhatsApp
-              </button>
-            ` : ''}
-          </div>
-
-          <div class="estado-manual">
-            <label>Cambiar estado manualmente:</label>
-            <div class="estado-selector">
-              <select id="selectEstado_${s.id}" class="select-estado">
-                <option value="pendiente" ${s.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
-                <option value="comprobante_enviado" ${s.estado === 'comprobante_enviado' ? 'selected' : ''}>📎 Comprobante enviado</option>
-                <option value="verificando" ${s.estado === 'verificando' ? 'selected' : ''}>🔍 Verificando</option>
-                <option value="procesando" ${s.estado === 'procesando' ? 'selected' : ''}>⚙️ Procesando</option>
-                <option value="completada" ${s.estado === 'completada' ? 'selected' : ''}>✅ Completada</option>
-                <option value="rechazada" ${s.estado === 'rechazada' ? 'selected' : ''}>🚫 Rechazada</option>
-                <option value="cancelada" ${s.estado === 'cancelada' ? 'selected' : ''}>❌ Cancelada</option>
-              </select>
-              <button class="btn primary" onclick="cambiarEstadoManual(${s.id})">
-                Aplicar cambio
-              </button>
-            </div>
-          </div>
-
-          <div class="notas-operador">
-            <label>Agregar nota de operador:</label>
-            <div class="nota-input">
-              <input type="text" id="notaOperador_${s.id}" placeholder="Ej: Rechazado por banco, transferencia devuelta..." class="input-nota">
-              <button class="btn primary" onclick="guardarNotaOperador(${s.id})">💾 Guardar nota</button>
-            </div>
-          </div>
-        </div>
+        ` : ''}
       `;
 
-      modal.classList.add('active');
-    }
-
-    async function cambiarEstadoPedido(id, nuevoEstado) {
-      const confirmaciones = {
-        'procesando': '¿Tomar este pedido?',
-        'completada': '¿Marcar como PAGADO?',
-        'cancelada': '¿Cancelar este pedido?',
-        'rechazada': '¿Marcar como RECHAZADO?'
-      };
-
-      if (!confirm(confirmaciones[nuevoEstado] || `¿Cambiar estado a ${nuevoEstado}?`)) return;
-
-      try {
-        const res = await fetch(`/api/solicitudes-app/${id}/estado`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ estado: nuevoEstado })
-        });
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Error al cambiar estado');
-        }
-
-        alert(`✅ Estado cambiado a: ${estadoLabel[nuevoEstado] || nuevoEstado}`);
-        cerrarModal();
-        await cargarSolicitudes();
-      } catch (err) {
-        alert('❌ Error: ' + err.message);
-      }
-    }
-
-    async function cambiarEstadoManual(id) {
-      const select = document.getElementById(`selectEstado_${id}`);
-      const nuevoEstado = select.value;
-
-      if (!confirm(`¿Cambiar estado a "${estadoLabel[nuevoEstado]}"? \n\nEsto es un cambio manual y quedará registrado.`)) return;
-
-      try {
-        const res = await fetch(`/api/solicitudes-app/${id}/estado`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ estado: nuevoEstado })
-        });
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Error al cambiar estado');
-        }
-
-        alert(`✅ Estado actualizado a: ${estadoLabel[nuevoEstado]}`);
-        cerrarModal();
-        await cargarSolicitudes();
-      } catch (err) {
-        alert('❌ Error: ' + err.message);
-      }
-    }
-
-    async function guardarNotaOperador(id) {
-      const input = document.getElementById(`notaOperador_${id}`);
-      const nota = input.value.trim();
-
-      if (!nota) {
-        alert('Escribe una nota primero');
-        return;
-      }
-
-      try {
-        const solicitud = cacheSolicitudes.find(s => s.id === id);
-
-        const res = await fetch(`/api/solicitudes-app/${id}/estado`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            estado: solicitud.estado,
-            notas_operador: nota
-          })
-        });
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Error al guardar nota');
-        }
-
-        alert('✅ Nota guardada');
-        input.value = '';
-        await cargarSolicitudes();
-        setTimeout(() => verDetalleId(id), 300);
-      } catch (err) {
-        alert('❌ Error: ' + err.message);
-      }
+      document.getElementById('modalTitulo').innerText = `Pedido #${s.id}`;
+      document.getElementById('modalBody').innerHTML = html;
+      document.getElementById('modalDetalle').classList.add('show');
     }
 
     function cerrarModal() {
-      document.getElementById('modalDetalle').classList.remove('active');
+      document.getElementById('modalDetalle').classList.remove('show');
     }
 
-    function setupAutoRefresh() {
-      const checkbox = document.getElementById('autoRefresh');
-
-      if (checkbox.checked) {
-        autoRefreshInterval = setInterval(cargarSolicitudes, 30000);
-      }
-
-      checkbox.addEventListener('change', () => {
-        if (checkbox.checked) {
-          autoRefreshInterval = setInterval(cargarSolicitudes, 30000);
-        } else {
-          clearInterval(autoRefreshInterval);
-        }
+    function copiar(texto) {
+      navigator.clipboard.writeText(texto).then(() => {
+        alert('✓ Copiado al portapapeles');
+      }).catch(() => {
+        alert('Error al copiar');
       });
     }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') cerrarModal();
+    async function tomarPedido(id) {
+      if (!confirm('¿Tomar este pedido?')) return;
+      try {
+        const res = await fetch(`/api/solicitudes-app/${id}/tomar`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (!res.ok) throw new Error('Error al tomar pedido');
+        alert('✓ Pedido tomado');
+        cerrarModal();
+        cargarSolicitudes();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function marcarPagado(id) {
+      if (!confirm('¿Marcar como pagado?')) return;
+      try {
+        const res = await fetch(`/api/solicitudes-app/${id}/completar`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (!res.ok) throw new Error('Error al completar pedido');
+        alert('✓ Pedido completado');
+        cerrarModal();
+        cargarSolicitudes();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function cancelarPedido(id) {
+      if (!confirm('¿Cancelar este pedido?')) return;
+      try {
+        const res = await fetch(`/api/solicitudes-app/${id}/cancelar`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (!res.ok) throw new Error('Error al cancelar pedido');
+        alert('✓ Pedido cancelado');
+        cerrarModal();
+        cargarSolicitudes();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function guardarCambios(id) {
+      const estado = document.getElementById('modalEstado').value;
+      const notas = document.getElementById('modalNotas').value;
+
+      try {
+        const res = await fetch(`/api/solicitudes-app/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ estado, notas_operador: notas })
+        });
+        if (!res.ok) throw new Error('Error al guardar');
+        alert('✓ Cambios guardados');
+        cerrarModal();
+        cargarSolicitudes();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // Auto-refresh
+    document.getElementById('autoRefresh').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        autoRefreshInterval = setInterval(cargarSolicitudes, 30000);
+      } else {
+        clearInterval(autoRefreshInterval);
+      }
     });
 
+    // Click fuera del modal para cerrar
     document.getElementById('modalDetalle').addEventListener('click', (e) => {
-      if (e.target.classList.contains('modal-overlay')) cerrarModal();
+      if (e.target.id === 'modalDetalle') {
+        cerrarModal();
+      }
     });
 
-    window.addEventListener('DOMContentLoaded', () => {
-      cargarSolicitudes();
-      setupAutoRefresh();
-    });
+    // Cargar al iniciar
+    cargarSolicitudes();
+    autoRefreshInterval = setInterval(cargarSolicitudes, 30000);
   </script>
 </body>
 </html>
