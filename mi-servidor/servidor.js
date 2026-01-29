@@ -8345,6 +8345,65 @@ app.get('/api/solicitudes-app', apiAuth, async (req, res) => {
     }
 });
 
+// GET /api/solicitudes-app/stats/volumen-mensual - Volumen de ventas por mes (pedidos completados)
+// NOTA: Esta ruta DEBE ir ANTES de las rutas con :id para que Express no la confunda
+app.get('/api/solicitudes-app/stats/volumen-mensual', apiAuth, async (req, res) => {
+    try {
+        // Obtener volumen mensual de los últimos 12 meses
+        const stats = await dbAll(`
+            SELECT
+                strftime('%Y-%m', fecha_completada) as mes,
+                strftime('%Y', fecha_completada) as anio,
+                strftime('%m', fecha_completada) as mes_num,
+                COUNT(*) as cantidad_pedidos,
+                SUM(monto_origen) as volumen_clp,
+                SUM(monto_destino) as volumen_destino,
+                AVG(monto_origen) as promedio_clp
+            FROM solicitudes_transferencia
+            WHERE estado = 'completada'
+              AND fecha_completada IS NOT NULL
+              AND fecha_completada >= date('now', '-12 months')
+            GROUP BY strftime('%Y-%m', fecha_completada)
+            ORDER BY mes DESC
+        `);
+
+        // Nombres de meses en español
+        const nombresMeses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+        const resultado = stats.map(s => ({
+            mes: s.mes,
+            mes_nombre: nombresMeses[parseInt(s.mes_num)] + ' ' + s.anio,
+            cantidad_pedidos: s.cantidad_pedidos,
+            volumen_clp: Math.round(s.volumen_clp || 0),
+            volumen_destino: Math.round(s.volumen_destino || 0),
+            promedio_clp: Math.round(s.promedio_clp || 0)
+        }));
+
+        // Totales generales
+        const totales = await dbGet(`
+            SELECT
+                COUNT(*) as total_pedidos,
+                SUM(monto_origen) as total_clp,
+                SUM(monto_destino) as total_destino
+            FROM solicitudes_transferencia
+            WHERE estado = 'completada'
+        `);
+
+        res.json({
+            meses: resultado,
+            totales: {
+                total_pedidos: totales?.total_pedidos || 0,
+                total_clp: Math.round(totales?.total_clp || 0),
+                total_destino: Math.round(totales?.total_destino || 0)
+            }
+        });
+    } catch (error) {
+        console.error('Error obteniendo volumen mensual:', error);
+        res.status(500).json({ error: 'Error al obtener estadísticas' });
+    }
+});
+
 // PUT /api/solicitudes-app/:id/estado - Actualizar estado de solicitud (operadores)
 app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
     try {
