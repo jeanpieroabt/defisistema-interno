@@ -834,6 +834,161 @@
       background: linear-gradient(135deg, var(--blue-light), var(--green-light));
     }
 
+    /* Sección de Volumen Mensual */
+    .volumen-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .volumen-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .volumen-header h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .volumen-totales {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .volumen-total-item {
+      text-align: right;
+    }
+
+    .volumen-total-item .label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .volumen-total-item .value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .volumen-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .volumen-card {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .volumen-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: linear-gradient(180deg, var(--blue), var(--green));
+    }
+
+    .volumen-card:hover {
+      border-color: var(--blue);
+      transform: translateY(-2px);
+    }
+
+    .volumen-mes {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .volumen-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .volumen-stat {
+      text-align: center;
+      padding: 8px;
+      background: rgba(45, 140, 219, 0.1);
+      border-radius: 8px;
+    }
+
+    .volumen-stat.highlight {
+      background: rgba(46, 199, 163, 0.15);
+      grid-column: 1 / -1;
+    }
+
+    .volumen-stat .stat-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .volumen-stat .stat-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .volumen-stat.highlight .stat-value {
+      color: var(--green);
+      font-size: 1.25rem;
+    }
+
+    .volumen-empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    .toggle-volumen {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .toggle-volumen:hover {
+      border-color: var(--blue);
+      color: var(--text-primary);
+    }
+
+    .volumen-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .volumen-content.show {
+      max-height: 2000px;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .page {
@@ -978,6 +1133,24 @@
       <div class="auto-refresh">
         <input type="checkbox" id="autoRefresh" checked>
         <label for="autoRefresh">Auto-actualizar cada 30s</label>
+      </div>
+    </div>
+
+    <!-- Sección de Volumen Mensual -->
+    <div class="volumen-section">
+      <div class="volumen-header">
+        <h3>📈 Volumen de Ventas por Mes</h3>
+        <div class="volumen-totales" id="volumenTotales">
+          <!-- Se cargan dinámicamente -->
+        </div>
+        <button class="toggle-volumen" id="toggleVolumen" onclick="toggleVolumenSection()">
+          ▼ Mostrar detalle
+        </button>
+      </div>
+      <div class="volumen-content" id="volumenContent">
+        <div class="volumen-grid" id="volumenGrid">
+          <!-- Cards de volumen mensual se cargan dinámicamente -->
+        </div>
       </div>
     </div>
 
@@ -1551,8 +1724,85 @@
       }
     });
 
+    // ========================================
+    // VOLUMEN MENSUAL
+    // ========================================
+    let volumenData = null;
+    let volumenExpanded = false;
+
+    async function cargarVolumenMensual() {
+      try {
+        const res = await fetch('/api/solicitudes-app/stats/volumen-mensual', { credentials: 'include' });
+        if (!res.ok) throw new Error('Error al cargar volumen');
+        volumenData = await res.json();
+        renderVolumenTotales(volumenData.totales);
+        renderVolumenGrid(volumenData.meses);
+      } catch (err) {
+        console.error('Error cargando volumen mensual:', err);
+        document.getElementById('volumenTotales').innerHTML = '<span style="color: var(--text-muted);">Error al cargar</span>';
+      }
+    }
+
+    function renderVolumenTotales(totales) {
+      const container = document.getElementById('volumenTotales');
+      container.innerHTML = `
+        <div class="volumen-total-item">
+          <div class="label">Total Pedidos</div>
+          <div class="value">${totales.total_pedidos.toLocaleString('es-CL')}</div>
+        </div>
+        <div class="volumen-total-item">
+          <div class="label">Volumen Total CLP</div>
+          <div class="value">$${totales.total_clp.toLocaleString('es-CL')}</div>
+        </div>
+      `;
+    }
+
+    function renderVolumenGrid(meses) {
+      const grid = document.getElementById('volumenGrid');
+
+      if (!meses || meses.length === 0) {
+        grid.innerHTML = '<div class="volumen-empty">No hay datos de volumen disponibles</div>';
+        return;
+      }
+
+      grid.innerHTML = meses.map(m => `
+        <div class="volumen-card">
+          <div class="volumen-mes">${m.mes_nombre}</div>
+          <div class="volumen-stats">
+            <div class="volumen-stat highlight">
+              <div class="stat-label">Volumen CLP</div>
+              <div class="stat-value">$${m.volumen_clp.toLocaleString('es-CL')}</div>
+            </div>
+            <div class="volumen-stat">
+              <div class="stat-label">Pedidos</div>
+              <div class="stat-value">${m.cantidad_pedidos}</div>
+            </div>
+            <div class="volumen-stat">
+              <div class="stat-label">Promedio</div>
+              <div class="stat-value">$${m.promedio_clp.toLocaleString('es-CL')}</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleVolumenSection() {
+      const content = document.getElementById('volumenContent');
+      const btn = document.getElementById('toggleVolumen');
+      volumenExpanded = !volumenExpanded;
+
+      if (volumenExpanded) {
+        content.classList.add('show');
+        btn.innerHTML = '▲ Ocultar detalle';
+      } else {
+        content.classList.remove('show');
+        btn.innerHTML = '▼ Mostrar detalle';
+      }
+    }
+
     // Cargar al iniciar
     cargarSolicitudes();
+    cargarVolumenMensual();
     autoRefreshInterval = setInterval(cargarSolicitudes, 30000);
   </script>
 </body>
