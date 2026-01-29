@@ -6950,6 +6950,7 @@ app.post('/api/nomina/calcular/:periodoId', apiAuth, onlyMaster, async (req, res
           bono_domingos, domingos_trabajados, bonos_extra, total_pagar, actualizado_en
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(periodo_id, usuario_id) DO UPDATE SET
+          sueldo_base = excluded.sueldo_base,
           horas_trabajadas = excluded.horas_trabajadas,
           bono_asistencia = excluded.bono_asistencia,
           bono_atencion_rapida = excluded.bono_atencion_rapida,
