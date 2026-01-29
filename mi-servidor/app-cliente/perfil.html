@@ -1163,6 +1163,79 @@
             transform: none;
         }
 
+        /* Cashback/Beneficio Banner */
+        .cashback-banner {
+            background: linear-gradient(135deg, rgba(46, 199, 163, 0.12), rgba(25, 116, 206, 0.08));
+            border: 1px solid rgba(46, 199, 163, 0.3);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            margin-top: var(--space-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .cashback-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-green), var(--primary-blue));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(46, 199, 163, 0.3);
+        }
+
+        .cashback-content {
+            flex: 1;
+        }
+
+        .cashback-title {
+            font-size: var(--font-xs);
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cashback-amount {
+            font-size: var(--font-xl);
+            font-weight: 800;
+            color: var(--accent-green);
+            line-height: 1.2;
+        }
+
+        .cashback-desc {
+            font-size: var(--font-xs);
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .cashback-badge {
+            background: rgba(46, 199, 163, 0.15);
+            color: var(--accent-green);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         /* Upload document styles */
         .upload-area {
             border: 2px dashed var(--secondary-blue);
@@ -1275,6 +1348,18 @@
                         <div class="metric-card">
                             <span class="metric-label">Total enviado</span>
                             <span class="metric-value" id="statTotal">$0</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Banner de Ahorro 2026 -->
+                <section id="seccionCashback" style="display: none;">
+                    <div class="cashback-banner">
+                        <div class="cashback-icon">💰</div>
+                        <div class="cashback-content">
+                            <p class="cashback-title">Con Defi Oracle te has ahorrado</p>
+                            <p class="cashback-amount" id="cashbackMonto">$0</p>
+                            <p class="cashback-desc">en comparación con otras empresas de envíos</p>
                         </div>
                     </div>
                 </section>
@@ -1782,10 +1867,21 @@
                     const data = await response.json();
                     document.getElementById('statEnvios').textContent = data.total_envios || 0;
                     document.getElementById('statTotal').textContent = `$${(data.total_enviado || 0).toLocaleString('es-CL')}`;
+
+                    // Calcular y mostrar cashback (3.5% del total enviado en 2026)
+                    const totalEnviado = data.total_enviado || 0;
+                    if (totalEnviado > 0) {
+                        const cashback = Math.round(totalEnviado * 0.035);
+                        document.getElementById('cashbackMonto').textContent = `$${cashback.toLocaleString('es-CL')}`;
+                        document.getElementById('seccionCashback').style.display = 'block';
+                    } else {
+                        document.getElementById('seccionCashback').style.display = 'none';
+                    }
                 }
             } catch {
                 document.getElementById('statEnvios').textContent = '0';
                 document.getElementById('statTotal').textContent = '$0';
+                document.getElementById('seccionCashback').style.display = 'none';
             }
         }
 
