@@ -409,6 +409,35 @@
       font-weight: 500;
     }
 
+    .pedido-banco {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      padding: 6px 10px;
+      background: rgba(45, 140, 219, 0.1);
+      border-left: 2px solid var(--blue);
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+
+    .pedido-cupon {
+      font-size: 0.8125rem;
+      color: var(--green-light);
+      padding: 6px 10px;
+      background: rgba(46, 199, 163, 0.1);
+      border-left: 2px solid var(--green);
+      border-radius: 4px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pedido-cupon strong {
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
     .pedido-footer {
       display: flex;
       justify-content: space-between;
@@ -1167,8 +1196,18 @@
 
       grid.innerHTML = solicitudes.map(s => {
         const urgente = esUrgente(s);
-        const tiempo = calcularTiempo(s.fecha_solicitud);
-        const tiempoMostrar = tiempo ? timeBadge(tiempo.minutos) : '';
+
+        // Calcular tiempo correcto según el estado
+        let tiempo, tiempoMostrar;
+        if (s.estado === 'completada' && s.fecha_completada) {
+          // Para completadas: mostrar tiempo que tardó en completarse
+          tiempo = calcularTiempo(s.fecha_solicitud, s.fecha_completada);
+          tiempoMostrar = tiempo ? `<span class="time-badge success">✓ ${tiempo.texto}</span>` : '';
+        } else {
+          // Para pendientes/procesando: mostrar tiempo transcurrido
+          tiempo = calcularTiempo(s.fecha_solicitud);
+          tiempoMostrar = tiempo ? timeBadge(tiempo.minutos) : '';
+        }
 
         return `
           <div class="pedido-card ${urgente ? 'urgent' : ''}" onclick="verDetalle(${s.id})">
@@ -1188,7 +1227,19 @@
             </div>
             <div class="pedido-monto">
               $${fmtMonto(s.monto_origen)} <span>${s.moneda_origen || ''}</span>
+              ${s.tasa ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Tasa: ${s.tasa}</div>` : ''}
             </div>
+            ${s.banco_destino ? `
+            <div class="pedido-banco">
+              🏦 ${s.banco_destino}
+            </div>
+            ` : ''}
+            ${s.cupon_codigo ? `
+            <div class="pedido-cupon">
+              🎁 Cupón: <strong>${s.cupon_codigo}</strong>
+              ${s.cupon_descuento_clp ? ` (-$${fmtMonto(s.cupon_descuento_clp)})` : ''}
+            </div>
+            ` : ''}
             <div class="pedido-footer">
               <div class="pedido-operador">
                 ${s.tomado_por_nombre || s.operador_nombre || 'Sin asignar'}

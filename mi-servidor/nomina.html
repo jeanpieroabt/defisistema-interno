@@ -314,6 +314,9 @@
                 <button class="btn btn-primary" onclick="calcularNomina()">
                     🔄 Recalcular Nómina
                 </button>
+                <button class="btn btn-success" onclick="generarPeriodos()">
+                    📅 Generar Periodos
+                </button>
             </div>
         </div>
 
@@ -728,6 +731,41 @@
             } catch (error) {
                 console.error('Error guardando bonos:', error);
                 alert('❌ Error guardando bonos');
+            }
+        }
+
+        async function generarPeriodos() {
+            const mesesStr = prompt('¿Cuántos meses de periodos quieres generar hacia el futuro?', '6');
+            if (!mesesStr) return;
+
+            const meses = parseInt(mesesStr);
+            if (isNaN(meses) || meses < 1 || meses > 24) {
+                alert('❌ Por favor ingresa un número entre 1 y 24');
+                return;
+            }
+
+            if (!confirm(`Se crearán periodos para los próximos ${meses} meses (${meses * 2} quincenas). ¿Continuar?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/nomina/generar-periodos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ meses })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${result.creados} periodos creados exitosamente\n${result.existentes} ya existían`);
+                    await cargarPeriodos();
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error generando periodos:', error);
+                alert('❌ Error generando periodos');
             }
         }
 

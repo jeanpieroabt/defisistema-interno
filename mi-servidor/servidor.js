@@ -7080,6 +7080,69 @@ app.post('/api/nomina/periodo/:periodoId/cerrar', apiAuth, onlyMaster, async (re
   }
 });
 
+// Generar periodos futuros automáticamente
+app.post('/api/nomina/generar-periodos', apiAuth, onlyMaster, async (req, res) => {
+  try {
+    const { meses } = req.body;
+
+    if (!meses || meses < 1 || meses > 24) {
+      return res.status(400).json({ error: 'Número de meses inválido (1-24)' });
+    }
+
+    const hoy = new Date();
+    let creados = 0;
+    let existentes = 0;
+
+    // Generar periodos desde el mes actual hasta N meses en el futuro
+    for (let i = 0; i < meses; i++) {
+      const fecha = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
+      const anio = fecha.getFullYear();
+      const mes = fecha.getMonth() + 1;
+
+      // Crear ambas quincenas para cada mes
+      for (let quincena = 1; quincena <= 2; quincena++) {
+        // Verificar si ya existe
+        const existente = await dbGet(
+          'SELECT id FROM periodos_pago WHERE anio = ? AND mes = ? AND quincena = ?',
+          [anio, mes, quincena]
+        );
+
+        if (existente) {
+          existentes++;
+          continue;
+        }
+
+        // Calcular fechas de inicio y fin
+        const fecha_inicio = quincena === 1
+          ? `${anio}-${mes.toString().padStart(2, '0')}-01`
+          : `${anio}-${mes.toString().padStart(2, '0')}-16`;
+
+        const fecha_fin = quincena === 1
+          ? `${anio}-${mes.toString().padStart(2, '0')}-15`
+          : `${anio}-${mes.toString().padStart(2, '0')}-${new Date(anio, mes, 0).getDate()}`;
+
+        // Crear el periodo
+        await dbRun(
+          'INSERT INTO periodos_pago (anio, mes, quincena, fecha_inicio, fecha_fin) VALUES (?, ?, ?, ?, ?)',
+          [anio, mes, quincena, fecha_inicio, fecha_fin]
+        );
+
+        creados++;
+      }
+    }
+
+    res.json({
+      mensaje: `Periodos generados exitosamente`,
+      creados,
+      existentes,
+      total: creados + existentes
+    });
+  } catch (error) {
+    console.error('Error generando periodos:', error);
+    res.status(500).json({ error: 'Error generando periodos' });
+  }
+});
+
 // Marcar periodo como pagado
 app.post('/api/nomina/periodo/:periodoId/pagar', apiAuth, onlyMaster, async (req, res) => {
   try {
@@ -8234,14 +8297,15 @@ app.get('/api/solicitudes-app', apiAuth, async (req, res) => {
         const { estado, limit = 50, offset = 0 } = req.query;
         
         let query = `
-            SELECT s.*, 
+            SELECT s.*,
                    c.nombre as cliente_nombre, c.email as cliente_email, c.telefono as cliente_telefono,
                    c.documento_tipo as cliente_documento_tipo, c.documento_numero as cliente_documento_numero,
-                   b.alias, b.nombre_completo as beneficiario_nombre, b.banco, b.numero_cuenta,
+                   b.alias, b.nombre_completo as beneficiario_nombre, b.banco as banco_destino, b.numero_cuenta,
                    b.documento_numero as beneficiario_documento, b.tipo_cuenta as beneficiario_tipo_cuenta,
                    b.telefono as beneficiario_telefono,
                    u.username as operador_nombre,
-                   s.fecha_tomado, s.tomado_por_nombre
+                   s.fecha_tomado, s.tomado_por_nombre,
+                   s.tasa_aplicada as tasa, s.cupon_codigo, s.cupon_descuento_clp
             FROM solicitudes_transferencia s
             JOIN clientes_app c ON s.cliente_app_id = c.id
             JOIN beneficiarios b ON s.beneficiario_id = b.id
