@@ -1120,11 +1120,8 @@
       <select id="fEstado" onchange="cargarSolicitudes()">
         <option value="">Todos</option>
         <option value="pendiente">Pendiente</option>
-        <option value="comprobante_enviado">Comprobante enviado</option>
-        <option value="verificando">Verificando</option>
         <option value="procesando">Procesando</option>
         <option value="completada">Completada</option>
-        <option value="rechazada">Rechazada</option>
         <option value="cancelada">Cancelada</option>
         <option value="urgentes">⚠️ Urgentes (+15 min)</option>
       </select>
@@ -1180,11 +1177,8 @@
 
     const estadoLabel = {
       pendiente: 'Pendiente',
-      comprobante_enviado: 'Comprobante enviado',
-      verificando: 'Verificando',
       procesando: 'Procesando',
       completada: 'Completada',
-      rechazada: 'Rechazada',
       cancelada: 'Cancelada'
     };
 
@@ -1556,11 +1550,8 @@
             <label>Cambiar Estado</label>
             <select class="select-estado" id="modalEstado">
               <option value="pendiente" ${s.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
-              <option value="comprobante_enviado" ${s.estado === 'comprobante_enviado' ? 'selected' : ''}>Comprobante enviado</option>
-              <option value="verificando" ${s.estado === 'verificando' ? 'selected' : ''}>Verificando</option>
               <option value="procesando" ${s.estado === 'procesando' ? 'selected' : ''}>Procesando</option>
               <option value="completada" ${s.estado === 'completada' ? 'selected' : ''}>Completada</option>
-              <option value="rechazada" ${s.estado === 'rechazada' ? 'selected' : ''}>Rechazada</option>
               <option value="cancelada" ${s.estado === 'cancelada' ? 'selected' : ''}>Cancelada</option>
             </select>
           </div>

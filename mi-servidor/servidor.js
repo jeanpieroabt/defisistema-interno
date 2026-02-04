@@ -8301,8 +8301,8 @@ app.get('/api/solicitudes-app', apiAuth, async (req, res) => {
             SELECT s.*,
                    c.nombre as cliente_nombre, c.email as cliente_email, c.telefono as cliente_telefono,
                    c.documento_tipo as cliente_documento_tipo, c.documento_numero as cliente_documento_numero,
-                   b.alias, b.nombre_completo as beneficiario_nombre, b.banco as banco_destino, b.numero_cuenta,
-                   b.documento_numero as beneficiario_documento, b.tipo_cuenta as beneficiario_tipo_cuenta,
+                   b.alias, b.nombre_completo as beneficiario_nombre, b.banco as banco_destino, b.numero_cuenta as cuenta_destino,
+                   b.documento_numero as beneficiario_documento, b.tipo_cuenta as tipo_cuenta_destino,
                    b.telefono as beneficiario_telefono,
                    u.username as operador_nombre,
                    s.fecha_tomado, s.tomado_por_nombre,
@@ -8487,6 +8487,257 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
     } catch (error) {
         console.error('Error actualizando solicitud:', error);
         res.status(500).json({ error: 'Error al actualizar solicitud' });
+    }
+});
+
+// PATCH /api/solicitudes-app/:id - Actualizar estado y notas (usado por pedidos-app.html)
+app.patch('/api/solicitudes-app/:id', apiAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { estado, notas_operador } = req.body;
+        const operadorId = req.session.user?.id;
+        const operadorNombre = req.session.user?.username || 'Operador';
+
+        console.log('📋 PATCH cambio estado pedido:', { operadorId, operadorNombre, estado, id });
+
+        const solicitud = await dbGet(
+            `SELECT s.*, c.nombre as cliente_nombre
+             FROM solicitudes_transferencia s
+             JOIN clientes_app c ON s.cliente_app_id = c.id
+             WHERE s.id = ?`,
+            [id]
+        );
+
+        if (!solicitud) {
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+
+        // Campos a actualizar
+        let updateFields = ['operador_id = ?'];
+        let updateParams = [operadorId];
+
+        if (estado) {
+            updateFields.push('estado = ?');
+            updateParams.push(estado);
+
+            if (estado === 'verificando') {
+                updateFields.push('fecha_verificacion = ?');
+                updateParams.push(new Date().toISOString());
+            }
+
+            if (estado === 'procesando') {
+                updateFields.push('tomado_por_nombre = ?');
+                updateParams.push(operadorNombre);
+                if (!solicitud.fecha_tomado) {
+                    updateFields.push('fecha_tomado = ?');
+                    updateParams.push(new Date().toISOString());
+                }
+            }
+
+            if (estado === 'completada') {
+                updateFields.push('fecha_completada = ?');
+                updateParams.push(new Date().toISOString());
+            }
+        }
+
+        if (notas_operador !== undefined) {
+            updateFields.push('notas_operador = ?');
+            updateParams.push(notas_operador);
+        }
+
+        updateParams.push(id);
+
+        await dbRun(
+            `UPDATE solicitudes_transferencia SET ${updateFields.join(', ')} WHERE id = ?`,
+            updateParams
+        );
+
+        // Actualizar progreso de referido si se completa
+        if (estado === 'completada' && solicitud.cliente_app_id && solicitud.monto_origen) {
+            await actualizarProgresoReferido(solicitud.cliente_app_id, solicitud.monto_origen);
+        }
+
+        // Notificar cambio de estado a Telegram
+        if (estado) {
+            await notificarCambioEstado({
+                id,
+                cliente_nombre: solicitud.cliente_nombre,
+                monto_origen: solicitud.monto_origen,
+                monto_destino: solicitud.monto_destino
+            }, estado);
+        }
+
+        res.json({ mensaje: 'Cambios guardados correctamente' });
+    } catch (error) {
+        console.error('Error actualizando solicitud (PATCH):', error);
+        res.status(500).json({ error: 'Error al guardar cambios' });
+    }
+});
+
+// POST /api/solicitudes-app/:id/tomar - Tomar un pedido (asignarse como operador)
+app.post('/api/solicitudes-app/:id/tomar', apiAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const operadorId = req.session.user?.id;
+        const operadorNombre = req.session.user?.username || 'Operador';
+
+        console.log('📋 Tomando pedido:', { operadorId, operadorNombre, id });
+
+        const solicitud = await dbGet(
+            `SELECT s.*, c.nombre as cliente_nombre
+             FROM solicitudes_transferencia s
+             JOIN clientes_app c ON s.cliente_app_id = c.id
+             WHERE s.id = ?`,
+            [id]
+        );
+
+        if (!solicitud) {
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+
+        if (solicitud.estado !== 'pendiente' && solicitud.estado !== 'comprobante_enviado') {
+            return res.status(400).json({ error: 'Este pedido ya fue tomado o procesado' });
+        }
+
+        await dbRun(
+            `UPDATE solicitudes_transferencia
+             SET estado = 'procesando',
+                 operador_id = ?,
+                 tomado_por_nombre = ?,
+                 fecha_tomado = ?
+             WHERE id = ?`,
+            [operadorId, operadorNombre, new Date().toISOString(), id]
+        );
+
+        // Notificar a Telegram
+        await notificarCambioEstado({
+            id,
+            cliente_nombre: solicitud.cliente_nombre,
+            monto_origen: solicitud.monto_origen,
+            monto_destino: solicitud.monto_destino
+        }, 'procesando');
+
+        res.json({ mensaje: 'Pedido tomado correctamente' });
+    } catch (error) {
+        console.error('Error tomando pedido:', error);
+        res.status(500).json({ error: 'Error al tomar pedido' });
+    }
+});
+
+// POST /api/solicitudes-app/:id/completar - Marcar pedido como pagado/completado
+app.post('/api/solicitudes-app/:id/completar', apiAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const operadorId = req.session.user?.id;
+        const operadorNombre = req.session.user?.username || 'Operador';
+
+        console.log('✅ Completando pedido:', { operadorId, operadorNombre, id });
+
+        const solicitud = await dbGet(
+            `SELECT s.*, c.nombre as cliente_nombre
+             FROM solicitudes_transferencia s
+             JOIN clientes_app c ON s.cliente_app_id = c.id
+             WHERE s.id = ?`,
+            [id]
+        );
+
+        if (!solicitud) {
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+
+        if (solicitud.estado === 'completada') {
+            return res.status(400).json({ error: 'Este pedido ya está completado' });
+        }
+
+        if (solicitud.estado === 'cancelada' || solicitud.estado === 'rechazada') {
+            return res.status(400).json({ error: 'No se puede completar un pedido cancelado o rechazado' });
+        }
+
+        await dbRun(
+            `UPDATE solicitudes_transferencia
+             SET estado = 'completada',
+                 operador_id = ?,
+                 fecha_completada = ?
+             WHERE id = ?`,
+            [operadorId, new Date().toISOString(), id]
+        );
+
+        // Actualizar progreso de referido
+        if (solicitud.cliente_app_id && solicitud.monto_origen) {
+            await actualizarProgresoReferido(solicitud.cliente_app_id, solicitud.monto_origen);
+        }
+
+        // Notificar a Telegram
+        await notificarCambioEstado({
+            id,
+            cliente_nombre: solicitud.cliente_nombre,
+            monto_origen: solicitud.monto_origen,
+            monto_destino: solicitud.monto_destino
+        }, 'completada');
+
+        res.json({ mensaje: 'Pedido completado correctamente' });
+    } catch (error) {
+        console.error('Error completando pedido:', error);
+        res.status(500).json({ error: 'Error al completar pedido' });
+    }
+});
+
+// POST /api/solicitudes-app/:id/cancelar - Cancelar un pedido
+app.post('/api/solicitudes-app/:id/cancelar', apiAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { motivo } = req.body;
+        const operadorId = req.session.user?.id;
+        const operadorNombre = req.session.user?.username || 'Operador';
+
+        console.log('❌ Cancelando pedido:', { operadorId, operadorNombre, id, motivo });
+
+        const solicitud = await dbGet(
+            `SELECT s.*, c.nombre as cliente_nombre
+             FROM solicitudes_transferencia s
+             JOIN clientes_app c ON s.cliente_app_id = c.id
+             WHERE s.id = ?`,
+            [id]
+        );
+
+        if (!solicitud) {
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+
+        if (solicitud.estado === 'completada') {
+            return res.status(400).json({ error: 'No se puede cancelar un pedido ya completado' });
+        }
+
+        if (solicitud.estado === 'cancelada') {
+            return res.status(400).json({ error: 'Este pedido ya está cancelado' });
+        }
+
+        let notasActualizadas = solicitud.notas_operador || '';
+        if (motivo) {
+            notasActualizadas += (notasActualizadas ? '\n' : '') + `[Cancelado por ${operadorNombre}]: ${motivo}`;
+        }
+
+        await dbRun(
+            `UPDATE solicitudes_transferencia
+             SET estado = 'cancelada',
+                 operador_id = ?,
+                 notas_operador = ?
+             WHERE id = ?`,
+            [operadorId, notasActualizadas, id]
+        );
+
+        // Notificar a Telegram
+        await notificarCambioEstado({
+            id,
+            cliente_nombre: solicitud.cliente_nombre,
+            monto_origen: solicitud.monto_origen,
+            monto_destino: solicitud.monto_destino
+        }, 'cancelada');
+
+        res.json({ mensaje: 'Pedido cancelado correctamente' });
+    } catch (error) {
+        console.error('Error cancelando pedido:', error);
+        res.status(500).json({ error: 'Error al cancelar pedido' });
     }
 });
 
