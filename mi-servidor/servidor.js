@@ -6056,9 +6056,10 @@ async function generarMensajesProactivos() {
             console.log(`"‹ Usuario ${usuario.username}: ${mensajesGenerados.length} mensajes candidatos`);
             for (const msg of mensajesGenerados) {
                 // Verificar que no exista un mensaje similar reciente (últimas 6 horas)
+                // IMPORTANTE: Incluir mensajes mostrados para evitar repetir el mismo mensaje
                 const mensajeDuplicado = await new Promise((resolve) => {
                     db.get(`
-                        SELECT id FROM chatbot_mensajes_proactivos
+                        SELECT id, mostrado FROM chatbot_mensajes_proactivos
                         WHERE usuario_id = ?
                         AND tipo = ?
                         AND datetime(fecha_creacion) >= datetime('now', '-6 hours')
@@ -6085,7 +6086,7 @@ async function generarMensajesProactivos() {
                         });
                     });
                 } else {
-                    console.log(`⏭️ Mensaje tipo "${msg.tipo}" ya existe (ID ${mensajeDuplicado.id}), omitiendo...`);
+                    console.log(`⏭️ Mensaje tipo "${msg.tipo}" ya existe (ID ${mensajeDuplicado.id}, mostrado: ${mensajeDuplicado.mostrado ? 'sí' : 'no'}), omitiendo...`);
                 }
             }
         }
@@ -6094,7 +6095,7 @@ async function generarMensajesProactivos() {
     }
 }
 
-// Función para limpiar mensajes antiguos (más de 24 horas)
+// Función para limpiar mensajes antiguos (más de 24 horas o mostrados hace más de 6 horas)
 async function limpiarMensajesAntiguos() {
     try {
         const ahora = new Date();
@@ -6102,10 +6103,14 @@ async function limpiarMensajesAntiguos() {
         const hace24Horas = new Date(fechaVenezuela);
         hace24Horas.setHours(hace24Horas.getHours() - 24);
         const fecha24HorasStr = hace24Horas.toISOString();
-        
+
+        // Solo eliminar mensajes:
+        // 1. Más antiguos de 24 horas (sin importar si están mostrados o no)
+        // 2. Mostrados hace más de 6 horas (para evitar duplicados durante ese período)
         db.run(`
             DELETE FROM chatbot_mensajes_proactivos
-            WHERE fecha_creacion < ? OR mostrado = 1
+            WHERE fecha_creacion < ?
+            OR (mostrado = 1 AND datetime(fecha_mostrado) < datetime('now', '-6 hours'))
         `, [fecha24HorasStr], function(err) {
             if (err) {
                 console.error(' Error limpiando mensajes antiguos:', err);
@@ -8302,8 +8307,8 @@ app.get('/api/solicitudes-app', apiAuth, async (req, res) => {
                    c.nombre as cliente_nombre, c.email as cliente_email, c.telefono as cliente_telefono,
                    c.documento_tipo as cliente_documento_tipo, c.documento_numero as cliente_documento_numero,
                    b.alias, b.nombre_completo as beneficiario_nombre, b.banco as banco_destino, b.numero_cuenta as cuenta_destino,
-                   b.documento_numero as beneficiario_documento, b.tipo_cuenta as tipo_cuenta_destino,
-                   b.telefono as beneficiario_telefono,
+                   b.documento_tipo as beneficiario_documento_tipo, b.documento_numero as beneficiario_documento,
+                   b.tipo_cuenta as tipo_cuenta_destino, b.telefono as beneficiario_telefono,
                    u.username as operador_nombre,
                    s.fecha_tomado, s.tomado_por_nombre,
                    s.tasa_aplicada as tasa, s.cupon_codigo, s.cupon_descuento_clp
