@@ -6,6 +6,30 @@
     <title>Nómina - Defi Oracle</title>
     <link rel="stylesheet" href="style.css">
     <style>
+        /* ========== TEMA OSCURO FINTECH ========== */
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --bg-card-hover: #22222e;
+            --border-color: #2a2a3a;
+            --accent-primary: #00d4aa;
+            --accent-secondary: #3b82f6;
+            --accent-gradient: linear-gradient(135deg, #00d4aa 0%, #3b82f6 100%);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
         .nomina-container {
             max-width: 1400px;
             margin: 0 auto;
@@ -18,7 +42,16 @@
             align-items: center;
             margin-bottom: 2rem;
             padding-bottom: 1.5rem;
-            border-bottom: 3px solid #2D8CDB;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .header-section h1 {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .header-section p {
+            color: var(--text-secondary) !important;
         }
 
         .periodo-selector {
@@ -30,10 +63,18 @@
         .periodo-selector select {
             padding: 0.8rem 1.2rem;
             border-radius: 8px;
-            border: 2px solid #ddd;
+            border: 1px solid var(--border-color);
             font-size: 1rem;
-            background: white;
+            background: var(--bg-card);
+            color: var(--text-primary);
             cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .periodo-selector select:hover,
+        .periodo-selector select:focus {
+            border-color: var(--accent-primary);
+            outline: none;
         }
 
         .btn {
@@ -47,28 +88,47 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            background: var(--accent-gradient);
             color: white;
+            box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(45, 140, 219, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 212, 170, 0.4);
         }
 
         .btn-success {
-            background: #28a745;
+            background: var(--success);
             color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:hover {
+            background: #0ea572;
+            transform: translateY(-2px);
         }
 
         .btn-warning {
-            background: #ffc107;
-            color: #333;
+            background: var(--warning);
+            color: #1a1a24;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+            transform: translateY(-2px);
         }
 
         .btn-danger {
-            background: #dc3545;
+            background: var(--danger);
             color: white;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
         }
 
         .resumen-periodo {
@@ -79,11 +139,19 @@
         }
 
         .resumen-card {
-            background: white;
+            background: var(--bg-card);
             border-radius: 12px;
             padding: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             text-align: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+
+        .resumen-card:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 212, 170, 0.15);
         }
 
         .resumen-card .icono {
@@ -94,22 +162,23 @@
         .resumen-card .valor {
             font-size: 2rem;
             font-weight: 700;
-            color: #2D8CDB;
+            color: var(--accent-primary);
             margin-bottom: 0.3rem;
         }
 
         .resumen-card .label {
             font-size: 0.9rem;
-            color: #666;
+            color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .nomina-table {
-            background: white;
+            background: var(--bg-card);
             border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             overflow: hidden;
+            border: 1px solid var(--border-color);
         }
 
         table {
@@ -118,7 +187,7 @@
         }
 
         thead {
-            background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+            background: var(--accent-gradient);
             color: white;
         }
 
@@ -135,23 +204,27 @@
         }
 
         tbody tr {
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid var(--border-color);
             transition: background 0.2s;
         }
 
         tbody tr:hover {
-            background: #f8f9fa;
+            background: var(--bg-card-hover);
+        }
+
+        td {
+            color: var(--text-primary);
         }
 
         .monto {
             font-weight: 600;
-            color: #2D8CDB;
+            color: var(--accent-primary);
         }
 
         .total-pagar {
             font-size: 1.1rem;
             font-weight: 700;
-            color: #28a745;
+            color: var(--success);
         }
 
         .estado-badge {
@@ -163,18 +236,21 @@
         }
 
         .estado-abierto {
-            background: #d1ecf1;
-            color: #0c5460;
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
         }
 
         .estado-cerrado {
-            background: #fff3cd;
-            color: #856404;
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
         }
 
         .estado-pagado {
-            background: #d4edda;
-            color: #155724;
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
         }
 
         .modal {
@@ -186,9 +262,9 @@
             bottom: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0, 0, 0, 0.8);
             z-index: 999999;
-            backdrop-filter: blur(3px);
+            backdrop-filter: blur(5px);
             justify-content: center;
             align-items: center;
             pointer-events: none;
@@ -200,14 +276,15 @@
         }
 
         .modal .modal-content {
-            background: white !important;
+            background: var(--bg-card) !important;
             border-radius: 12px;
             padding: 2rem;
             max-width: 500px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.8) !important;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5) !important;
+            border: 1px solid var(--border-color);
             animation: modalSlideIn 0.3s ease-out;
             position: relative;
             z-index: 1000000;
@@ -230,7 +307,7 @@
             font-size: 1.5rem;
             font-weight: 700;
             margin-bottom: 1.5rem;
-            color: #333;
+            color: var(--text-primary);
         }
 
         .form-group {
@@ -241,21 +318,39 @@
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 600;
-            color: #555;
+            color: var(--text-secondary);
         }
 
         .form-group input,
         .form-group textarea {
             width: 100%;
             padding: 0.8rem;
-            border: 2px solid #ddd;
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             font-size: 1rem;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            border-color: var(--accent-primary);
+            outline: none;
+        }
+
+        .form-group input[readonly] {
+            background: var(--bg-primary) !important;
+            color: var(--text-muted);
         }
 
         .form-group textarea {
             resize: vertical;
             min-height: 100px;
+        }
+
+        .form-group input[type="checkbox"] {
+            accent-color: var(--accent-primary);
         }
 
         .modal-actions {
@@ -268,13 +363,13 @@
             text-align: center;
             padding: 3rem;
             font-size: 1.2rem;
-            color: #666;
+            color: var(--text-secondary);
         }
 
         .empty-state {
             text-align: center;
             padding: 3rem;
-            color: #999;
+            color: var(--text-muted);
         }
 
         .empty-state .icono {
@@ -285,6 +380,17 @@
         .btn-icon {
             padding: 0.5rem 1rem;
             font-size: 0.85rem;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--text-muted);
         }
 
         .text-right {
@@ -458,7 +564,7 @@
                 <select id="periodoSelect" onchange="cargarNomina()">
                     <option value="">Cargando periodos...</option>
                 </select>
-                <button class="btn btn-danger" onclick="limpiarActividadPeriodo()" style="background: #dc3545;">
+                <button class="btn btn-danger" onclick="limpiarActividadPeriodo()">
                     🗑️ Limpiar Actividad
                 </button>
                 <button class="btn btn-primary" onclick="calcularNomina()">
@@ -539,7 +645,7 @@
 
         <!-- Volver -->
         <div style="margin-top: 2rem;">
-            <a href="home.html" class="btn" style="background: #6c757d; color: white;">
+            <a href="home.html" class="btn btn-secondary">
                 ← Volver al Inicio
             </a>
         </div>
@@ -568,7 +674,7 @@
                 <textarea id="modalNota" placeholder="Ej: Bono por desempeño excepcional, incentivo, etc."></textarea>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn" style="background: #6c757d; color: white;" id="btnCancelarModal">
+                <button type="button" class="btn btn-secondary" id="btnCancelarModal">
                     Cancelar
                 </button>
                 <button type="button" class="btn btn-success" id="btnGuardarBonos">
