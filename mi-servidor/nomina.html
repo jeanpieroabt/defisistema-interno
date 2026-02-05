@@ -26,8 +26,9 @@
         }
 
         body {
-            background: var(--bg-primary);
-            color: var(--text-primary);
+            background: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+            min-height: 100vh;
         }
 
         .nomina-container {
@@ -177,8 +178,27 @@
             background: var(--bg-card);
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
             border: 1px solid var(--border-color);
+        }
+
+        .nomina-table::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .nomina-table::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .nomina-table::-webkit-scrollbar-thumb {
+            background: var(--accent-primary);
+            border-radius: 4px;
+        }
+
+        .nomina-table::-webkit-scrollbar-thumb:hover {
+            background: #00b894;
         }
 
         table {
