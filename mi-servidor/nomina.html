@@ -294,6 +294,156 @@
         .text-center {
             text-align: center;
         }
+
+        /* ========== RESPONSIVE DESIGN ========== */
+
+        /* Tablets y pantallas medianas */
+        @media (max-width: 1024px) {
+            .nomina-container {
+                padding: 1.5rem;
+            }
+
+            .header-section {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .periodo-selector {
+                flex-wrap: wrap;
+                width: 100%;
+            }
+
+            .periodo-selector select {
+                flex: 1;
+                min-width: 200px;
+            }
+
+            .periodo-selector .btn {
+                flex: 1;
+                min-width: 140px;
+                text-align: center;
+            }
+        }
+
+        /* Móviles */
+        @media (max-width: 768px) {
+            .nomina-container {
+                padding: 1rem;
+            }
+
+            .header-section h1 {
+                font-size: 1.5rem;
+            }
+
+            .periodo-selector {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            .periodo-selector select,
+            .periodo-selector .btn {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .resumen-periodo {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+
+            .resumen-card {
+                padding: 1rem;
+            }
+
+            .resumen-card .icono {
+                font-size: 1.8rem;
+            }
+
+            .resumen-card .valor {
+                font-size: 1.4rem;
+            }
+
+            .resumen-card .label {
+                font-size: 0.75rem;
+            }
+
+            /* Tabla con scroll horizontal */
+            .nomina-table {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .nomina-table table {
+                min-width: 900px;
+            }
+
+            th, td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.85rem;
+                white-space: nowrap;
+            }
+
+            th {
+                font-size: 0.75rem;
+            }
+
+            #accionesPeriodo {
+                text-align: center;
+            }
+
+            #accionesPeriodo .btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+
+            .modal .modal-content {
+                padding: 1.5rem;
+                margin: 1rem;
+                max-height: 85vh;
+            }
+
+            .modal-header {
+                font-size: 1.25rem;
+            }
+
+            .modal-actions {
+                flex-direction: column-reverse;
+            }
+
+            .modal-actions .btn {
+                width: 100%;
+            }
+        }
+
+        /* Móviles pequeños */
+        @media (max-width: 480px) {
+            .nomina-container {
+                padding: 0.75rem;
+            }
+
+            .header-section h1 {
+                font-size: 1.3rem;
+            }
+
+            .resumen-periodo {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+            }
+
+            .resumen-card .valor {
+                font-size: 1.2rem;
+            }
+
+            .btn {
+                padding: 0.7rem 1rem;
+                font-size: 0.85rem;
+            }
+
+            .nomina-table table {
+                min-width: 800px;
+            }
+        }
     </style>
 </head>
 <body>
