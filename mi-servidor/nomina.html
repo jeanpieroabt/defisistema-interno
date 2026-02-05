@@ -758,7 +758,7 @@
             document.getElementById('loadingNomina').style.display = 'block';
             document.getElementById('emptyNomina').style.display = 'none';
             document.getElementById('tablaNomina').style.display = 'none';
-            document.getElementById('resumenPeriodo').style.display = 'none';
+            document.getElementById('resumenPeriodoContainer').style.display = 'none';
 
             try {
                 const response = await fetch(`/api/nomina/periodo/${periodoId}`);
