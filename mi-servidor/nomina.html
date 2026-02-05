@@ -25,6 +25,10 @@
             --danger: #ef4444;
         }
 
+        html {
+            background: var(--bg-primary) !important;
+        }
+
         body {
             background: var(--bg-primary) !important;
             color: var(--text-primary) !important;
@@ -35,6 +39,7 @@
             max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
+            background: var(--bg-primary);
         }
 
         .header-section {
@@ -578,7 +583,7 @@
         <div class="header-section">
             <div>
                 <h1>💰 Nómina Quincenal</h1>
-                <p style="color: #666; margin-top: 0.5rem;">Gestión de pagos y bonificaciones</p>
+                <p style="margin-top: 0.5rem;">Gestión de pagos y bonificaciones</p>
             </div>
             <div class="periodo-selector">
                 <select id="periodoSelect" onchange="cargarNomina()">
@@ -600,7 +605,7 @@
         <div class="resumen-periodo" id="resumenPeriodoContainer" style="display: none;">
             <div class="resumen-card">
                 <div class="icono">📅</div>
-                <div class="valor" id="resumenPeriodo"></div>
+                <div class="valor" id="resumenPeriodo">-</div>
                 <div class="label">Periodo</div>
             </div>
             <div class="resumen-card">
