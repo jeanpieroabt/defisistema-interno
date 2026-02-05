@@ -6530,25 +6530,25 @@ async function generarAlertaTasas(tasaManual, tasaP2P, diferencia, porcentaje) {
             
             if (usuario.role === 'master') {
                 // Mensaje para Master - más técnico y con acción requerida
-                mensaje = ` **ALERTA DE TASAS - ACCI'N REQUERIDA**\n\n` +
-                         `" **Tasa Manual (250K CLP):** ${tasaManual.toFixed(4)} VES/CLP\n` +
-                         `" **Tasa Binance P2P (-4%):** ${tasaP2P.toFixed(4)} VES/CLP\n` +
-                         `️ **Diferencia:** +${diferencia.toFixed(4)} VES/CLP (${porcentaje.toFixed(2)}% más alta)\n\n` +
-                         `" **Nuestra tasa está MÁS ALTA que el mercado - POSIBLES P‰RDIDAS**\n\n` +
-                         `**ACCI'N URGENTE:** Actualiza las tasas manualmente en /admin.html\n\n` +
+                mensaje = `⚠️ **ALERTA DE TASAS - ACCIÓN REQUERIDA**\n\n` +
+                         `📊 **Tasa Manual (250K CLP):** ${tasaManual.toFixed(4)} VES/CLP\n` +
+                         `📊 **Tasa Binance P2P (-4%):** ${tasaP2P.toFixed(4)} VES/CLP\n` +
+                         `⚠️ **Diferencia:** +${diferencia.toFixed(4)} VES/CLP (${porcentaje.toFixed(2)}% más alta)\n\n` +
+                         `🚨 **Nuestra tasa está MÁS ALTA que el mercado - POSIBLES PÉRDIDAS**\n\n` +
+                         `**ACCIÓN URGENTE:** Actualiza las tasas manualmente en /admin.html\n\n` +
                          `⏰ **Si no actualizas en 15 minutos:**\n` +
                          `   El sistema actualizará automáticamente las 3 tasas (5K, 100K, 250K)\n` +
                          `   basándose en las tasas actuales de Binance P2P.`;
             } else {
                 // Mensaje para operadores - informativo y directivo
-                mensaje = ` **ALERTA: Tasas MÁS ALTAS que mercado**\n\n` +
-                         `" Nuestra tasa: ${tasaManual.toFixed(4)} VES/CLP\n` +
-                         `" Mercado P2P: ${tasaP2P.toFixed(4)} VES/CLP\n` +
-                         `️ Diferencia: +${diferencia.toFixed(4)} VES/CLP (${porcentaje.toFixed(2)}% más alta)\n\n` +
-                         `" **Estamos dando más de lo necesario - posibles pérdidas.**\n\n` +
-                         `** ACCI'N INMEDIATA:**\n` +
-                         `   "" Informa al Master AHORA\n` +
-                         `   " Contacta vía WhatsApp/llamada si es necesario\n\n` +
+                mensaje = `⚠️ **ALERTA: Tasas MÁS ALTAS que mercado**\n\n` +
+                         `📊 Nuestra tasa: ${tasaManual.toFixed(4)} VES/CLP\n` +
+                         `📊 Mercado P2P: ${tasaP2P.toFixed(4)} VES/CLP\n` +
+                         `⚠️ Diferencia: +${diferencia.toFixed(4)} VES/CLP (${porcentaje.toFixed(2)}% más alta)\n\n` +
+                         `🚨 **Estamos dando más de lo necesario - posibles pérdidas.**\n\n` +
+                         `**⚡ ACCIÓN INMEDIATA:**\n` +
+                         `   📞 Informa al Master AHORA\n` +
+                         `   📱 Contacta vía WhatsApp/llamada si es necesario\n\n` +
                          `⏰ En 15 minutos el sistema actualizará las tasas automáticamente.`;
             }
             
