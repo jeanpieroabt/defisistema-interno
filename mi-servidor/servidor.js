@@ -8019,9 +8019,10 @@ app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
         const nombre_completo = sanitizarTexto(req.body.nombre_completo, 200);
         const documento_tipo = sanitizarTexto(req.body.documento_tipo, 20);
         const documento_numero = sanitizarTexto(req.body.documento_numero, 50);
-        const banco = sanitizarTexto(req.body.banco, 100);
         const tipo_cuenta = sanitizarTexto(req.body.tipo_cuenta, 50);
-        const numero_cuenta = sanitizarTexto(req.body.numero_cuenta, 50);
+        const esPagoMovil = tipo_cuenta === 'pago_movil';
+        const banco = sanitizarTexto(req.body.banco, 100) || (esPagoMovil ? 'Pago Móvil' : '');
+        const numero_cuenta = sanitizarTexto(req.body.numero_cuenta, 50) || (esPagoMovil ? 'N/A' : '');
         const pais = sanitizarTexto(req.body.pais, 10);
         const telefono = req.body.telefono ? sanitizarTexto(req.body.telefono, 20) : null;
         const email = req.body.email ? sanitizarTexto(req.body.email, 255) : null;
@@ -8079,9 +8080,10 @@ app.put('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
         const nombre_completo = sanitizarTexto(req.body.nombre_completo, 200);
         const documento_tipo = sanitizarTexto(req.body.documento_tipo, 20);
         const documento_numero = sanitizarTexto(req.body.documento_numero, 50);
-        const banco = sanitizarTexto(req.body.banco || '', 100);
         const tipo_cuenta = sanitizarTexto(req.body.tipo_cuenta || '', 50);
-        const numero_cuenta = sanitizarTexto(req.body.numero_cuenta || '', 50);
+        const esPagoMovil = tipo_cuenta === 'pago_movil';
+        const banco = sanitizarTexto(req.body.banco || '', 100) || (esPagoMovil ? 'Pago Móvil' : '');
+        const numero_cuenta = sanitizarTexto(req.body.numero_cuenta || '', 50) || (esPagoMovil ? 'N/A' : '');
         const pais = sanitizarTexto(req.body.pais, 10);
         const telefono = req.body.telefono ? sanitizarTexto(req.body.telefono, 20) : null;
         const email = req.body.email ? sanitizarTexto(req.body.email, 255) : null;
