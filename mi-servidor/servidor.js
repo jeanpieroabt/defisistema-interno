@@ -969,6 +969,41 @@ const runMigrations = async () => {
     )`);
     // Asegurar columna isFavorite si la tabla ya existía
     await dbRun(`ALTER TABLE beneficiarios ADD COLUMN isFavorite INTEGER DEFAULT 0`).catch(() => {});
+
+    // Migración: actualizar CHECK constraint de tipo_cuenta para incluir 'pago_movil'
+    // SQLite no permite ALTER CHECK, hay que recrear la tabla
+    try {
+        const checkResult = await dbGet(`SELECT sql FROM sqlite_master WHERE type='table' AND name='beneficiarios'`);
+        if (checkResult && checkResult.sql && !checkResult.sql.includes('pago_movil')) {
+            console.log('... Migrando tabla beneficiarios para soportar pago_movil...');
+            await dbRun(`ALTER TABLE beneficiarios RENAME TO beneficiarios_old`);
+            await dbRun(`CREATE TABLE beneficiarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cliente_app_id INTEGER NOT NULL,
+                alias TEXT NOT NULL,
+                nombre_completo TEXT NOT NULL,
+                documento_tipo TEXT CHECK(documento_tipo IN ('cedula', 'rut', 'pasaporte', 'dni')),
+                documento_numero TEXT,
+                banco TEXT NOT NULL,
+                tipo_cuenta TEXT CHECK(tipo_cuenta IN ('corriente', 'ahorro', 'vista', 'pago_movil')),
+                numero_cuenta TEXT NOT NULL,
+                pais TEXT NOT NULL,
+                telefono TEXT,
+                email TEXT,
+                isFavorite INTEGER DEFAULT 0,
+                activo INTEGER DEFAULT 1,
+                fecha_creacion TEXT NOT NULL,
+                fecha_actualizacion TEXT,
+                FOREIGN KEY (cliente_app_id) REFERENCES clientes_app(id)
+            )`);
+            await dbRun(`INSERT INTO beneficiarios SELECT * FROM beneficiarios_old`);
+            await dbRun(`DROP TABLE beneficiarios_old`);
+            console.log('... Migración de beneficiarios completada');
+        }
+    } catch (migErr) {
+        console.error('Error en migración de beneficiarios:', migErr.message);
+    }
+
     console.log('... Tabla beneficiarios verificada');
 
     // Tabla de cuentas de pago (donde recibe dinero la empresa)
