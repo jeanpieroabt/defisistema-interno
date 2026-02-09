@@ -956,7 +956,7 @@ const runMigrations = async () => {
         documento_tipo TEXT CHECK(documento_tipo IN ('cedula', 'rut', 'pasaporte', 'dni')),
         documento_numero TEXT,
         banco TEXT NOT NULL,
-        tipo_cuenta TEXT CHECK(tipo_cuenta IN ('corriente', 'ahorro', 'vista')),
+        tipo_cuenta TEXT CHECK(tipo_cuenta IN ('corriente', 'ahorro', 'vista', 'pago_movil')),
         numero_cuenta TEXT NOT NULL,
         pais TEXT NOT NULL,
         telefono TEXT,
@@ -976,7 +976,7 @@ const runMigrations = async () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL,
         banco TEXT NOT NULL,
-        tipo_cuenta TEXT CHECK(tipo_cuenta IN ('corriente', 'ahorro', 'vista')),
+        tipo_cuenta TEXT CHECK(tipo_cuenta IN ('corriente', 'ahorro', 'vista', 'pago_movil')),
         numero_cuenta TEXT NOT NULL,
         titular TEXT NOT NULL,
         rut_titular TEXT,
@@ -8027,8 +8027,15 @@ app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
         const email = req.body.email ? sanitizarTexto(req.body.email, 255) : null;
         const isFavorite = req.body.isFavorite;
 
-        if (!alias || !nombre_completo || !banco || !numero_cuenta || !pais) {
+        if (!alias || !nombre_completo || !pais) {
             return res.status(400).json({ error: 'Faltan campos obligatorios' });
+        }
+
+        // Validar que tenga al menos un método de pago
+        const tieneBanco = banco && numero_cuenta;
+        const tienePagoMovil = telefono && validarTelefono(telefono);
+        if (!tieneBanco && !tienePagoMovil) {
+            return res.status(400).json({ error: 'Debe incluir datos bancarios o número de pago móvil' });
         }
 
         if (email && !validarEmail(email)) {
@@ -8067,10 +8074,34 @@ app.put('/api/cliente/beneficiarios/:id', clienteAuth, async (req, res) => {
         console.log(' Actualizando beneficiario ID:', id);
         console.log(' Datos recibidos:', JSON.stringify(req.body, null, 2));
         
-        const { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, isFavorite } = req.body;
-        
-        console.log(' Campos extrados:', { documento_numero, numero_cuenta, tipo_cuenta });
-        
+        // Sanitizar campos
+        const alias = sanitizarTexto(req.body.alias, 100);
+        const nombre_completo = sanitizarTexto(req.body.nombre_completo, 200);
+        const documento_tipo = sanitizarTexto(req.body.documento_tipo, 20);
+        const documento_numero = sanitizarTexto(req.body.documento_numero, 50);
+        const banco = sanitizarTexto(req.body.banco || '', 100);
+        const tipo_cuenta = sanitizarTexto(req.body.tipo_cuenta || '', 50);
+        const numero_cuenta = sanitizarTexto(req.body.numero_cuenta || '', 50);
+        const pais = sanitizarTexto(req.body.pais, 10);
+        const telefono = req.body.telefono ? sanitizarTexto(req.body.telefono, 20) : null;
+        const email = req.body.email ? sanitizarTexto(req.body.email, 255) : null;
+        const isFavorite = req.body.isFavorite;
+
+        if (!alias || !nombre_completo || !pais) {
+            return res.status(400).json({ error: 'Faltan campos obligatorios' });
+        }
+
+        // Validar que tenga al menos un método de pago
+        const tieneBanco = banco && numero_cuenta;
+        const tienePagoMovil = telefono && validarTelefono(telefono);
+        if (!tieneBanco && !tienePagoMovil) {
+            return res.status(400).json({ error: 'Debe incluir datos bancarios o número de pago móvil' });
+        }
+
+        if (email && !validarEmail(email)) {
+            return res.status(400).json({ error: 'Formato de email inválido' });
+        }
+
         // Verificar que el beneficiario pertenezca al cliente
         const beneficiario = await dbGet(
             'SELECT * FROM beneficiarios WHERE id = ? AND cliente_app_id = ?',

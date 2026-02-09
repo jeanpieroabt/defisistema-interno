@@ -350,6 +350,20 @@
                     </section>
 
                     <section class="form-section">
+                        <h2 class="form-section-title">Tipo de entrega *</h2>
+                        <div class="radio-group" style="grid-template-columns: repeat(2, 1fr);">
+                            <div class="radio-option">
+                                <input type="radio" name="tipoEntrega" id="entregaTransferencia" value="transferencia" checked>
+                                <label for="entregaTransferencia">🏦 Transferencia</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" name="tipoEntrega" id="entregaPagoMovil" value="pago_movil">
+                                <label for="entregaPagoMovil">📲 Pago Móvil</label>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="form-section" id="seccionBancaria">
                         <h2 class="form-section-title">Datos bancarios</h2>
 
                         <div class="input-group">
@@ -392,8 +406,8 @@
                         </div>
                     </section>
 
-                    <section class="form-section">
-                        <h2 class="form-section-title">Pago móvil (opcional)</h2>
+                    <section class="form-section" id="seccionPagoMovil" style="display:none;">
+                        <h2 class="form-section-title" id="tituloPagoMovil">Pago móvil</h2>
                         <div class="input-group">
                             <label class="input-label">Teléfono</label>
                             <div class="phone-row">
@@ -421,7 +435,7 @@
                         </div>
                     </section>
 
-                    <p class="form-note">Debes agregar al menos los datos bancarios o el número de pago móvil para guardar el destinatario.</p>
+                    <p class="form-note">Selecciona el tipo de entrega y completa los datos correspondientes para guardar el destinatario.</p>
                 </main>
             </div>
 
@@ -448,7 +462,28 @@
             checkEditMode();
         }
 
+        function actualizarSeccionesPorTipo() {
+            const tipo = document.querySelector('input[name="tipoEntrega"]:checked')?.value || 'transferencia';
+            const secBancaria = document.getElementById('seccionBancaria');
+            const secPagoMovil = document.getElementById('seccionPagoMovil');
+
+            if (tipo === 'transferencia') {
+                if (secBancaria) secBancaria.style.display = '';
+                if (secPagoMovil) secPagoMovil.style.display = 'none';
+            } else {
+                if (secBancaria) secBancaria.style.display = 'none';
+                if (secPagoMovil) secPagoMovil.style.display = '';
+            }
+        }
+
         function bindInputs() {
+            // Bind selector de tipo de entrega
+            document.querySelectorAll('input[name="tipoEntrega"]').forEach(radio => {
+                radio.addEventListener('change', actualizarSeccionesPorTipo);
+            });
+            // Inicializar visibilidad
+            actualizarSeccionesPorTipo();
+
             document.querySelectorAll('input[name="tipoDoc"]').forEach(radio => {
                 radio.addEventListener('change', () => {
                     const numero = document.getElementById('numeroDoc');
@@ -641,6 +676,20 @@
             if (radio) radio.checked = true;
 
             asignarTelefono(data.telefono || '');
+
+            // Detectar tipo de entrega según datos guardados
+            const tieneCuenta = data.numero_cuenta && data.numero_cuenta.trim() !== '';
+            const tieneTelefono = data.telefono && data.telefono.trim() !== '';
+            const esPagoMovil = data.tipo_cuenta === 'pago_movil' || (!tieneCuenta && tieneTelefono);
+
+            if (esPagoMovil) {
+                const radioPM = document.getElementById('entregaPagoMovil');
+                if (radioPM) radioPM.checked = true;
+            } else {
+                const radioTrans = document.getElementById('entregaTransferencia');
+                if (radioTrans) radioTrans.checked = true;
+            }
+            actualizarSeccionesPorTipo();
         }
 
         function validarFormulario() {
@@ -655,47 +704,42 @@
             const telefonoNumero = document.getElementById("telefonoNumero")?.value.replace(/[^0-9]/g, "") || "";
             const email = document.getElementById("email").value.trim();
             const tipoDocForm = document.querySelector('input[name="tipoDoc"]:checked')?.value || "V";
+            const tipoEntrega = document.querySelector('input[name="tipoEntrega"]:checked')?.value || "transferencia";
 
             // Validar campos personales obligatorios
             if (!nombres || !apellidos || !numeroDocRaw) {
                 return { valido: false, mensaje: "Completa todos los campos obligatorios." };
             }
 
-            // Verificar que al menos tenga pago móvil o datos bancarios
-            const tienePagoMovil = telefonoNumero.length === 7;
-            const tieneDatosBancarios = bancoValor && numeroCuenta;
-
-            if (!tienePagoMovil && !tieneDatosBancarios) {
-                return { valido: false, mensaje: "Debes agregar al menos los datos bancarios o el número de pago móvil." };
-            }
-
-            // Si tiene datos bancarios, validar que estén completos
-            if (tieneDatosBancarios) {
+            // Validar según tipo de entrega seleccionado
+            if (tipoEntrega === "transferencia") {
                 if (!bancoValor) {
                     return { valido: false, mensaje: "Selecciona un banco." };
                 }
                 if (numeroCuenta.length !== 20) {
-                    return { valido: false, mensaje: "El numero de cuenta debe tener 20 digitos." };
+                    return { valido: false, mensaje: "El número de cuenta debe tener 20 dígitos." };
+                }
+            } else {
+                // Pago móvil: requiere teléfono
+                if (telefonoNumero.length !== 7) {
+                    return { valido: false, mensaje: "Ingresa los 7 dígitos del número de pago móvil." };
                 }
             }
 
             if (["V", "E", "J"].includes(tipoDocForm) && !/^[0-9]{6,15}$/.test(numeroDocRaw)) {
-                return { valido: false, mensaje: "El documento debe tener entre 6 y 15 digitos." };
+                return { valido: false, mensaje: "El documento debe tener entre 6 y 15 dígitos." };
             }
 
             if (tipoDocForm === "P" && numeroDocRaw.length < 5) {
-                return { valido: false, mensaje: "El numero de pasaporte es demasiado corto." };
+                return { valido: false, mensaje: "El número de pasaporte es demasiado corto." };
             }
 
             const prefijoNormalizado = normalizarPrefijo(prefijo);
-            const tieneTelefono = telefonoNumero.length > 0;
-            if (tieneTelefono && telefonoNumero.length !== 7) {
-                return { valido: false, mensaje: "Ingresa los 7 digitos del movil." };
-            }
+            const tieneTelefono = telefonoNumero.length === 7;
             const telefonoCompleto = tieneTelefono ? `+58${prefijoNormalizado}${telefonoNumero}` : null;
 
             if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                return { valido: false, mensaje: "Ingresa un correo valido." };
+                return { valido: false, mensaje: "Ingresa un correo válido." };
             }
 
             const tipoDocMap = { V: "cedula", E: "cedula", J: "rut", P: "pasaporte" };
@@ -703,15 +747,16 @@
             const alias = document.getElementById("alias").value.trim() || nombreCompleto;
             const isFavoriteEl = document.getElementById("isFavorite");
             const isFavorite = !!(isFavoriteEl && isFavoriteEl.checked);
+            const tieneDatosBancarios = bancoValor && numeroCuenta.length === 20;
 
             const data = {
                 alias,
                 nombre_completo: nombreCompleto,
                 documento_tipo: tipoDocMap[tipoDocForm] || "cedula",
                 documento_numero: numeroDocRaw.replace(/\s+/g, ""),
-                banco: bancoNombre || null,
-                tipo_cuenta: tieneDatosBancarios ? "corriente" : null,
-                numero_cuenta: numeroCuenta || null,
+                banco: tieneDatosBancarios ? bancoNombre : "",
+                tipo_cuenta: tipoEntrega === "pago_movil" ? "pago_movil" : "corriente",
+                numero_cuenta: tieneDatosBancarios ? numeroCuenta : "",
                 pais: "Venezuela",
                 telefono: telefonoCompleto,
                 email: email || null,
