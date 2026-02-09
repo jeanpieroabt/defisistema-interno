@@ -975,9 +975,24 @@ const runMigrations = async () => {
     // Migración: actualizar CHECK constraint de tipo_cuenta para incluir 'pago_movil'
     // SQLite no permite ALTER CHECK, hay que recrear la tabla
     try {
+        // Recuperar datos de beneficiarios_old si quedó de una migración fallida anterior
+        const oldTableExists = await dbGet(`SELECT name FROM sqlite_master WHERE type='table' AND name='beneficiarios_old'`);
+        if (oldTableExists) {
+            console.log('... Recuperando datos de beneficiarios_old...');
+            const countOld = await dbGet(`SELECT COUNT(*) as total FROM beneficiarios_old`);
+            const countNew = await dbGet(`SELECT COUNT(*) as total FROM beneficiarios`);
+            if (countOld.total > 0 && countNew.total === 0) {
+                await dbRun(`INSERT INTO beneficiarios SELECT * FROM beneficiarios_old`);
+                console.log(`... Recuperados ${countOld.total} beneficiarios`);
+            }
+            await dbRun(`DROP TABLE beneficiarios_old`);
+            console.log('... Tabla beneficiarios_old limpiada');
+        }
+
         const checkResult = await dbGet(`SELECT sql FROM sqlite_master WHERE type='table' AND name='beneficiarios'`);
         if (checkResult && checkResult.sql && !checkResult.sql.includes('pago_movil')) {
             console.log('... Migrando tabla beneficiarios para soportar pago_movil...');
+            const countAntes = await dbGet(`SELECT COUNT(*) as total FROM beneficiarios`);
             await dbRun(`ALTER TABLE beneficiarios RENAME TO beneficiarios_old`);
             await dbRun(`CREATE TABLE beneficiarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -999,8 +1014,13 @@ const runMigrations = async () => {
                 FOREIGN KEY (cliente_app_id) REFERENCES clientes_app(id)
             )`);
             await dbRun(`INSERT INTO beneficiarios SELECT * FROM beneficiarios_old`);
-            await dbRun(`DROP TABLE beneficiarios_old`);
-            console.log('... Migración de beneficiarios completada');
+            const countDespues = await dbGet(`SELECT COUNT(*) as total FROM beneficiarios`);
+            if (countDespues.total >= countAntes.total) {
+                await dbRun(`DROP TABLE beneficiarios_old`);
+                console.log(`... Migración completada: ${countDespues.total} beneficiarios preservados`);
+            } else {
+                console.error(`... ALERTA: Solo se copiaron ${countDespues.total} de ${countAntes.total}. beneficiarios_old preservada.`);
+            }
         }
     } catch (migErr) {
         console.error('Error en migración de beneficiarios:', migErr.message);
@@ -1170,6 +1190,26 @@ const runMigrations = async () => {
 // FIN: MIGRACI'N Y VERIFICACI'N DE BASE DE DATOS
 // =================================================================
 
+
+// -------------------- Diagnóstico temporal de BD --------------------
+app.get('/api/diagnostico/beneficiarios', async (req, res) => {
+    try {
+        const tablas = await dbAll(`SELECT name, sql FROM sqlite_master WHERE type='table' AND name LIKE '%beneficiari%'`);
+        const countBeneficiarios = await dbGet(`SELECT COUNT(*) as total FROM beneficiarios`).catch(() => ({ total: 'tabla no existe' }));
+        const countOld = await dbGet(`SELECT COUNT(*) as total FROM beneficiarios_old`).catch(() => ({ total: 'tabla no existe' }));
+        const muestra = await dbAll(`SELECT id, alias, cliente_app_id FROM beneficiarios LIMIT 5`).catch(() => []);
+        const muestraOld = await dbAll(`SELECT id, alias, cliente_app_id FROM beneficiarios_old LIMIT 5`).catch(() => []);
+        res.json({
+            tablas_encontradas: tablas.map(t => t.name),
+            beneficiarios_count: countBeneficiarios.total,
+            beneficiarios_old_count: countOld.total,
+            muestra_beneficiarios: muestra,
+            muestra_beneficiarios_old: muestraOld
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // -------------------- Helpers --------------------
 const pageAuth = (req, res, next) => {
