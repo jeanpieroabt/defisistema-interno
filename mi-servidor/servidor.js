@@ -17,20 +17,64 @@ const cors = require('cors');
 const fs = require('fs');
 const multer = require('multer');
 const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const openaiHelper = require('./openai-helper');
 
-// Configuracion de multer para uploads
+// Configuracion de multer para uploads con validación estricta
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024 },
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB máximo
+        files: 2 // máximo 2 archivos por request
+    },
     fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Solo se permiten imagenes'));
+        // Validar MIME type
+        if (!ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
+            return cb(new Error('Solo se permiten imágenes (JPEG, PNG, WebP, GIF)'));
         }
+        // Validar extensión del archivo
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.includes(ext)) {
+            return cb(new Error('Extensión de archivo no permitida'));
+        }
+        // Sanitizar nombre del archivo
+        file.originalname = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+        cb(null, true);
     }
 });
+
+// =================================================================
+// FUNCIONES DE VALIDACIÓN Y SANITIZACIÓN
+// =================================================================
+function sanitizarTexto(str, maxLength = 255) {
+    if (typeof str !== 'string') return '';
+    return str.trim().slice(0, maxLength).replace(/[<>]/g, '');
+}
+
+function validarEmail(email) {
+    if (!email) return true; // campo opcional
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return typeof email === 'string' && email.length <= 255 && re.test(email);
+}
+
+function validarTelefono(tel) {
+    if (!tel) return true; // campo opcional
+    const re = /^[+\d\s()-]{6,20}$/;
+    return typeof tel === 'string' && re.test(tel);
+}
+
+function validarMontoPositivo(monto) {
+    const num = Number(monto);
+    return !isNaN(num) && isFinite(num) && num > 0;
+}
+
+function validarMoneda(moneda) {
+    const permitidas = ['CLP', 'VES', 'USD', 'COP', 'ARS', 'PEN', 'BRL', 'MXN', 'EUR'];
+    return permitidas.includes(moneda);
+}
 
 // Clave secreta para tokens de la app cliente
 const JWT_SECRET = process.env.JWT_SECRET || 'defi-oracle-jwt-secret-key-' + crypto.randomBytes(16).toString('hex');
@@ -112,6 +156,12 @@ async function enviarNotificacionTelegram(mensaje, parseMode = 'HTML', botones =
 
 
 // Función para notificar nueva solicitud de la app
+// Función para enmascarar datos sensibles (muestra primeros y últimos caracteres)
+function enmascararDato(dato, visibles = 4) {
+    if (!dato || dato.length <= visibles * 2) return dato || '';
+    return dato.slice(0, visibles) + '***' + dato.slice(-visibles);
+}
+
 async function notificarNuevaSolicitud(solicitud) {
     // Determinar tipo de entrega
     const tipoEntrega = solicitud.tipo_cuenta === 'pago_movil' ? '📲 PAGO MÓVIL' : '🏦 TRANSFERENCIA';
@@ -129,7 +179,7 @@ async function notificarNuevaSolicitud(solicitud) {
         '',
         '━━━━━━ 👤 CLIENTE ━━━━━━',
         `📛 ${solicitud.cliente_nombre || 'Sin nombre'}`,
-        `📧 ${solicitud.cliente_email || 'Sin email'}`,
+        `📧 ${enmascararDato(solicitud.cliente_email || 'Sin email', 3)}`,
         solicitud.cliente_telefono ? `📱 ${solicitud.cliente_telefono}` : null,
         solicitud.cliente_documento ? `🪪 ${(solicitud.cliente_documento_tipo || 'DOC').toUpperCase()}: ${solicitud.cliente_documento}` : null,
         '',
@@ -418,14 +468,41 @@ const PORT = process.env.PORT || 3000;
 // Zona horaria ajustada a Caracas, Venezuela
 process.env.TZ = process.env.TZ || 'America/Caracas';
 
+// Headers de seguridad HTTP
+app.use(helmet({
+    contentSecurityPolicy: false, // deshabilitado para no romper scripts inline existentes
+    crossOriginEmbedderPolicy: false
+}));
+
 // Habilitar compresión Gzip/Brotli para todas las respuestas
 app.use(compression({
     level: 6, // Nivel de compresión (0-9, 6 es el balance óptimo)
     threshold: 1024 // Comprimir solo archivos > 1KB
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Rate limiting general - 100 peticiones por minuto por IP
+const generalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Demasiadas peticiones. Intenta de nuevo en un minuto.' }
+});
+app.use('/api/', generalLimiter);
+
+// Rate limiting estricto para endpoints de autenticación - 10 intentos por 15 min
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Demasiados intentos de login. Intenta de nuevo en 15 minutos.' }
+});
+app.use('/login', authLimiter);
+app.use('/api/cliente/auth/google', authLimiter);
 
 // Middleware para configurar headers de caché en archivos estáticos
 const setStaticCacheHeaders = (res, path) => {
@@ -463,12 +540,18 @@ const allowedOrigins = [
 ];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.options('*', cors());
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 app.use(
   session({
-    secret: 'defi-oracle-sesion-muy-larga-y-robusta',
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 }, // 8h
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 1000 * 60 * 60 * 8 // 8h
+    },
   })
 );
 
@@ -843,6 +926,7 @@ const runMigrations = async () => {
         registro_completo INTEGER DEFAULT 0,
         activo INTEGER DEFAULT 1,
         token_sesion TEXT,
+        token_expiracion TEXT,
         fecha_registro TEXT NOT NULL,
         ultimo_acceso TEXT,
         verificacion_estado TEXT DEFAULT 'no_verificado' CHECK(verificacion_estado IN ('no_verificado', 'pendiente', 'verificado', 'rechazado')),
@@ -860,6 +944,7 @@ const runMigrations = async () => {
     await dbRun(`ALTER TABLE clientes_app ADD COLUMN verificacion_fecha_solicitud TEXT`).catch(() => {});
     await dbRun(`ALTER TABLE clientes_app ADD COLUMN verificacion_fecha_respuesta TEXT`).catch(() => {});
     await dbRun(`ALTER TABLE clientes_app ADD COLUMN verificacion_notas TEXT`).catch(() => {});
+    await dbRun(`ALTER TABLE clientes_app ADD COLUMN token_expiracion TEXT`).catch(() => {});
     console.log('... Tabla clientes_app verificada');
 
     // Tabla de beneficiarios de transferencias
@@ -2369,9 +2454,21 @@ app.put('/api/usuarios/:id', apiAuth, onlyMaster, async (req, res) => {
 app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ message: 'Datos incompletos' });
+
+  // Validar username: solo alfanuméricos y guiones, 3-30 caracteres
+  const usernameClean = sanitizarTexto(username, 30);
+  if (!/^[a-zA-Z0-9_-]{3,30}$/.test(usernameClean)) {
+      return res.status(400).json({ message: 'Username debe tener 3-30 caracteres alfanuméricos' });
+  }
+
+  // Validar contraseña mínima
+  if (password.length < 8) {
+      return res.status(400).json({ message: 'La contraseña debe tener al menos 8 caracteres' });
+  }
+
   const hash = await bcrypt.hash(password, 10);
-  db.run(`INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`, [username, hash, 'operador'], (e) => {
-      if (e) return res.status(400).json({ message: 'No se pudo crear (¿duplicado?)' });
+  db.run(`INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`, [usernameClean, hash, 'operador'], (e) => {
+      if (e) return res.status(400).json({ message: 'No se pudo crear el operador' });
       res.json({ message: 'Operador creado' });
     }
   );
@@ -4678,9 +4775,11 @@ Usa estos datos cuando sea necesario para responder consultas sobre tasas, clien
             
             // Solo marcar como leídas si el chatbot realmente las mencionó
             if (mencionoNotificaciones) {
-                const notifIds = contextData.notificaciones_pendientes.map(n => n.id);
+                const notifIds = contextData.notificaciones_pendientes.map(n => parseInt(n.id)).filter(id => !isNaN(id));
+                const placeholders = notifIds.map(() => '?').join(',');
                 db.run(
-                    `UPDATE notificaciones SET leida = 1 WHERE id IN (${notifIds.join(',')})`,
+                    `UPDATE notificaciones SET leida = 1 WHERE id IN (${placeholders})`,
+                    notifIds,
                     (err) => {
                         if (!err) {
                             console.log(`... ${notifIds.length} notificación(es) marcada(s) como leída(s) (chatbot las mencionó en su respuesta)`);
@@ -5035,7 +5134,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
     // Para todo lo demás, usar OpenAI con Function Calling
     try {
         // Usar variable de entorno OPENAI_API_KEY, o fallback a la key hardcodeada
-        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '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';
+        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
         
         // Validar que hay API key
         if (!OPENAI_API_KEY || OPENAI_API_KEY === '' || OPENAI_API_KEY.includes('your-api-key-here')) {
@@ -7194,22 +7293,23 @@ function generarTokenCliente() {
     return crypto.randomBytes(32).toString('hex');
 }
 
-// Función para verificar token de Google
+// Función para verificar token de Google usando google-auth-library
+const { OAuth2Client } = require('google-auth-library');
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '951549639267-4c4928hcndqkc6j2cf95gafce48o1i28.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
 async function verificarGoogleToken(credential) {
     try {
-        // Decodificar el JWT de Google
-        const parts = credential.split('.');
-        if (parts.length !== 3) {
-            throw new Error('Token de Google inválido');
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+
+        if (!payload.email_verified) {
+            throw new Error('Email de Google no verificado');
         }
-        
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-        
-        // Verificar que el token no haya expirado
-        if (payload.exp * 1000 < Date.now()) {
-            throw new Error('Token de Google expirado');
-        }
-        
+
         return {
             google_id: payload.sub,
             email: payload.email,
@@ -7223,28 +7323,37 @@ async function verificarGoogleToken(credential) {
     }
 }
 
+// Duración de token de cliente: 7 días
+const TOKEN_EXPIRACION_MS = 7 * 24 * 60 * 60 * 1000;
+
 // Middleware para autenticación de clientes de la app
 const clienteAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Token no proporcionado' });
     }
-    
+
     const token = authHeader.split(' ')[1];
-    
+
     try {
         const cliente = await dbGet(
             'SELECT * FROM clientes_app WHERE token_sesion = ? AND activo = 1',
             [token]
         );
-        
+
         if (!cliente) {
             return res.status(401).json({ error: 'Token inválido o sesión expirada' });
         }
-        
+
+        // Verificar expiración del token
+        if (cliente.token_expiracion && new Date(cliente.token_expiracion) < new Date()) {
+            await dbRun('UPDATE clientes_app SET token_sesion = NULL, token_expiracion = NULL WHERE id = ?', [cliente.id]);
+            return res.status(401).json({ error: 'Sesión expirada. Inicia sesión de nuevo.' });
+        }
+
         req.clienteApp = cliente;
-        req.clienteId = cliente.id; // normalizar nombre usado en rutas de la app cliente
+        req.clienteId = cliente.id;
         next();
     } catch (error) {
         console.error('Error en autenticación de cliente:', error);
@@ -7282,24 +7391,23 @@ app.post('/api/cliente/auth/google', async (req, res) => {
         
         const token = generarTokenCliente();
         const ahora = new Date().toISOString();
+        const tokenExpiracion = new Date(Date.now() + TOKEN_EXPIRACION_MS).toISOString();
         let nuevoUsuario = false;
-        
+
         if (cliente) {
-            // Usuario existente - actualizar token y ltimo acceso
-            // NO sobrescribir nombre si el usuario ya lo edit manualmente
-            // Solo actualizar foto si no tiene una personalizada
+            // Usuario existente - actualizar token y último acceso
             await dbRun(
-                'UPDATE clientes_app SET token_sesion = ?, ultimo_acceso = ? WHERE id = ?',
-                [token, ahora, cliente.id]
+                'UPDATE clientes_app SET token_sesion = ?, token_expiracion = ?, ultimo_acceso = ? WHERE id = ?',
+                [token, tokenExpiracion, ahora, cliente.id]
             );
             cliente = await dbGet('SELECT * FROM clientes_app WHERE id = ?', [cliente.id]);
         } else {
             // Usuario nuevo - crear cuenta
             nuevoUsuario = true;
             const result = await dbRun(
-                `INSERT INTO clientes_app (google_id, email, nombre, foto_url, token_sesion, fecha_registro, ultimo_acceso) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [googleUser.google_id, googleUser.email, googleUser.nombre, googleUser.foto_url, token, ahora, ahora]
+                `INSERT INTO clientes_app (google_id, email, nombre, foto_url, token_sesion, token_expiracion, fecha_registro, ultimo_acceso)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [googleUser.google_id, googleUser.email, googleUser.nombre, googleUser.foto_url, token, tokenExpiracion, ahora, ahora]
             );
             cliente = await dbGet('SELECT * FROM clientes_app WHERE id = ?', [result.lastID]);
         }
@@ -7801,8 +7909,11 @@ app.post('/api/cliente/verificacion/solicitar', clienteAuth, upload.fields([
             fs.mkdirSync(uploadsDir, { recursive: true });
         }
 
-        const frenteFilename = `frente_${Date.now()}${path.extname(docFrente.originalname)}`;
-        const reversoFilename = `reverso_${Date.now()}${path.extname(docReverso.originalname)}`;
+        // Generar nombres seguros para los archivos (evitar path traversal)
+        const frenteExt = path.extname(docFrente.originalname).toLowerCase().replace(/[^.a-z]/g, '');
+        const reversoExt = path.extname(docReverso.originalname).toLowerCase().replace(/[^.a-z]/g, '');
+        const frenteFilename = `frente_${Date.now()}${frenteExt || '.jpg'}`;
+        const reversoFilename = `reverso_${Date.now()}${reversoExt || '.jpg'}`;
 
         fs.writeFileSync(path.join(uploadsDir, frenteFilename), docFrente.buffer);
         fs.writeFileSync(path.join(uploadsDir, reversoFilename), docReverso.buffer);
@@ -7903,16 +8014,33 @@ app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
     try {
         console.log(' Datos recibidos para nuevo beneficiario:', JSON.stringify(req.body, null, 2));
         
-        const { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, isFavorite } = req.body;
-        
-        console.log(' Campos extrados:', { alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais });
-        
+        // Sanitizar y validar todos los campos de entrada
+        const alias = sanitizarTexto(req.body.alias, 100);
+        const nombre_completo = sanitizarTexto(req.body.nombre_completo, 200);
+        const documento_tipo = sanitizarTexto(req.body.documento_tipo, 20);
+        const documento_numero = sanitizarTexto(req.body.documento_numero, 50);
+        const banco = sanitizarTexto(req.body.banco, 100);
+        const tipo_cuenta = sanitizarTexto(req.body.tipo_cuenta, 50);
+        const numero_cuenta = sanitizarTexto(req.body.numero_cuenta, 50);
+        const pais = sanitizarTexto(req.body.pais, 10);
+        const telefono = req.body.telefono ? sanitizarTexto(req.body.telefono, 20) : null;
+        const email = req.body.email ? sanitizarTexto(req.body.email, 255) : null;
+        const isFavorite = req.body.isFavorite;
+
         if (!alias || !nombre_completo || !banco || !numero_cuenta || !pais) {
             return res.status(400).json({ error: 'Faltan campos obligatorios' });
         }
-        
+
+        if (email && !validarEmail(email)) {
+            return res.status(400).json({ error: 'Formato de email inválido' });
+        }
+
+        if (telefono && !validarTelefono(telefono)) {
+            return res.status(400).json({ error: 'Formato de teléfono inválido' });
+        }
+
         const ahora = new Date().toISOString();
-        
+
         const result = await dbRun(
             `INSERT INTO beneficiarios (cliente_app_id, alias, nombre_completo, documento_tipo, documento_numero, banco, tipo_cuenta, numero_cuenta, pais, telefono, email, isFavorite, fecha_creacion)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -8101,6 +8229,22 @@ app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
         // Validaciones
         if (!beneficiario_id || !monto_origen || !monto_destino) {
             return res.status(400).json({ error: 'Datos incompletos' });
+        }
+
+        if (!validarMontoPositivo(monto_origen) || !validarMontoPositivo(monto_destino)) {
+            return res.status(400).json({ error: 'Los montos deben ser números positivos válidos' });
+        }
+
+        if (tasa_aplicada && !validarMontoPositivo(tasa_aplicada)) {
+            return res.status(400).json({ error: 'La tasa debe ser un número positivo válido' });
+        }
+
+        if (!validarMoneda(moneda_origen) || !validarMoneda(moneda_destino)) {
+            return res.status(400).json({ error: 'Moneda no soportada' });
+        }
+
+        if (!Number.isInteger(Number(beneficiario_id)) || Number(beneficiario_id) <= 0) {
+            return res.status(400).json({ error: 'ID de beneficiario inválido' });
         }
 
         // Verificar que el beneficiario pertenece al cliente
