@@ -540,6 +540,8 @@ const allowedOrigins = [
 ];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.options('*', cors());
+// Confiar en el proxy de Render/Cloudflare para que secure cookies funcionen
+app.set('trust proxy', 1);
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 app.use(
   session({
