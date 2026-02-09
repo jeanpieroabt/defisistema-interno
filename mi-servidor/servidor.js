@@ -8063,8 +8063,8 @@ app.post('/api/cliente/beneficiarios', clienteAuth, async (req, res) => {
             payload: beneficiario
         });
     } catch (error) {
-        console.error('Error agregando beneficiario:', error);
-        res.status(500).json({ error: 'Error al agregar beneficiario' });
+        console.error('Error agregando beneficiario:', error.message, error.stack);
+        res.status(500).json({ error: 'Error al agregar beneficiario', detalle: error.message });
     }
 });
 
