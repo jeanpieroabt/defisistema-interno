@@ -700,7 +700,8 @@ const runMigrations = async () => {
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoVesOnline', '0')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('totalGananciaAcumuladaClp', '0')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('capitalInicialClp', '0')`);
-    
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('app_activa', '1')`);
+
     // ... NUEVA TABLA PARA METAS
     await dbRun(`CREATE TABLE IF NOT EXISTS metas(id INTEGER PRIMARY KEY AUTOINCREMENT, mes TEXT NOT NULL UNIQUE, meta_clientes_activos INTEGER DEFAULT 0, meta_nuevos_clientes INTEGER DEFAULT 0, meta_volumen_clp REAL DEFAULT 0, meta_operaciones INTEGER DEFAULT 0)`);
 
@@ -2523,6 +2524,36 @@ app.post('/api/config/telegram/test', apiAuth, onlyMaster, async (req, res) => {
         res.json({ mensaje: 'Mensaje de prueba enviado correctamente' });
     } else {
         res.status(400).json({ error: 'No se pudo enviar el mensaje. Verifica la configuración.' });
+    }
+});
+
+// =================================================================
+// CONFIGURACION ESTADO APP (KILL SWITCH MAESTRO)
+// =================================================================
+app.get('/api/config/estado-app', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const row = await dbGet("SELECT valor FROM configuracion WHERE clave = 'app_activa'");
+        res.json({ app_activa: row ? row.valor === '1' : true });
+    } catch (error) {
+        console.error('Error obteniendo estado app:', error);
+        res.status(500).json({ error: 'Error al obtener estado de la app' });
+    }
+});
+
+app.post('/api/config/estado-app', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { app_activa } = req.body;
+        const nuevoValor = app_activa ? '1' : '0';
+        await new Promise((resolve, reject) => {
+            upsertConfig('app_activa', nuevoValor, (err) => err ? reject(err) : resolve());
+        });
+        res.json({
+            app_activa: nuevoValor === '1',
+            mensaje: nuevoValor === '1' ? 'App activada correctamente' : 'App desactivada correctamente'
+        });
+    } catch (error) {
+        console.error('Error actualizando estado app:', error);
+        res.status(500).json({ error: 'Error al actualizar estado de la app' });
     }
 });
 
@@ -8333,6 +8364,16 @@ app.get('/api/cliente/tasa', async (req, res) => {
     }
 });
 
+// GET /api/cliente/estado-app - Verificar si la app está activa (público)
+app.get('/api/cliente/estado-app', async (req, res) => {
+    try {
+        const row = await dbGet("SELECT valor FROM configuracion WHERE clave = 'app_activa'");
+        res.json({ activa: row ? row.valor === '1' : true });
+    } catch (error) {
+        res.json({ activa: true }); // Fail-open: si hay error de BD, permitir operar
+    }
+});
+
 // =================================================================
 // APP CLIENTE - SOLICITUDES DE TRANSFERENCIA
 // =================================================================
@@ -8340,9 +8381,18 @@ app.get('/api/cliente/tasa', async (req, res) => {
 // POST /api/cliente/solicitudes - Crear nueva solicitud de transferencia
 app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
     try {
+        // Verificar si la app está activa (Kill Switch Maestro)
+        const estadoApp = await dbGet("SELECT valor FROM configuracion WHERE clave = 'app_activa'");
+        if (estadoApp && estadoApp.valor === '0') {
+            return res.status(503).json({
+                error: 'app_desactivada',
+                mensaje: 'En estos momentos no estamos procesando pedidos, mantente atento a nuestras redes para mantenerte informado'
+            });
+        }
+
         const clienteId = req.clienteId;
-        const { 
-            beneficiario_id, 
+        const {
+            beneficiario_id,
             monto_origen: body_monto_origen, 
             moneda_origen = 'CLP',
             monto_destino: body_monto_destino,

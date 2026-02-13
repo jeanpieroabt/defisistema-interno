@@ -1184,9 +1184,13 @@
     document.addEventListener('DOMContentLoaded', async () => {
       // Mostrar banner informativo si está fuera de horario (pero permite continuar)
       mostrarBannerHorario();
-      
+
       verificarSesion();
-      
+
+      // Verificar si la app está activa (Kill Switch Maestro)
+      const appActiva = await verificarEstadoApp();
+      if (!appActiva) return; // App desactivada, modal bloqueante mostrado
+
       // Verificar estado de verificación del usuario
       await verificarEstadoVerificacion();
       
@@ -1268,6 +1272,47 @@
         </div>
       `;
       document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    // ============================================
+    // KILL SWITCH - App desactivada
+    // ============================================
+    function mostrarAppDesactivada() {
+      const modalHtml = `
+        <div id="appDesactivadaModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;">
+          <div style="background:white;border-radius:24px;max-width:380px;width:100%;padding:32px;text-align:center;box-shadow:0 25px 50px rgba(0,0,0,0.25);">
+            <div style="width:80px;height:80px;margin:0 auto 20px;background:linear-gradient(135deg,rgba(220,53,69,0.1),rgba(255,193,7,0.1));border-radius:50%;display:flex;align-items:center;justify-content:center;">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#dc3545" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+            </div>
+            <h3 style="margin:0 0 12px;color:#211C10;font-size:20px;font-weight:700;">Servicio no disponible</h3>
+            <p style="margin:0 0 24px;color:#64748B;font-size:15px;line-height:1.5;">En estos momentos no estamos procesando pedidos, mantente atento a nuestras redes para mantenerte informado</p>
+            <button onclick="window.location.href='home.html'" style="width:100%;padding:16px;background:linear-gradient(135deg,#1974CE,#145DA6);color:white;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px rgba(25,116,206,0.3);">
+              Volver al inicio
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    async function verificarEstadoApp() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/cliente/estado-app`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (!data.activa) {
+            mostrarAppDesactivada();
+            return false;
+          }
+        }
+      } catch (e) {
+        console.error('Error verificando estado app:', e);
+      }
+      return true;
     }
 
     function verificarSesion() {
@@ -1788,6 +1833,10 @@
     }
 
     async function crearSolicitud() {
+      // Verificar si la app sigue activa (por si se desactivó mientras el usuario estaba en el wizard)
+      const appSigueActiva = await verificarEstadoApp();
+      if (!appSigueActiva) return;
+
       // Verificar que el usuario puede enviar (si tiene envíos previos, debe estar verificado)
       if (totalEnviosCompletados > 0 && verificacionEstado !== 'verificado') {
         mostrarRequiereVerificacion();

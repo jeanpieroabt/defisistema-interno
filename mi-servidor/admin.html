@@ -137,6 +137,29 @@
       </div>
       
       <div class="content">
+
+      <!-- KILL SWITCH - Estado de la App Cliente -->
+      <div id="killSwitchBox" class="box" style="margin-bottom:16px; border: 3px solid #6c757d; border-radius:12px; padding: 20px; background: linear-gradient(135deg, #f8f9fa, #ffffff);">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+              <div>
+                  <h3 style="margin:0 0 4px 0; font-size: 1.2rem;">
+                      🔌 Estado de la App Cliente
+                  </h3>
+                  <p id="killSwitchDesc" style="margin:0; color: #666; font-size: 0.9rem;">
+                      Cargando estado...
+                  </p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                  <span id="killSwitchStatus" style="font-size: 1.1rem; font-weight: 700; padding: 8px 16px; border-radius: 8px; background: #e9ecef; color: #6c757d;">
+                      ...
+                  </span>
+                  <button id="killSwitchBtn" onclick="toggleEstadoApp()" class="btn" style="padding: 12px 24px; font-size: 1rem; font-weight: 700; border-radius: 10px; border: none; cursor: pointer; min-width: 160px; background: #6c757d; color: white;">
+                      Cargando...
+                  </button>
+              </div>
+          </div>
+      </div>
+
       <div class="kpis">
         <div class="kpi"><h4>Ganancia Bruta (CLP)</h4><strong id="kpi-ganancia">—</strong></div>
         <div class="kpi"><h4>Total Enviado (CLP)</h4><strong id="kpi-total">—</strong></div>
@@ -263,6 +286,79 @@
         }, 4000);
     }
     
+    // ============================================
+    // KILL SWITCH - Estado de la App
+    // ============================================
+    let appActiva = true;
+
+    async function loadEstadoApp() {
+        try {
+            const resp = await fetch('/api/config/estado-app');
+            if (resp.ok) {
+                const data = await resp.json();
+                appActiva = data.app_activa;
+                actualizarUIKillSwitch();
+            }
+        } catch (e) {
+            console.error('Error cargando estado app:', e);
+        }
+    }
+
+    function actualizarUIKillSwitch() {
+        const box = document.getElementById('killSwitchBox');
+        const status = document.getElementById('killSwitchStatus');
+        const btn = document.getElementById('killSwitchBtn');
+        const desc = document.getElementById('killSwitchDesc');
+
+        if (appActiva) {
+            box.style.border = '3px solid #28a745';
+            box.style.background = 'linear-gradient(135deg, #f0fff4, #ffffff)';
+            status.textContent = '✅ ACTIVA';
+            status.style.background = '#d4edda';
+            status.style.color = '#155724';
+            btn.textContent = '⛔ Desactivar App';
+            btn.style.background = '#dc3545';
+            btn.style.color = 'white';
+            desc.textContent = 'La app de clientes está operativa. Los clientes pueden crear pedidos.';
+        } else {
+            box.style.border = '3px solid #dc3545';
+            box.style.background = 'linear-gradient(135deg, #fff5f5, #ffffff)';
+            status.textContent = '🔴 DESACTIVADA';
+            status.style.background = '#f8d7da';
+            status.style.color = '#721c24';
+            btn.textContent = '✅ Activar App';
+            btn.style.background = '#28a745';
+            btn.style.color = 'white';
+            desc.textContent = 'La app de clientes está desactivada. Los clientes NO pueden crear pedidos.';
+        }
+    }
+
+    async function toggleEstadoApp() {
+        const confirmMsg = appActiva
+            ? '⚠️ ¿Estás seguro de DESACTIVAR la app?\n\nLos clientes NO podrán crear pedidos hasta que la reactives.'
+            : '¿Deseas ACTIVAR la app?\n\nLos clientes podrán crear pedidos nuevamente.';
+
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            const resp = await fetch('/api/config/estado-app', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ app_activa: !appActiva })
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                appActiva = data.app_activa;
+                actualizarUIKillSwitch();
+                showToast(data.mensaje, 'success');
+            } else {
+                showToast(data.error || 'Error al cambiar estado', 'error');
+            }
+        } catch (e) {
+            showToast('Error de conexión', 'error');
+        }
+    }
+
     let usuarios = [];
     let compras = [];
     let comprasVisibles = 10;
@@ -497,7 +593,7 @@
     };
 
     (async ()=>{ 
-        await Promise.all([loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig()]); 
+        await Promise.all([loadEstadoApp(), loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig()]);
     })();
   </script>
 </body>
