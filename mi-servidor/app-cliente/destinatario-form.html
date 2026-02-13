@@ -408,8 +408,42 @@
 
                     <section class="form-section" id="seccionPagoMovil" style="display:none;">
                         <h2 class="form-section-title" id="tituloPagoMovil">Pago móvil</h2>
+
                         <div class="input-group">
-                            <label class="input-label">Teléfono</label>
+                            <label class="input-label">Banco *</label>
+                            <div class="select-wrapper">
+                                <select id="bancoPagoMovil">
+                                    <option value="">Seleccionar banco</option>
+                                    <option value="0102">Banco de Venezuela</option>
+                                    <option value="0104">Venezolano de Crédito</option>
+                                    <option value="0105">Mercantil</option>
+                                    <option value="0108">Provincial</option>
+                                    <option value="0114">Bancaribe</option>
+                                    <option value="0115">Exterior</option>
+                                    <option value="0128">Caroní</option>
+                                    <option value="0134">Banesco</option>
+                                    <option value="0137">Sofitasa</option>
+                                    <option value="0138">Banco Plaza</option>
+                                    <option value="0151">BFC</option>
+                                    <option value="0156">100% Banco</option>
+                                    <option value="0157">Del Sur</option>
+                                    <option value="0163">Banco del Tesoro</option>
+                                    <option value="0166">Agrícola de Venezuela</option>
+                                    <option value="0168">Bancrecer</option>
+                                    <option value="0169">Mi Banco</option>
+                                    <option value="0171">Activo</option>
+                                    <option value="0172">Bancamiga</option>
+                                    <option value="0173">Internacional de Desarrollo</option>
+                                    <option value="0174">Banplus</option>
+                                    <option value="0175">Bicentenario</option>
+                                    <option value="0177">Banfanb</option>
+                                    <option value="0191">BNC</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label class="input-label">Teléfono *</label>
                             <div class="phone-row">
                                 <div class="select-wrapper">
                                     <select id="telefonoPrefijo">
@@ -685,6 +719,20 @@
             if (esPagoMovil) {
                 const radioPM = document.getElementById('entregaPagoMovil');
                 if (radioPM) radioPM.checked = true;
+
+                // Asignar banco en el selector de pago móvil
+                const bancoPM = document.getElementById('bancoPagoMovil');
+                if (bancoPM && data.banco) {
+                    // Intentar por código directo
+                    let encontrado = false;
+                    for (const opt of bancoPM.options) {
+                        if (opt.value === data.banco || opt.text.trim() === data.banco) {
+                            bancoPM.value = opt.value;
+                            encontrado = true;
+                            break;
+                        }
+                    }
+                }
             } else {
                 const radioTrans = document.getElementById('entregaTransferencia');
                 if (radioTrans) radioTrans.checked = true;
@@ -711,6 +759,11 @@
                 return { valido: false, mensaje: "Completa todos los campos obligatorios." };
             }
 
+            // Datos del banco de pago móvil
+            const bancoPMSelect = document.getElementById("bancoPagoMovil");
+            const bancoPMValor = bancoPMSelect ? bancoPMSelect.value : "";
+            const bancoPMNombre = bancoPMSelect ? (bancoPMSelect.options[bancoPMSelect.selectedIndex]?.text?.trim() || "") : "";
+
             // Validar según tipo de entrega seleccionado
             if (tipoEntrega === "transferencia") {
                 if (!bancoValor) {
@@ -720,7 +773,10 @@
                     return { valido: false, mensaje: "El número de cuenta debe tener 20 dígitos." };
                 }
             } else {
-                // Pago móvil: requiere teléfono
+                // Pago móvil: requiere banco y teléfono
+                if (!bancoPMValor) {
+                    return { valido: false, mensaje: "Selecciona el banco de pago móvil." };
+                }
                 if (telefonoNumero.length !== 7) {
                     return { valido: false, mensaje: "Ingresa los 7 dígitos del número de pago móvil." };
                 }
@@ -748,14 +804,15 @@
             const isFavoriteEl = document.getElementById("isFavorite");
             const isFavorite = !!(isFavoriteEl && isFavoriteEl.checked);
             const tieneDatosBancarios = bancoValor && numeroCuenta.length === 20;
+            const esPagoMovil = tipoEntrega === "pago_movil";
 
             const data = {
                 alias,
                 nombre_completo: nombreCompleto,
                 documento_tipo: tipoDocMap[tipoDocForm] || "cedula",
                 documento_numero: numeroDocRaw.replace(/\s+/g, ""),
-                banco: tieneDatosBancarios ? bancoNombre : "",
-                tipo_cuenta: tipoEntrega === "pago_movil" ? "pago_movil" : "corriente",
+                banco: esPagoMovil ? bancoPMNombre : (tieneDatosBancarios ? bancoNombre : ""),
+                tipo_cuenta: esPagoMovil ? "pago_movil" : "corriente",
                 numero_cuenta: tieneDatosBancarios ? numeroCuenta : "",
                 pais: "Venezuela",
                 telefono: telefonoCompleto,
