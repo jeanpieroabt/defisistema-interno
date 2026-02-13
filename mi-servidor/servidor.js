@@ -174,6 +174,27 @@ async function notificarNuevaSolicitud(solicitud) {
     const banco = solicitud.beneficiario_banco || 'Sin banco';
     const telefonoBenef = solicitud.beneficiario_telefono || '';
     
+    const esPagoMovil = solicitud.tipo_cuenta === 'pago_movil';
+
+    // Construir sección de beneficiario según tipo de entrega
+    const seccionBeneficiario = esPagoMovil
+        ? [
+            `━━━━━━ ${tipoEntrega} ━━━━━━`,
+            `👤 ${nombreBeneficiario}`,
+            `🪪 Cédula: ${cedula}`,
+            `🏦 Banco: ${banco}`,
+            `📞 Teléfono: ${telefonoBenef || 'No registrado'}`
+        ]
+        : [
+            `━━━━━━ ${tipoEntrega} ━━━━━━`,
+            `👤 ${nombreBeneficiario}`,
+            `🪪 Cédula: ${cedula}`,
+            `🏦 ${banco}`,
+            `📋 Tipo: ${tipoCuenta}`,
+            `💳 Cuenta: ${cuenta}`,
+            telefonoBenef ? `📞 Tel: ${telefonoBenef}` : null
+        ];
+
     const mensaje = [
         `🔔 NUEVO PEDIDO #${solicitud.id} - APP CLIENTE`,
         '',
@@ -188,13 +209,7 @@ async function notificarNuevaSolicitud(solicitud) {
         `💴 Recibe: ${Number(solicitud.monto_destino || 0).toLocaleString('es-VE')} ${solicitud.moneda_destino || 'VES'}`,
         `📊 Tasa: ${solicitud.tasa_aplicada || 'N/A'}`,
         '',
-        `━━━━━━ ${tipoEntrega} ━━━━━━`,
-        `👤 ${nombreBeneficiario}`,
-        `🪪 Cédula: ${cedula}`,
-        `🏦 ${banco}`,
-        `📋 Tipo: ${tipoCuenta}`,
-        `💳 Cuenta: ${cuenta}`,
-        telefonoBenef ? `📞 Tel: ${telefonoBenef}` : null,
+        ...seccionBeneficiario,
         '',
         `⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`,
         '',
@@ -206,11 +221,16 @@ async function notificarNuevaSolicitud(solicitud) {
     const botones = [
         // Primera fila: Tomar pedido
         [{ text: '📥 TOMAR PEDIDO', callback_data: `tomar_${solicitud.id}` }],
-        // Segunda fila: Botones de copiar automático
-        [
-            { text: `💳 ${cuenta}`, copy_text: { text: cuenta } },
-            { text: `🪪 ${cedula}`, copy_text: { text: cedula } }
-        ],
+        // Segunda fila: Botones de copiar automático (diferentes según tipo de entrega)
+        esPagoMovil
+            ? [
+                { text: `📞 ${telefonoBenef || 'Sin tel'}`, copy_text: { text: telefonoBenef || '' } },
+                { text: `🪪 ${cedula}`, copy_text: { text: cedula } }
+            ]
+            : [
+                { text: `💳 ${cuenta}`, copy_text: { text: cuenta } },
+                { text: `🪪 ${cedula}`, copy_text: { text: cedula } }
+            ],
         // Tercera fila: Más opciones de copiar
         [
             { text: `👤 ${nombreBeneficiario.substring(0, 15)}`, copy_text: { text: nombreBeneficiario } },
