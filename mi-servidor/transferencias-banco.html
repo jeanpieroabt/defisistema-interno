@@ -444,6 +444,72 @@
       50% { opacity: 0.3; }
     }
 
+    /* ============ BOTON SOLICITAR ============ */
+    .btn-solicitar {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: linear-gradient(135deg, #1a5276 0%, #2D8CDB 100%);
+      color: white;
+    }
+
+    .btn-solicitar:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(26, 82, 118, 0.4);
+    }
+
+    .btn-solicitar:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-solicitar.ejecutando {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      animation: pulseBtn 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulseBtn {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+      50% { box-shadow: 0 0 12px 4px rgba(245, 158, 11, 0.3); }
+    }
+
+    .spinner-inline {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .bot-estado-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .bot-estado-badge.online { background: #d4edda; color: #155724; }
+    .bot-estado-badge.offline { background: #e2e3e5; color: #383d41; }
+    .bot-estado-badge.ocupado { background: #fff3cd; color: #856404; }
+    .bot-estado-badge.error { background: #f8d7da; color: #721c24; }
+
     /* ============ RESPONSIVE ============ */
     @media (max-width: 768px) {
       .hdr { flex-direction: column; text-align: center; }
@@ -501,9 +567,13 @@
         <div class="bot-status-bar" id="botStatusBar">
           <div class="bot-status-left">
             <span class="bot-indicator" id="botIndicator">&#9679;</span>
-            <span id="botStatusText">Esperando datos del bot...</span>
+            <span id="botStatusText">Verificando bot...</span>
+            <span class="bot-estado-badge offline" id="botEstadoBadge">&#9679; Verificando</span>
           </div>
           <div class="bot-status-right">
+            <button class="btn-solicitar" id="btnSolicitar" onclick="solicitarTransferencias()" disabled>
+              &#127974; Solicitar Transferencias Recibidas
+            </button>
             <span id="ultimaImportacion" style="font-size:0.8rem;color:#6c757d;"></span>
             <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.3rem;cursor:pointer;">
               <input type="checkbox" id="autoRefresh" checked style="accent-color:#2EC7A3;"> Auto-refresh
@@ -878,6 +948,110 @@
       }
     }
 
+    // ============ BOT: Verificar estado ============
+    let botStatusInterval = null;
+
+    async function verificarEstadoBot() {
+      const badge = document.getElementById('botEstadoBadge');
+      const btn = document.getElementById('btnSolicitar');
+      const indicator = document.getElementById('botIndicator');
+      const statusText = document.getElementById('botStatusText');
+
+      try {
+        const res = await fetch('/api/transferencias-banco/bot-status');
+        const data = await res.json();
+
+        if (data.estado === 'listo') {
+          badge.className = 'bot-estado-badge online';
+          badge.innerHTML = '&#9679; Bot Online';
+          indicator.className = 'bot-indicator active';
+          statusText.textContent = 'Bot conectado y listo';
+          btn.disabled = false;
+          btn.innerHTML = '&#127974; Solicitar Transferencias Recibidas';
+          btn.className = 'btn-solicitar';
+        } else if (data.estado === 'ocupado') {
+          badge.className = 'bot-estado-badge ocupado';
+          badge.innerHTML = '&#9679; Ejecutando...';
+          indicator.className = 'bot-indicator active';
+          statusText.textContent = 'Bot ejecutando tarea...';
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-inline"></span> Ejecutando...';
+          btn.className = 'btn-solicitar ejecutando';
+        } else if (data.estado === 'offline') {
+          badge.className = 'bot-estado-badge offline';
+          badge.innerHTML = '&#9679; Bot Offline';
+          indicator.className = 'bot-indicator';
+          statusText.textContent = 'Bot no esta corriendo';
+          btn.disabled = true;
+          btn.innerHTML = '&#127974; Bot Offline';
+          btn.className = 'btn-solicitar';
+        } else {
+          badge.className = 'bot-estado-badge error';
+          badge.innerHTML = '&#9679; Error';
+          indicator.className = 'bot-indicator';
+          statusText.textContent = data.mensaje || 'Error de conexion';
+          btn.disabled = true;
+          btn.className = 'btn-solicitar';
+        }
+      } catch (e) {
+        badge.className = 'bot-estado-badge offline';
+        badge.innerHTML = '&#9679; Sin conexion';
+        indicator.className = 'bot-indicator';
+        statusText.textContent = 'No se pudo verificar estado del bot';
+        btn.disabled = true;
+        btn.innerHTML = '&#127974; Bot Offline';
+        btn.className = 'btn-solicitar';
+      }
+    }
+
+    // ============ BOT: Solicitar transferencias ============
+    async function solicitarTransferencias() {
+      const btn = document.getElementById('btnSolicitar');
+      const badge = document.getElementById('botEstadoBadge');
+      const statusText = document.getElementById('botStatusText');
+
+      // Estado: ejecutando
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-inline"></span> Ejecutando... (puede tardar 1-2 min)';
+      btn.className = 'btn-solicitar ejecutando';
+      badge.className = 'bot-estado-badge ocupado';
+      badge.innerHTML = '&#9679; Ejecutando...';
+      statusText.textContent = 'Bot: login > transferencias > envio > logout...';
+      showToast('Solicitando transferencias al bot...', 'info');
+
+      try {
+        const res = await fetch('/api/transferencias-banco/solicitar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tarea: 'transferencias_recibidas' })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          const cant = data.datos ? data.datos.cantidad_leidas : 0;
+          showToast(`Listo! ${cant} transferencias leidas del banco`, 'success');
+          statusText.textContent = `Ultimo resultado: ${cant} transferencias leidas`;
+
+          // Recargar tabla para ver los nuevos datos
+          setTimeout(() => cargarTransferencias(), 1000);
+        } else {
+          showToast(`Error: ${data.error || 'Error desconocido'}`, 'error');
+          statusText.textContent = `Error: ${data.error || 'Error desconocido'}`;
+        }
+      } catch (e) {
+        if (e.name === 'TypeError' && e.message.includes('fetch')) {
+          showToast('No se pudo conectar con el servidor', 'error');
+        } else {
+          showToast(`Error: ${e.message}`, 'error');
+        }
+        statusText.textContent = 'Error al solicitar transferencias';
+      }
+
+      // Restaurar estado del boton
+      verificarEstadoBot();
+    }
+
     // Init
     (async function init() {
       try {
@@ -887,7 +1061,11 @@
 
       document.getElementById('autoRefresh').addEventListener('change', toggleAutoRefresh);
       cargarTransferencias();
-      toggleAutoRefresh(); // Iniciar auto-refresh
+      toggleAutoRefresh();
+
+      // Verificar estado del bot cada 15 segundos
+      verificarEstadoBot();
+      botStatusInterval = setInterval(verificarEstadoBot, 15000);
     })();
   </script>
 

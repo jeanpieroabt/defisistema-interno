@@ -9885,6 +9885,64 @@ app.get('/api/transferencias-banco/lotes', apiAuth, async (req, res) => {
     }
 });
 
+// ============================================
+// BOT PROXY - Solicitar tareas al bot local
+// ============================================
+const BOT_LOCAL_URL = process.env.BOT_LOCAL_URL || 'http://localhost:5050';
+
+// GET /api/transferencias-banco/bot-status - Estado del bot
+app.get('/api/transferencias-banco/bot-status', apiAuth, async (req, res) => {
+    try {
+        const resp = await axios.get(`${BOT_LOCAL_URL}/status`, {
+            headers: { 'Authorization': `Bearer ${BOT_TOKEN}` },
+            timeout: 5000
+        });
+        res.json(resp.data);
+    } catch (error) {
+        if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
+            return res.json({ estado: 'offline', mensaje: 'Bot no esta corriendo' });
+        }
+        res.json({ estado: 'error', mensaje: error.message });
+    }
+});
+
+// POST /api/transferencias-banco/solicitar - Enviar comando al bot
+app.post('/api/transferencias-banco/solicitar', apiAuth, async (req, res) => {
+    try {
+        const { tarea, fecha } = req.body || {};
+        console.log(`[Bot Proxy] Solicitud: ${tarea || 'transferencias_recibidas'} fecha: ${fecha || 'hoy'}`);
+
+        const resp = await axios.post(`${BOT_LOCAL_URL}/ejecutar`, {
+            tarea: tarea || 'transferencias_recibidas',
+            fecha: fecha || null
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${BOT_TOKEN}`
+            },
+            timeout: 120000  // 2 minutos - el bot puede tardar en login+navegar+leer+logout
+        });
+
+        console.log(`[Bot Proxy] Resultado:`, resp.data);
+        res.json(resp.data);
+    } catch (error) {
+        if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
+            return res.status(503).json({
+                success: false,
+                error: 'Bot no esta corriendo. Inicia el bot con: python agente_conciliador.py'
+            });
+        }
+        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+            return res.status(504).json({
+                success: false,
+                error: 'El bot tardo demasiado en responder (timeout 2 min)'
+            });
+        }
+        console.error('[Bot Proxy] Error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 runMigrations()
     .then(() => {
         app.listen(PORT, () => {
