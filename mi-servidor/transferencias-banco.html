@@ -273,6 +273,20 @@
     .badge-tomado { background: #fff3cd; color: #856404; }
     .badge-procesado { background: #e2e3e5; color: #383d41; }
 
+    /* ============ BADGES CUENTA DESTINO ============ */
+    .badge-cuenta {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+    .badge-cuenta-1 { background: #d1ecf1; color: #0c5460; } /* azul - Defioracle Spa */
+    .badge-cuenta-2 { background: #fff3cd; color: #856404; } /* amarillo - Cuenta 2 */
+    .badge-cuenta-default { background: #e2e3e5; color: #383d41; } /* gris */
+
     /* ============ BOTONES ACCION FILA ============ */
     .acciones-cell {
       display: flex;
@@ -614,6 +628,7 @@
               <tr>
                 <th>N&#176; Operacion</th>
                 <th>Fecha</th>
+                <th>Destino</th>
                 <th>Nombre Origen</th>
                 <th>RUT Origen</th>
                 <th>Cuenta</th>
@@ -625,7 +640,7 @@
             </thead>
             <tbody id="tablaBody">
               <tr>
-                <td colspan="9">
+                <td colspan="10">
                   <div class="empty-state">
                     <div class="icon">&#127974;</div>
                     <p>Cargando transferencias...</p>
@@ -797,7 +812,7 @@
         const tbody = document.getElementById('tablaBody');
 
         if (rows.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="9">
+          tbody.innerHTML = `<tr><td colspan="10">
             <div class="empty-state">
               <div class="icon">&#128269;</div>
               <p>No se encontraron transferencias</p>
@@ -822,9 +837,18 @@
           const tomadoInfo = t.estado === 'tomado' && t.tomado_por_nombre
             ? `<br><span style="font-size:0.7rem;color:#856404;">${t.tomado_por_nombre}</span>` : '';
 
+          // Badge cuenta destino
+          let cuentaBadge = '';
+          if (t.cuenta_destino) {
+            const esDefioracle = t.cuenta_destino.toLowerCase().includes('defioracle');
+            const badgeCuentaClass = esDefioracle ? 'badge-cuenta-1' : 'badge-cuenta-2';
+            cuentaBadge = `<span class="badge-cuenta ${badgeCuentaClass}">${t.cuenta_destino}</span>`;
+          }
+
           return `<tr class="estado-${t.estado}">
             <td><strong style="color:#1565c0;cursor:pointer;" onclick="copiarOperacion('${(t.n_operacion || '').replace(/'/g, "\\'")}')">${t.n_operacion || '-'}</strong></td>
             <td>${t.fecha || '-'}</td>
+            <td>${cuentaBadge || '<span style="color:#aaa;">-</span>'}</td>
             <td>${t.nombre_origen || '-'}</td>
             <td>${t.rut_origen || '-'}</td>
             <td style="font-size:0.8rem;">${t.cuenta_origen || '-'}</td>

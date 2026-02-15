@@ -1211,12 +1211,15 @@ const runMigrations = async () => {
         tomado_por INTEGER,
         tomado_fecha TEXT,
         lote_id TEXT,
+        cuenta_destino TEXT DEFAULT '',
         fecha_importacion TEXT NOT NULL,
         FOREIGN KEY (tomado_por) REFERENCES usuarios(id)
     )`);
     await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_transferencias_banco_op ON transferencias_banco(n_operacion, fecha)`).catch(() => {});
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_transferencias_banco_estado ON transferencias_banco(estado)`).catch(() => {});
     await dbRun(`CREATE INDEX IF NOT EXISTS idx_transferencias_banco_lote ON transferencias_banco(lote_id)`).catch(() => {});
+    // Migración: agregar columna cuenta_destino si no existe
+    await dbRun(`ALTER TABLE transferencias_banco ADD COLUMN cuenta_destino TEXT DEFAULT ''`).catch(() => {});
     console.log('... Tabla transferencias_banco verificada');
 
     return new Promise(resolve => {
@@ -9686,13 +9689,14 @@ const BOT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutos
 // POST /api/transferencias-banco/push - El bot envía transferencias (auth por token)
 app.post('/api/transferencias-banco/push', botAuth, async (req, res) => {
     try {
-        const { transferencias, lote_id, tipo } = req.body;
+        const { transferencias, lote_id, tipo, cuenta_nombre } = req.body;
         if (!transferencias || !Array.isArray(transferencias) || transferencias.length === 0) {
             return res.status(400).json({ error: 'Se requiere un array de transferencias' });
         }
 
         const ahora = new Date().toISOString();
         const loteFinal = lote_id || `lote_${Date.now()}`;
+        const cuentaDest = sanitizarTexto(cuenta_nombre || '', 50);
         let insertadas = 0;
         let duplicadas = 0;
 
@@ -9706,11 +9710,11 @@ app.post('/api/transferencias-banco/push', botAuth, async (req, res) => {
 
             try {
                 await dbRun(`INSERT INTO transferencias_banco
-                    (n_operacion, fecha, rut_origen, nombre_origen, cuenta_origen, banco, monto, monto_numerico, lote_id, fecha_importacion)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    (n_operacion, fecha, rut_origen, nombre_origen, cuenta_origen, banco, monto, monto_numerico, lote_id, cuenta_destino, fecha_importacion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [nOp, fecha, sanitizarTexto(t.rut_origen || '', 30), sanitizarTexto(t.nombre_origen || '', 100),
                      sanitizarTexto(t.cuenta_origen || '', 30), sanitizarTexto(t.banco || '', 50),
-                     montoStr, montoNum, loteFinal, ahora]);
+                     montoStr, montoNum, loteFinal, cuentaDest, ahora]);
                 insertadas++;
             } catch (e) {
                 if (e.message && e.message.includes('UNIQUE')) {
