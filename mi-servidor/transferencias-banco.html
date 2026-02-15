@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Defi Oracle - Transferencias Banco</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      position: relative;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      background-image: url('logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.03;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+
+    .hdr {
+      background: linear-gradient(135deg, #1a5276 0%, #2D8CDB 50%, #2EC7A3 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo-header img {
+      height: 50px;
+      width: auto;
+      filter: brightness(0) invert(1);
+      object-fit: contain;
+    }
+
+    .hdr h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+
+    .hdr .btns {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-back {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .btn-back:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-2px);
+    }
+
+    .content {
+      padding: 1.5rem;
+    }
+
+    /* ============ BANNER STATS ============ */
+    .stats-banner {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 14px;
+      padding: 1.25rem;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-card.disponible { border-left: 5px solid #2EC7A3; }
+    .stat-card.tomado { border-left: 5px solid #f59e0b; }
+    .stat-card.procesado { border-left: 5px solid #6c757d; }
+    .stat-card.total { border-left: 5px solid #2D8CDB; }
+
+    .stat-card .stat-label {
+      font-size: 0.8rem;
+      color: #6c757d;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-card .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      margin: 0.25rem 0;
+    }
+
+    .stat-card.disponible .stat-value { color: #2EC7A3; }
+    .stat-card.tomado .stat-value { color: #f59e0b; }
+    .stat-card.procesado .stat-value { color: #6c757d; }
+    .stat-card.total .stat-value { color: #2D8CDB; }
+
+    .stat-card .stat-sub {
+      font-size: 0.75rem;
+      color: #95a5a6;
+    }
+
+    /* ============ FILTROS ============ */
+    .filtros-bar {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filtros-bar select, .filtros-bar input {
+      padding: 0.6rem 1rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      background: #f8f9fa;
+      transition: border-color 0.2s;
+    }
+
+    .filtros-bar select:focus, .filtros-bar input:focus {
+      border-color: #2D8CDB;
+      outline: none;
+    }
+
+    .btn-filtro {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(45, 140, 219, 0.3);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-warning {
+      background: #f59e0b;
+      color: white;
+    }
+
+    /* ============ TABLA ============ */
+    .tabla-container {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid #e0e0e0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    thead th {
+      background: linear-gradient(135deg, #2D8CDB 0%, #1a6baa 100%);
+      color: white;
+      padding: 0.85rem 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    tbody tr {
+      transition: background 0.15s;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    tbody tr:hover { background: #f0f7ff; }
+    tbody tr.estado-tomado { background: #fff8e1; }
+    tbody tr.estado-procesado { background: #f5f5f5; opacity: 0.7; }
+
+    tbody td {
+      padding: 0.75rem;
+      vertical-align: middle;
+    }
+
+    /* ============ BADGES ============ */
+    .badge {
+      display: inline-block;
+      padding: 0.3rem 0.7rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-disponible { background: #d4edda; color: #155724; }
+    .badge-tomado { background: #fff3cd; color: #856404; }
+    .badge-procesado { background: #e2e3e5; color: #383d41; }
+
+    /* ============ BOTONES ACCION FILA ============ */
+    .acciones-cell {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: nowrap;
+    }
+
+    .btn-accion {
+      padding: 0.35rem 0.65rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-accion:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .btn-copiar { background: #e3f2fd; color: #1565c0; }
+    .btn-tomar { background: #2EC7A3; color: white; }
+    .btn-liberar { background: #f59e0b; color: white; }
+    .btn-procesar { background: #6c757d; color: white; }
+
+    /* ============ TOAST ============ */
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .toast {
+      padding: 0.85rem 1.5rem;
+      border-radius: 10px;
+      font-weight: 600;
+      color: white;
+      opacity: 0;
+      transform: translateX(100px);
+      transition: all 0.4s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .toast-success { background: linear-gradient(135deg, #28a745, #20c997); }
+    .toast-error { background: linear-gradient(135deg, #dc3545, #e74c3c); }
+    .toast-info { background: linear-gradient(135deg, #2D8CDB, #2EC7A3); }
+
+    /* ============ IMPORTAR MANUAL ============ */
+    .importar-section {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      border: 2px dashed #dee2e6;
+    }
+
+    .importar-section h3 {
+      margin: 0 0 0.75rem 0;
+      color: #2D8CDB;
+      font-size: 1.1rem;
+    }
+
+    .importar-section textarea {
+      width: 100%;
+      min-height: 120px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 0.75rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    .importar-section textarea:focus {
+      border-color: #2D8CDB;
+      outline: none;
+    }
+
+    .importar-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+      align-items: center;
+    }
+
+    .importar-hint {
+      font-size: 0.8rem;
+      color: #6c757d;
+      flex: 1;
+    }
+
+    /* ============ EMPTY STATE ============ */
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #6c757d;
+    }
+
+    .empty-state .icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* ============ BOT STATUS BAR ============ */
+    .bot-status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+      border: 1px solid #c8e6c9;
+      border-radius: 12px;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .bot-status-bar.has-new {
+      background: linear-gradient(135deg, #e3f2fd 0%, #e8f5e9 100%);
+      border-color: #90caf9;
+      animation: pulseNew 2s ease-in-out;
+    }
+
+    @keyframes pulseNew {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(45, 140, 219, 0); }
+      50% { box-shadow: 0 0 15px 5px rgba(45, 140, 219, 0.2); }
+    }
+
+    .bot-status-left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .bot-status-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .bot-indicator {
+      font-size: 0.7rem;
+      color: #bdbdbd;
+    }
+
+    .bot-indicator.active {
+      color: #4caf50;
+      animation: blink 1.5s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 768px) {
+      .hdr { flex-direction: column; text-align: center; }
+      .hdr h1 { font-size: 1.3rem; }
+      .stats-banner { grid-template-columns: repeat(2, 1fr); }
+      .filtros-bar { flex-direction: column; }
+      .filtros-bar select, .filtros-bar input { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <div class="container">
+    <div class="card">
+      <div class="hdr">
+        <div class="logo-header">
+          <img src="logo.png" alt="Defi Oracle">
+          <h1>&#127974; Transferencias Recibidas - Banco</h1>
+        </div>
+        <div class="btns">
+          <a href="app.html" class="btn-back">&#128230; Envios</a>
+          <a href="home.html" class="btn-back">&#127968; Inicio</a>
+        </div>
+      </div>
+
+      <div class="content">
+
+        <!-- BANNER STATS -->
+        <div class="stats-banner" id="statsBanner">
+          <div class="stat-card total">
+            <div class="stat-label">Total Importadas</div>
+            <div class="stat-value" id="statTotal">-</div>
+            <div class="stat-sub" id="statMonto">$0</div>
+          </div>
+          <div class="stat-card disponible">
+            <div class="stat-label">Disponibles</div>
+            <div class="stat-value" id="statDisponibles">-</div>
+            <div class="stat-sub">Sin asignar</div>
+          </div>
+          <div class="stat-card tomado">
+            <div class="stat-label">Tomadas</div>
+            <div class="stat-value" id="statTomados">-</div>
+            <div class="stat-sub">En proceso</div>
+          </div>
+          <div class="stat-card procesado">
+            <div class="stat-label">Procesadas</div>
+            <div class="stat-value" id="statProcesados">-</div>
+            <div class="stat-sub">Completadas</div>
+          </div>
+        </div>
+
+        <!-- BARRA DE ESTADO DEL BOT -->
+        <div class="bot-status-bar" id="botStatusBar">
+          <div class="bot-status-left">
+            <span class="bot-indicator" id="botIndicator">&#9679;</span>
+            <span id="botStatusText">Esperando datos del bot...</span>
+          </div>
+          <div class="bot-status-right">
+            <span id="ultimaImportacion" style="font-size:0.8rem;color:#6c757d;"></span>
+            <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.3rem;cursor:pointer;">
+              <input type="checkbox" id="autoRefresh" checked style="accent-color:#2EC7A3;"> Auto-refresh
+            </label>
+            <button class="btn-filtro btn-primary" onclick="cargarTransferencias()" style="padding:0.4rem 0.8rem;font-size:0.85rem;">&#128260; Actualizar</button>
+          </div>
+        </div>
+
+        <!-- IMPORTAR MANUAL (emergencia, colapsado) -->
+        <details class="importar-section" id="importarSection" style="margin-bottom:1rem;">
+          <summary style="cursor:pointer;font-weight:600;color:#6c757d;font-size:0.85rem;list-style:none;">
+            &#128295; Importar manualmente (emergencia) &#9660;
+          </summary>
+          <div style="margin-top:0.75rem;">
+            <textarea id="jsonInput" placeholder="Pega aqui el JSON del bot si el envio automatico falla..." style="min-height:80px;"></textarea>
+            <div class="importar-actions">
+              <button class="btn-filtro btn-primary" onclick="importarJSON()">&#128229; Importar</button>
+              <button class="btn-filtro btn-secondary" onclick="document.getElementById('jsonInput').value=''">Limpiar</button>
+            </div>
+          </div>
+        </details>
+
+        <!-- FILTROS -->
+        <div class="filtros-bar">
+          <select id="filtroEstado">
+            <option value="">Todos los estados</option>
+            <option value="disponible" selected>Disponibles</option>
+            <option value="tomado">Tomadas</option>
+            <option value="procesado">Procesadas</option>
+          </select>
+          <input type="text" id="filtroFecha" placeholder="Filtrar por fecha (dd/mm/yyyy)"/>
+          <input type="text" id="filtroBusqueda" placeholder="Buscar nombre, RUT, operacion..."/>
+          <button class="btn-filtro btn-primary" onclick="cargarTransferencias()">&#128269; Buscar</button>
+          <button class="btn-filtro btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
+        </div>
+
+        <!-- TABLA -->
+        <div class="tabla-container">
+          <table>
+            <thead>
+              <tr>
+                <th>N&#176; Operacion</th>
+                <th>Fecha</th>
+                <th>Nombre Origen</th>
+                <th>RUT Origen</th>
+                <th>Cuenta</th>
+                <th>Banco</th>
+                <th style="text-align:right">Monto</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaBody">
+              <tr>
+                <td colspan="9">
+                  <div class="empty-state">
+                    <div class="icon">&#127974;</div>
+                    <p>Cargando transferencias...</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;flex-wrap:wrap;gap:0.5rem;" id="paginacion"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = {};
+    let currentPage = 0;
+    const PAGE_SIZE = 100;
+    let lastTotal = 0;
+    let autoRefreshInterval = null;
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 50);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 500);
+      }, 3500);
+    }
+
+    function formatMonto(str) {
+      if (!str) return '$0';
+      if (str.startsWith('$')) return str;
+      return '$' + str;
+    }
+
+    function formatMontoNum(num) {
+      if (!num) return '$0';
+      return '$' + num.toLocaleString('es-CL');
+    }
+
+    // Copiar al portapapeles
+    async function copiarOperacion(nOp) {
+      try {
+        await navigator.clipboard.writeText(nOp);
+        showToast(`Operacion ${nOp} copiada`, 'success');
+      } catch {
+        // Fallback para HTTP
+        const ta = document.createElement('textarea');
+        ta.value = nOp;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast(`Operacion ${nOp} copiada`, 'success');
+      }
+    }
+
+    // Tomar transferencia
+    async function tomarTransferencia(id) {
+      try {
+        const res = await fetch(`/api/transferencias-banco/${id}/tomar`, { method: 'PUT' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Transferencia tomada', 'success');
+          cargarTransferencias();
+        } else {
+          showToast(data.error || 'Error', 'error');
+        }
+      } catch (e) {
+        showToast('Error de conexion', 'error');
+      }
+    }
+
+    // Liberar
+    async function liberarTransferencia(id) {
+      try {
+        const res = await fetch(`/api/transferencias-banco/${id}/liberar`, { method: 'PUT' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Transferencia liberada', 'success');
+          cargarTransferencias();
+        } else {
+          showToast(data.error || 'Error', 'error');
+        }
+      } catch (e) {
+        showToast('Error de conexion', 'error');
+      }
+    }
+
+    // Marcar procesada
+    async function procesarTransferencia(id) {
+      if (!confirm('Marcar esta transferencia como procesada?')) return;
+      try {
+        const res = await fetch(`/api/transferencias-banco/${id}/procesado`, { method: 'PUT' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Marcada como procesada', 'success');
+          cargarTransferencias();
+        } else {
+          showToast(data.error || 'Error', 'error');
+        }
+      } catch (e) {
+        showToast('Error de conexion', 'error');
+      }
+    }
+
+    // Cargar transferencias
+    async function cargarTransferencias() {
+      try {
+        const estado = document.getElementById('filtroEstado').value;
+        const fecha = document.getElementById('filtroFecha').value;
+        const busqueda = document.getElementById('filtroBusqueda').value.toLowerCase().trim();
+
+        let url = `/api/transferencias-banco?limit=${PAGE_SIZE}&offset=${currentPage * PAGE_SIZE}`;
+        if (estado) url += `&estado=${estado}`;
+        if (fecha) url += `&fecha=${encodeURIComponent(fecha)}`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        // Actualizar stats
+        if (data.stats) {
+          const newTotal = data.stats.total_registros || 0;
+          document.getElementById('statTotal').textContent = newTotal;
+          document.getElementById('statDisponibles').textContent = data.stats.disponibles || 0;
+          document.getElementById('statTomados').textContent = data.stats.tomados || 0;
+          document.getElementById('statProcesados').textContent = data.stats.procesados || 0;
+          document.getElementById('statMonto').textContent = formatMontoNum(data.stats.monto_total || 0);
+
+          // Detectar datos nuevos
+          if (newTotal > lastTotal && lastTotal > 0) {
+            const bar = document.getElementById('botStatusBar');
+            bar.classList.add('has-new');
+            document.getElementById('botIndicator').className = 'bot-indicator active';
+            document.getElementById('botStatusText').textContent = `+${newTotal - lastTotal} nuevas transferencias recibidas del bot`;
+            showToast(`${newTotal - lastTotal} nuevas transferencias del bot`, 'success');
+            setTimeout(() => bar.classList.remove('has-new'), 3000);
+          } else if (newTotal > 0) {
+            document.getElementById('botIndicator').className = 'bot-indicator active';
+            document.getElementById('botStatusText').textContent = `${newTotal} transferencias cargadas`;
+          }
+          lastTotal = newTotal;
+
+          // Actualizar hora
+          document.getElementById('ultimaImportacion').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-CL');
+        }
+
+        let rows = data.transferencias || [];
+
+        // Filtro local de busqueda
+        if (busqueda) {
+          rows = rows.filter(t =>
+            (t.n_operacion || '').toLowerCase().includes(busqueda) ||
+            (t.nombre_origen || '').toLowerCase().includes(busqueda) ||
+            (t.rut_origen || '').toLowerCase().includes(busqueda) ||
+            (t.banco || '').toLowerCase().includes(busqueda) ||
+            (t.cuenta_origen || '').toLowerCase().includes(busqueda)
+          );
+        }
+
+        const tbody = document.getElementById('tablaBody');
+
+        if (rows.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9">
+            <div class="empty-state">
+              <div class="icon">&#128269;</div>
+              <p>No se encontraron transferencias</p>
+            </div></td></tr>`;
+          document.getElementById('paginacion').innerHTML = '';
+          return;
+        }
+
+        tbody.innerHTML = rows.map(t => {
+          const badgeClass = t.estado === 'disponible' ? 'badge-disponible'
+            : t.estado === 'tomado' ? 'badge-tomado' : 'badge-procesado';
+
+          let acciones = `<button class="btn-accion btn-copiar" onclick="copiarOperacion('${(t.n_operacion || '').replace(/'/g, "\\'")}')">&#128203; Copiar</button>`;
+
+          if (t.estado === 'disponible') {
+            acciones += ` <button class="btn-accion btn-tomar" onclick="tomarTransferencia(${t.id})">&#9989; Tomar</button>`;
+          } else if (t.estado === 'tomado') {
+            acciones += ` <button class="btn-accion btn-liberar" onclick="liberarTransferencia(${t.id})">&#128260; Liberar</button>`;
+            acciones += ` <button class="btn-accion btn-procesar" onclick="procesarTransferencia(${t.id})">&#9989; Procesada</button>`;
+          }
+
+          const tomadoInfo = t.estado === 'tomado' && t.tomado_por_nombre
+            ? `<br><span style="font-size:0.7rem;color:#856404;">${t.tomado_por_nombre}</span>` : '';
+
+          return `<tr class="estado-${t.estado}">
+            <td><strong style="color:#1565c0;cursor:pointer;" onclick="copiarOperacion('${(t.n_operacion || '').replace(/'/g, "\\'")}')">${t.n_operacion || '-'}</strong></td>
+            <td>${t.fecha || '-'}</td>
+            <td>${t.nombre_origen || '-'}</td>
+            <td>${t.rut_origen || '-'}</td>
+            <td style="font-size:0.8rem;">${t.cuenta_origen || '-'}</td>
+            <td>${t.banco || '-'}</td>
+            <td style="text-align:right;font-weight:700;color:#155724;">${formatMonto(t.monto)}</td>
+            <td><span class="badge ${badgeClass}">${t.estado}</span>${tomadoInfo}</td>
+            <td><div class="acciones-cell">${acciones}</div></td>
+          </tr>`;
+        }).join('');
+
+        // Paginacion
+        const totalPages = Math.ceil(data.total / PAGE_SIZE);
+        const pag = document.getElementById('paginacion');
+        if (totalPages <= 1) {
+          pag.innerHTML = `<span style="color:#6c757d;font-size:0.85rem;">${rows.length} de ${data.total} transferencias</span>`;
+        } else {
+          pag.innerHTML = `
+            <span style="color:#6c757d;font-size:0.85rem;">Pagina ${currentPage + 1} de ${totalPages} (${data.total} total)</span>
+            <div style="display:flex;gap:0.5rem;">
+              <button class="btn-filtro btn-secondary" onclick="cambiarPagina(-1)" ${currentPage === 0 ? 'disabled' : ''}>&#9664; Anterior</button>
+              <button class="btn-filtro btn-primary" onclick="cambiarPagina(1)" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Siguiente &#9654;</button>
+            </div>`;
+        }
+
+      } catch (e) {
+        console.error('Error cargando transferencias:', e);
+        showToast('Error cargando transferencias', 'error');
+      }
+    }
+
+    function cambiarPagina(dir) {
+      currentPage += dir;
+      if (currentPage < 0) currentPage = 0;
+      cargarTransferencias();
+    }
+
+    function limpiarFiltros() {
+      document.getElementById('filtroEstado').value = '';
+      document.getElementById('filtroFecha').value = '';
+      document.getElementById('filtroBusqueda').value = '';
+      currentPage = 0;
+      cargarTransferencias();
+    }
+
+    // Importar JSON
+    async function importarJSON() {
+      const raw = document.getElementById('jsonInput').value.trim();
+      if (!raw) {
+        showToast('Pega el JSON primero', 'error');
+        return;
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        showToast('JSON invalido. Verifica el formato.', 'error');
+        return;
+      }
+
+      // Aceptar formato directo del bot: { detalle: [...] } o array plano [...]
+      let transferencias = [];
+      if (parsed.detalle && Array.isArray(parsed.detalle)) {
+        transferencias = parsed.detalle;
+      } else if (Array.isArray(parsed)) {
+        transferencias = parsed;
+      } else if (parsed.transferencias && Array.isArray(parsed.transferencias)) {
+        transferencias = parsed.transferencias;
+      } else {
+        showToast('Formato no reconocido. Se espera { detalle: [...] }', 'error');
+        return;
+      }
+
+      if (transferencias.length === 0) {
+        showToast('No hay transferencias en el JSON', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/transferencias-banco/importar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transferencias })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showToast(`Importadas: ${data.insertadas} nuevas, ${data.duplicadas} duplicadas`, 'success');
+          document.getElementById('jsonInput').value = '';
+          document.getElementById('filtroEstado').value = '';
+          cargarTransferencias();
+        } else {
+          showToast(data.error || 'Error al importar', 'error');
+        }
+      } catch (e) {
+        showToast('Error de conexion al importar', 'error');
+      }
+    }
+
+    // Busqueda con Enter
+    document.addEventListener('DOMContentLoaded', () => {
+      ['filtroBusqueda', 'filtroFecha'].forEach(id => {
+        document.getElementById(id).addEventListener('keydown', e => {
+          if (e.key === 'Enter') cargarTransferencias();
+        });
+      });
+    });
+
+    // Auto-refresh
+    function toggleAutoRefresh() {
+      if (document.getElementById('autoRefresh').checked) {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(() => cargarTransferencias(), 30000);
+      } else {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+      }
+    }
+
+    // Init
+    (async function init() {
+      try {
+        const res = await fetch('/api/user-info');
+        currentUser = await res.json();
+      } catch {}
+
+      document.getElementById('autoRefresh').addEventListener('change', toggleAutoRefresh);
+      cargarTransferencias();
+      toggleAutoRefresh(); // Iniciar auto-refresh
+    })();
+  </script>
+
+</body>
+</html>

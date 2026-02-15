@@ -1194,6 +1194,31 @@ const runMigrations = async () => {
     await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_codigo_referido ON clientes_app(codigo_referido) WHERE codigo_referido IS NOT NULL`).catch(() => {});
     console.log('... Indices de referidos verificados');
 
+    // =================================================================
+    // TABLA TRANSFERENCIAS BANCO (datos del bot bancario)
+    // =================================================================
+    await dbRun(`CREATE TABLE IF NOT EXISTS transferencias_banco (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        n_operacion TEXT NOT NULL,
+        fecha TEXT NOT NULL,
+        rut_origen TEXT,
+        nombre_origen TEXT,
+        cuenta_origen TEXT,
+        banco TEXT,
+        monto TEXT,
+        monto_numerico INTEGER DEFAULT 0,
+        estado TEXT DEFAULT 'disponible' CHECK(estado IN ('disponible', 'tomado', 'procesado')),
+        tomado_por INTEGER,
+        tomado_fecha TEXT,
+        lote_id TEXT,
+        fecha_importacion TEXT NOT NULL,
+        FOREIGN KEY (tomado_por) REFERENCES usuarios(id)
+    )`);
+    await dbRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_transferencias_banco_op ON transferencias_banco(n_operacion, fecha)`).catch(() => {});
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_transferencias_banco_estado ON transferencias_banco(estado)`).catch(() => {});
+    await dbRun(`CREATE INDEX IF NOT EXISTS idx_transferencias_banco_lote ON transferencias_banco(lote_id)`).catch(() => {});
+    console.log('... Tabla transferencias_banco verificada');
+
     return new Promise(resolve => {
         db.get(`SELECT COUNT(*) c FROM usuarios`, async (err, row) => {
             if (err) return console.error('Error al verificar usuarios semilla:', err.message);
@@ -1290,6 +1315,7 @@ app.get('/admin.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path.joi
 app.get('/historico.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'historico.html')));
 app.get('/clientes.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'clientes.html')));
 app.get('/analytics.html', pageAuth, onlyMaster, (req, res) => res.sendFile(path.join(__dirname, 'analytics.html')));
+app.get('/transferencias-banco.html', pageAuth, (req, res) => res.sendFile(path.join(__dirname, 'transferencias-banco.html')));
 
 // -------------------- Auth --------------------
 app.post('/login', (req, res) => {
@@ -9637,6 +9663,227 @@ app.post('/api/cliente/usar-codigo', clienteAuth, async (req, res) => {
     }
 });
 
+
+// =================================================================
+// API TRANSFERENCIAS BANCO (bot bancario)
+// =================================================================
+
+// Token de autenticación para el bot (sin sesión de cookies)
+const BOT_TOKEN = process.env.DEFI_BOT_TOKEN || 'bot-defi-2026';
+
+const botAuth = (req, res, next) => {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (token === BOT_TOKEN) return next();
+    return res.status(401).json({ error: 'Token invalido' });
+};
+
+// POST /api/transferencias-banco/push - El bot envía transferencias (auth por token)
+app.post('/api/transferencias-banco/push', botAuth, async (req, res) => {
+    try {
+        const { transferencias, lote_id, tipo } = req.body;
+        if (!transferencias || !Array.isArray(transferencias) || transferencias.length === 0) {
+            return res.status(400).json({ error: 'Se requiere un array de transferencias' });
+        }
+
+        const ahora = new Date().toISOString();
+        const loteFinal = lote_id || `lote_${Date.now()}`;
+        let insertadas = 0;
+        let duplicadas = 0;
+
+        for (const t of transferencias) {
+            const nOp = sanitizarTexto(t.n_operacion || '', 50);
+            const fecha = sanitizarTexto(t.fecha || '', 50);
+            if (!nOp) continue;
+
+            const montoStr = String(t.monto || t.monto_str || '0').trim().slice(0, 30);
+            const montoNum = parseInt(montoStr.replace(/[\$\.\s]/g, '').replace(/,/g, '')) || 0;
+
+            try {
+                await dbRun(`INSERT INTO transferencias_banco
+                    (n_operacion, fecha, rut_origen, nombre_origen, cuenta_origen, banco, monto, monto_numerico, lote_id, fecha_importacion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [nOp, fecha, sanitizarTexto(t.rut_origen || '', 30), sanitizarTexto(t.nombre_origen || '', 100),
+                     sanitizarTexto(t.cuenta_origen || '', 30), sanitizarTexto(t.banco || '', 50),
+                     montoStr, montoNum, loteFinal, ahora]);
+                insertadas++;
+            } catch (e) {
+                if (e.message && e.message.includes('UNIQUE')) {
+                    duplicadas++;
+                } else {
+                    console.error('Error insertando transferencia bot:', e.message);
+                }
+            }
+        }
+
+        console.log(`[BOT] Importadas ${insertadas} transferencias (${duplicadas} duplicadas) - lote: ${loteFinal}`);
+        res.json({ success: true, lote_id: loteFinal, insertadas, duplicadas, total: transferencias.length });
+    } catch (error) {
+        console.error('Error en push del bot:', error);
+        res.status(500).json({ error: 'Error al importar transferencias' });
+    }
+});
+
+// POST /api/transferencias-banco/importar - Importar desde UI (auth por sesión)
+app.post('/api/transferencias-banco/importar', apiAuth, async (req, res) => {
+    try {
+        const { transferencias, lote_id } = req.body;
+        if (!transferencias || !Array.isArray(transferencias) || transferencias.length === 0) {
+            return res.status(400).json({ error: 'Se requiere un array de transferencias' });
+        }
+
+        const ahora = new Date().toISOString();
+        const loteFinal = lote_id || `lote_${Date.now()}`;
+        let insertadas = 0;
+        let duplicadas = 0;
+
+        for (const t of transferencias) {
+            const nOp = sanitizarTexto(t.n_operacion || '', 50);
+            const fecha = sanitizarTexto(t.fecha || '', 50);
+            if (!nOp) continue;
+
+            const montoStr = String(t.monto || '0').trim().slice(0, 30);
+            const montoNum = parseInt(montoStr.replace(/[\$\.\s]/g, '').replace(/,/g, '')) || 0;
+
+            try {
+                await dbRun(`INSERT INTO transferencias_banco
+                    (n_operacion, fecha, rut_origen, nombre_origen, cuenta_origen, banco, monto, monto_numerico, lote_id, fecha_importacion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [nOp, fecha, sanitizarTexto(t.rut_origen || '', 30), sanitizarTexto(t.nombre_origen || '', 100),
+                     sanitizarTexto(t.cuenta_origen || '', 30), sanitizarTexto(t.banco || '', 50),
+                     montoStr, montoNum, loteFinal, ahora]);
+                insertadas++;
+            } catch (e) {
+                if (e.message && e.message.includes('UNIQUE')) {
+                    duplicadas++;
+                } else {
+                    console.error('Error insertando transferencia:', e.message);
+                }
+            }
+        }
+
+        res.json({
+            success: true,
+            lote_id: loteFinal,
+            insertadas,
+            duplicadas,
+            total: transferencias.length
+        });
+    } catch (error) {
+        console.error('Error importando transferencias:', error);
+        res.status(500).json({ error: 'Error al importar transferencias' });
+    }
+});
+
+// GET /api/transferencias-banco - Listar transferencias con filtros
+app.get('/api/transferencias-banco', apiAuth, async (req, res) => {
+    try {
+        const { estado, fecha, lote_id, limit: lim, offset: off } = req.query;
+        let where = [];
+        let params = [];
+
+        if (estado) { where.push('estado = ?'); params.push(estado); }
+        if (fecha) { where.push('fecha LIKE ?'); params.push(`%${fecha}%`); }
+        if (lote_id) { where.push('lote_id = ?'); params.push(lote_id); }
+
+        const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
+        const limitVal = Math.min(parseInt(lim) || 200, 500);
+        const offsetVal = parseInt(off) || 0;
+
+        const total = await dbGet(`SELECT COUNT(*) as total FROM transferencias_banco ${whereClause}`, params);
+        const rows = await dbAll(`
+            SELECT tb.*, u.username as tomado_por_nombre
+            FROM transferencias_banco tb
+            LEFT JOIN usuarios u ON tb.tomado_por = u.id
+            ${whereClause}
+            ORDER BY tb.id DESC
+            LIMIT ? OFFSET ?`, [...params, limitVal, offsetVal]);
+
+        const stats = await dbGet(`
+            SELECT
+                COUNT(*) as total_registros,
+                SUM(CASE WHEN estado = 'disponible' THEN 1 ELSE 0 END) as disponibles,
+                SUM(CASE WHEN estado = 'tomado' THEN 1 ELSE 0 END) as tomados,
+                SUM(CASE WHEN estado = 'procesado' THEN 1 ELSE 0 END) as procesados,
+                SUM(monto_numerico) as monto_total
+            FROM transferencias_banco ${whereClause}`, params);
+
+        res.json({ transferencias: rows, total: total.total, stats });
+    } catch (error) {
+        console.error('Error obteniendo transferencias:', error);
+        res.status(500).json({ error: 'Error al obtener transferencias' });
+    }
+});
+
+// PUT /api/transferencias-banco/:id/tomar - Marcar como tomado
+app.put('/api/transferencias-banco/:id/tomar', apiAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.session.user.id;
+        const ahora = new Date().toISOString();
+
+        const tf = await dbGet(`SELECT * FROM transferencias_banco WHERE id = ?`, [id]);
+        if (!tf) return res.status(404).json({ error: 'Transferencia no encontrada' });
+        if (tf.estado !== 'disponible') return res.status(400).json({ error: 'Esta transferencia ya fue tomada' });
+
+        await dbRun(`UPDATE transferencias_banco SET estado = 'tomado', tomado_por = ?, tomado_fecha = ? WHERE id = ?`,
+            [userId, ahora, id]);
+
+        res.json({ success: true, message: 'Transferencia marcada como tomada' });
+    } catch (error) {
+        console.error('Error tomando transferencia:', error);
+        res.status(500).json({ error: 'Error al tomar transferencia' });
+    }
+});
+
+// PUT /api/transferencias-banco/:id/liberar - Liberar (volver a disponible)
+app.put('/api/transferencias-banco/:id/liberar', apiAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await dbRun(`UPDATE transferencias_banco SET estado = 'disponible', tomado_por = NULL, tomado_fecha = NULL WHERE id = ?`, [id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error liberando transferencia:', error);
+        res.status(500).json({ error: 'Error al liberar transferencia' });
+    }
+});
+
+// PUT /api/transferencias-banco/:id/procesado - Marcar como procesado
+app.put('/api/transferencias-banco/:id/procesado', apiAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tf = await dbGet(`SELECT * FROM transferencias_banco WHERE id = ?`, [id]);
+        if (!tf) return res.status(404).json({ error: 'Transferencia no encontrada' });
+
+        await dbRun(`UPDATE transferencias_banco SET estado = 'procesado' WHERE id = ?`, [id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error marcando como procesado:', error);
+        res.status(500).json({ error: 'Error al marcar como procesado' });
+    }
+});
+
+// GET /api/transferencias-banco/lotes - Listar lotes importados
+app.get('/api/transferencias-banco/lotes', apiAuth, async (req, res) => {
+    try {
+        const lotes = await dbAll(`
+            SELECT lote_id,
+                   MIN(fecha_importacion) as fecha_importacion,
+                   COUNT(*) as cantidad,
+                   SUM(monto_numerico) as monto_total,
+                   SUM(CASE WHEN estado = 'disponible' THEN 1 ELSE 0 END) as disponibles,
+                   SUM(CASE WHEN estado = 'tomado' THEN 1 ELSE 0 END) as tomados,
+                   SUM(CASE WHEN estado = 'procesado' THEN 1 ELSE 0 END) as procesados
+            FROM transferencias_banco
+            GROUP BY lote_id
+            ORDER BY fecha_importacion DESC
+            LIMIT 50`);
+        res.json({ lotes });
+    } catch (error) {
+        console.error('Error obteniendo lotes:', error);
+        res.status(500).json({ error: 'Error al obtener lotes' });
+    }
+});
 
 runMigrations()
     .then(() => {
