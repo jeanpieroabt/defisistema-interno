@@ -729,7 +729,6 @@
 
     // Marcar procesada
     async function procesarTransferencia(id) {
-      if (!confirm('Marcar esta transferencia como procesada?')) return;
       try {
         const res = await fetch(`/api/transferencias-banco/${id}/procesado`, { method: 'PUT' });
         const data = await res.json();
