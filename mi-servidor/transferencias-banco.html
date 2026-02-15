@@ -964,23 +964,15 @@
           badge.className = 'bot-estado-badge online';
           badge.innerHTML = '&#9679; Bot Online';
           indicator.className = 'bot-indicator active';
-          statusText.textContent = 'Bot conectado y listo';
+          statusText.textContent = data.mensaje || 'Bot corriendo';
           btn.disabled = false;
           btn.innerHTML = '&#127974; Solicitar Transferencias Recibidas';
           btn.className = 'btn-solicitar';
-        } else if (data.estado === 'ocupado') {
-          badge.className = 'bot-estado-badge ocupado';
-          badge.innerHTML = '&#9679; Ejecutando...';
-          indicator.className = 'bot-indicator active';
-          statusText.textContent = 'Bot ejecutando tarea...';
-          btn.disabled = true;
-          btn.innerHTML = '<span class="spinner-inline"></span> Ejecutando...';
-          btn.className = 'btn-solicitar ejecutando';
         } else if (data.estado === 'offline') {
           badge.className = 'bot-estado-badge offline';
           badge.innerHTML = '&#9679; Bot Offline';
           indicator.className = 'bot-indicator';
-          statusText.textContent = 'Bot no esta corriendo';
+          statusText.textContent = data.mensaje || 'Bot sin señal hace mas de 10 min';
           btn.disabled = true;
           btn.innerHTML = '&#127974; Bot Offline';
           btn.className = 'btn-solicitar';

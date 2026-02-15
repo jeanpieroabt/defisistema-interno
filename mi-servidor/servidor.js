@@ -9678,6 +9678,11 @@ const botAuth = (req, res, next) => {
     return res.status(401).json({ error: 'Token invalido' });
 };
 
+// Tracking de última señal del bot (para determinar online/offline)
+let botUltimaSenal = null;       // Date de última señal recibida
+let botUltimoResultado = null;   // { insertadas, duplicadas, total }
+const BOT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutos
+
 // POST /api/transferencias-banco/push - El bot envía transferencias (auth por token)
 app.post('/api/transferencias-banco/push', botAuth, async (req, res) => {
     try {
@@ -9715,6 +9720,10 @@ app.post('/api/transferencias-banco/push', botAuth, async (req, res) => {
                 }
             }
         }
+
+        // Registrar señal del bot
+        botUltimaSenal = new Date();
+        botUltimoResultado = { insertadas, duplicadas, total: transferencias.length };
 
         console.log(`[BOT] Importadas ${insertadas} transferencias (${duplicadas} duplicadas) - lote: ${loteFinal}`);
         res.json({ success: true, lote_id: loteFinal, insertadas, duplicadas, total: transferencias.length });
@@ -9890,19 +9899,30 @@ app.get('/api/transferencias-banco/lotes', apiAuth, async (req, res) => {
 // ============================================
 const BOT_LOCAL_URL = process.env.BOT_LOCAL_URL || 'http://localhost:5050';
 
-// GET /api/transferencias-banco/bot-status - Estado del bot
+// GET /api/transferencias-banco/bot-status - Estado del bot basado en última señal
 app.get('/api/transferencias-banco/bot-status', apiAuth, async (req, res) => {
-    try {
-        const resp = await axios.get(`${BOT_LOCAL_URL}/status`, {
-            headers: { 'Authorization': `Bearer ${BOT_TOKEN}` },
-            timeout: 5000
+    if (!botUltimaSenal) {
+        return res.json({ estado: 'offline', mensaje: 'Bot no ha enviado señales aun' });
+    }
+
+    const ahora = new Date();
+    const diff = ahora - botUltimaSenal;
+    const minutosAtras = Math.round(diff / 60000);
+
+    if (diff <= BOT_TIMEOUT_MS) {
+        return res.json({
+            estado: 'listo',
+            mensaje: `Bot activo - ultima señal hace ${minutosAtras} min`,
+            ultima_senal: botUltimaSenal.toISOString(),
+            ultimo_resultado: botUltimoResultado
         });
-        res.json(resp.data);
-    } catch (error) {
-        if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
-            return res.json({ estado: 'offline', mensaje: 'Bot no esta corriendo' });
-        }
-        res.json({ estado: 'error', mensaje: error.message });
+    } else {
+        return res.json({
+            estado: 'offline',
+            mensaje: `Bot sin señal hace ${minutosAtras} min (limite: 10 min)`,
+            ultima_senal: botUltimaSenal.toISOString(),
+            ultimo_resultado: botUltimoResultado
+        });
     }
 });
 
