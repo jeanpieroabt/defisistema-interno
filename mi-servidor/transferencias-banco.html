@@ -571,9 +571,6 @@
             <span class="bot-estado-badge offline" id="botEstadoBadge">&#9679; Verificando</span>
           </div>
           <div class="bot-status-right">
-            <button class="btn-solicitar" id="btnSolicitar" onclick="solicitarTransferencias()" disabled>
-              &#127974; Solicitar Transferencias Recibidas
-            </button>
             <span id="ultimaImportacion" style="font-size:0.8rem;color:#6c757d;"></span>
             <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.3rem;cursor:pointer;">
               <input type="checkbox" id="autoRefresh" checked style="accent-color:#2EC7A3;"> Auto-refresh
@@ -952,7 +949,6 @@
 
     async function verificarEstadoBot() {
       const badge = document.getElementById('botEstadoBadge');
-      const btn = document.getElementById('btnSolicitar');
       const indicator = document.getElementById('botIndicator');
       const statusText = document.getElementById('botStatusText');
 
@@ -965,82 +961,23 @@
           badge.innerHTML = '&#9679; Bot Online';
           indicator.className = 'bot-indicator active';
           statusText.textContent = data.mensaje || 'Bot corriendo';
-          btn.disabled = false;
-          btn.innerHTML = '&#127974; Solicitar Transferencias Recibidas';
-          btn.className = 'btn-solicitar';
         } else if (data.estado === 'offline') {
           badge.className = 'bot-estado-badge offline';
           badge.innerHTML = '&#9679; Bot Offline';
           indicator.className = 'bot-indicator';
           statusText.textContent = data.mensaje || 'Bot sin señal hace mas de 10 min';
-          btn.disabled = true;
-          btn.innerHTML = '&#127974; Bot Offline';
-          btn.className = 'btn-solicitar';
         } else {
           badge.className = 'bot-estado-badge error';
           badge.innerHTML = '&#9679; Error';
           indicator.className = 'bot-indicator';
           statusText.textContent = data.mensaje || 'Error de conexion';
-          btn.disabled = true;
-          btn.className = 'btn-solicitar';
         }
       } catch (e) {
         badge.className = 'bot-estado-badge offline';
         badge.innerHTML = '&#9679; Sin conexion';
         indicator.className = 'bot-indicator';
         statusText.textContent = 'No se pudo verificar estado del bot';
-        btn.disabled = true;
-        btn.innerHTML = '&#127974; Bot Offline';
-        btn.className = 'btn-solicitar';
       }
-    }
-
-    // ============ BOT: Solicitar transferencias ============
-    async function solicitarTransferencias() {
-      const btn = document.getElementById('btnSolicitar');
-      const badge = document.getElementById('botEstadoBadge');
-      const statusText = document.getElementById('botStatusText');
-
-      // Estado: ejecutando
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-inline"></span> Ejecutando... (puede tardar 1-2 min)';
-      btn.className = 'btn-solicitar ejecutando';
-      badge.className = 'bot-estado-badge ocupado';
-      badge.innerHTML = '&#9679; Ejecutando...';
-      statusText.textContent = 'Bot: login > transferencias > envio > logout...';
-      showToast('Solicitando transferencias al bot...', 'info');
-
-      try {
-        const res = await fetch('/api/transferencias-banco/solicitar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tarea: 'transferencias_recibidas' })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          const cant = data.datos ? data.datos.cantidad_leidas : 0;
-          showToast(`Listo! ${cant} transferencias leidas del banco`, 'success');
-          statusText.textContent = `Ultimo resultado: ${cant} transferencias leidas`;
-
-          // Recargar tabla para ver los nuevos datos
-          setTimeout(() => cargarTransferencias(), 1000);
-        } else {
-          showToast(`Error: ${data.error || 'Error desconocido'}`, 'error');
-          statusText.textContent = `Error: ${data.error || 'Error desconocido'}`;
-        }
-      } catch (e) {
-        if (e.name === 'TypeError' && e.message.includes('fetch')) {
-          showToast('No se pudo conectar con el servidor', 'error');
-        } else {
-          showToast(`Error: ${e.message}`, 'error');
-        }
-        statusText.textContent = 'Error al solicitar transferencias';
-      }
-
-      // Restaurar estado del boton
-      verificarEstadoBot();
     }
 
     // Init
