@@ -680,7 +680,13 @@ const runMigrations = async () => {
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoVesOnline', '0')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('totalGananciaAcumuladaClp', '0')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('capitalInicialClp', '0')`);
-    
+
+    // Tasas independientes para la App Cliente
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaAppModo', 'enlazada')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaAppNivel1', '0')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaAppNivel2', '0')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaAppNivel3', '0')`);
+
     // ... NUEVA TABLA PARA METAS
     await dbRun(`CREATE TABLE IF NOT EXISTS metas(id INTEGER PRIMARY KEY AUTOINCREMENT, mes TEXT NOT NULL UNIQUE, meta_clientes_activos INTEGER DEFAULT 0, meta_nuevos_clientes INTEGER DEFAULT 0, meta_volumen_clp REAL DEFAULT 0, meta_operaciones INTEGER DEFAULT 0)`);
 
@@ -2418,6 +2424,65 @@ app.post('/api/tasas', apiAuth, onlyMaster, (req, res) => {
       });
     });
   });
+});
+
+// GET /api/tasas-app - Obtener configuración de tasas para la app cliente
+app.get('/api/tasas-app', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const [modo, t1, t2, t3] = await Promise.all([
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaAppModo'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaAppNivel1'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaAppNivel2'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaAppNivel3'")
+        ]);
+        res.json({
+            modo: modo?.valor || 'enlazada',
+            tasaAppNivel1: t1 ? Number(t1.valor) : 0,
+            tasaAppNivel2: t2 ? Number(t2.valor) : 0,
+            tasaAppNivel3: t3 ? Number(t3.valor) : 0
+        });
+    } catch (error) {
+        console.error('Error obteniendo tasas app:', error);
+        res.status(500).json({ message: 'Error al obtener configuración de tasas app' });
+    }
+});
+
+// POST /api/tasas-app - Guardar configuración de tasas para la app cliente
+app.post('/api/tasas-app', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { modo, tasaAppNivel1, tasaAppNivel2, tasaAppNivel3 } = req.body;
+
+        if (modo && !['enlazada', 'independiente'].includes(modo)) {
+            return res.status(400).json({ message: 'Modo inválido' });
+        }
+
+        await new Promise((resolve, reject) => {
+            upsertConfig('tasaAppModo', String(modo || 'enlazada'), (err) => {
+                if (err) reject(err); else resolve();
+            });
+        });
+
+        if (modo === 'independiente') {
+            if (!tasaAppNivel1 || !tasaAppNivel2 || !tasaAppNivel3) {
+                return res.status(400).json({ message: 'Ingresa las 3 tasas para modo independiente' });
+            }
+            await new Promise((resolve, reject) => {
+                upsertConfig('tasaAppNivel1', String(tasaAppNivel1), () => {
+                    upsertConfig('tasaAppNivel2', String(tasaAppNivel2), () => {
+                        upsertConfig('tasaAppNivel3', String(tasaAppNivel3), (err) => {
+                            if (err) reject(err); else resolve();
+                        });
+                    });
+                });
+            });
+        }
+
+        console.log(`📱 Tasas App actualizadas: modo=${modo}, N1=${tasaAppNivel1}, N2=${tasaAppNivel2}, N3=${tasaAppNivel3}`);
+        res.json({ ok: true });
+    } catch (error) {
+        console.error('Error guardando tasas app:', error);
+        res.status(500).json({ message: 'Error al guardar configuración de tasas app' });
+    }
 });
 
 app.post('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
@@ -8285,10 +8350,14 @@ app.get('/api/cliente/cuentas-pago', clienteAuth, async (req, res) => {
 // GET /api/cliente/tasa - Obtener tasas de venta automáticas por tramos
 app.get('/api/cliente/tasa', async (req, res) => {
     try {
+        // Verificar si la app usa tasas independientes o del sistema
+        const modoRow = await dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaAppModo'");
+        const esIndependiente = modoRow?.valor === 'independiente';
+
         const [t1, t2, t3] = await Promise.all([
-            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaNivel1'"),
-            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaNivel2'"),
-            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaNivel3'")
+            dbGet(`SELECT valor FROM configuracion WHERE clave = '${esIndependiente ? 'tasaAppNivel1' : 'tasaNivel1'}'`),
+            dbGet(`SELECT valor FROM configuracion WHERE clave = '${esIndependiente ? 'tasaAppNivel2' : 'tasaNivel2'}'`),
+            dbGet(`SELECT valor FROM configuracion WHERE clave = '${esIndependiente ? 'tasaAppNivel3' : 'tasaNivel3'}'`)
         ]);
         
         // Tasas por tramos (CLP †' VES)
