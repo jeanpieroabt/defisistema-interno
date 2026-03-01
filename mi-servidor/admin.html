@@ -193,6 +193,45 @@
         </div>
       </div>
 
+      <!-- TASAS APP CLIENTE -->
+      <div class="box" style="margin-top:16px; border: 2px solid #2EC7A3;">
+        <h3>📱 Tasas App Cliente (DefiOracle App)</h3>
+        <p style="color: var(--medium-grey); font-size: 0.9rem; margin-bottom: 15px;">
+          Configura si la app del cliente usa las mismas tasas del sistema o tasas independientes.
+        </p>
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+          <label style="font-weight: 600; cursor: pointer; display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="tasaAppModo" value="enlazada" id="modoEnlazada" checked>
+            🔗 Enlazada al sistema
+          </label>
+          <label style="font-weight: 600; cursor: pointer; display:flex; align-items:center; gap:6px;">
+            <input type="radio" name="tasaAppModo" value="independiente" id="modoIndependiente">
+            🔓 Independiente
+          </label>
+        </div>
+        <div id="tasaAppStatus" style="margin-bottom: 15px; padding: 10px; border-radius: 8px; font-size: 0.9rem;"></div>
+        <!-- Inputs modo independiente -->
+        <div id="tasaAppInputs" style="display: none;">
+          <div class="grid3">
+            <div><label>≥ 5.000 CLP</label><input type="number" step="0.001" id="tApp1"></div>
+            <div><label>≥ 100.000 CLP</label><input type="number" step="0.001" id="tApp2"></div>
+            <div><label>≥ 250.000 CLP</label><input type="number" step="0.001" id="tApp3"></div>
+          </div>
+        </div>
+        <!-- Vista modo enlazada (read-only) -->
+        <div id="tasaAppLinkedInfo">
+          <div class="grid3">
+            <div><label>≥ 5.000 CLP</label><input type="number" step="0.001" id="tAppLinked1" disabled style="background:#e9ecef; opacity:0.7"></div>
+            <div><label>≥ 100.000 CLP</label><input type="number" step="0.001" id="tAppLinked2" disabled style="background:#e9ecef; opacity:0.7"></div>
+            <div><label>≥ 250.000 CLP</label><input type="number" step="0.001" id="tAppLinked3" disabled style="background:#e9ecef; opacity:0.7"></div>
+          </div>
+          <small style="color: var(--medium-grey); display:block; margin-top:8px;">
+            La app está usando las mismas tasas que el sistema interno.
+          </small>
+        </div>
+        <div style="margin-top:10px"><button id="saveTasasApp" class="btn btn-primary">Guardar Tasas App</button></div>
+      </div>
+
       <div class="grid2" style="margin-top:16px">
         <div class="box">
           <h3>Comprar VES (con CLP)</h3>
@@ -592,8 +631,70 @@
         showToast(res.mensaje || res.error || 'Error', resp.ok ? 'success' : 'error');
     };
 
-    (async ()=>{ 
-        await Promise.all([loadEstadoApp(), loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig()]);
+    // ============ TASAS APP CLIENTE ============
+    async function loadTasasApp() {
+        try {
+            const resp = await fetch('/api/tasas-app');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const modo = data.modo || 'enlazada';
+            document.getElementById(modo === 'independiente' ? 'modoIndependiente' : 'modoEnlazada').checked = true;
+            document.getElementById('tApp1').value = data.tasaAppNivel1 || '';
+            document.getElementById('tApp2').value = data.tasaAppNivel2 || '';
+            document.getElementById('tApp3').value = data.tasaAppNivel3 || '';
+            actualizarVistaModApp(modo);
+        } catch (e) {
+            console.error('Error cargando tasas app:', e);
+        }
+    }
+
+    function actualizarVistaModApp(modo) {
+        const inputsDiv = document.getElementById('tasaAppInputs');
+        const linkedDiv = document.getElementById('tasaAppLinkedInfo');
+        const statusDiv = document.getElementById('tasaAppStatus');
+        if (modo === 'independiente') {
+            inputsDiv.style.display = '';
+            linkedDiv.style.display = 'none';
+            statusDiv.innerHTML = '<span style="color: #e67e22;">🔓 Modo independiente: La app usa tasas diferentes al sistema.</span>';
+            statusDiv.style.background = '#fff3e0';
+        } else {
+            inputsDiv.style.display = 'none';
+            linkedDiv.style.display = '';
+            statusDiv.innerHTML = '<span style="color: #28a745;">🔗 Modo enlazado: La app usa las mismas tasas del sistema.</span>';
+            statusDiv.style.background = '#e8f5e9';
+            document.getElementById('tAppLinked1').value = document.getElementById('t1').value;
+            document.getElementById('tAppLinked2').value = document.getElementById('t2').value;
+            document.getElementById('tAppLinked3').value = document.getElementById('t3').value;
+        }
+    }
+
+    document.querySelectorAll('input[name="tasaAppModo"]').forEach(radio => {
+        radio.addEventListener('change', function() { actualizarVistaModApp(this.value); });
+    });
+
+    document.getElementById('saveTasasApp').onclick = async () => {
+        const modo = document.querySelector('input[name="tasaAppModo"]:checked').value;
+        const body = { modo };
+        if (modo === 'independiente') {
+            body.tasaAppNivel1 = document.getElementById('tApp1').value;
+            body.tasaAppNivel2 = document.getElementById('tApp2').value;
+            body.tasaAppNivel3 = document.getElementById('tApp3').value;
+            if (!body.tasaAppNivel1 || !body.tasaAppNivel2 || !body.tasaAppNivel3) {
+                showToast('Ingresa las 3 tasas para modo independiente', 'error');
+                return;
+            }
+        }
+        const r = await fetch('/api/tasas-app', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        showToast(r.ok ? 'Tasas App guardadas' : 'Error guardando tasas App', r.ok ? 'success' : 'error');
+        if (r.ok) loadTasasApp();
+    };
+
+    (async ()=>{
+        await Promise.all([loadEstadoApp(), loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig(), loadTasasApp()]);
     })();
   </script>
 </body>
