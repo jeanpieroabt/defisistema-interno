@@ -1832,13 +1832,22 @@
       });
     }
 
+    let enviandoSolicitud = false;
     async function crearSolicitud() {
+      // Protección contra doble envío
+      if (enviandoSolicitud) return;
+      enviandoSolicitud = true;
+      const btnNext = document.getElementById('btnNext');
+      if (btnNext) { btnNext.disabled = true; btnNext.textContent = 'Enviando...'; }
+
       // Verificar si la app sigue activa (por si se desactivó mientras el usuario estaba en el wizard)
       const appSigueActiva = await verificarEstadoApp();
-      if (!appSigueActiva) return;
+      if (!appSigueActiva) { enviandoSolicitud = false; if (btnNext) { btnNext.disabled = false; btnNext.textContent = 'Ya realice el pago'; } return; }
 
       // Verificar que el usuario puede enviar (si tiene envíos previos, debe estar verificado)
       if (totalEnviosCompletados > 0 && verificacionEstado !== 'verificado') {
+        enviandoSolicitud = false;
+        if (btnNext) { btnNext.disabled = false; btnNext.textContent = 'Ya realice el pago'; }
         mostrarRequiereVerificacion();
         return;
       }
@@ -1891,8 +1900,16 @@
           }
           
           mostrarTracking(data);
-        } else { mostrarTrackingDemo(); }
-      } catch { mostrarTrackingDemo(); }
+        } else {
+          enviandoSolicitud = false;
+          if (btnNext) { btnNext.disabled = false; btnNext.textContent = 'Ya realice el pago'; }
+          mostrarTrackingDemo();
+        }
+      } catch {
+        enviandoSolicitud = false;
+        if (btnNext) { btnNext.disabled = false; btnNext.textContent = 'Ya realice el pago'; }
+        mostrarTrackingDemo();
+      }
     }
 
     function mostrarTracking(data) {

@@ -8547,6 +8547,18 @@ app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
             [moneda_origen]
         );
 
+        // Protección contra solicitudes duplicadas (misma data en últimos 30 segundos)
+        const hace30s = new Date(Date.now() - 30000).toISOString();
+        const duplicada = await dbGet(
+            `SELECT id FROM solicitudes_transferencia
+             WHERE cliente_app_id = ? AND beneficiario_id = ? AND monto_origen = ? AND monto_destino = ?
+             AND fecha_solicitud > ?`,
+            [clienteId, beneficiario_id, monto_origen, monto_destino, hace30s]
+        );
+        if (duplicada) {
+            return res.status(409).json({ error: 'Solicitud duplicada', solicitud_id: duplicada.id });
+        }
+
         // Extraer información de cupón si viene
         const cuponCodigo = req.body.cupon_codigo || null;
         const cuponDescuentoCLP = req.body.cupon_descuento_clp || 0;
