@@ -1851,15 +1851,19 @@
           }
           
           mostrarTracking(data);
+        } else if (r.status === 409) {
+          // Solicitud duplicada - mostrar la solicitud original
+          const dupData = await r.json();
+          mostrarTracking(dupData);
         } else {
           enviandoSolicitud = false;
           if (btnNext) { btnNext.disabled = false; btnNext.textContent = 'Ya realice el pago'; }
-          mostrarTrackingDemo();
+          alert('Error al crear la solicitud. Intenta de nuevo.');
         }
       } catch {
         enviandoSolicitud = false;
         if (btnNext) { btnNext.disabled = false; btnNext.textContent = 'Ya realice el pago'; }
-        mostrarTrackingDemo();
+        alert('Error de conexión. Verifica tu internet e intenta de nuevo.');
       }
     }
 
