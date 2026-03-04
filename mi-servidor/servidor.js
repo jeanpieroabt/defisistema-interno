@@ -8344,6 +8344,14 @@ app.get('/api/cliente/cuentas-pago', clienteAuth, async (req, res) => {
 });
 
 // =================================================================
+// APP CLIENTE - VERSIÓN (para cache busting)
+// =================================================================
+const APP_VERSION = Date.now().toString();
+app.get('/api/cliente/version', (req, res) => {
+    res.json({ version: APP_VERSION });
+});
+
+// =================================================================
 // APP CLIENTE - TASAS Y COTIZACIONES
 // =================================================================
 
