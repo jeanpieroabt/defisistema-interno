@@ -155,6 +155,32 @@ async function enviarNotificacionTelegram(mensaje, parseMode = 'HTML', botones =
 
 
 
+// Enviar foto a Telegram via sendPhoto
+async function enviarFotoTelegram(photoBuffer, caption, filename = 'comprobante.jpg') {
+    await cargarConfigTelegram();
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+        console.log('Telegram no configurado - Foto omitida');
+        return false;
+    }
+    try {
+        const FormData = require('form-data');
+        const form = new FormData();
+        form.append('chat_id', TELEGRAM_CHAT_ID);
+        form.append('photo', photoBuffer, { filename, contentType: 'image/jpeg' });
+        if (caption) {
+            form.append('caption', caption);
+            form.append('parse_mode', 'HTML');
+        }
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
+        const response = await axios.post(url, form, { headers: form.getHeaders() });
+        console.log('Foto Telegram enviada');
+        return response.data.ok;
+    } catch (error) {
+        console.error('Error enviando foto Telegram:', error.message);
+        return false;
+    }
+}
+
 // Función para notificar nueva solicitud de la app
 // Función para enmascarar datos sensibles (muestra primeros y últimos caracteres)
 function enmascararDato(dato, visibles = 4) {
@@ -162,9 +188,14 @@ function enmascararDato(dato, visibles = 4) {
     return dato.slice(0, visibles) + '***' + dato.slice(-visibles);
 }
 
-async function notificarNuevaSolicitud(solicitud) {
+async function notificarNuevaSolicitud(solicitud, comprobanteBuffer = null) {
     // Determinar tipo de entrega
-    const tipoEntrega = solicitud.tipo_cuenta === 'pago_movil' ? '📲 PAGO MÓVIL' : '🏦 TRANSFERENCIA';
+    let tipoEntrega = '🏦 TRANSFERENCIA';
+    if (solicitud.tipo_cuenta === 'pago_movil') tipoEntrega = '📲 PAGO MÓVIL';
+
+    // Determinar método de pago (cómo pagó el cliente en Chile)
+    const metodoPago = solicitud.metodo_pago || 'transferencia_bancaria';
+    const esCajaVecina = metodoPago === 'caja_vecina';
     
     // Valores con fallback para evitar undefined
     const cuenta = solicitud.beneficiario_cuenta || 'No registrada';
@@ -197,6 +228,7 @@ async function notificarNuevaSolicitud(solicitud) {
 
     const mensaje = [
         `🔔 NUEVO PEDIDO #${solicitud.id} - APP CLIENTE`,
+        esCajaVecina ? '🏪 <b>PAGO: CAJA VECINA</b>' : null,
         '',
         '━━━━━━ 👤 CLIENTE ━━━━━━',
         `📛 ${solicitud.cliente_nombre || 'Sin nombre'}`,
@@ -249,6 +281,15 @@ async function notificarNuevaSolicitud(solicitud) {
         botones.push([{ text: '📱 WhatsApp Cliente', url: `https://wa.me/${telefonoLimpio}` }]);
     }
     
+    // Si hay comprobante de Caja Vecina, enviar foto primero
+    if (comprobanteBuffer) {
+        await enviarFotoTelegram(
+            comprobanteBuffer,
+            `🏪 <b>Comprobante Caja Vecina - Pedido #${solicitud.id}</b>`,
+            `comprobante_${solicitud.id}.jpg`
+        );
+    }
+
     return await enviarNotificacionTelegram(mensaje, 'HTML', botones);
 }
 
@@ -8486,7 +8527,7 @@ app.get('/api/cliente/estado-app', async (req, res) => {
 // =================================================================
 
 // POST /api/cliente/solicitudes - Crear nueva solicitud de transferencia
-app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
+app.post('/api/cliente/solicitudes', clienteAuth, upload.single('comprobante'), async (req, res) => {
     try {
         // Verificar si la app está activa (Kill Switch Maestro)
         const estadoApp = await dbGet("SELECT valor FROM configuracion WHERE clave = 'app_activa'");
@@ -8500,12 +8541,13 @@ app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
         const clienteId = req.clienteId;
         const {
             beneficiario_id,
-            monto_origen: body_monto_origen, 
+            monto_origen: body_monto_origen,
             moneda_origen = 'CLP',
             monto_destino: body_monto_destino,
             moneda_destino = 'VES',
             tasa_aplicada: body_tasa_aplicada,
-            metodo_entrega
+            metodo_entrega,
+            metodo_pago
         } = req.body;
 
         // Compatibilidad con payloads anteriores del cliente
@@ -8572,22 +8614,42 @@ app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
         const cuponDescuentoCLP = req.body.cupon_descuento_clp || 0;
         const montoSinCupon = req.body.monto_sin_cupon || monto_origen;
 
+        // Manejar comprobante de Caja Vecina si viene archivo
+        let comprobanteUrl = null;
+        let comprobanteBuffer = null;
+        const esCajaVecina = metodo_pago === 'caja_vecina';
+
+        if (req.file && esCajaVecina) {
+            comprobanteBuffer = req.file.buffer;
+            const uploadsBaseDir = process.env.DATA_DIR || __dirname;
+            const uploadsDir = path.join(uploadsBaseDir, 'uploads', 'comprobantes', clienteId.toString());
+            if (!fs.existsSync(uploadsDir)) {
+                fs.mkdirSync(uploadsDir, { recursive: true });
+            }
+            const ext = path.extname(req.file.originalname).toLowerCase().replace(/[^.a-z]/g, '') || '.jpg';
+            const filename = `comprobante_${Date.now()}${ext}`;
+            fs.writeFileSync(path.join(uploadsDir, filename), req.file.buffer);
+            comprobanteUrl = `/uploads/comprobantes/${clienteId}/${filename}`;
+        }
+
+        const estadoInicial = esCajaVecina && comprobanteUrl ? 'comprobante_enviado' : 'pendiente';
+
         // Crear la solicitud
         const fechaSolicitud = new Date().toISOString();
         const result = await dbRun(
-            `INSERT INTO solicitudes_transferencia 
-             (cliente_app_id, beneficiario_id, cuenta_pago_id, monto_origen, moneda_origen, 
+            `INSERT INTO solicitudes_transferencia
+             (cliente_app_id, beneficiario_id, cuenta_pago_id, monto_origen, moneda_origen,
               monto_destino, moneda_destino, tasa_aplicada, estado, fecha_solicitud,
-              cupon_codigo, cupon_descuento_clp, monto_sin_cupon)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, ?, ?)`,
+              cupon_codigo, cupon_descuento_clp, monto_sin_cupon, comprobante_url)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [clienteId, beneficiario_id, cuentaPago?.id || 1, monto_origen, moneda_origen,
-             monto_destino, moneda_destino, tasa_aplicada, fechaSolicitud,
-             cuponCodigo, cuponDescuentoCLP, montoSinCupon]
+             monto_destino, moneda_destino, tasa_aplicada, estadoInicial, fechaSolicitud,
+             cuponCodigo, cuponDescuentoCLP, montoSinCupon, comprobanteUrl]
         );
 
         const solicitudId = result.lastID;
 
-        // " Enviar notificación a Telegram
+        // Enviar notificación a Telegram
         await notificarNuevaSolicitud({
             id: solicitudId,
             cliente_nombre: beneficiario.cliente_nombre,
@@ -8606,13 +8668,14 @@ app.post('/api/cliente/solicitudes', clienteAuth, async (req, res) => {
             beneficiario_tipo_cuenta: beneficiario.tipo_cuenta,
             beneficiario_cuenta: beneficiario.numero_cuenta,
             beneficiario_telefono: beneficiario.telefono,
-            tipo_cuenta: metodo_entrega || beneficiario.tipo_cuenta
-        });
+            tipo_cuenta: metodo_entrega || beneficiario.tipo_cuenta,
+            metodo_pago: metodo_pago || 'transferencia_bancaria'
+        }, comprobanteBuffer);
 
         // Devolver datos de la cuenta para pago
         res.status(201).json({
             solicitud_id: solicitudId,
-            estado: 'pendiente',
+            estado: estadoInicial,
             cuenta_pago: cuentaPago ? {
                 banco: cuentaPago.banco,
                 tipo_cuenta: cuentaPago.tipo_cuenta,
