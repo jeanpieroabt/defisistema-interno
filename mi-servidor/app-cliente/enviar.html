@@ -961,7 +961,17 @@
     <!-- Paso 5: Pago -->
     <section class="card" id="step5" style="display:none;">
       <h3 class="card-title">Realiza tu pago</h3>
-      <p class="card-sub">Transfiere a la cuenta indicada.</p>
+      <p class="card-sub">Elige cómo deseas pagar.</p>
+
+      <!-- Selector de método de pago -->
+      <div style="display:flex; gap:10px; margin-bottom:16px;">
+        <button id="btnPagoTransferencia" onclick="selectMetodoPago('transferencia_bancaria')" style="flex:1; padding:12px; border-radius:12px; border:2px solid var(--brand-teal); background:var(--brand-teal); color:white; font-weight:600; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+          🏦 Transferencia
+        </button>
+        <button id="btnPagoCajaVecina" onclick="selectMetodoPago('caja_vecina')" style="flex:1; padding:12px; border-radius:12px; border:2px solid var(--border); background:var(--panel); color:var(--text); font-weight:600; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+          🏪 Caja Vecina
+        </button>
+      </div>
 
       <!-- Tutorial de pago (se puede ocultar permanentemente) -->
       <div id="tutorialPago" style="display:none; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border: 2px solid #3B82F6; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);">
@@ -969,7 +979,7 @@
           <div style="font-size: 28px; flex-shrink: 0;">💡</div>
           <div style="flex: 1;">
             <h4 style="margin: 0 0 10px; color: #1E40AF; font-size: 16px; font-weight: 700;">¿Cómo completar tu pago?</h4>
-            <p style="margin: 0; color: #1E3A8A; font-size: 14px; line-height: 1.6;">
+            <p style="margin: 0; color: #1E3A8A; font-size: 14px; line-height: 1.6;" id="tutorialTexto">
               Esta es la cuenta de la empresa <strong>Defi Oracle</strong>. Debes <strong>salir de aquí</strong> y realizar la transferencia desde la app de tu banco a la cuenta indicada abajo.
             </p>
             <p style="margin: 12px 0 0; color: #1E3A8A; font-size: 14px; line-height: 1.6;">
@@ -992,14 +1002,52 @@
         Tiempo restante para pagar
         <div style="font-size:28px; margin-top:6px;" id="timerValue">30:00</div>
       </div>
-      <div class="card pay-card" style="padding: var(--space-5); background: var(--panel); border:1px solid var(--border);">
-        <div class="detail"><div class="label">Banco</div><div class="value"><span>BANCO ESTADO</span></div></div>
-        <div class="detail"><div class="label">Tipo de cuenta</div><div class="value"><span>CUENTA VISTA O PRO</span></div></div>
-        <div class="detail"><div class="label">Nombre de la cuenta</div><div class="value"><span>Defi Oracle</span></div></div>
-        <div class="detail"><div class="label">Numero de cuenta</div><div class="value"><span id="paymentCuenta">31670327933</span><button class="copy" onclick="copiar('paymentCuenta')">Copiar</button></div></div>
-        <div class="detail"><div class="label">RUT</div><div class="value"><span id="paymentRut">77.354.262-7</span><button class="copy" onclick="copiar('paymentRut')">Copiar</button></div></div>
-        <div class="detail"><div class="label">Monto a transferir</div><div class="value"><span id="paymentMonto">$0 CLP</span><button class="copy" onclick="copiar('paymentMonto')">Copiar</button></div></div>
-        <div class="alert">⚠️ Asegurate de transferir el monto exacto. Tu envio se procesara al recibir el pago.</div>
+
+      <!-- Vista: Transferencia bancaria -->
+      <div id="payCardTransferencia">
+        <div class="card pay-card" style="padding: var(--space-5); background: var(--panel); border:1px solid var(--border);">
+          <div class="detail"><div class="label">Banco</div><div class="value"><span>BANCO ESTADO</span></div></div>
+          <div class="detail"><div class="label">Tipo de cuenta</div><div class="value"><span>CUENTA VISTA O PRO</span></div></div>
+          <div class="detail"><div class="label">Nombre de la cuenta</div><div class="value"><span>Defi Oracle</span></div></div>
+          <div class="detail"><div class="label">Numero de cuenta</div><div class="value"><span id="paymentCuenta">31670327933</span><button class="copy" onclick="copiar('paymentCuenta')">Copiar</button></div></div>
+          <div class="detail"><div class="label">RUT</div><div class="value"><span id="paymentRut">77.354.262-7</span><button class="copy" onclick="copiar('paymentRut')">Copiar</button></div></div>
+          <div class="detail"><div class="label">Monto a transferir</div><div class="value"><span id="paymentMonto">$0 CLP</span><button class="copy" onclick="copiar('paymentMonto')">Copiar</button></div></div>
+          <div class="alert">⚠️ Asegurate de transferir el monto exacto. Tu envio se procesara al recibir el pago.</div>
+        </div>
+      </div>
+
+      <!-- Vista: Caja Vecina -->
+      <div id="payCardCajaVecina" style="display:none;">
+        <div class="card pay-card" style="padding: var(--space-5); background: var(--panel); border:1px solid var(--border);">
+          <div style="background: linear-gradient(135deg, #059669, #047857); color:white; padding:12px 16px; border-radius:10px; margin-bottom:16px; text-align:center;">
+            <div style="font-size:20px; margin-bottom:4px;">🏪</div>
+            <div style="font-weight:700; font-size:14px;">Deposita en cualquier Caja Vecina</div>
+            <div style="font-size:12px; opacity:0.9; margin-top:4px;">Red de Banco Estado en todo Chile</div>
+          </div>
+          <div class="detail"><div class="label">Cuenta destino</div><div class="value"><span id="paymentCuentaCV">31670327933</span><button class="copy" onclick="copiar('paymentCuentaCV')">Copiar</button></div></div>
+          <div class="detail"><div class="label">RUT</div><div class="value"><span id="paymentRutCV">77.354.262-7</span><button class="copy" onclick="copiar('paymentRutCV')">Copiar</button></div></div>
+          <div class="detail"><div class="label">Nombre</div><div class="value"><span>Defi Oracle</span></div></div>
+          <div class="detail"><div class="label">Monto a depositar</div><div class="value"><span id="paymentMontoCV">$0 CLP</span><button class="copy" onclick="copiar('paymentMontoCV')">Copiar</button></div></div>
+          <div class="alert">⚠️ Asegurate de depositar el monto exacto.</div>
+        </div>
+
+        <!-- Upload de comprobante -->
+        <div class="card" style="padding: var(--space-5); background: var(--panel); border:1px solid var(--border); margin-top:12px;">
+          <div style="text-align:center; margin-bottom:12px;">
+            <div style="font-size:16px; font-weight:600; color:var(--text);">Sube el comprobante del depósito</div>
+            <div style="font-size:13px; color:var(--muted); margin-top:4px;">Toma una foto clara del comprobante</div>
+          </div>
+          <label for="inputComprobante" style="display:flex; flex-direction:column; align-items:center; justify-content:center; border:2px dashed var(--border); border-radius:12px; padding:24px; cursor:pointer; transition:border-color 0.2s;" id="labelComprobante">
+            <div style="font-size:36px; margin-bottom:8px;" id="comprobanteIcon">📷</div>
+            <div style="font-size:14px; font-weight:500; color:var(--brand-teal);" id="comprobanteTexto">Toca para seleccionar imagen</div>
+            <div style="font-size:12px; color:var(--muted); margin-top:4px;">JPG, PNG o WebP (máx. 5MB)</div>
+          </label>
+          <input type="file" id="inputComprobante" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="previewComprobante(this)">
+          <div id="comprobantePreview" style="display:none; margin-top:12px; text-align:center;">
+            <img id="comprobanteImg" style="max-width:100%; max-height:300px; border-radius:10px; border:1px solid var(--border);">
+            <button onclick="quitarComprobante()" style="margin-top:8px; background:none; border:1px solid #ef4444; color:#ef4444; padding:6px 16px; border-radius:8px; font-size:13px; cursor:pointer;">Quitar imagen</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1097,7 +1145,7 @@
     let usandoTasaPromo = false;
     let descuentoCLPAplicado = 0; // Monto de descuento en CLP
     
-    const envio = { montoCLP: 0, montoVES: 0, metodo: 'transferencia', destinatario: null };
+    const envio = { montoCLP: 0, montoVES: 0, metodo: 'transferencia', destinatario: null, metodoPago: 'transferencia_bancaria' };
     const fmtCLP = new Intl.NumberFormat('es-CL');
     const fmtVES = new Intl.NumberFormat('es-VE');
     
@@ -1713,10 +1761,69 @@
     }
 
     function prepararDatosPago() {
+      const monto = envio.montoCLP || 0;
       const montoLabel = document.getElementById('paymentMonto');
-      if (montoLabel) montoLabel.textContent = `$${fmtCLP.format(envio.montoCLP || 0)} CLP`;
+      if (montoLabel) montoLabel.textContent = `$${fmtCLP.format(monto)} CLP`;
+      // También actualizar monto en Caja Vecina
+      const montoCV = document.getElementById('paymentMontoCV');
+      if (montoCV) montoCV.textContent = `$${fmtCLP.format(monto)} CLP`;
       startTimer();
       mostrarTutorialPago();
+      actualizarVistaPago();
+    }
+
+    function selectMetodoPago(metodo) {
+      envio.metodoPago = metodo;
+      actualizarVistaPago();
+    }
+
+    function actualizarVistaPago() {
+      const esCajaVecina = envio.metodoPago === 'caja_vecina';
+      // Toggle botones
+      const btnTransf = document.getElementById('btnPagoTransferencia');
+      const btnCV = document.getElementById('btnPagoCajaVecina');
+      if (btnTransf) {
+        btnTransf.style.background = esCajaVecina ? 'var(--panel)' : 'var(--brand-teal)';
+        btnTransf.style.color = esCajaVecina ? 'var(--text)' : 'white';
+        btnTransf.style.borderColor = esCajaVecina ? 'var(--border)' : 'var(--brand-teal)';
+      }
+      if (btnCV) {
+        btnCV.style.background = esCajaVecina ? 'var(--brand-teal)' : 'var(--panel)';
+        btnCV.style.color = esCajaVecina ? 'white' : 'var(--text)';
+        btnCV.style.borderColor = esCajaVecina ? 'var(--brand-teal)' : 'var(--border)';
+      }
+      // Toggle vistas
+      const cardTransf = document.getElementById('payCardTransferencia');
+      const cardCV = document.getElementById('payCardCajaVecina');
+      if (cardTransf) cardTransf.style.display = esCajaVecina ? 'none' : 'block';
+      if (cardCV) cardCV.style.display = esCajaVecina ? 'block' : 'none';
+    }
+
+    function previewComprobante(input) {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert('La imagen no debe superar 5MB');
+        input.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('comprobanteImg').src = e.target.result;
+        document.getElementById('comprobantePreview').style.display = 'block';
+        document.getElementById('comprobanteIcon').textContent = '✅';
+        document.getElementById('comprobanteTexto').textContent = file.name;
+        document.getElementById('labelComprobante').style.borderColor = 'var(--brand-teal)';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function quitarComprobante() {
+      document.getElementById('inputComprobante').value = '';
+      document.getElementById('comprobantePreview').style.display = 'none';
+      document.getElementById('comprobanteIcon').textContent = '📷';
+      document.getElementById('comprobanteTexto').textContent = 'Toca para seleccionar imagen';
+      document.getElementById('labelComprobante').style.borderColor = 'var(--border)';
     }
 
     // Mostrar tutorial de pago si no ha sido ocultado
@@ -1813,7 +1920,17 @@
         montoSinCupon = envio.montoCLP; // Lo que pagó
       }
       
-      const solicitud = {
+      // Validar comprobante si es Caja Vecina
+      const esCajaVecina = envio.metodoPago === 'caja_vecina';
+      const archivoComprobante = esCajaVecina ? document.getElementById('inputComprobante')?.files[0] : null;
+      if (esCajaVecina && !archivoComprobante) {
+        enviandoSolicitud = false;
+        if (btnNext) { btnNext.disabled = false; btnNext.textContent = 'Ya realice el pago'; }
+        alert('Debes subir el comprobante del depósito de Caja Vecina');
+        return;
+      }
+
+      const solicitudData = {
         beneficiario_id: envio.destinatario?.id,
         monto_origen: envio.montoCLP,
         moneda_origen: 'CLP',
@@ -1821,18 +1938,35 @@
         moneda_destino: 'VES',
         tasa_aplicada: tasaAplicada,
         metodo_entrega: envio.metodo,
+        metodo_pago: envio.metodoPago,
         codigo_promo: codigoPromoAplicado?.codigo || null,
-        // Info del cupón de descuento CLP
         cupon_codigo: codigoPromoAplicado?.tipo_descuento === 'monto_clp' ? codigoPromoAplicado.codigo : null,
         cupon_descuento_clp: descuentoCLPAplicado || 0,
         monto_sin_cupon: montoSinCupon
       };
-      try {
-        const r = await fetch(`${API_BASE}/api/cliente/solicitudes`, {
+
+      let fetchOptions;
+      if (esCajaVecina && archivoComprobante) {
+        const formData = new FormData();
+        for (const [key, val] of Object.entries(solicitudData)) {
+          formData.append(key, val ?? '');
+        }
+        formData.append('comprobante', archivoComprobante);
+        fetchOptions = {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        };
+      } else {
+        fetchOptions = {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(solicitud)
-        });
+          body: JSON.stringify(solicitudData)
+        };
+      }
+
+      try {
+        const r = await fetch(`${API_BASE}/api/cliente/solicitudes`, fetchOptions);
         if (r.ok) {
           const data = await r.json();
           
