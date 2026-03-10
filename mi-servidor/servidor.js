@@ -9451,8 +9451,23 @@ app.get('/api/clientes-app/:id', apiAuth, async (req, res) => {
 app.put('/api/clientes-app/:id/verificacion', apiAuth, async (req, res) => {
     try {
         const { accion, notas } = req.body;
-        if (!['aprobar', 'rechazar'].includes(accion)) {
+        if (!['aprobar', 'rechazar', 'revocar'].includes(accion)) {
             return res.status(400).json({ error: 'Accion invalida' });
+        }
+
+        if (accion === 'revocar') {
+            await dbRun(
+                `UPDATE clientes_app SET
+                    verificacion_estado = 'no_verificado',
+                    verificacion_doc_frente = NULL,
+                    verificacion_doc_reverso = NULL,
+                    verificacion_fecha_solicitud = NULL,
+                    verificacion_fecha_respuesta = NULL,
+                    verificacion_notas = ?
+                WHERE id = ?`,
+                [notas || 'Verificación revocada por administrador', req.params.id]
+            );
+            return res.json({ success: true, estado: 'no_verificado' });
         }
 
         const nuevoEstado = accion === 'aprobar' ? 'verificado' : 'rechazado';
