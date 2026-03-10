@@ -209,6 +209,25 @@
         <div style="margin-top:10px"><button id="saveTasasApp" class="btn btn-primary">Guardar Tasas App</button></div>
       </div>
 
+      <!-- TASA BCV -->
+      <div class="box" style="margin-top:16px; border: 2px solid #1E40AF;">
+        <h3>🏛️ Tasa BCV (Referencia USD/VES)</h3>
+        <p style="color: var(--medium-grey); font-size: 0.9rem; margin-bottom: 15px;">
+          Tasa oficial del BCV vía dolarapi.com (gratis, automática cada 12h). Se muestra como referencia en la app.
+        </p>
+        <div id="bcvTasaInfo" style="padding:12px; border-radius:8px; background:#EFF6FF;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:1.1rem; font-weight:700; color:#1E40AF;">
+              1 USD = <span id="bcvTasaValor">-</span> VES
+            </span>
+            <small style="color:#6B7280;" id="bcvTasaFecha">-</small>
+          </div>
+        </div>
+        <div style="margin-top:10px;">
+          <button onclick="probarTasaBCV()" class="btn btn-warning">Actualizar Tasa Ahora</button>
+        </div>
+      </div>
+
       <div class="grid2" style="margin-top:16px">
         <div class="box">
           <h3>Comprar VES (con CLP)</h3>
@@ -597,8 +616,39 @@
         if (r.ok) loadTasasApp();
     };
 
+    // --- Tasa BCV ---
+    async function loadBcvConfig() {
+        try {
+            const r = await fetch('/api/config/bcv');
+            if (!r.ok) return;
+            const data = await r.json();
+            if (data.tasa > 0) {
+                document.getElementById('bcvTasaValor').textContent = data.tasa.toFixed(2);
+                document.getElementById('bcvTasaFecha').textContent = data.fecha || '-';
+            } else {
+                document.getElementById('bcvTasaValor').textContent = 'No disponible';
+                document.getElementById('bcvTasaFecha').textContent = '-';
+            }
+        } catch(e) {}
+    }
+
+    async function probarTasaBCV() {
+        const r = await fetch('/api/config/bcv', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ forzarActualizacion: true })
+        });
+        const data = await r.json();
+        if (r.ok && data.tasa) {
+            showToast(`Tasa BCV: ${data.tasa} VES/USD`, 'success');
+            loadBcvConfig();
+        } else {
+            showToast(data.error || 'Error obteniendo tasa BCV', 'error');
+        }
+    }
+
     (async ()=>{
-        await Promise.all([loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig(), loadTasasApp()]);
+        await Promise.all([loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig(), loadTasasApp(), loadBcvConfig()]);
     })();
   </script>
 </body>

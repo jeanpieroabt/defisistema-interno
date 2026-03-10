@@ -872,7 +872,11 @@
       </div>
 
       <div class="tasa-pill">Tasa: <strong id="tasaDisplay">1 CLP = 0 VES</strong></div>
-      
+      <div id="usdEquivalente" style="display:none; text-align:center; margin-top:6px; padding:8px 12px; background:linear-gradient(135deg,#EFF6FF,#DBEAFE); border-radius:10px; font-size:13px; color:#1E40AF;">
+        <span style="font-weight:600;">&#8776; $<span id="usdMonto">0.00</span> USD</span>
+        <small style="opacity:0.7; margin-left:4px;">(Tasa BCV)</small>
+      </div>
+
       <!-- Código Promocional -->
       <div class="promo-section">
         <div style="display: flex; align-items: center;">
@@ -954,6 +958,7 @@
               <span class="value" id="resumenRecibe" style="color:var(--brand-teal); font-size:18px;">Bs. 0</span>
             </div>
           </div>
+          <div class="row" id="resumenUSDRow" style="display:none;"><span class="label">Ref. USD (BCV)</span><span class="value" id="resumenUSD" style="color:#1E40AF;">-</span></div>
         </div>
       </div>
     </section>
@@ -1144,7 +1149,8 @@
     let codigoPromoAplicado = null; // { codigo_id, tasa_especial, codigo, tipo_descuento, monto_descuento_clp }
     let usandoTasaPromo = false;
     let descuentoCLPAplicado = 0; // Monto de descuento en CLP
-    
+    let tasaBCV = null; // Tasa oficial USD/VES del BCV
+
     const envio = { montoCLP: 0, montoVES: 0, metodo: 'transferencia', destinatario: null, metodoPago: 'transferencia_bancaria' };
     const fmtCLP = new Intl.NumberFormat('es-CL');
     const fmtVES = new Intl.NumberFormat('es-VE');
@@ -1239,6 +1245,7 @@
       await verificarEstadoVerificacion();
       
       cargarTasa();
+      cargarTasaBCV();
       cargarDestinatarios();
       bindAmountInputs();
       updateFromCLP(envio.montoCLP);
@@ -1333,6 +1340,29 @@
         }
       } catch (_) { /* deja valores por defecto */ }
       updateFromCLP(envio.montoCLP);
+    }
+
+    async function cargarTasaBCV() {
+      try {
+        const r = await fetch(`${API_BASE}/api/cliente/tasa-bcv`);
+        if (r.ok) {
+          const data = await r.json();
+          if (data.tasa) tasaBCV = data.tasa;
+        }
+      } catch (_) {}
+    }
+
+    function actualizarUSD() {
+      const div = document.getElementById('usdEquivalente');
+      const span = document.getElementById('usdMonto');
+      if (!div || !span) return;
+      if (!tasaBCV || !envio.montoVES) {
+        div.style.display = 'none';
+        return;
+      }
+      const usd = envio.montoVES / tasaBCV;
+      span.textContent = usd.toFixed(2);
+      div.style.display = 'block';
     }
 
     async function cargarDestinatarios() {
@@ -1577,7 +1607,8 @@
       setCLPInputValue(clp);
       setVESInputValue(ves);
       actualizarTasaDisplay();
-      
+      actualizarUSD();
+
       // Mostrar el ahorro si hay descuento CLP
       mostrarAhorroCLP(clp, clpEfectivo, ves);
     }
@@ -1616,6 +1647,7 @@
       setCLPInputValue(clpEstimado);
       setVESInputValue(ctx.source === 'input' ? ves : vesCalculado);
       actualizarTasaDisplay();
+      actualizarUSD();
     }
 
     function selectMethod(m) {
@@ -1736,6 +1768,15 @@
       document.getElementById('resumenBanco').textContent = envio.destinatario?.banco || '-';
       document.getElementById('resumenTasa').textContent = `1 CLP = ${tasaActual.toFixed(4)} VES`;
       document.getElementById('resumenRecibe').textContent = `Bs. ${fmtVES.format(recibe)}`;
+      // Referencia USD (BCV)
+      const usdRow = document.getElementById('resumenUSDRow');
+      const usdSpan = document.getElementById('resumenUSD');
+      if (usdRow && usdSpan && tasaBCV && recibe > 0) {
+        usdSpan.textContent = `≈ $${(recibe / tasaBCV).toFixed(2)} USD`;
+        usdRow.style.display = '';
+      } else if (usdRow) {
+        usdRow.style.display = 'none';
+      }
     }
 
     function confirmarCuentaPropia() {

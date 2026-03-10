@@ -728,6 +728,11 @@ const runMigrations = async () => {
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaAppNivel2', '0')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaAppNivel3', '0')`);
 
+    // Tasa BCV (referencia USD/VES)
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaBCV', '0')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaBCVFecha', '')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('bcvApiKey', '')`);
+
     // ... NUEVA TABLA PARA METAS
     await dbRun(`CREATE TABLE IF NOT EXISTS metas(id INTEGER PRIMARY KEY AUTOINCREMENT, mes TEXT NOT NULL UNIQUE, meta_clientes_activos INTEGER DEFAULT 0, meta_nuevos_clientes INTEGER DEFAULT 0, meta_volumen_clp REAL DEFAULT 0, meta_operaciones INTEGER DEFAULT 0)`);
 
@@ -2526,6 +2531,37 @@ app.post('/api/tasas-app', apiAuth, onlyMaster, async (req, res) => {
     }
 });
 
+// GET /api/config/bcv - Obtener config BCV
+app.get('/api/config/bcv', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const [apiKey, tasa, fecha] = await Promise.all([
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'bcvApiKey'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaBCV'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaBCVFecha'")
+        ]);
+        res.json({
+            apiKey: apiKey?.valor || '',
+            tasa: tasa ? parseFloat(tasa.valor) : 0,
+            fecha: fecha?.valor || ''
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error obteniendo config BCV' });
+    }
+});
+
+// POST /api/config/bcv - Forzar actualización de tasa BCV
+app.post('/api/config/bcv', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const tasa = await obtenerTasaBCV();
+        if (tasa) {
+            return res.json({ ok: true, tasa, mensaje: `Tasa actualizada: ${tasa} VES/USD` });
+        }
+        res.status(400).json({ error: 'No se pudo obtener la tasa del BCV' });
+    } catch (error) {
+        res.status(500).json({ error: 'Error actualizando tasa BCV' });
+    }
+});
+
 app.post('/api/config/capital', apiAuth, onlyMaster, (req, res) => {
     const { capitalInicialClp } = req.body;
     upsertConfig('capitalInicialClp', String(Number(capitalInicialClp) || 0), (err) => {
@@ -3174,6 +3210,33 @@ async function consultarBinanceP2P(fiat, tradeType, payTypes = [], transAmount =
         console.error(`Error consultando Binance P2P (${fiat} ${tradeType}):`, error.message);
         throw new Error(`No se pudo consultar la API de Binance P2P: ${error.message}`);
     }
+}
+
+/**
+ * Obtiene la tasa oficial USD/VES del BCV via bcvapi.tech
+ * Se ejecuta al arrancar y cada 12 horas
+ */
+async function obtenerTasaBCV() {
+    try {
+        // Usar dolarapi.com (gratis, sin API key, open source)
+        const response = await axios.get('https://ve.dolarapi.com/v1/dolares/oficial', {
+            timeout: 10000
+        });
+
+        const tasa = response.data?.promedio;
+        const fechaRaw = response.data?.fechaActualizacion;
+        const fecha = fechaRaw ? fechaRaw.split('T')[0] : new Date().toISOString().split('T')[0];
+
+        if (tasa && tasa > 0) {
+            await dbRun("UPDATE configuracion SET valor = ? WHERE clave = 'tasaBCV'", [String(tasa)]);
+            await dbRun("UPDATE configuracion SET valor = ? WHERE clave = 'tasaBCVFecha'", [fecha]);
+            console.log(`Tasa BCV actualizada: ${tasa} VES/USD (${fecha})`);
+            return tasa;
+        }
+    } catch (error) {
+        console.error('Error obteniendo tasa BCV:', error.message);
+    }
+    return null;
 }
 
 /**
@@ -8392,6 +8455,24 @@ app.get('/api/cliente/version', (req, res) => {
     res.json({ version: APP_VERSION });
 });
 
+// GET /api/cliente/tasa-bcv - Tasa de referencia USD/VES del BCV
+app.get('/api/cliente/tasa-bcv', async (req, res) => {
+    try {
+        const [tasaRow, fechaRow] = await Promise.all([
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaBCV'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaBCVFecha'")
+        ]);
+        const tasa = tasaRow ? parseFloat(tasaRow.valor) : 0;
+        res.json({
+            tasa: tasa > 0 ? tasa : null,
+            fecha: fechaRow?.valor || null
+        });
+    } catch (error) {
+        console.error('Error obteniendo tasa BCV:', error);
+        res.status(500).json({ tasa: null, fecha: null });
+    }
+});
+
 // =================================================================
 // APP CLIENTE - TASAS Y COTIZACIONES
 // =================================================================
@@ -9726,6 +9807,10 @@ runMigrations()
             console.log(`- Servidor corriendo en http://localhost:${PORT}`);
             iniciarMonitoreoProactivo(); // ... Iniciar monitoreo proactivo
             iniciarMonitoreoTasas();     // ... Iniciar monitoreo de tasas P2P
+            // Tasa BCV: consultar al arrancar y cada 12 horas
+            setTimeout(obtenerTasaBCV, 15000);
+            setInterval(obtenerTasaBCV, 12 * 60 * 60 * 1000);
+            console.log('Sistema de tasa BCV iniciado (cada 12 horas)');
         });
     })
     .catch(err => {
