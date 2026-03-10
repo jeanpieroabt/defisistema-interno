@@ -10207,10 +10207,10 @@ runMigrations()
             console.log(`- Servidor corriendo en http://localhost:${PORT}`);
             iniciarMonitoreoProactivo(); // ... Iniciar monitoreo proactivo
             iniciarMonitoreoTasas();     // ... Iniciar monitoreo de tasas P2P
-            // Tasa BCV: consultar al arrancar y cada 12 horas
+            // Tasa BCV: consultar al arrancar y cada 4 horas
             setTimeout(obtenerTasaBCV, 15000);
-            setInterval(obtenerTasaBCV, 12 * 60 * 60 * 1000);
-            console.log('Sistema de tasa BCV iniciado (cada 12 horas)');
+            setInterval(obtenerTasaBCV, 4 * 60 * 60 * 1000);
+            console.log('Sistema de tasa BCV iniciado (cada 4 horas)');
         });
     })
     .catch(err => {
