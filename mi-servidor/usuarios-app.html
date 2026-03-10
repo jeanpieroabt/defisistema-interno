@@ -1242,6 +1242,18 @@
             </div>
           </div>
           ` : ''}
+          ${user.verificacion_estado === 'verificado' ? `
+          <div class="verification-actions">
+            <h3>🔄 Revocar Verificación</h3>
+            <p style="font-size:13px; color:#64748B; margin-bottom:10px;">Al revocar, el usuario deberá enviar sus documentos nuevamente para verificarse.</p>
+            <textarea class="notes-input" id="verificationNotes" placeholder="Motivo de la revocación (opcional)..."></textarea>
+            <div class="action-buttons">
+              <button class="verify-btn reject" onclick="handleVerification('revocar')">
+                🔄 Revocar Verificación
+              </button>
+            </div>
+          </div>
+          ` : ''}
         `;
       } catch (error) {
         console.error('Error cargando detalle:', error);
@@ -1263,9 +1275,12 @@
     async function handleVerification(accion) {
       if (!currentUserId) return;
 
-      const confirmMsg = accion === 'aprobar' 
-        ? '¿Estás seguro de aprobar la verificación de este usuario?' 
-        : '¿Estás seguro de rechazar la verificación de este usuario?';
+      const confirmMsgs = {
+        'aprobar': '¿Estás seguro de aprobar la verificación de este usuario?',
+        'rechazar': '¿Estás seguro de rechazar la verificación de este usuario?',
+        'revocar': '¿Revocar verificación? El usuario deberá enviar sus documentos nuevamente.'
+      };
+      const confirmMsg = confirmMsgs[accion];
       
       if (!confirm(confirmMsg)) return;
 
@@ -1285,7 +1300,8 @@
         const data = await res.json();
         
         if (data.success) {
-          alert(`Verificación ${accion === 'aprobar' ? 'aprobada' : 'rechazada'} correctamente`);
+          const accionTexto = { 'aprobar': 'aprobada', 'rechazar': 'rechazada', 'revocar': 'revocada' };
+          alert(`Verificación ${accionTexto[accion]} correctamente`);
           closeModal();
           await loadStats();
           await loadUsers();
