@@ -1005,6 +1005,10 @@
                 <p class="simulator-result-value" id="simMontoVES">0 VES</p>
             </div>
             <p class="simulator-rate" id="simTasaInfo">Tasa: 1 CLP = 0.0000 VES</p>
+            <div id="simUsdEquivalente" style="display:none; text-align:center; margin:6px 0 0; padding:8px 12px; background:linear-gradient(135deg,#EFF6FF,#DBEAFE); border-radius:10px; font-size:13px; color:#1E40AF;">
+                <span style="font-weight:600;">&#8776; $<span id="simUsdMonto">0.00</span> USD</span>
+                <small style="opacity:0.7; margin-left:4px;">(Tasa BCV)</small>
+            </div>
             <button class="btn btn-accent simulator-cta" type="button" id="simEnviarBtn">Enviar dinero ahora</button>
         </div>
     </div>
@@ -1022,6 +1026,7 @@
         let featureCurrent = 0;
         let featureIntervalId = null;
         let tramosData = [];
+        let tasaBCV = null;
 
         window.onload = function() {
             const token = localStorage.getItem('clienteToken');
@@ -1032,6 +1037,7 @@
             initGoogleWhenReady();
             initActions();
             cargarTasasSimulador();
+            cargarTasaBCV();
         };
 
         function normalizeEmail(usuario = {}) {
@@ -1338,26 +1344,47 @@
             return tramosData[tramosData.length - 1]?.tasa || 0;
         }
 
+        async function cargarTasaBCV() {
+            try {
+                const r = await fetch(`${API_BASE}/api/cliente/tasa-bcv`);
+                const data = await r.json();
+                if (data.tasa) tasaBCV = data.tasa;
+            } catch(e) {}
+        }
+
+        function actualizarSimUSD(montoVES) {
+            const usdDiv = document.getElementById('simUsdEquivalente');
+            const usdMonto = document.getElementById('simUsdMonto');
+            if (!tasaBCV || !montoVES) {
+                usdDiv.style.display = 'none';
+                return;
+            }
+            const usd = montoVES / tasaBCV;
+            usdMonto.textContent = usd.toFixed(2);
+            usdDiv.style.display = '';
+        }
+
         function calcularSimulacion() {
             const input = document.getElementById('simMontoCLP');
             const resultEl = document.getElementById('simMontoVES');
             const tasaEl = document.getElementById('simTasaInfo');
-            
+
             // Limpiar y formatear
             let raw = input.value.replace(/\D/g, '');
             const monto = parseInt(raw) || 0;
-            
+
             // Formatear input
             if (raw) {
                 input.value = parseInt(raw).toLocaleString('es-CL');
             }
-            
+
             // Calcular
             const tasa = obtenerTasaPorMonto(monto);
             const montoVES = Math.round(monto * tasa);
-            
+
             resultEl.textContent = montoVES.toLocaleString('es-VE') + ' VES';
             tasaEl.textContent = `Tasa: 1 CLP = ${tasa.toFixed(4)} VES`;
+            actualizarSimUSD(montoVES);
         }
 
         async function handleGoogleCallback(response) {
