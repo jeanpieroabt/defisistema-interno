@@ -9583,6 +9583,23 @@ app.put('/api/clientes-app/:id/verificacion', apiAuth, async (req, res) => {
     }
 });
 
+// DELETE /api/clientes-app/:id - Eliminar usuario de la app
+app.delete('/api/clientes-app/:id', apiAuth, async (req, res) => {
+    try {
+        const cliente = await dbGet("SELECT id, nombre, email FROM clientes_app WHERE id = ?", [req.params.id]);
+        if (!cliente) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        await dbRun("DELETE FROM clientes_app WHERE id = ?", [req.params.id]);
+        console.log(`Usuario App eliminado: ${cliente.nombre} (${cliente.email})`);
+        res.json({ success: true, mensaje: `Usuario ${cliente.nombre} eliminado correctamente` });
+    } catch (error) {
+        console.error('Error al eliminar usuario app:', error);
+        res.status(500).json({ error: 'Error al eliminar usuario' });
+    }
+});
+
 // =================================================================
 // ENDPOINTS DE BONOS DE REFERIDOS (ADMIN)
 // =================================================================
