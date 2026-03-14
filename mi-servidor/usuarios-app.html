@@ -1254,6 +1254,18 @@
             </div>
           </div>
           ` : ''}
+          ${user.verificacion_estado === 'rechazado' ? `
+          <div class="verification-actions">
+            <h3>⚙️ Cambiar Estado</h3>
+            <p style="font-size:13px; color:#64748B; margin-bottom:10px;">Este usuario fue rechazado. Puedes aprobarlo si deseas otorgarle la verificación.</p>
+            <textarea class="notes-input" id="verificationNotes" placeholder="Notas (opcional)..."></textarea>
+            <div class="action-buttons">
+              <button class="verify-btn approve" onclick="handleVerification('aprobar')">
+                ✅ Aprobar Verificación
+              </button>
+            </div>
+          </div>
+          ` : ''}
         `;
       } catch (error) {
         console.error('Error cargando detalle:', error);
