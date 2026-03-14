@@ -1266,6 +1266,17 @@
             </div>
           </div>
           ` : ''}
+
+          <!-- Eliminar usuario -->
+          <div class="verification-actions" style="margin-top: 20px; border-top: 2px solid #FEE2E2; padding-top: 15px;">
+            <h3>🗑️ Zona de Peligro</h3>
+            <p style="font-size:13px; color:#EF4444; margin-bottom:10px;">Esta acción es irreversible. Se eliminará el usuario y todos sus datos.</p>
+            <div class="action-buttons">
+              <button class="verify-btn reject" onclick="handleDeleteUser()">
+                🗑️ Eliminar Usuario
+              </button>
+            </div>
+          </div>
         `;
       } catch (error) {
         console.error('Error cargando detalle:', error);
@@ -1325,6 +1336,30 @@
         console.error('Error:', error);
         alert('Error de conexión');
         buttons.forEach(btn => btn.disabled = false);
+      }
+    }
+
+    async function handleDeleteUser() {
+      if (!currentUserId) return;
+
+      if (!confirm('¿Estás seguro de ELIMINAR este usuario? Esta acción es irreversible.')) return;
+      if (!confirm('CONFIRMACIÓN FINAL: ¿Realmente deseas eliminar este usuario y todos sus datos?')) return;
+
+      try {
+        const res = await fetch(`/api/clientes-app/${currentUserId}`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (data.success) {
+          alert(data.mensaje || 'Usuario eliminado correctamente');
+          closeModal();
+          await loadStats();
+          await loadUsers();
+        } else {
+          alert('Error: ' + (data.error || 'No se pudo eliminar'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
       }
     }
 
