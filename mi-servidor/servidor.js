@@ -1148,6 +1148,8 @@ const runMigrations = async () => {
     )`);
     console.log('... Tabla solicitudes_transferencia verificada');
 
+    // Migración: agregar columna para vincular transferencia bancaria conciliada
+    await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN transferencia_banco_id INTEGER`).catch(() => {});
 
     // Tabla de codigos promocionales
     await dbRun(`CREATE TABLE IF NOT EXISTS codigos_promocionales (
@@ -3318,6 +3320,100 @@ async function obtenerTasaBCV() {
         console.error('Error obteniendo tasa BCV:', error.message);
     }
     return null;
+}
+
+// =================================================================
+// MOTOR DE CONCILIACIÓN AUTOMÁTICA
+// =================================================================
+
+function normalizarRut(rut) {
+    if (!rut) return '';
+    return rut.replace(/[\.\-\s]/g, '').toUpperCase().trim();
+}
+
+async function conciliarPedidos() {
+    try {
+        // 1. Buscar transferencias bancarias disponibles (no tomadas ni procesadas)
+        const transferencias = await dbAll(
+            `SELECT id, n_operacion, rut_origen, monto_numerico, nombre_origen, fecha
+             FROM transferencias_banco
+             WHERE estado = 'disponible' AND monto_numerico > 0`
+        );
+
+        if (!transferencias || transferencias.length === 0) return;
+
+        // 2. Buscar pedidos pendientes sin conciliar (solo transferencias, no caja vecina)
+        const pedidos = await dbAll(
+            `SELECT s.id, s.monto_origen, s.cliente_app_id, c.documento_numero, c.nombre
+             FROM solicitudes_transferencia s
+             JOIN clientes_app c ON s.cliente_app_id = c.id
+             WHERE s.estado IN ('pendiente', 'comprobante_enviado')
+               AND s.transferencia_banco_id IS NULL
+               AND c.documento_numero IS NOT NULL
+             ORDER BY s.fecha_solicitud ASC`
+        );
+
+        if (!pedidos || pedidos.length === 0) return;
+
+        let conciliados = 0;
+
+        // 3. Para cada transferencia disponible, buscar pedido que haga match
+        for (const transf of transferencias) {
+            const rutTransf = normalizarRut(transf.rut_origen);
+            if (!rutTransf) continue;
+
+            // Buscar pedido con RUT exacto + monto exacto
+            const pedidoMatch = pedidos.find(p => {
+                const rutPedido = normalizarRut(p.documento_numero);
+                return rutPedido === rutTransf && Math.round(p.monto_origen) === transf.monto_numerico;
+            });
+
+            if (!pedidoMatch) continue;
+
+            // 4. Conciliar: vincular transferencia con pedido
+            await dbRun(
+                `UPDATE solicitudes_transferencia
+                 SET estado = 'procesando',
+                     transferencia_banco_id = ?,
+                     referencia = ?
+                 WHERE id = ?`,
+                [transf.id, transf.n_operacion, pedidoMatch.id]
+            );
+
+            await dbRun(
+                `UPDATE transferencias_banco SET estado = 'procesado' WHERE id = ?`,
+                [transf.id]
+            );
+
+            // Remover pedido conciliado de la lista para no matchear de nuevo
+            const idx = pedidos.indexOf(pedidoMatch);
+            if (idx > -1) pedidos.splice(idx, 1);
+
+            conciliados++;
+
+            console.log(`[CONCILIACIÓN] Pedido #${pedidoMatch.id} conciliado con transferencia N°${transf.n_operacion} (RUT: ${transf.rut_origen}, $${transf.monto_numerico})`);
+
+            // Notificar por Telegram
+            try {
+                await enviarNotificacionTelegram(
+                    `🤖 <b>Conciliación Automática</b>\n\n` +
+                    `📋 Pedido #${pedidoMatch.id} → Transferencia N°${transf.n_operacion}\n` +
+                    `👤 ${transf.nombre_origen}\n` +
+                    `🆔 RUT: ${transf.rut_origen}\n` +
+                    `💰 Monto: $${transf.monto_numerico.toLocaleString('es-CL')}\n\n` +
+                    `✅ Pedido marcado como <b>procesando</b>`
+                );
+            } catch (e) {
+                // No fallar si Telegram no está disponible
+            }
+        }
+
+        if (conciliados > 0) {
+            console.log(`[CONCILIACIÓN] ${conciliados} pedido(s) conciliado(s) automáticamente`);
+        }
+    } catch (error) {
+        console.error('[CONCILIACIÓN] Error:', error.message);
+    }
 }
 
 /**
@@ -10243,6 +10339,10 @@ runMigrations()
             setTimeout(obtenerTasaBCV, 15000);
             setInterval(obtenerTasaBCV, 4 * 60 * 60 * 1000);
             console.log('Sistema de tasa BCV iniciado (cada 4 horas)');
+            // Conciliación automática: cada 3 minutos
+            setTimeout(conciliarPedidos, 30000);
+            setInterval(conciliarPedidos, 3 * 60 * 1000);
+            console.log('Sistema de conciliación automática iniciado (cada 3 min)');
         });
     })
     .catch(err => {
