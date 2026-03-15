@@ -160,6 +160,27 @@
           </div>
       </div>
 
+      <div id="conciliacionBox" class="box" style="margin-bottom:16px; border: 3px solid #6c757d; border-radius:12px; padding: 20px; background: linear-gradient(135deg, #f8f9fa, #ffffff);">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+              <div>
+                  <h3 style="margin:0 0 4px 0; font-size: 1.2rem;">
+                      🤖 Conciliación Automática
+                  </h3>
+                  <p id="conciliacionDesc" style="margin:0; color: #666; font-size: 0.9rem;">
+                      Cargando estado...
+                  </p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                  <span id="conciliacionStatus" style="font-size: 1.1rem; font-weight: 700; padding: 8px 16px; border-radius: 8px; background: #e9ecef; color: #6c757d;">
+                      ...
+                  </span>
+                  <button id="conciliacionBtn" onclick="toggleConciliacion()" class="btn" style="padding: 12px 24px; font-size: 1rem; font-weight: 700; border-radius: 10px; border: none; cursor: pointer; min-width: 160px; background: #6c757d; color: white;">
+                      Cargando...
+                  </button>
+              </div>
+          </div>
+      </div>
+
       <div class="kpis">
         <div class="kpi"><h4>Ganancia Bruta (CLP)</h4><strong id="kpi-ganancia">—</strong></div>
         <div class="kpi"><h4>Total Enviado (CLP)</h4><strong id="kpi-total">—</strong></div>
@@ -408,6 +429,79 @@
             if (resp.ok) {
                 appActiva = data.app_activa;
                 actualizarUIKillSwitch();
+                showToast(data.mensaje, 'success');
+            } else {
+                showToast(data.error || 'Error al cambiar estado', 'error');
+            }
+        } catch (e) {
+            showToast('Error de conexión', 'error');
+        }
+    }
+
+    // ============================================
+    // CONCILIACIÓN AUTOMÁTICA - Toggle
+    // ============================================
+    let conciliacionActiva = true;
+
+    async function loadEstadoConciliacion() {
+        try {
+            const resp = await fetch('/api/conciliacion/estado');
+            if (resp.ok) {
+                const data = await resp.json();
+                conciliacionActiva = data.conciliacion_activa;
+                actualizarUIConciliacion();
+            }
+        } catch (e) {
+            console.error('Error cargando estado conciliación:', e);
+        }
+    }
+
+    function actualizarUIConciliacion() {
+        const box = document.getElementById('conciliacionBox');
+        const status = document.getElementById('conciliacionStatus');
+        const btn = document.getElementById('conciliacionBtn');
+        const desc = document.getElementById('conciliacionDesc');
+
+        if (conciliacionActiva) {
+            box.style.border = '3px solid #28a745';
+            box.style.background = 'linear-gradient(135deg, #f0fff4, #ffffff)';
+            status.textContent = '✅ ACTIVA';
+            status.style.background = '#d4edda';
+            status.style.color = '#155724';
+            btn.textContent = '⏸️ Desactivar';
+            btn.style.background = '#dc3545';
+            btn.style.color = 'white';
+            desc.textContent = 'Los pedidos de transferencia se concilian automáticamente cada 3 min. Pedidos sin match se cancelan a los 10 min.';
+        } else {
+            box.style.border = '3px solid #dc3545';
+            box.style.background = 'linear-gradient(135deg, #fff5f5, #ffffff)';
+            status.textContent = '⏸️ PAUSADA';
+            status.style.background = '#f8d7da';
+            status.style.color = '#721c24';
+            btn.textContent = '▶️ Activar';
+            btn.style.background = '#28a745';
+            btn.style.color = 'white';
+            desc.textContent = 'La conciliación automática está pausada. Los operadores deben procesar pedidos manualmente.';
+        }
+    }
+
+    async function toggleConciliacion() {
+        const confirmMsg = conciliacionActiva
+            ? '⏸️ ¿Pausar la conciliación automática?\n\nLos pedidos NO se conciliarán automáticamente ni se cancelarán por timeout.'
+            : '▶️ ¿Activar la conciliación automática?\n\nLos pedidos de transferencia se conciliarán cada 3 min y se cancelarán si no hay match en 10 min.';
+
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            const resp = await fetch('/api/conciliacion/estado', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ conciliacion_activa: !conciliacionActiva })
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                conciliacionActiva = data.conciliacion_activa;
+                actualizarUIConciliacion();
                 showToast(data.mensaje, 'success');
             } else {
                 showToast(data.error || 'Error al cambiar estado', 'error');
@@ -744,7 +838,7 @@
     }
 
     (async ()=>{
-        await Promise.all([loadEstadoApp(), loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig(), loadTasasApp(), loadBcvConfig()]);
+        await Promise.all([loadEstadoApp(), loadEstadoConciliacion(), loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig(), loadTasasApp(), loadBcvConfig()]);
     })();
   </script>
 </body>
