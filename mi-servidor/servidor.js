@@ -753,6 +753,7 @@ const runMigrations = async () => {
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaBCV', '0')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaBCVFecha', '')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('bcvApiKey', '')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('conciliacion_activa', '1')`);
 
 
     // ... NUEVA TABLA PARA METAS
@@ -2731,6 +2732,33 @@ app.post('/api/config/estado-app', apiAuth, onlyMaster, async (req, res) => {
     }
 });
 
+// Estado de conciliación automática
+app.get('/api/conciliacion/estado', apiAuth, async (req, res) => {
+    try {
+        const row = await dbGet("SELECT valor FROM configuracion WHERE clave = 'conciliacion_activa'");
+        res.json({ conciliacion_activa: row ? row.valor === '1' : true });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener estado de conciliación' });
+    }
+});
+
+app.put('/api/conciliacion/estado', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { conciliacion_activa } = req.body;
+        const nuevoValor = conciliacion_activa ? '1' : '0';
+        await new Promise((resolve, reject) => {
+            upsertConfig('conciliacion_activa', nuevoValor, (err) => err ? reject(err) : resolve());
+        });
+        console.log(`[CONCILIACIÓN] ${nuevoValor === '1' ? 'ACTIVADA' : 'DESACTIVADA'} por administrador`);
+        res.json({
+            conciliacion_activa: nuevoValor === '1',
+            mensaje: nuevoValor === '1' ? 'Conciliación automática activada' : 'Conciliación automática desactivada'
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al actualizar estado de conciliación' });
+    }
+});
+
 app.get('/api/usuarios', apiAuth, onlyMaster, (req, res) => {
     db.all(`SELECT id, username, role FROM usuarios`, [], (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al listar usuarios' });
@@ -3333,6 +3361,10 @@ function normalizarRut(rut) {
 
 async function conciliarPedidos() {
     try {
+        // Verificar si la conciliación está activa
+        const configActiva = await dbGet("SELECT valor FROM configuracion WHERE clave = 'conciliacion_activa'");
+        if (configActiva && configActiva.valor === '0') return;
+
         // 1. Buscar transferencias bancarias disponibles (no tomadas ni procesadas)
         const transferencias = await dbAll(
             `SELECT id, n_operacion, rut_origen, monto_numerico, nombre_origen, fecha
@@ -3340,76 +3372,109 @@ async function conciliarPedidos() {
              WHERE estado = 'disponible' AND monto_numerico > 0`
         );
 
-        if (!transferencias || transferencias.length === 0) return;
-
-        // 2. Buscar pedidos pendientes sin conciliar (solo transferencias, no caja vecina)
+        // 2. Buscar pedidos pendientes sin conciliar (SOLO transferencias, NO caja vecina)
         const pedidos = await dbAll(
-            `SELECT s.id, s.monto_origen, s.cliente_app_id, c.documento_numero, c.nombre
+            `SELECT s.id, s.monto_origen, s.cliente_app_id, s.fecha_solicitud, c.documento_numero, c.nombre
              FROM solicitudes_transferencia s
              JOIN clientes_app c ON s.cliente_app_id = c.id
-             WHERE s.estado IN ('pendiente', 'comprobante_enviado')
+             WHERE s.estado = 'pendiente'
                AND s.transferencia_banco_id IS NULL
+               AND (s.metodo_pago IS NULL OR s.metodo_pago = 'transferencia_bancaria')
                AND c.documento_numero IS NOT NULL
              ORDER BY s.fecha_solicitud ASC`
         );
 
-        if (!pedidos || pedidos.length === 0) return;
-
         let conciliados = 0;
 
-        // 3. Para cada transferencia disponible, buscar pedido que haga match
-        for (const transf of transferencias) {
-            const rutTransf = normalizarRut(transf.rut_origen);
-            if (!rutTransf) continue;
+        // 3. Conciliar: match por RUT + monto exacto
+        if (transferencias && transferencias.length > 0 && pedidos && pedidos.length > 0) {
+            for (const transf of transferencias) {
+                const rutTransf = normalizarRut(transf.rut_origen);
+                if (!rutTransf) continue;
 
-            // Buscar pedido con RUT exacto + monto exacto
-            const pedidoMatch = pedidos.find(p => {
-                const rutPedido = normalizarRut(p.documento_numero);
-                return rutPedido === rutTransf && Math.round(p.monto_origen) === transf.monto_numerico;
-            });
+                const pedidoMatch = pedidos.find(p => {
+                    const rutPedido = normalizarRut(p.documento_numero);
+                    return rutPedido === rutTransf && Math.round(p.monto_origen) === transf.monto_numerico;
+                });
 
-            if (!pedidoMatch) continue;
+                if (!pedidoMatch) continue;
 
-            // 4. Conciliar: vincular transferencia con pedido
-            await dbRun(
-                `UPDATE solicitudes_transferencia
-                 SET estado = 'procesando',
-                     transferencia_banco_id = ?,
-                     referencia = ?
-                 WHERE id = ?`,
-                [transf.id, transf.n_operacion, pedidoMatch.id]
-            );
-
-            await dbRun(
-                `UPDATE transferencias_banco SET estado = 'procesado' WHERE id = ?`,
-                [transf.id]
-            );
-
-            // Remover pedido conciliado de la lista para no matchear de nuevo
-            const idx = pedidos.indexOf(pedidoMatch);
-            if (idx > -1) pedidos.splice(idx, 1);
-
-            conciliados++;
-
-            console.log(`[CONCILIACIÓN] Pedido #${pedidoMatch.id} conciliado con transferencia N°${transf.n_operacion} (RUT: ${transf.rut_origen}, $${transf.monto_numerico})`);
-
-            // Notificar por Telegram
-            try {
-                await enviarNotificacionTelegram(
-                    `🤖 <b>Conciliación Automática</b>\n\n` +
-                    `📋 Pedido #${pedidoMatch.id} → Transferencia N°${transf.n_operacion}\n` +
-                    `👤 ${transf.nombre_origen}\n` +
-                    `🆔 RUT: ${transf.rut_origen}\n` +
-                    `💰 Monto: $${transf.monto_numerico.toLocaleString('es-CL')}\n\n` +
-                    `✅ Pedido marcado como <b>procesando</b>`
+                // Vincular transferencia con pedido
+                await dbRun(
+                    `UPDATE solicitudes_transferencia
+                     SET estado = 'procesando',
+                         transferencia_banco_id = ?,
+                         referencia = ?
+                     WHERE id = ?`,
+                    [transf.id, transf.n_operacion, pedidoMatch.id]
                 );
-            } catch (e) {
-                // No fallar si Telegram no está disponible
+
+                await dbRun(
+                    `UPDATE transferencias_banco SET estado = 'procesado' WHERE id = ?`,
+                    [transf.id]
+                );
+
+                // Remover pedido conciliado de la lista
+                const idx = pedidos.indexOf(pedidoMatch);
+                if (idx > -1) pedidos.splice(idx, 1);
+
+                conciliados++;
+
+                console.log(`[CONCILIACIÓN] Pedido #${pedidoMatch.id} conciliado con transferencia N°${transf.n_operacion} (RUT: ${transf.rut_origen}, $${transf.monto_numerico})`);
+
+                try {
+                    await enviarNotificacionTelegram(
+                        `🤖 <b>Conciliación Automática</b>\n\n` +
+                        `📋 Pedido #${pedidoMatch.id} → Transferencia N°${transf.n_operacion}\n` +
+                        `👤 ${transf.nombre_origen}\n` +
+                        `🆔 RUT: ${transf.rut_origen}\n` +
+                        `💰 Monto: $${transf.monto_numerico.toLocaleString('es-CL')}\n\n` +
+                        `✅ Pedido marcado como <b>procesando</b>`
+                    );
+                } catch (e) {}
+            }
+
+            if (conciliados > 0) {
+                console.log(`[CONCILIACIÓN] ${conciliados} pedido(s) conciliado(s) automáticamente`);
             }
         }
 
-        if (conciliados > 0) {
-            console.log(`[CONCILIACIÓN] ${conciliados} pedido(s) conciliado(s) automáticamente`);
+        // 4. Auto-cancelar pedidos de transferencia sin match después de 10 minutos
+        const pedidosVencidos = await dbAll(
+            `SELECT s.id, s.monto_origen, c.nombre, c.documento_numero
+             FROM solicitudes_transferencia s
+             JOIN clientes_app c ON s.cliente_app_id = c.id
+             WHERE s.estado = 'pendiente'
+               AND s.transferencia_banco_id IS NULL
+               AND (s.metodo_pago IS NULL OR s.metodo_pago = 'transferencia_bancaria')
+               AND s.fecha_solicitud < datetime('now', '-10 minutes')`
+        );
+
+        if (pedidosVencidos && pedidosVencidos.length > 0) {
+            for (const p of pedidosVencidos) {
+                await dbRun(
+                    `UPDATE solicitudes_transferencia
+                     SET estado = 'cancelada',
+                         notas_operador = 'Cancelado automáticamente: transferencia no detectada en 10 min'
+                     WHERE id = ?`,
+                    [p.id]
+                );
+
+                console.log(`[CONCILIACIÓN] Pedido #${p.id} cancelado automáticamente (sin transferencia en 10 min) - ${p.nombre} $${p.monto_origen}`);
+
+                try {
+                    await enviarNotificacionTelegram(
+                        `⏰ <b>Pedido Auto-Cancelado</b>\n\n` +
+                        `📋 Pedido #${p.id}\n` +
+                        `👤 ${p.nombre}\n` +
+                        `🆔 RUT: ${p.documento_numero}\n` +
+                        `💰 Monto: $${Math.round(p.monto_origen).toLocaleString('es-CL')}\n\n` +
+                        `❌ Transferencia no detectada en 10 minutos`
+                    );
+                } catch (e) {}
+            }
+
+            console.log(`[CONCILIACIÓN] ${pedidosVencidos.length} pedido(s) cancelado(s) por timeout`);
         }
     } catch (error) {
         console.error('[CONCILIACIÓN] Error:', error.message);
