@@ -10906,10 +10906,10 @@ runMigrations()
             setTimeout(obtenerTasaBCV, 15000);
             setInterval(obtenerTasaBCV, 4 * 60 * 60 * 1000);
             console.log('Sistema de tasa BCV iniciado (cada 4 horas)');
-            // Conciliación automática: cada 3 minutos
+            // Conciliación automática: cada 2 minutos
             setTimeout(conciliarPedidos, 30000);
-            setInterval(conciliarPedidos, 3 * 60 * 1000);
-            console.log('Sistema de conciliación automática iniciado (cada 3 min)');
+            setInterval(conciliarPedidos, 2 * 60 * 1000);
+            console.log('Sistema de conciliación automática iniciado (cada 2 min)');
         });
     })
     .catch(err => {
