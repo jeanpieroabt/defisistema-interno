@@ -710,16 +710,21 @@ async function pollingBotPagador() {
         });
 
         if (response.data.ok && response.data.result.length > 0) {
+            console.log(`[POLLING PAGADOR] ${response.data.result.length} update(s) recibido(s)`);
             for (const update of response.data.result) {
                 pagadorUpdateOffset = update.update_id + 1;
 
                 if (update.message) {
+                    const txt = update.message.text || '';
+                    const from = update.message.from?.first_name || 'unknown';
+                    const isBot = update.message.from?.is_bot || false;
+                    console.log(`[POLLING PAGADOR] De: ${from} (bot:${isBot}) | Texto: ${txt.substring(0, 120)}`);
                     await procesarMensajeGrupoPagador(update.message);
                 }
             }
         }
     } catch (error) {
-        // Silencioso para no llenar logs
+        console.error('[POLLING PAGADOR] Error:', error.message);
     }
 }
 
