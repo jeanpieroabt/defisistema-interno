@@ -595,6 +595,10 @@
           <span class="detail-label">Monto recibido</span>
           <span class="detail-value highlight" id="detailMontoVES">-</span>
         </div>
+        <div class="detail-row" id="detailRefRow" style="display:none;">
+          <span class="detail-label">Referencia de pago</span>
+          <span class="detail-value highlight" id="detailReferencia" style="color:#28a745; font-weight:700;">-</span>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn-primary" onclick="cerrarModal()">Cerrar</button>
@@ -797,6 +801,15 @@
       document.getElementById('detailMontoCLP').textContent = `$${fmtCLP.format(s.monto_origen)} CLP`;
       document.getElementById('detailTasa').textContent = `1 CLP = ${(s.tasa_aplicada || 0).toFixed(4)} VES`;
       document.getElementById('detailMontoVES').textContent = `Bs. ${fmtVES.format(s.monto_destino)}`;
+
+      // Mostrar referencia de pago si existe
+      const refRow = document.getElementById('detailRefRow');
+      if (s.referencia_pago) {
+        refRow.style.display = '';
+        document.getElementById('detailReferencia').textContent = s.referencia_pago;
+      } else {
+        refRow.style.display = 'none';
+      }
 
       modal.style.display = 'flex';
     }

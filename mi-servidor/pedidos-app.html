@@ -1534,6 +1534,21 @@
           </div>
         </div>
 
+        ${s.referencia_pago ? `
+        <div class="modal-section">
+          <h4>🔗 Referencia de Pago VES</h4>
+          <div class="detail-grid">
+            <div>
+              <label>Referencia</label>
+              <div class="value" style="font-weight:700; color:#28a745; font-size:1.1rem;">
+                ${s.referencia_pago}
+                <button class="copy-btn" onclick="copiar('${s.referencia_pago}')">📋</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
         ${s.comprobante_pago_path ? `
         <div class="modal-section">
           <h4>📸 Comprobante de Pago</h4>

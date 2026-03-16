@@ -591,6 +591,12 @@
                         <span class="detail-label">Método</span>
                         <span class="detail-value">${s.metodo_entrega === 'pago_movil' ? 'Pago móvil' : 'Transferencia'}</span>
                     </div>
+                    ${s.referencia_pago ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Referencia de pago</span>
+                        <span class="detail-value highlight" style="color:#28a745; font-weight:700;">${s.referencia_pago}</span>
+                    </div>
+                    ` : ''}
                 </div>
 
                 <!-- Support Button -->

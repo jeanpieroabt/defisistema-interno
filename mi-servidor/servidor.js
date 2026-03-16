@@ -398,41 +398,115 @@ async function notificarCambioEstado(solicitud, nuevoEstado) {
 }
 
 // =================================================================
-// SISTEMA DE CALLBACKS DE TELEGRAM (Polling) - ACTIVO
-// Permite gestionar pedidos directamente desde Telegram
+// SISTEMA DE TELEGRAM - WEBHOOK
+// Recibe callbacks de botones + mensajes del grupo bot pagador
 // =================================================================
-let telegramUpdateOffset = 0;
 const pedidosTomados = new Map(); // Track de pedidos tomados
 
-// Procesar callbacks de botones de Telegram
-async function procesarTelegramCallbacks() {
-    await cargarConfigTelegram();
-    
-    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-        return;
-    }
-    
+// Procesar mensajes del grupo del bot pagador
+async function procesarMensajeGrupoPagador(message) {
     try {
-        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`;
-        const response = await axios.get(url, {
-            params: {
-                offset: telegramUpdateOffset,
-                timeout: 1,
-                allowed_updates: ['callback_query']
+        const chatConfig = await dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_chat_id'");
+        const pagadorChatId = chatConfig?.valor;
+
+        // Solo procesar mensajes del grupo del bot pagador
+        if (!pagadorChatId || String(message.chat.id) !== String(pagadorChatId)) return;
+
+        const texto = message.text || '';
+        console.log(`[WEBHOOK] Mensaje del grupo pagador: ${texto.substring(0, 100)}...`);
+
+        // Detectar Transferencia EXITOSA
+        if (texto.includes('Transferencia EXITOSA')) {
+            const refMatch = texto.match(/Referencia:\s*(\d+)/);
+            const montoMatch = texto.match(/Monto:\s*Bs\.?\s*([\d.,]+)/);
+            const benefMatch = texto.match(/Beneficiario:\s*(.+)/);
+
+            const referencia = refMatch ? refMatch[1] : null;
+            const montoTexto = montoMatch ? montoMatch[1].replace(/\./g, '').replace(',', '.') : null;
+            const beneficiario = benefMatch ? benefMatch[1].trim() : null;
+
+            console.log(`[WEBHOOK] Pago EXITOSO - Ref: ${referencia}, Monto: ${montoTexto}, Benef: ${beneficiario}`);
+
+            // Buscar pedido en procesando que matchee
+            let pedido = null;
+            if (montoTexto) {
+                const montoNum = parseFloat(montoTexto);
+                // Buscar por monto_destino (bolívares) con tolerancia de 1
+                pedido = await dbGet(
+                    `SELECT s.id, s.monto_destino, s.telegram_message_id, s.monto_origen,
+                            c.nombre as cliente_nombre, b.nombre_completo as beneficiario_nombre
+                     FROM solicitudes_transferencia s
+                     JOIN clientes_app c ON s.cliente_app_id = c.id
+                     JOIN beneficiarios b ON s.beneficiario_id = b.id
+                     WHERE s.estado = 'procesando'
+                       AND s.tomado_por_nombre = 'Bot Conciliación'
+                       AND ABS(s.monto_destino - ?) < 1
+                     ORDER BY s.fecha_tomado DESC
+                     LIMIT 1`,
+                    [montoNum]
+                );
             }
-        });
-        
-        if (response.data.ok && response.data.result.length > 0) {
-            for (const update of response.data.result) {
-                telegramUpdateOffset = update.update_id + 1;
-                
-                if (update.callback_query) {
-                    await manejarCallbackTelegram(update.callback_query);
+
+            if (pedido) {
+                // Completar pedido automáticamente
+                await dbRun(
+                    `UPDATE solicitudes_transferencia
+                     SET estado = 'completada',
+                         referencia_pago = ?,
+                         fecha_completada = ?
+                     WHERE id = ?`,
+                    [referencia, new Date().toISOString(), pedido.id]
+                );
+
+                console.log(`[WEBHOOK] Pedido #${pedido.id} COMPLETADO automáticamente - Ref: ${referencia}`);
+
+                // Editar mensaje original en chat de notificaciones
+                if (pedido.telegram_message_id) {
+                    await editarMensajeTelegram(
+                        pedido.telegram_message_id,
+                        `✅ <b>PEDIDO COMPLETADO</b>\n\n` +
+                        `📋 Pedido #${pedido.id}\n` +
+                        `👤 ${pedido.cliente_nombre}\n` +
+                        `🏦 ${pedido.beneficiario_nombre}\n` +
+                        `💰 $${Math.round(pedido.monto_origen).toLocaleString('es-CL')} CLP → Bs. ${Math.round(pedido.monto_destino).toLocaleString('es-VE')}\n\n` +
+                        `🔗 Referencia: <b>${referencia || 'N/A'}</b>\n` +
+                        `🤖 Procesado automáticamente\n` +
+                        `🕐 ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`,
+                        [] // Sin botones
+                    );
                 }
+
+                // Notificación adicional
+                await enviarNotificacionTelegram(
+                    `✅ <b>Pago Completado Automáticamente</b>\n\n` +
+                    `📋 Pedido #${pedido.id}\n` +
+                    `👤 ${pedido.beneficiario_nombre}\n` +
+                    `💰 Bs. ${Math.round(pedido.monto_destino).toLocaleString('es-VE')}\n` +
+                    `🔗 Referencia: <b>${referencia || 'N/A'}</b>`
+                );
+            } else {
+                console.log('[WEBHOOK] Pago EXITOSO pero no se encontró pedido en procesando que matchee');
             }
         }
+
+        // Detectar Transferencia FALLIDA
+        else if (texto.includes('Transferencia FALLIDA') || texto.includes('FALLIDA')) {
+            const errorMatch = texto.match(/Error:\s*(.+)/);
+            const montoMatch = texto.match(/Bs\.?\s*([\d.,]+)/);
+            const errorMsg = errorMatch ? errorMatch[1].trim() : 'Error desconocido';
+
+            console.log(`[WEBHOOK] Pago FALLIDO - Error: ${errorMsg}`);
+
+            // Notificar en chat de notificaciones
+            await enviarNotificacionTelegram(
+                `❌ <b>Pago Fallido - Atención Manual Requerida</b>\n\n` +
+                `⚠️ Error: ${errorMsg}\n` +
+                `💰 ${montoMatch ? 'Monto: Bs. ' + montoMatch[1] : ''}\n\n` +
+                `🔧 El pedido sigue en estado <b>procesando</b>. Requiere intervención manual.`
+            );
+        }
     } catch (error) {
-        // Silencioso para no llenar logs
+        console.error('[WEBHOOK] Error procesando mensaje:', error.message);
     }
 }
 
@@ -589,11 +663,26 @@ async function manejarCallbackTelegram(callback) {
     }
 }
 
-// Iniciar polling de Telegram - ACTIVO
-function iniciarPollingTelegram() {
-    // Polling cada 2 segundos para respuesta rápida a botones
-    setInterval(procesarTelegramCallbacks, 2000);
-    console.log('📢 Sistema de Telegram iniciado (notificaciones + botones interactivos)');
+// Configurar webhook de Telegram
+async function configurarWebhookTelegram() {
+    await cargarConfigTelegram();
+    if (!TELEGRAM_BOT_TOKEN) {
+        console.log('⚠️ Telegram: No hay token configurado, webhook no activado');
+        return;
+    }
+    try {
+        // Determinar URL base del servidor
+        const baseUrl = process.env.RENDER_EXTERNAL_URL || process.env.BASE_URL || 'https://defisistema-interno-backup.onrender.com';
+        const webhookUrl = `${baseUrl}/webhook/telegram`;
+
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`, {
+            url: webhookUrl,
+            allowed_updates: ['message', 'callback_query']
+        });
+        console.log(`📢 Telegram Webhook configurado: ${webhookUrl}`);
+    } catch (error) {
+        console.error('Error configurando webhook Telegram:', error.message);
+    }
 }
 
 // =================================================================
@@ -1235,6 +1324,7 @@ const runMigrations = async () => {
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN metodo_pago TEXT DEFAULT 'transferencia_bancaria'`).catch(() => {});
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN telegram_message_id INTEGER`).catch(() => {});
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN conciliacion_notificado INTEGER DEFAULT 0`).catch(() => {});
+    await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN referencia_pago TEXT`).catch(() => {});
 
     // Tabla de codigos promocionales
     await dbRun(`CREATE TABLE IF NOT EXISTS codigos_promocionales (
@@ -1498,6 +1588,24 @@ app.get('/logout', (req, res) => {
   });
 });
 app.get('/api/user-info', apiAuth, (req, res) => res.json(req.session.user));
+
+// ========== WEBHOOK DE TELEGRAM ==========
+app.post('/webhook/telegram', async (req, res) => {
+    res.sendStatus(200); // Responder inmediato a Telegram
+    try {
+        const update = req.body;
+
+        if (update.callback_query) {
+            await manejarCallbackTelegram(update.callback_query);
+        }
+
+        if (update.message) {
+            await procesarMensajeGrupoPagador(update.message);
+        }
+    } catch (error) {
+        console.error('[WEBHOOK] Error:', error.message);
+    }
+});
 
 // Endpoint de heartbeat para monitoreo de actividad
 app.post('/api/actividad/heartbeat', apiAuth, (req, res) => {
@@ -7580,7 +7688,7 @@ app.get('/api/monitoreo/estado-tasas', apiAuth, onlyMaster, async (req, res) => 
  * Iniciar monitoreo de tasas (cada 2 minutos para respuesta más rápida)
  */
 function iniciarMonitoreoTasas() {
-            iniciarPollingTelegram();    // Iniciar polling callbacks Telegram
+            configurarWebhookTelegram();    // Configurar webhook Telegram
     // Ejecutar verificación inicial después de 10 segundos
     setTimeout(monitorearTasasVES, 10000);
     
