@@ -183,13 +183,19 @@
 
       <div id="pagadorBox" class="box" style="margin-bottom:16px; border: 3px solid #6c757d; border-radius:12px; padding: 20px; background: linear-gradient(135deg, #f0f7ff, #ffffff);">
           <h3 style="margin:0 0 12px 0; font-size: 1.2rem;">🏦 Bot Pagador Bancamiga</h3>
-          <p style="margin:0 0 12px 0; color: #666; font-size: 0.85rem;">Chat ID del grupo donde están el bot de notificaciones y el bot pagador. Nuestro bot envía el mensaje al grupo y el bot pagador lo detecta.</p>
-          <div style="display: flex; gap: 12px; margin-bottom: 12px; align-items: end;">
-              <div style="flex:1;">
+          <p style="margin:0 0 12px 0; color: #666; font-size: 0.85rem;">Token del bot pagador (para leer sus respuestas) y Chat ID del grupo donde opera.</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div>
+                  <label style="font-weight:600; font-size:0.85rem;">Bot Token (Bancamiga)</label>
+                  <input type="text" id="pagadorBotToken" placeholder="Token del bot pagador" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:0.85rem;">
+              </div>
+              <div>
                   <label style="font-weight:600; font-size:0.85rem;">Chat ID del Grupo</label>
                   <input type="text" id="pagadorChatId" placeholder="Ej: -1001234567890" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:0.85rem;">
               </div>
-              <button onclick="guardarConfigPagador()" class="btn btn-primary" style="padding:10px 24px; font-size:0.9rem; border-radius:8px; border:none; cursor:pointer; height:38px;">
+          </div>
+          <div style="display:flex; align-items:center; gap:12px;">
+              <button onclick="guardarConfigPagador()" class="btn btn-primary" style="padding:10px 24px; font-size:0.9rem; border-radius:8px; border:none; cursor:pointer;">
                   💾 Guardar
               </button>
               <span id="pagadorStatus" style="font-size:0.85rem; color:#666;"></span>
@@ -534,9 +540,10 @@
             const resp = await fetch('/api/config/pagador');
             if (resp.ok) {
                 const data = await resp.json();
+                document.getElementById('pagadorBotToken').value = data.bot_token || '';
                 document.getElementById('pagadorChatId').value = data.chat_id || '';
                 const status = document.getElementById('pagadorStatus');
-                if (data.chat_id) {
+                if (data.bot_token && data.chat_id) {
                     status.textContent = '✅ Configurado';
                     status.style.color = '#28a745';
                 } else {
@@ -550,12 +557,13 @@
     }
 
     async function guardarConfigPagador() {
+        const bot_token = document.getElementById('pagadorBotToken').value.trim();
         const chat_id = document.getElementById('pagadorChatId').value.trim();
         try {
             const resp = await fetch('/api/config/pagador', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id })
+                body: JSON.stringify({ bot_token, chat_id })
             });
             const data = await resp.json();
             if (resp.ok) {
