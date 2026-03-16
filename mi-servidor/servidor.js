@@ -3399,14 +3399,16 @@ async function conciliarPedidos() {
 
                 if (!pedidoMatch) continue;
 
-                // Vincular transferencia con pedido
+                // Vincular transferencia con pedido y tomarlo como operador automático
                 await dbRun(
                     `UPDATE solicitudes_transferencia
                      SET estado = 'procesando',
                          transferencia_banco_id = ?,
-                         referencia = ?
+                         referencia = ?,
+                         tomado_por_nombre = 'Bot Conciliación',
+                         fecha_tomado = ?
                      WHERE id = ?`,
-                    [transf.id, transf.n_operacion, pedidoMatch.id]
+                    [transf.id, transf.n_operacion, new Date().toISOString(), pedidoMatch.id]
                 );
 
                 await dbRun(
@@ -3429,7 +3431,8 @@ async function conciliarPedidos() {
                         `👤 ${transf.nombre_origen}\n` +
                         `🆔 RUT: ${transf.rut_origen}\n` +
                         `💰 Monto: $${transf.monto_numerico.toLocaleString('es-CL')}\n\n` +
-                        `✅ Pedido marcado como <b>procesando</b>`
+                        `📥 Pedido <b>tomado</b> por Bot Conciliación\n` +
+                        `✅ Estado: <b>procesando</b>`
                     );
                 } catch (e) {}
             }
