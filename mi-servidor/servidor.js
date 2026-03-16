@@ -152,7 +152,73 @@ async function editarMensajeTelegram(messageId, nuevoTexto, botones = []) {
     }
 }
 
+// Helper: convertir documento_tipo a inicial para formato bancario
+function inicialDocumento(tipo) {
+    const map = { 'cedula': 'V', 'rut': 'V', 'pasaporte': 'P', 'dni': 'E' };
+    return map[(tipo || '').toLowerCase()] || 'V';
+}
 
+// Enviar pedido al bot pagador de Bancamiga
+async function enviarAlBotPagador(pedidoId) {
+    try {
+        // Leer config del bot pagador
+        const [tokenConfig, chatConfig] = await Promise.all([
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_bot_token'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_chat_id'")
+        ]);
+        const pagadorToken = tokenConfig?.valor;
+        const pagadorChatId = chatConfig?.valor;
+
+        if (!pagadorToken || !pagadorChatId) {
+            console.log('[BOT PAGADOR] No configurado (falta token o chat_id)');
+            return false;
+        }
+
+        // Obtener datos completos del pedido + beneficiario
+        const pedido = await dbGet(
+            `SELECT s.*, b.nombre_completo, b.banco, b.numero_cuenta, b.tipo_cuenta,
+                    b.documento_tipo as benef_doc_tipo, b.documento_numero as benef_doc_numero,
+                    b.telefono as benef_telefono
+             FROM solicitudes_transferencia s
+             JOIN beneficiarios b ON s.beneficiario_id = b.id
+             WHERE s.id = ?`, [pedidoId]
+        );
+
+        if (!pedido) {
+            console.error(`[BOT PAGADOR] Pedido #${pedidoId} no encontrado`);
+            return false;
+        }
+
+        const docInicial = inicialDocumento(pedido.benef_doc_tipo);
+        const docNumero = (pedido.benef_doc_numero || '').replace(/[^0-9]/g, '');
+        const nombre = pedido.nombre_completo || 'Sin nombre';
+        const montoDestino = Math.round(pedido.monto_destino || 0);
+        let mensaje = '';
+
+        if (pedido.tipo_cuenta === 'pago_movil') {
+            // Formato pago móvil: 0105 04165178157 V 15204797 Maria Lopez 6400
+            const codigoBanco = (pedido.numero_cuenta || '').substring(0, 4);
+            const telefono = (pedido.benef_telefono || '').replace(/[^0-9]/g, '');
+            mensaje = `${codigoBanco} ${telefono} ${docInicial} ${docNumero} ${nombre} ${montoDestino}`;
+        } else {
+            // Formato transferencia: 01020404620000454397 V 8459442 Maria Lopez 10
+            const cuenta = (pedido.numero_cuenta || '').replace(/[^0-9]/g, '');
+            mensaje = `${cuenta} ${docInicial} ${docNumero} ${nombre} ${montoDestino}`;
+        }
+
+        // Enviar al bot pagador
+        const response = await axios.post(`https://api.telegram.org/bot${pagadorToken}/sendMessage`, {
+            chat_id: pagadorChatId,
+            text: mensaje
+        });
+
+        console.log(`[BOT PAGADOR] Pedido #${pedidoId} enviado (${pedido.tipo_cuenta}): ${mensaje}`);
+        return response.data?.ok || false;
+    } catch (error) {
+        console.error(`[BOT PAGADOR] Error enviando pedido #${pedidoId}:`, error.message);
+        return false;
+    }
+}
 
 
 
@@ -770,6 +836,8 @@ const runMigrations = async () => {
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('tasaBCVFecha', '')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('bcvApiKey', '')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('conciliacion_activa', '1')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('telegram_pagador_bot_token', '')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('telegram_pagador_chat_id', '')`);
 
 
     // ... NUEVA TABLA PARA METAS
@@ -2778,6 +2846,42 @@ app.put('/api/conciliacion/estado', apiAuth, onlyMaster, async (req, res) => {
     }
 });
 
+// ========== CONFIG BOT PAGADOR ==========
+app.get('/api/config/pagador', apiAuth, async (req, res) => {
+    try {
+        const [tokenRow, chatRow] = await Promise.all([
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_bot_token'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_chat_id'")
+        ]);
+        res.json({
+            bot_token: tokenRow?.valor || '',
+            chat_id: chatRow?.valor || ''
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener config del bot pagador' });
+    }
+});
+
+app.put('/api/config/pagador', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { bot_token, chat_id } = req.body;
+        if (bot_token !== undefined) {
+            await new Promise((resolve, reject) => {
+                upsertConfig('telegram_pagador_bot_token', bot_token, (err) => err ? reject(err) : resolve());
+            });
+        }
+        if (chat_id !== undefined) {
+            await new Promise((resolve, reject) => {
+                upsertConfig('telegram_pagador_chat_id', chat_id, (err) => err ? reject(err) : resolve());
+            });
+        }
+        console.log('[BOT PAGADOR] Configuración actualizada');
+        res.json({ ok: true, mensaje: 'Configuración del bot pagador actualizada' });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al actualizar config del bot pagador' });
+    }
+});
+
 app.get('/api/usuarios', apiAuth, onlyMaster, (req, res) => {
     db.all(`SELECT id, username, role FROM usuarios`, [], (err, rows) => {
         if (err) return res.status(500).json({ message: 'Error al listar usuarios' });
@@ -3530,6 +3634,11 @@ async function conciliarPedidos() {
                         `✅ Estado: <b>procesando</b>`
                     );
                 } catch (e) { console.error('[CONCILIACIÓN] Error Telegram:', e.message); }
+
+                // Enviar al bot pagador de Bancamiga
+                try {
+                    await enviarAlBotPagador(pedidoMatch.id);
+                } catch (e) { console.error('[CONCILIACIÓN] Error enviando al bot pagador:', e.message); }
             }
 
             if (conciliados > 0) {
