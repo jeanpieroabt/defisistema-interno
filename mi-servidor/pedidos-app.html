@@ -1126,7 +1126,7 @@
         <option value="urgentes">⚠️ Urgentes (+15 min)</option>
       </select>
       <label for="fBusqueda">Buscar</label>
-      <input type="text" id="fBusqueda" placeholder="Cliente, RUT, teléfono, banco..." oninput="filtrarLocal()">
+      <input type="text" id="fBusqueda" placeholder="#Pedido, Cliente, RUT, teléfono, banco..." oninput="filtrarLocal()">
       <div class="auto-refresh">
         <input type="checkbox" id="autoRefresh" checked>
         <label for="autoRefresh">Auto-actualizar cada 30s</label>
@@ -1339,8 +1339,10 @@
       }
 
       if (term) {
+        const termLimpio = term.replace(/^#/, '');
         filtrado = filtrado.filter(s => {
           return (
+            String(s.id).includes(termLimpio) ||
             (s.cliente_nombre || '').toLowerCase().includes(term) ||
             (s.cliente_documento_numero || '').toLowerCase().includes(term) ||
             (s.cliente_telefono || '').toLowerCase().includes(term) ||
