@@ -176,7 +176,8 @@ async function enviarAlBotPagador(pedidoId) {
 
         // Obtener datos completos del pedido + beneficiario
         const pedido = await dbGet(
-            `SELECT s.*, b.nombre_completo, b.banco, b.numero_cuenta, b.tipo_cuenta,
+            `SELECT s.*, b.nombre_completo, b.banco as benef_banco, b.numero_cuenta as benef_cuenta,
+                    b.tipo_cuenta as benef_tipo_cuenta,
                     b.documento_tipo as benef_doc_tipo, b.documento_numero as benef_doc_numero,
                     b.telefono as benef_telefono
              FROM solicitudes_transferencia s
@@ -192,22 +193,45 @@ async function enviarAlBotPagador(pedidoId) {
         const docInicial = inicialDocumento(pedido.benef_doc_tipo);
         const docNumero = (pedido.benef_doc_numero || '').replace(/[^0-9]/g, '');
         const nombre = pedido.nombre_completo || 'Sin nombre';
-        const cuenta = (pedido.numero_cuenta || '').replace(/[^0-9]/g, '');
-        const codigoBanco = cuenta.substring(0, 4);
+        const cuenta = (pedido.benef_cuenta || '').replace(/[^0-9]/g, '');
         const montoDestino = pedido.monto_destino || 0;
+        const telefono = (pedido.benef_telefono || '').replace(/[^0-9]/g, '');
+        // Detectar pago móvil: si el beneficiario tiene teléfono y no tiene cuenta bancaria
+        const esPagoMovil = telefono.length > 0 && cuenta.length === 0;
+        // Para pago móvil el código de banco viene del campo banco del beneficiario
+        const codigoBanco = esPagoMovil
+            ? (pedido.benef_banco || '').replace(/[^0-9]/g, '').substring(0, 4)
+            : cuenta.substring(0, 4);
 
-        // Construir transferencia para la API
-        const transferencia = {
-            banco_destino: codigoBanco,
-            cuenta_destino: cuenta,
-            doc_tipo: docInicial,
-            doc_numero: docNumero,
-            beneficiario: nombre,
-            monto: String(montoDestino),
-            concepto: `Pedido #${pedidoId}`
-        };
+        // Construir transferencia según tipo (pago móvil vs transferencia a terceros)
+        let transferencia;
+        if (esPagoMovil) {
+            // Pago Móvil: banco + teléfono + doc + nombre + monto
+            transferencia = {
+                tipo: 'pago_movil',
+                banco_destino: codigoBanco,
+                telefono: telefono,
+                doc_tipo: docInicial,
+                doc_numero: docNumero,
+                beneficiario: nombre,
+                monto: String(montoDestino),
+                concepto: `Pedido #${pedidoId}`
+            };
+        } else {
+            // Transferencia a terceros: cuenta completa + doc + nombre + monto
+            transferencia = {
+                tipo: 'transferencia',
+                banco_destino: codigoBanco,
+                cuenta_destino: cuenta,
+                doc_tipo: docInicial,
+                doc_numero: docNumero,
+                beneficiario: nombre,
+                monto: String(montoDestino),
+                concepto: `Pedido #${pedidoId}`
+            };
+        }
 
-        console.log(`[BOT PAGADOR] Enviando pedido #${pedidoId} a API: ${JSON.stringify(transferencia)}`);
+        console.log(`[BOT PAGADOR] Enviando pedido #${pedidoId} (${esPagoMovil ? 'PAGO MÓVIL' : 'TRANSFERENCIA'}) a API: ${JSON.stringify(transferencia)}`);
 
         // POST /ejecutar
         const response = await axios.post(`${apiUrl}/ejecutar`, {
