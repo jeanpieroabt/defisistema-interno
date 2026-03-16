@@ -126,15 +126,31 @@ async function enviarNotificacionTelegram(mensaje, parseMode = 'HTML', botones =
         
         const response = await axios.post(url, payload);
         console.log('Notificacion Telegram enviada');
-        return response.data.ok;
+        return response.data;
     } catch (error) {
         console.error('Error enviando notificacion Telegram:', error.message);
         return false;
     }
 }
 
-
-
+// Editar mensaje de Telegram (actualizar texto y quitar/cambiar botones)
+async function editarMensajeTelegram(messageId, nuevoTexto, botones = []) {
+    await cargarConfigTelegram();
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !messageId) return false;
+    try {
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+            chat_id: TELEGRAM_CHAT_ID,
+            message_id: messageId,
+            text: nuevoTexto,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: botones }
+        });
+        return true;
+    } catch (error) {
+        console.error('Error editando mensaje Telegram:', error.message);
+        return false;
+    }
+}
 
 
 
@@ -1152,6 +1168,7 @@ const runMigrations = async () => {
     // Migración: agregar columna para vincular transferencia bancaria conciliada
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN transferencia_banco_id INTEGER`).catch(() => {});
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN metodo_pago TEXT DEFAULT 'transferencia_bancaria'`).catch(() => {});
+    await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN telegram_message_id INTEGER`).catch(() => {});
 
     // Tabla de codigos promocionales
     await dbRun(`CREATE TABLE IF NOT EXISTS codigos_promocionales (
@@ -3427,6 +3444,22 @@ async function conciliarPedidos() {
                 console.log(`[CONCILIACIÓN] Pedido #${pedidoMatch.id} conciliado con transferencia N°${transf.n_operacion} (RUT: ${transf.rut_origen}, $${transf.monto_numerico})`);
 
                 try {
+                    // Editar mensaje original de Telegram (quitar botones, mostrar que fue tomado)
+                    const solicitudData = await dbGet('SELECT telegram_message_id FROM solicitudes_transferencia WHERE id = ?', [pedidoMatch.id]);
+                    if (solicitudData && solicitudData.telegram_message_id) {
+                        await editarMensajeTelegram(
+                            solicitudData.telegram_message_id,
+                            `🤖 <b>CONCILIADO AUTOMÁTICAMENTE</b>\n\n` +
+                            `📋 Pedido #${pedidoMatch.id}\n` +
+                            `👤 ${pedidoMatch.nombre}\n` +
+                            `💰 Monto: $${Math.round(pedidoMatch.monto_origen).toLocaleString('es-CL')} CLP\n\n` +
+                            `🔗 Transferencia N°${transf.n_operacion}\n` +
+                            `📥 Tomado por: <b>Bot Conciliación</b>\n` +
+                            `⏰ ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`,
+                            [] // Sin botones
+                        );
+                    }
+                    // Enviar notificación adicional
                     await enviarNotificacionTelegram(
                         `🤖 <b>Conciliación Automática</b>\n\n` +
                         `📋 Pedido #${pedidoMatch.id} → Transferencia N°${transf.n_operacion}\n` +
@@ -3436,7 +3469,7 @@ async function conciliarPedidos() {
                         `📥 Pedido <b>tomado</b> por Bot Conciliación\n` +
                         `✅ Estado: <b>procesando</b>`
                     );
-                } catch (e) {}
+                } catch (e) { console.error('[CONCILIACIÓN] Error Telegram:', e.message); }
             }
 
             if (conciliados > 0) {
@@ -3446,7 +3479,7 @@ async function conciliarPedidos() {
 
         // 4. Auto-cancelar pedidos de transferencia sin match después de 10 minutos
         const pedidosVencidos = await dbAll(
-            `SELECT s.id, s.monto_origen, s.fecha_solicitud, c.nombre, c.documento_numero
+            `SELECT s.id, s.monto_origen, s.fecha_solicitud, s.telegram_message_id, c.nombre, c.documento_numero
              FROM solicitudes_transferencia s
              JOIN clientes_app c ON s.cliente_app_id = c.id
              WHERE s.estado = 'pendiente'
@@ -3469,6 +3502,20 @@ async function conciliarPedidos() {
                 console.log(`[CONCILIACIÓN] Pedido #${p.id} cancelado automáticamente (sin transferencia en 10 min) - ${p.nombre} $${p.monto_origen}`);
 
                 try {
+                    // Editar mensaje original de Telegram (quitar botones)
+                    if (p.telegram_message_id) {
+                        await editarMensajeTelegram(
+                            p.telegram_message_id,
+                            `❌ <b>CANCELADO AUTOMÁTICAMENTE</b>\n\n` +
+                            `📋 Pedido #${p.id}\n` +
+                            `👤 ${p.nombre}\n` +
+                            `💰 Monto: $${Math.round(p.monto_origen).toLocaleString('es-CL')} CLP\n\n` +
+                            `⏰ Transferencia no detectada en 10 minutos\n` +
+                            `🕐 ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`,
+                            [] // Sin botones
+                        );
+                    }
+                    // Enviar notificación adicional
                     await enviarNotificacionTelegram(
                         `⏰ <b>Pedido Auto-Cancelado</b>\n\n` +
                         `📋 Pedido #${p.id}\n` +
@@ -8897,28 +8944,34 @@ app.post('/api/cliente/solicitudes', clienteAuth, upload.single('comprobante'), 
 
         const solicitudId = result.lastID;
 
-        // Enviar notificación a Telegram
-        await notificarNuevaSolicitud({
-            id: solicitudId,
-            cliente_nombre: beneficiario.cliente_nombre,
-            cliente_email: beneficiario.cliente_email,
-            cliente_telefono: beneficiario.cliente_telefono,
-            cliente_documento_tipo: beneficiario.cliente_documento_tipo,
-            cliente_documento: beneficiario.cliente_documento,
-            monto_origen,
-            moneda_origen,
-            monto_destino,
-            moneda_destino,
-            tasa_aplicada,
-            beneficiario_nombre: beneficiario.nombre_completo,
-            beneficiario_banco: beneficiario.banco,
-            beneficiario_cedula: beneficiario.documento_numero,
-            beneficiario_tipo_cuenta: beneficiario.tipo_cuenta,
-            beneficiario_cuenta: beneficiario.numero_cuenta,
-            beneficiario_telefono: beneficiario.telefono,
-            tipo_cuenta: metodo_entrega || beneficiario.tipo_cuenta,
-            metodo_pago: metodo_pago || 'transferencia_bancaria'
-        }, comprobanteBuffer);
+        // Enviar notificación a Telegram y guardar message_id
+        try {
+            const telegramResult = await notificarNuevaSolicitud({
+                id: solicitudId,
+                cliente_nombre: beneficiario.cliente_nombre,
+                cliente_email: beneficiario.cliente_email,
+                cliente_telefono: beneficiario.cliente_telefono,
+                cliente_documento_tipo: beneficiario.cliente_documento_tipo,
+                cliente_documento: beneficiario.cliente_documento,
+                monto_origen,
+                moneda_origen,
+                monto_destino,
+                moneda_destino,
+                tasa_aplicada,
+                beneficiario_nombre: beneficiario.nombre_completo,
+                beneficiario_banco: beneficiario.banco,
+                beneficiario_cedula: beneficiario.documento_numero,
+                beneficiario_tipo_cuenta: beneficiario.tipo_cuenta,
+                beneficiario_cuenta: beneficiario.numero_cuenta,
+                beneficiario_telefono: beneficiario.telefono,
+                tipo_cuenta: metodo_entrega || beneficiario.tipo_cuenta,
+                metodo_pago: metodo_pago || 'transferencia_bancaria'
+            }, comprobanteBuffer);
+            if (telegramResult && telegramResult.result && telegramResult.result.message_id) {
+                await dbRun('UPDATE solicitudes_transferencia SET telegram_message_id = ? WHERE id = ?',
+                    [telegramResult.result.message_id, solicitudId]);
+            }
+        } catch (e) { console.error('Error guardando telegram_message_id:', e.message); }
 
         // Devolver datos de la cuenta para pago
         res.status(201).json({
