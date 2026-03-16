@@ -1710,7 +1710,7 @@
         filtrados = filtrados.filter(d => d.telefono && d.telefono.trim() !== '');
       } else if (metodo === 'transferencia') {
         // Solo mostrar destinatarios que tengan cuenta bancaria registrada
-        filtrados = filtrados.filter(d => d.numero_cuenta && d.numero_cuenta.trim() !== '');
+        filtrados = filtrados.filter(d => d.numero_cuenta && d.numero_cuenta.trim() !== '' && d.numero_cuenta.trim().toUpperCase() !== 'N/A');
       }
 
       if (search) filtrados = filtrados.filter(d =>
