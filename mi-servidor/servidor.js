@@ -3445,14 +3445,15 @@ async function conciliarPedidos() {
 
         // 4. Auto-cancelar pedidos de transferencia sin match después de 10 minutos
         const pedidosVencidos = await dbAll(
-            `SELECT s.id, s.monto_origen, c.nombre, c.documento_numero
+            `SELECT s.id, s.monto_origen, s.fecha_solicitud, c.nombre, c.documento_numero
              FROM solicitudes_transferencia s
              JOIN clientes_app c ON s.cliente_app_id = c.id
              WHERE s.estado = 'pendiente'
                AND s.transferencia_banco_id IS NULL
                AND (s.metodo_pago IS NULL OR s.metodo_pago = 'transferencia_bancaria')
-               AND datetime(s.fecha_solicitud) < datetime('now', '-10 minutes')`
+               AND strftime('%s', replace(replace(s.fecha_solicitud, 'T', ' '), 'Z', '')) < strftime('%s', datetime('now', '-10 minutes'))`
         );
+        console.log(`[CONCILIACIÓN] Pedidos vencidos encontrados: ${pedidosVencidos ? pedidosVencidos.length : 0}`);
 
         if (pedidosVencidos && pedidosVencidos.length > 0) {
             for (const p of pedidosVencidos) {
