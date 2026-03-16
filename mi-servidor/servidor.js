@@ -1169,6 +1169,7 @@ const runMigrations = async () => {
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN transferencia_banco_id INTEGER`).catch(() => {});
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN metodo_pago TEXT DEFAULT 'transferencia_bancaria'`).catch(() => {});
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN telegram_message_id INTEGER`).catch(() => {});
+    await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN conciliacion_notificado INTEGER DEFAULT 0`).catch(() => {});
 
     // Tabla de codigos promocionales
     await dbRun(`CREATE TABLE IF NOT EXISTS codigos_promocionales (
@@ -3393,7 +3394,8 @@ async function conciliarPedidos() {
 
         // 2. Buscar pedidos pendientes sin conciliar (SOLO transferencias, NO caja vecina)
         const pedidos = await dbAll(
-            `SELECT s.id, s.monto_origen, s.cliente_app_id, s.fecha_solicitud, c.documento_numero, c.nombre
+            `SELECT s.id, s.monto_origen, s.cliente_app_id, s.fecha_solicitud, s.telegram_message_id,
+                    s.conciliacion_notificado, c.documento_numero, c.nombre
              FROM solicitudes_transferencia s
              JOIN clientes_app c ON s.cliente_app_id = c.id
              WHERE s.estado = 'pendiente'
@@ -3402,6 +3404,64 @@ async function conciliarPedidos() {
                AND c.documento_numero IS NOT NULL
              ORDER BY s.fecha_solicitud ASC`
         );
+
+        // 2.5 Notificar en Telegram que el bot está monitoreando pedidos nuevos
+        if (pedidos && pedidos.length > 0) {
+            for (const p of pedidos) {
+                if (p.telegram_message_id && !p.conciliacion_notificado) {
+                    const minutos = Math.round((Date.now() - new Date(p.fecha_solicitud).getTime()) / 60000);
+                    const tiempoRestante = Math.max(10 - minutos, 0);
+                    try {
+                        // Obtener datos del pedido original para mantener la info
+                        const pedidoCompleto = await dbGet(
+                            `SELECT s.*, b.nombre_completo, b.banco, b.numero_cuenta, b.documento_numero as benef_doc,
+                                    b.tipo_cuenta, b.telefono as benef_tel, c.nombre as cliente_nombre, c.telefono as cliente_tel
+                             FROM solicitudes_transferencia s
+                             LEFT JOIN beneficiarios b ON s.beneficiario_id = b.id
+                             LEFT JOIN clientes_app c ON s.cliente_app_id = c.id
+                             WHERE s.id = ?`, [p.id]
+                        );
+
+                        if (pedidoCompleto) {
+                            const cuenta = pedidoCompleto.numero_cuenta || 'No disponible';
+                            const cedula = pedidoCompleto.benef_doc || 'No disponible';
+                            const nombre = pedidoCompleto.nombre_completo || 'No disponible';
+                            const banco = pedidoCompleto.banco || 'No disponible';
+
+                            await editarMensajeTelegram(
+                                p.telegram_message_id,
+                                `🤖 <b>PEDIDO #${p.id} - MONITOREANDO</b>\n\n` +
+                                `👤 ${p.nombre}\n` +
+                                `💰 $${Math.round(p.monto_origen).toLocaleString('es-CL')} CLP\n` +
+                                `🆔 RUT: ${p.documento_numero}\n\n` +
+                                `🏦 ${nombre} - ${banco}\n` +
+                                `💳 ${cuenta}\n` +
+                                `🪪 ${cedula}\n\n` +
+                                `⏳ Bot buscando transferencia...\n` +
+                                `⏰ Tiempo restante: ${tiempoRestante} min\n` +
+                                `🔄 Auto-cancela si no se detecta en 10 min`,
+                                [
+                                    [
+                                        { text: `💳 ${cuenta}`, copy_text: { text: cuenta } },
+                                        { text: `🪪 ${cedula}`, copy_text: { text: cedula } }
+                                    ],
+                                    [
+                                        { text: `👤 ${nombre.substring(0, 15)}`, copy_text: { text: nombre } },
+                                        { text: `🏦 ${banco.substring(0, 12)}`, copy_text: { text: banco } }
+                                    ],
+                                    [
+                                        { text: '✅ COMPLETADO', callback_data: `completar_${p.id}` },
+                                        { text: '❌ CANCELAR', callback_data: `cancelar_${p.id}` }
+                                    ]
+                                ]
+                            );
+                        }
+                    } catch (e) { console.error('[CONCILIACIÓN] Error notificando monitoreo:', e.message); }
+
+                    await dbRun('UPDATE solicitudes_transferencia SET conciliacion_notificado = 1 WHERE id = ?', [p.id]);
+                }
+            }
+        }
 
         let conciliados = 0;
 
