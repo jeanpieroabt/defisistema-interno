@@ -161,16 +161,13 @@ function inicialDocumento(tipo) {
 // Enviar pedido al bot pagador de Bancamiga
 async function enviarAlBotPagador(pedidoId) {
     try {
-        // Leer config del bot pagador
-        const [tokenConfig, chatConfig] = await Promise.all([
-            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_bot_token'"),
-            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_chat_id'")
-        ]);
-        const pagadorToken = tokenConfig?.valor;
+        // Leer config del bot pagador (usa el bot de notificaciones para enviar al grupo)
+        await cargarConfigTelegram();
+        const chatConfig = await dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_chat_id'");
         const pagadorChatId = chatConfig?.valor;
 
-        if (!pagadorToken || !pagadorChatId) {
-            console.log('[BOT PAGADOR] No configurado (falta token o chat_id)');
+        if (!TELEGRAM_BOT_TOKEN || !pagadorChatId) {
+            console.log('[BOT PAGADOR] No configurado (falta token de notificaciones o chat_id del grupo)');
             return false;
         }
 
@@ -206,8 +203,8 @@ async function enviarAlBotPagador(pedidoId) {
             mensaje = `${cuenta} ${docInicial} ${docNumero} ${nombre} ${montoDestino}`;
         }
 
-        // Enviar al bot pagador
-        const response = await axios.post(`https://api.telegram.org/bot${pagadorToken}/sendMessage`, {
+        // Enviar al grupo donde está el bot pagador (usando nuestro bot de notificaciones)
+        const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             chat_id: pagadorChatId,
             text: mensaje
         });
@@ -2849,14 +2846,8 @@ app.put('/api/conciliacion/estado', apiAuth, onlyMaster, async (req, res) => {
 // ========== CONFIG BOT PAGADOR ==========
 app.get('/api/config/pagador', apiAuth, async (req, res) => {
     try {
-        const [tokenRow, chatRow] = await Promise.all([
-            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_bot_token'"),
-            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_chat_id'")
-        ]);
-        res.json({
-            bot_token: tokenRow?.valor || '',
-            chat_id: chatRow?.valor || ''
-        });
+        const chatRow = await dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_chat_id'");
+        res.json({ chat_id: chatRow?.valor || '' });
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener config del bot pagador' });
     }
@@ -2864,18 +2855,13 @@ app.get('/api/config/pagador', apiAuth, async (req, res) => {
 
 app.put('/api/config/pagador', apiAuth, onlyMaster, async (req, res) => {
     try {
-        const { bot_token, chat_id } = req.body;
-        if (bot_token !== undefined) {
-            await new Promise((resolve, reject) => {
-                upsertConfig('telegram_pagador_bot_token', bot_token, (err) => err ? reject(err) : resolve());
-            });
-        }
+        const { chat_id } = req.body;
         if (chat_id !== undefined) {
             await new Promise((resolve, reject) => {
                 upsertConfig('telegram_pagador_chat_id', chat_id, (err) => err ? reject(err) : resolve());
             });
         }
-        console.log('[BOT PAGADOR] Configuración actualizada');
+        console.log('[BOT PAGADOR] Configuración actualizada - Chat ID:', chat_id);
         res.json({ ok: true, mensaje: 'Configuración del bot pagador actualizada' });
     } catch (error) {
         res.status(500).json({ error: 'Error al actualizar config del bot pagador' });
