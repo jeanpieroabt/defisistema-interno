@@ -182,21 +182,24 @@
       </div>
 
       <div id="pagadorBox" class="box" style="margin-bottom:16px; border: 3px solid #6c757d; border-radius:12px; padding: 20px; background: linear-gradient(135deg, #f0f7ff, #ffffff);">
-          <h3 style="margin:0 0 12px 0; font-size: 1.2rem;">🏦 Bot Pagador Bancamiga</h3>
-          <p style="margin:0 0 12px 0; color: #666; font-size: 0.85rem;">Token del bot pagador (para leer sus respuestas) y Chat ID del grupo donde opera.</p>
+          <h3 style="margin:0 0 12px 0; font-size: 1.2rem;">🏦 Bot Pagador Bancamiga (API HTTP)</h3>
+          <p style="margin:0 0 12px 0; color: #666; font-size: 0.85rem;">Conexión directa al bot pagador vía API HTTP. Envía pagos y recibe resultados automáticamente.</p>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
               <div>
-                  <label style="font-weight:600; font-size:0.85rem;">Bot Token (Bancamiga)</label>
-                  <input type="text" id="pagadorBotToken" placeholder="Token del bot pagador" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:0.85rem;">
+                  <label style="font-weight:600; font-size:0.85rem;">URL de la API</label>
+                  <input type="text" id="pagadorApiUrl" placeholder="https://xxx.ngrok-free.app" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:0.85rem;">
               </div>
               <div>
-                  <label style="font-weight:600; font-size:0.85rem;">Chat ID del Grupo</label>
-                  <input type="text" id="pagadorChatId" placeholder="Ej: -1001234567890" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:0.85rem;">
+                  <label style="font-weight:600; font-size:0.85rem;">Token de autenticación</label>
+                  <input type="text" id="pagadorApiToken" placeholder="bot-defi-2026" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; font-size:0.85rem;">
               </div>
           </div>
           <div style="display:flex; align-items:center; gap:12px;">
               <button onclick="guardarConfigPagador()" class="btn btn-primary" style="padding:10px 24px; font-size:0.9rem; border-radius:8px; border:none; cursor:pointer;">
                   💾 Guardar
+              </button>
+              <button onclick="testConexionPagador()" class="btn" style="padding:10px 24px; font-size:0.9rem; border-radius:8px; border:1px solid #2D8CDB; cursor:pointer; background:white; color:#2D8CDB;">
+                  🔌 Test conexión
               </button>
               <span id="pagadorStatus" style="font-size:0.85rem; color:#666;"></span>
           </div>
@@ -540,10 +543,10 @@
             const resp = await fetch('/api/config/pagador');
             if (resp.ok) {
                 const data = await resp.json();
-                document.getElementById('pagadorBotToken').value = data.bot_token || '';
-                document.getElementById('pagadorChatId').value = data.chat_id || '';
+                document.getElementById('pagadorApiUrl').value = data.api_url || '';
+                document.getElementById('pagadorApiToken').value = data.api_token || '';
                 const status = document.getElementById('pagadorStatus');
-                if (data.bot_token && data.chat_id) {
+                if (data.api_url && data.api_token) {
                     status.textContent = '✅ Configurado';
                     status.style.color = '#28a745';
                 } else {
@@ -557,13 +560,13 @@
     }
 
     async function guardarConfigPagador() {
-        const bot_token = document.getElementById('pagadorBotToken').value.trim();
-        const chat_id = document.getElementById('pagadorChatId').value.trim();
+        const api_url = document.getElementById('pagadorApiUrl').value.trim();
+        const api_token = document.getElementById('pagadorApiToken').value.trim();
         try {
             const resp = await fetch('/api/config/pagador', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bot_token, chat_id })
+                body: JSON.stringify({ api_url, api_token })
             });
             const data = await resp.json();
             if (resp.ok) {
@@ -573,6 +576,29 @@
                 showToast(data.error || 'Error al guardar', 'error');
             }
         } catch (e) {
+            showToast('Error de conexión', 'error');
+        }
+    }
+
+    async function testConexionPagador() {
+        const status = document.getElementById('pagadorStatus');
+        status.textContent = '⏳ Probando conexión...';
+        status.style.color = '#f0ad4e';
+        try {
+            const resp = await fetch('/api/config/pagador/test');
+            const data = await resp.json();
+            if (data.ok) {
+                status.textContent = '✅ Conexión exitosa';
+                status.style.color = '#28a745';
+                showToast('Conexión al bot pagador exitosa', 'success');
+            } else {
+                status.textContent = '❌ Error: ' + (data.error || 'Sin respuesta');
+                status.style.color = '#dc3545';
+                showToast('Error: ' + (data.error || 'Sin respuesta'), 'error');
+            }
+        } catch (e) {
+            status.textContent = '❌ Sin conexión al servidor';
+            status.style.color = '#dc3545';
             showToast('Error de conexión', 'error');
         }
     }

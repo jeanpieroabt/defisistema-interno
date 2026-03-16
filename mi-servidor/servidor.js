@@ -158,16 +158,19 @@ function inicialDocumento(tipo) {
     return map[(tipo || '').toLowerCase()] || 'V';
 }
 
-// Enviar pedido al bot pagador de Bancamiga
+// Enviar pedido al bot pagador de Bancamiga vía API HTTP
 async function enviarAlBotPagador(pedidoId) {
     try {
-        // Leer config del bot pagador (usa el bot de notificaciones para enviar al grupo)
-        await cargarConfigTelegram();
-        const chatConfig = await dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_chat_id'");
-        const pagadorChatId = chatConfig?.valor;
+        // Leer config del bot pagador
+        const [urlConfig, tokenConfig] = await Promise.all([
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'pagador_api_url'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'pagador_api_token'")
+        ]);
+        const apiUrl = urlConfig?.valor;
+        const apiToken = tokenConfig?.valor;
 
-        if (!TELEGRAM_BOT_TOKEN || !pagadorChatId) {
-            console.log('[BOT PAGADOR] No configurado (falta token de notificaciones o chat_id del grupo)');
+        if (!apiUrl || !apiToken) {
+            console.log('[BOT PAGADOR] No configurado (falta URL o token de la API)');
             return false;
         }
 
@@ -189,32 +192,178 @@ async function enviarAlBotPagador(pedidoId) {
         const docInicial = inicialDocumento(pedido.benef_doc_tipo);
         const docNumero = (pedido.benef_doc_numero || '').replace(/[^0-9]/g, '');
         const nombre = pedido.nombre_completo || 'Sin nombre';
-        const montoDestino = Math.round(pedido.monto_destino || 0);
-        let mensaje = '';
+        const cuenta = (pedido.numero_cuenta || '').replace(/[^0-9]/g, '');
+        const codigoBanco = cuenta.substring(0, 4);
+        const montoDestino = pedido.monto_destino || 0;
 
-        if (pedido.tipo_cuenta === 'pago_movil') {
-            // Formato pago móvil: 0105 04165178157 V 15204797 Maria Lopez 6400
-            const codigoBanco = (pedido.numero_cuenta || '').substring(0, 4);
-            const telefono = (pedido.benef_telefono || '').replace(/[^0-9]/g, '');
-            mensaje = `${codigoBanco} ${telefono} ${docInicial} ${docNumero} ${nombre} ${montoDestino}`;
-        } else {
-            // Formato transferencia: 01020404620000454397 V 8459442 Maria Lopez 10
-            const cuenta = (pedido.numero_cuenta || '').replace(/[^0-9]/g, '');
-            mensaje = `${cuenta} ${docInicial} ${docNumero} ${nombre} ${montoDestino}`;
-        }
+        // Construir transferencia para la API
+        const transferencia = {
+            banco_destino: codigoBanco,
+            cuenta_destino: cuenta,
+            doc_tipo: docInicial,
+            doc_numero: docNumero,
+            beneficiario: nombre,
+            monto: String(montoDestino),
+            concepto: `Pedido #${pedidoId}`
+        };
 
-        // Enviar al grupo donde está el bot pagador (usando nuestro bot de notificaciones)
-        const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            chat_id: pagadorChatId,
-            text: mensaje
+        console.log(`[BOT PAGADOR] Enviando pedido #${pedidoId} a API: ${JSON.stringify(transferencia)}`);
+
+        // POST /ejecutar
+        const response = await axios.post(`${apiUrl}/ejecutar`, {
+            transferencias: [transferencia],
+            origen: 'defi_conciliacion'
+        }, {
+            headers: {
+                'Authorization': `Bearer ${apiToken}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 15000
         });
 
-        console.log(`[BOT PAGADOR] Pedido #${pedidoId} enviado (${pedido.tipo_cuenta}): ${mensaje}`);
-        return response.data?.ok || false;
+        const data = response.data;
+        console.log(`[BOT PAGADOR] Pedido #${pedidoId} → Lote: ${data.lote_id} | Status: ${data.status}`);
+
+        // Guardar lote_id en el pedido para hacer polling después
+        await dbRun(
+            `UPDATE solicitudes_transferencia SET notas_operador = ? WHERE id = ?`,
+            [`lote:${data.lote_id}`, pedidoId]
+        );
+
+        // Iniciar polling de resultados en background
+        pollingResultadoPago(pedidoId, data.lote_id, apiUrl, apiToken);
+
+        return true;
     } catch (error) {
         console.error(`[BOT PAGADOR] Error enviando pedido #${pedidoId}:`, error.message);
+
+        // Notificar error en Telegram
+        await enviarNotificacionTelegram(
+            `❌ <b>Error enviando al Bot Pagador</b>\n\n` +
+            `📋 Pedido #${pedidoId}\n` +
+            `⚠️ ${error.message}\n\n` +
+            `🔧 Requiere intervención manual.`
+        );
         return false;
     }
+}
+
+// Polling de resultados del bot pagador
+async function pollingResultadoPago(pedidoId, loteId, apiUrl, apiToken) {
+    const MAX_INTENTOS = 60; // 60 * 10s = 10 minutos máximo
+    let intentos = 0;
+
+    const intervalo = setInterval(async () => {
+        intentos++;
+        try {
+            const response = await axios.get(`${apiUrl}/resultados/${loteId}`, {
+                headers: { 'Authorization': `Bearer ${apiToken}` },
+                timeout: 10000
+            });
+
+            const data = response.data;
+            console.log(`[BOT PAGADOR] Polling #${intentos} pedido #${pedidoId} → ${data.status}`);
+
+            // Estados finales
+            if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+                clearInterval(intervalo);
+
+                if (data.status === 'completed' && data.resultados?.length > 0) {
+                    const resultado = data.resultados[0];
+                    if (resultado.success) {
+                        // PAGO EXITOSO - Completar pedido
+                        const referencia = resultado.referencia || null;
+                        await dbRun(
+                            `UPDATE solicitudes_transferencia
+                             SET estado = 'completada',
+                                 referencia_pago = ?,
+                                 fecha_completada = ?
+                             WHERE id = ?`,
+                            [referencia, new Date().toISOString(), pedidoId]
+                        );
+
+                        console.log(`[BOT PAGADOR] ✅ Pedido #${pedidoId} COMPLETADO - Ref: ${referencia}`);
+
+                        // Obtener datos para notificación
+                        const pedido = await dbGet(
+                            `SELECT s.*, c.nombre as cliente_nombre, b.nombre_completo as beneficiario_nombre
+                             FROM solicitudes_transferencia s
+                             JOIN clientes_app c ON s.cliente_app_id = c.id
+                             JOIN beneficiarios b ON s.beneficiario_id = b.id
+                             WHERE s.id = ?`, [pedidoId]
+                        );
+
+                        // Editar mensaje original en Telegram
+                        if (pedido?.telegram_message_id) {
+                            await editarMensajeTelegram(
+                                pedido.telegram_message_id,
+                                `✅ <b>PEDIDO COMPLETADO</b>\n\n` +
+                                `📋 Pedido #${pedidoId}\n` +
+                                `👤 ${pedido.cliente_nombre}\n` +
+                                `🏦 ${pedido.beneficiario_nombre}\n` +
+                                `💰 $${Math.round(pedido.monto_origen).toLocaleString('es-CL')} CLP → Bs. ${Math.round(pedido.monto_destino).toLocaleString('es-VE')}\n\n` +
+                                `🔗 Referencia: <b>${referencia || 'N/A'}</b>\n` +
+                                `🤖 Procesado automáticamente\n` +
+                                `🕐 ${new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' })}`,
+                                []
+                            );
+                        }
+
+                        // Notificación
+                        await enviarNotificacionTelegram(
+                            `✅ <b>Pago Completado</b>\n\n` +
+                            `📋 Pedido #${pedidoId}\n` +
+                            `👤 ${pedido?.beneficiario_nombre || ''}\n` +
+                            `💰 Bs. ${Math.round(pedido?.monto_destino || 0).toLocaleString('es-VE')}\n` +
+                            `🔗 Referencia: <b>${referencia || 'N/A'}</b>`
+                        );
+                    } else {
+                        // Transferencia falló dentro del lote completado
+                        const errorMsg = resultado.error || 'Error desconocido';
+                        console.log(`[BOT PAGADOR] ❌ Pedido #${pedidoId} FALLÓ: ${errorMsg}`);
+                        await enviarNotificacionTelegram(
+                            `❌ <b>Pago Fallido</b>\n\n` +
+                            `📋 Pedido #${pedidoId}\n` +
+                            `⚠️ ${errorMsg}\n\n` +
+                            `🔧 Pedido sigue en <b>procesando</b>. Requiere intervención manual.`
+                        );
+                    }
+                } else if (data.status === 'failed') {
+                    const errorMsg = data.resultados?.[0]?.error || 'Error desconocido';
+                    console.log(`[BOT PAGADOR] ❌ Lote ${loteId} FALLÓ: ${errorMsg}`);
+                    await enviarNotificacionTelegram(
+                        `❌ <b>Pago Fallido</b>\n\n` +
+                        `📋 Pedido #${pedidoId} | Lote: ${loteId}\n` +
+                        `⚠️ ${errorMsg}\n\n` +
+                        `🔧 Pedido sigue en <b>procesando</b>. Requiere intervención manual.`
+                    );
+                } else if (data.status === 'cancelled') {
+                    console.log(`[BOT PAGADOR] ⚠️ Lote ${loteId} CANCELADO`);
+                    await enviarNotificacionTelegram(
+                        `⚠️ <b>Pago Cancelado</b>\n\n` +
+                        `📋 Pedido #${pedidoId} | Lote: ${loteId}\n` +
+                        `🔧 Pedido sigue en <b>procesando</b>. Requiere intervención manual.`
+                    );
+                }
+            }
+
+            if (intentos >= MAX_INTENTOS) {
+                clearInterval(intervalo);
+                console.log(`[BOT PAGADOR] ⏰ Timeout polling pedido #${pedidoId} (${MAX_INTENTOS} intentos)`);
+                await enviarNotificacionTelegram(
+                    `⏰ <b>Timeout Bot Pagador</b>\n\n` +
+                    `📋 Pedido #${pedidoId} | Lote: ${loteId}\n` +
+                    `⚠️ No se obtuvo resultado en 10 minutos.\n` +
+                    `🔧 Verificar manualmente.`
+                );
+            }
+        } catch (error) {
+            console.error(`[BOT PAGADOR] Error polling pedido #${pedidoId}:`, error.message);
+            if (intentos >= MAX_INTENTOS) {
+                clearInterval(intervalo);
+            }
+        }
+    }, 10000); // Cada 10 segundos
 }
 
 
@@ -684,54 +833,6 @@ async function configurarWebhookTelegram() {
         console.error('Error configurando webhook Telegram:', error.message);
     }
 
-    // Iniciar polling del bot pagador para leer sus propias respuestas
-    iniciarPollingBotPagador();
-}
-
-// =================================================================
-// POLLING DEL BOT PAGADOR - Lee las respuestas del bot de Bancamiga
-// (Los bots de Telegram no pueden ver mensajes de otros bots vía webhook,
-//  pero sí pueden ver sus propios mensajes vía getUpdates con su token)
-// =================================================================
-let pagadorUpdateOffset = 0;
-
-async function pollingBotPagador() {
-    try {
-        const tokenConfig = await dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_bot_token'");
-        const pagadorToken = tokenConfig?.valor;
-        if (!pagadorToken) return;
-
-        const response = await axios.get(`https://api.telegram.org/bot${pagadorToken}/getUpdates`, {
-            params: {
-                offset: pagadorUpdateOffset,
-                timeout: 1,
-                allowed_updates: ['message']
-            }
-        });
-
-        if (response.data.ok && response.data.result.length > 0) {
-            console.log(`[POLLING PAGADOR] ${response.data.result.length} update(s) recibido(s)`);
-            for (const update of response.data.result) {
-                pagadorUpdateOffset = update.update_id + 1;
-
-                if (update.message) {
-                    const txt = update.message.text || '';
-                    const from = update.message.from?.first_name || 'unknown';
-                    const isBot = update.message.from?.is_bot || false;
-                    console.log(`[POLLING PAGADOR] De: ${from} (bot:${isBot}) | Texto: ${txt.substring(0, 120)}`);
-                    await procesarMensajeGrupoPagador(update.message);
-                }
-            }
-        }
-    } catch (error) {
-        console.error('[POLLING PAGADOR] Error:', error.message);
-    }
-}
-
-function iniciarPollingBotPagador() {
-    // Polling cada 5 segundos para detectar respuestas del bot pagador
-    setInterval(pollingBotPagador, 5000);
-    console.log('🏦 Polling del bot pagador iniciado (cada 5s)');
 }
 
 // =================================================================
@@ -973,6 +1074,8 @@ const runMigrations = async () => {
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('conciliacion_activa', '1')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('telegram_pagador_bot_token', '')`);
     await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('telegram_pagador_chat_id', '')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('pagador_api_url', '')`);
+    await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('pagador_api_token', '')`);
 
 
     // ... NUEVA TABLA PARA METAS
@@ -3003,27 +3106,47 @@ app.put('/api/conciliacion/estado', apiAuth, onlyMaster, async (req, res) => {
 // ========== CONFIG BOT PAGADOR ==========
 app.get('/api/config/pagador', apiAuth, async (req, res) => {
     try {
-        const [tokenRow, chatRow] = await Promise.all([
-            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_bot_token'"),
-            dbGet("SELECT valor FROM configuracion WHERE clave = 'telegram_pagador_chat_id'")
+        const [urlRow, tokenRow] = await Promise.all([
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'pagador_api_url'"),
+            dbGet("SELECT valor FROM configuracion WHERE clave = 'pagador_api_token'")
         ]);
-        res.json({ bot_token: tokenRow?.valor || '', chat_id: chatRow?.valor || '' });
+        res.json({ api_url: urlRow?.valor || '', api_token: tokenRow?.valor || '' });
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener config del bot pagador' });
     }
 });
 
+app.get('/api/config/pagador/test', apiAuth, async (req, res) => {
+    try {
+        const urlRow = await dbGet("SELECT valor FROM configuracion WHERE clave = 'pagador_api_url'");
+        const tokenRow = await dbGet("SELECT valor FROM configuracion WHERE clave = 'pagador_api_token'");
+        const apiUrl = urlRow?.valor;
+        const apiToken = tokenRow?.valor;
+        if (!apiUrl || !apiToken) {
+            return res.json({ ok: false, error: 'URL o Token no configurados' });
+        }
+        const resp = await axios.get(`${apiUrl}/status`, {
+            headers: { 'Authorization': `Bearer ${apiToken}` },
+            timeout: 10000
+        });
+        res.json({ ok: true, data: resp.data });
+    } catch (error) {
+        const msg = error.response ? `HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}` : error.message;
+        res.json({ ok: false, error: msg });
+    }
+});
+
 app.put('/api/config/pagador', apiAuth, onlyMaster, async (req, res) => {
     try {
-        const { bot_token, chat_id } = req.body;
-        if (bot_token !== undefined) {
+        const { api_url, api_token } = req.body;
+        if (api_url !== undefined) {
             await new Promise((resolve, reject) => {
-                upsertConfig('telegram_pagador_bot_token', bot_token, (err) => err ? reject(err) : resolve());
+                upsertConfig('pagador_api_url', api_url, (err) => err ? reject(err) : resolve());
             });
         }
-        if (chat_id !== undefined) {
+        if (api_token !== undefined) {
             await new Promise((resolve, reject) => {
-                upsertConfig('telegram_pagador_chat_id', chat_id, (err) => err ? reject(err) : resolve());
+                upsertConfig('pagador_api_token', api_token, (err) => err ? reject(err) : resolve());
             });
         }
         console.log('[BOT PAGADOR] Configuración actualizada');
