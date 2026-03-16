@@ -1507,12 +1507,21 @@
         </div>
 
         <div class="modal-section">
-          <h4>🏦 Datos Bancarios</h4>
+          <h4>${s.tipo_cuenta_destino === 'pago_movil' ? '📱 Pago Móvil' : '🏦 Datos Bancarios'}</h4>
           <div class="modal-grid">
             <div class="field">
               <label>Banco Destino</label>
               <div class="value">${s.banco_destino || '—'}</div>
             </div>
+            ${s.tipo_cuenta_destino === 'pago_movil' ? `
+            <div class="field">
+              <label>Teléfono</label>
+              <div class="value">
+                ${s.beneficiario_telefono || '—'}
+                ${s.beneficiario_telefono ? `<button class="copy-btn" onclick="copiar('${s.beneficiario_telefono}')">📋</button>` : ''}
+              </div>
+            </div>
+            ` : `
             <div class="field">
               <label>Cuenta Destino</label>
               <div class="value">
@@ -1524,6 +1533,7 @@
               <label>Tipo Cuenta</label>
               <div class="value">${s.tipo_cuenta_destino || '—'}</div>
             </div>
+            `}
             <div class="field">
               <label>CI/RIF Beneficiario</label>
               <div class="value">
