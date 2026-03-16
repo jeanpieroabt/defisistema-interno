@@ -1151,6 +1151,7 @@ const runMigrations = async () => {
 
     // Migración: agregar columna para vincular transferencia bancaria conciliada
     await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN transferencia_banco_id INTEGER`).catch(() => {});
+    await dbRun(`ALTER TABLE solicitudes_transferencia ADD COLUMN metodo_pago TEXT DEFAULT 'transferencia_bancaria'`).catch(() => {});
 
     // Tabla de codigos promocionales
     await dbRun(`CREATE TABLE IF NOT EXISTS codigos_promocionales (
