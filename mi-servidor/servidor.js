@@ -1636,6 +1636,32 @@ const runMigrations = async () => {
                 await dbRun(`INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`, ['master', hash, 'master']);
                 console.log('... Usuario semilla creado: master/master123');
             }
+            // Migrar RUTs existentes al formato estándar XX.XXX.XXX-X
+            try {
+                const clientesRut = await dbAll("SELECT id, documento_numero FROM clientes_app WHERE documento_tipo = 'rut' AND documento_numero IS NOT NULL");
+                let rutsMigrados = 0;
+                for (const c of (clientesRut || [])) {
+                    const limpio = c.documento_numero.replace(/[^0-9kK]/g, '');
+                    if (limpio.length > 1 && limpio.length <= 9) {
+                        const cuerpo = limpio.slice(0, -1);
+                        const dv = limpio.slice(-1).toUpperCase();
+                        let formateado = '';
+                        let j = 0;
+                        for (let i = cuerpo.length - 1; i >= 0; i--) {
+                            formateado = cuerpo[i] + formateado;
+                            j++;
+                            if (j % 3 === 0 && i > 0) formateado = '.' + formateado;
+                        }
+                        const rutFormateado = formateado + '-' + dv;
+                        if (rutFormateado !== c.documento_numero) {
+                            await dbRun('UPDATE clientes_app SET documento_numero = ? WHERE id = ?', [rutFormateado, c.id]);
+                            rutsMigrados++;
+                        }
+                    }
+                }
+                if (rutsMigrados > 0) console.log(`... ${rutsMigrados} RUTs migrados al formato estándar`);
+            } catch (e) { console.error('Error migrando RUTs:', e.message); }
+
             console.log('... Verificación de base de datos completada.');
             resolve();
         });
@@ -8470,13 +8496,30 @@ app.post('/api/cliente/auth/logout', clienteAuth, async (req, res) => {
 // PUT /api/cliente/perfil - Actualizar perfil del cliente
 app.put('/api/cliente/perfil', clienteAuth, async (req, res) => {
     try {
-        const { nombre, telefono, documento_tipo, documento_numero, pais, ciudad, direccion, fecha_nacimiento } = req.body;
-        
+        let { nombre, telefono, documento_tipo, documento_numero, pais, ciudad, direccion, fecha_nacimiento } = req.body;
+
         // Validaciones básicas
         if (!nombre || !telefono || !documento_tipo || !documento_numero || !pais) {
             return res.status(400).json({ error: 'Faltan campos obligatorios: nombre, teléfono, tipo de documento, número de documento y país' });
         }
-        
+
+        // Formatear RUT chileno al guardar: XX.XXX.XXX-X
+        if (documento_tipo === 'rut' && documento_numero) {
+            let limpio = documento_numero.replace(/[^0-9kK]/g, '');
+            if (limpio.length > 1 && limpio.length <= 9) {
+                const cuerpo = limpio.slice(0, -1);
+                const dv = limpio.slice(-1).toUpperCase();
+                let formateado = '';
+                let j = 0;
+                for (let i = cuerpo.length - 1; i >= 0; i--) {
+                    formateado = cuerpo[i] + formateado;
+                    j++;
+                    if (j % 3 === 0 && i > 0) formateado = '.' + formateado;
+                }
+                documento_numero = formateado + '-' + dv;
+            }
+        }
+
         // Verificar que el documento no esté registrado por otro usuario
         const existeDocumento = await dbGet(
             'SELECT id FROM clientes_app WHERE documento_tipo = ? AND documento_numero = ? AND id != ?',
