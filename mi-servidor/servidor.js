@@ -3364,6 +3364,7 @@ async function conciliarPedidos() {
         // Verificar si la conciliación está activa
         const configActiva = await dbGet("SELECT valor FROM configuracion WHERE clave = 'conciliacion_activa'");
         if (configActiva && configActiva.valor === '0') return;
+        console.log('[CONCILIACIÓN] Ciclo ejecutado -', new Date().toLocaleString('es-CL'));
 
         // 1. Buscar transferencias bancarias disponibles (no tomadas ni procesadas)
         const transferencias = await dbAll(
@@ -3450,7 +3451,7 @@ async function conciliarPedidos() {
              WHERE s.estado = 'pendiente'
                AND s.transferencia_banco_id IS NULL
                AND (s.metodo_pago IS NULL OR s.metodo_pago = 'transferencia_bancaria')
-               AND s.fecha_solicitud < datetime('now', '-10 minutes')`
+               AND datetime(s.fecha_solicitud) < datetime('now', '-10 minutes')`
         );
 
         if (pedidosVencidos && pedidosVencidos.length > 0) {
