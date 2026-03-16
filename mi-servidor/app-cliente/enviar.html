@@ -1698,6 +1698,9 @@
     function selectMethod(m) {
       envio.metodo = m;
       document.querySelectorAll('.method-card').forEach(el => el.classList.toggle('active', el.dataset.method === m));
+      // Re-filtrar destinatarios según método seleccionado
+      envio.destinatario = null;
+      renderizarDestinatariosEnvio();
     }
 
     function renderizarDestinatariosEnvio() {
@@ -1705,12 +1708,24 @@
       if (!container) return;
       const search = (document.getElementById('searchRecipient')?.value || '').toLowerCase();
       let filtrados = destinatarios || [];
+
+      // Filtrar por método de entrega seleccionado
+      const metodo = envio.metodo;
+      if (metodo === 'pago_movil') {
+        // Solo mostrar destinatarios que tengan teléfono registrado
+        filtrados = filtrados.filter(d => d.telefono && d.telefono.trim() !== '');
+      } else if (metodo === 'transferencia') {
+        // Solo mostrar destinatarios que tengan cuenta bancaria registrada
+        filtrados = filtrados.filter(d => d.numero_cuenta && d.numero_cuenta.trim() !== '');
+      }
+
       if (search) filtrados = filtrados.filter(d =>
         (d.nombre_completo || '').toLowerCase().includes(search) ||
         (d.alias || '').toLowerCase().includes(search)
       );
       if (filtrados.length === 0) {
-        container.innerHTML = `<div class="add-recipient" onclick="agregarNuevoDestinatario()">No tienes destinatarios guardados. Agrega uno nuevo.</div>`;
+        const metodoTexto = metodo === 'pago_movil' ? 'pago móvil' : 'transferencia bancaria';
+        container.innerHTML = `<div class="add-recipient" onclick="agregarNuevoDestinatario()">No tienes destinatarios con datos de ${metodoTexto}. Agrega uno nuevo.</div>`;
         return;
       }
       container.innerHTML = filtrados.map(d => {
