@@ -1515,6 +1515,10 @@
             </div>
             ${s.tipo_cuenta_destino === 'pago_movil' ? `
             <div class="field">
+              <label>Beneficiario</label>
+              <div class="value">${s.beneficiario_nombre || '—'}</div>
+            </div>
+            <div class="field">
               <label>Teléfono</label>
               <div class="value">
                 ${s.beneficiario_telefono || '—'}
@@ -1522,6 +1526,10 @@
               </div>
             </div>
             ` : `
+            <div class="field">
+              <label>Beneficiario</label>
+              <div class="value">${s.beneficiario_nombre || '—'}</div>
+            </div>
             <div class="field">
               <label>Cuenta Destino</label>
               <div class="value">
