@@ -349,20 +349,6 @@
                         </div>
                     </section>
 
-                    <section class="form-section">
-                        <h2 class="form-section-title">Tipo de entrega *</h2>
-                        <div class="radio-group" style="grid-template-columns: repeat(2, 1fr);">
-                            <div class="radio-option">
-                                <input type="radio" name="tipoEntrega" id="entregaTransferencia" value="transferencia" checked>
-                                <label for="entregaTransferencia">🏦 Transferencia</label>
-                            </div>
-                            <div class="radio-option">
-                                <input type="radio" name="tipoEntrega" id="entregaPagoMovil" value="pago_movil">
-                                <label for="entregaPagoMovil">📲 Pago Móvil</label>
-                            </div>
-                        </div>
-                    </section>
-
                     <section class="form-section" id="seccionBancaria">
                         <h2 class="form-section-title">Datos bancarios</h2>
 
@@ -406,61 +392,6 @@
                         </div>
                     </section>
 
-                    <section class="form-section" id="seccionPagoMovil" style="display:none;">
-                        <h2 class="form-section-title" id="tituloPagoMovil">Pago móvil</h2>
-
-                        <div class="input-group">
-                            <label class="input-label">Banco *</label>
-                            <div class="select-wrapper">
-                                <select id="bancoPagoMovil">
-                                    <option value="">Seleccionar banco</option>
-                                    <option value="0102">Banco de Venezuela</option>
-                                    <option value="0104">Venezolano de Crédito</option>
-                                    <option value="0105">Mercantil</option>
-                                    <option value="0108">Provincial</option>
-                                    <option value="0114">Bancaribe</option>
-                                    <option value="0115">Exterior</option>
-                                    <option value="0128">Caroní</option>
-                                    <option value="0134">Banesco</option>
-                                    <option value="0137">Sofitasa</option>
-                                    <option value="0138">Banco Plaza</option>
-                                    <option value="0151">BFC</option>
-                                    <option value="0156">100% Banco</option>
-                                    <option value="0157">Del Sur</option>
-                                    <option value="0163">Banco del Tesoro</option>
-                                    <option value="0166">Agrícola de Venezuela</option>
-                                    <option value="0168">Bancrecer</option>
-                                    <option value="0169">Mi Banco</option>
-                                    <option value="0171">Activo</option>
-                                    <option value="0172">Bancamiga</option>
-                                    <option value="0173">Internacional de Desarrollo</option>
-                                    <option value="0174">Banplus</option>
-                                    <option value="0175">Bicentenario</option>
-                                    <option value="0177">Banfanb</option>
-                                    <option value="0191">BNC</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="input-group">
-                            <label class="input-label">Teléfono *</label>
-                            <div class="phone-row">
-                                <div class="select-wrapper">
-                                    <select id="telefonoPrefijo">
-                                        <option value="0414">+58 414</option>
-                                        <option value="0412">+58 412</option>
-                                        <option value="0424">+58 424</option>
-                                        <option value="0416">+58 416</option>
-                                        <option value="0422">+58 422</option>
-                                        <option value="0426">+58 426</option>
-                                    </select>
-                                </div>
-                                <input type="text" class="input" id="telefonoNumero" placeholder="7 dígitos" maxlength="7" inputmode="tel">
-                            </div>
-                            <p class="input-hint">Incluimos el prefijo +58 y la operadora automáticamente.</p>
-                        </div>
-                    </section>
-
                     <section class="form-section">
                         <h2 class="form-section-title">Contacto (opcional)</h2>
                         <div class="input-group">
@@ -469,7 +400,7 @@
                         </div>
                     </section>
 
-                    <p class="form-note">Selecciona el tipo de entrega y completa los datos correspondientes para guardar el destinatario.</p>
+                    <p class="form-note">Completa los datos bancarios para guardar el destinatario.</p>
                 </main>
             </div>
 
@@ -496,28 +427,7 @@
             checkEditMode();
         }
 
-        function actualizarSeccionesPorTipo() {
-            const tipo = document.querySelector('input[name="tipoEntrega"]:checked')?.value || 'transferencia';
-            const secBancaria = document.getElementById('seccionBancaria');
-            const secPagoMovil = document.getElementById('seccionPagoMovil');
-
-            if (tipo === 'transferencia') {
-                if (secBancaria) secBancaria.style.display = '';
-                if (secPagoMovil) secPagoMovil.style.display = 'none';
-            } else {
-                if (secBancaria) secBancaria.style.display = 'none';
-                if (secPagoMovil) secPagoMovil.style.display = '';
-            }
-        }
-
         function bindInputs() {
-            // Bind selector de tipo de entrega
-            document.querySelectorAll('input[name="tipoEntrega"]').forEach(radio => {
-                radio.addEventListener('change', actualizarSeccionesPorTipo);
-            });
-            // Inicializar visibilidad
-            actualizarSeccionesPorTipo();
-
             document.querySelectorAll('input[name="tipoDoc"]').forEach(radio => {
                 radio.addEventListener('change', () => {
                     const numero = document.getElementById('numeroDoc');
@@ -710,34 +620,6 @@
             if (radio) radio.checked = true;
 
             asignarTelefono(data.telefono || '');
-
-            // Detectar tipo de entrega según datos guardados
-            const tieneCuenta = data.numero_cuenta && data.numero_cuenta.trim() !== '';
-            const tieneTelefono = data.telefono && data.telefono.trim() !== '';
-            const esPagoMovil = data.tipo_cuenta === 'pago_movil' || (!tieneCuenta && tieneTelefono);
-
-            if (esPagoMovil) {
-                const radioPM = document.getElementById('entregaPagoMovil');
-                if (radioPM) radioPM.checked = true;
-
-                // Asignar banco en el selector de pago móvil
-                const bancoPM = document.getElementById('bancoPagoMovil');
-                if (bancoPM && data.banco) {
-                    // Intentar por código directo
-                    let encontrado = false;
-                    for (const opt of bancoPM.options) {
-                        if (opt.value === data.banco || opt.text.trim() === data.banco) {
-                            bancoPM.value = opt.value;
-                            encontrado = true;
-                            break;
-                        }
-                    }
-                }
-            } else {
-                const radioTrans = document.getElementById('entregaTransferencia');
-                if (radioTrans) radioTrans.checked = true;
-            }
-            actualizarSeccionesPorTipo();
         }
 
         function validarFormulario() {
@@ -748,38 +630,20 @@
             const bancoValor = bancoSelect.value;
             const bancoNombre = bancoSelect.options[bancoSelect.selectedIndex]?.text?.trim();
             const numeroCuenta = document.getElementById("numeroCuenta").value.replace(/[^0-9]/g, "");
-            const prefijo = document.getElementById("telefonoPrefijo")?.value || "0414";
-            const telefonoNumero = document.getElementById("telefonoNumero")?.value.replace(/[^0-9]/g, "") || "";
             const email = document.getElementById("email").value.trim();
             const tipoDocForm = document.querySelector('input[name="tipoDoc"]:checked')?.value || "V";
-            const tipoEntrega = document.querySelector('input[name="tipoEntrega"]:checked')?.value || "transferencia";
 
             // Validar campos personales obligatorios
             if (!nombres || !apellidos || !numeroDocRaw) {
                 return { valido: false, mensaje: "Completa todos los campos obligatorios." };
             }
 
-            // Datos del banco de pago móvil
-            const bancoPMSelect = document.getElementById("bancoPagoMovil");
-            const bancoPMValor = bancoPMSelect ? bancoPMSelect.value : "";
-            const bancoPMNombre = bancoPMSelect ? (bancoPMSelect.options[bancoPMSelect.selectedIndex]?.text?.trim() || "") : "";
-
-            // Validar según tipo de entrega seleccionado
-            if (tipoEntrega === "transferencia") {
-                if (!bancoValor) {
-                    return { valido: false, mensaje: "Selecciona un banco." };
-                }
-                if (numeroCuenta.length !== 20) {
-                    return { valido: false, mensaje: "El número de cuenta debe tener 20 dígitos." };
-                }
-            } else {
-                // Pago móvil: requiere banco y teléfono
-                if (!bancoPMValor) {
-                    return { valido: false, mensaje: "Selecciona el banco de pago móvil." };
-                }
-                if (telefonoNumero.length !== 7) {
-                    return { valido: false, mensaje: "Ingresa los 7 dígitos del número de pago móvil." };
-                }
+            // Validar datos bancarios
+            if (!bancoValor) {
+                return { valido: false, mensaje: "Selecciona un banco." };
+            }
+            if (numeroCuenta.length !== 20) {
+                return { valido: false, mensaje: "El número de cuenta debe tener 20 dígitos." };
             }
 
             if (["V", "E", "J"].includes(tipoDocForm) && !/^[0-9]{6,15}$/.test(numeroDocRaw)) {
@@ -790,10 +654,6 @@
                 return { valido: false, mensaje: "El número de pasaporte es demasiado corto." };
             }
 
-            const prefijoNormalizado = normalizarPrefijo(prefijo);
-            const tieneTelefono = telefonoNumero.length === 7;
-            const telefonoCompleto = tieneTelefono ? `+58${prefijoNormalizado}${telefonoNumero}` : null;
-
             if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 return { valido: false, mensaje: "Ingresa un correo válido." };
             }
@@ -803,19 +663,16 @@
             const alias = document.getElementById("alias").value.trim() || nombreCompleto;
             const isFavoriteEl = document.getElementById("isFavorite");
             const isFavorite = !!(isFavoriteEl && isFavoriteEl.checked);
-            const tieneDatosBancarios = bancoValor && numeroCuenta.length === 20;
-            const esPagoMovil = tipoEntrega === "pago_movil";
 
             const data = {
                 alias,
                 nombre_completo: nombreCompleto,
                 documento_tipo: tipoDocMap[tipoDocForm] || "cedula",
                 documento_numero: numeroDocRaw.replace(/\s+/g, ""),
-                banco: esPagoMovil ? bancoPMNombre : (tieneDatosBancarios ? bancoNombre : ""),
-                tipo_cuenta: esPagoMovil ? "pago_movil" : "corriente",
-                numero_cuenta: tieneDatosBancarios ? numeroCuenta : "",
+                banco: bancoNombre,
+                tipo_cuenta: "corriente",
+                numero_cuenta: numeroCuenta,
                 pais: "Venezuela",
-                telefono: telefonoCompleto,
                 email: email || null,
                 isFavorite
             };
