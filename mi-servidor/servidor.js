@@ -1673,6 +1673,18 @@ const runMigrations = async () => {
                 observaciones TEXT,
                 FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
             )`);
+            await dbRun(`CREATE TABLE IF NOT EXISTS movimientos_stock (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL,
+                tipo TEXT NOT NULL,
+                moneda TEXT NOT NULL,
+                monto REAL NOT NULL,
+                saldo_antes REAL,
+                saldo_despues REAL,
+                fecha TEXT NOT NULL,
+                observaciones TEXT,
+                FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+            )`);
             await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoUsdt', '0')`);
             await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoClpDisponible', '0')`);
             console.log('... Tablas de stock multi-moneda verificadas');
@@ -3484,6 +3496,10 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
 
                 const saldoClpActual = Number(await readConfigValue('saldoClpDisponible') || 0);
                 await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [clp]);
+                await dbRun(
+                    `INSERT INTO movimientos_stock(usuario_id, tipo, moneda, monto, saldo_antes, saldo_despues, fecha, observaciones) VALUES (?,?,?,?,?,?,?,?)`,
+                    [req.session.user.id, 'deposito', 'CLP', clp, saldoClpActual, saldoClpActual + clp, hoyLocalYYYYMMDD(), msgOriginal]
+                );
 
                 tipo = 'deposito_clp';
                 resultado = {
@@ -3507,6 +3523,10 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
                 const clave = claveMap[moneda];
                 const saldoAntes = Number(await readConfigValue(clave) || 0);
                 await dbRun(`UPDATE configuracion SET valor = ? WHERE clave = ?`, [String(nuevoSaldo), clave]);
+                await dbRun(
+                    `INSERT INTO movimientos_stock(usuario_id, tipo, moneda, monto, saldo_antes, saldo_despues, fecha, observaciones) VALUES (?,?,?,?,?,?,?,?)`,
+                    [req.session.user.id, 'ajuste', moneda, nuevoSaldo, saldoAntes, nuevoSaldo, hoyLocalYYYYMMDD(), msgOriginal]
+                );
 
                 tipo = 'ajuste';
                 resultado = {
@@ -3546,6 +3566,10 @@ app.get('/api/stock/historial', apiAuth, onlyMaster, async (req, res) => {
             `SELECT id, 'compra_ves' as tipo, usdt_invertido, ves_obtenido as monto_obtenido, tasa_usdt_ves as tasa, fecha, observaciones FROM compras_ves ORDER BY fecha DESC, id DESC`
         );
 
+        const movimientos = await dbAll(
+            `SELECT id, tipo, moneda, monto, saldo_antes, saldo_despues, fecha, observaciones FROM movimientos_stock ORDER BY fecha DESC, id DESC`
+        );
+
         // Combinar y ordenar por fecha DESC
         const historial = [
             ...(comprasUsdt || []).map(c => ({
@@ -3561,6 +3585,15 @@ app.get('/api/stock/historial', apiAuth, onlyMaster, async (req, res) => {
                 salida: `${Number(c.usdt_invertido).toLocaleString('es-CL')} USDT`,
                 tasa: `${Number(c.tasa).toFixed(2)} VES/USDT`,
                 fecha: c.fecha, observaciones: c.observaciones
+            })),
+            ...(movimientos || []).map(m => ({
+                id: m.id,
+                tipo: m.tipo === 'deposito' ? `Depósito ${m.moneda}` : `Ajuste ${m.moneda}`,
+                tipoKey: 'movimiento',
+                entrada: m.tipo === 'deposito' ? `+${Number(m.monto).toLocaleString('es-CL')} ${m.moneda}` : `${Number(m.saldo_despues).toLocaleString('es-CL')} ${m.moneda}`,
+                salida: m.tipo === 'deposito' ? '-' : `${Number(m.saldo_antes).toLocaleString('es-CL')} ${m.moneda}`,
+                tasa: '-',
+                fecha: m.fecha, observaciones: m.observaciones
             }))
         ].sort((a, b) => b.fecha > a.fecha ? 1 : b.fecha < a.fecha ? -1 : 0);
 
@@ -3601,6 +3634,29 @@ app.delete('/api/compras-ves/:id', apiAuth, onlyMaster, async (req, res) => {
         res.json({ message: 'Compra VES eliminada y saldos revertidos' });
     } catch (error) {
         console.error('Error borrando compra VES:', error.message);
+        res.status(500).json({ error: 'Error al eliminar' });
+    }
+});
+
+// DELETE /api/movimientos-stock/:id — borrar movimiento y revertir saldo
+app.delete('/api/movimientos-stock/:id', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const mov = await dbGet('SELECT * FROM movimientos_stock WHERE id = ?', [req.params.id]);
+        if (!mov) return res.status(404).json({ error: 'Movimiento no encontrado' });
+
+        const claveMap = { 'CLP': 'saldoClpDisponible', 'USDT': 'saldoUsdt', 'VES': 'saldoVesOnline' };
+        const clave = claveMap[mov.moneda];
+
+        if (mov.tipo === 'deposito') {
+            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = ?`, [mov.monto, clave]);
+        } else if (mov.tipo === 'ajuste') {
+            await dbRun(`UPDATE configuracion SET valor = ? WHERE clave = ?`, [String(mov.saldo_antes), clave]);
+        }
+        await dbRun('DELETE FROM movimientos_stock WHERE id = ?', [req.params.id]);
+
+        res.json({ message: 'Movimiento eliminado y saldo revertido' });
+    } catch (error) {
+        console.error('Error borrando movimiento:', error.message);
         res.status(500).json({ error: 'Error al eliminar' });
     }
 });

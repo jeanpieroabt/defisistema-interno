@@ -944,7 +944,8 @@
 
     async function deleteStockOp(tipo, id) {
         if (!confirm('¿Eliminar esta operación? Se revertirán los saldos.')) return;
-        const url = tipo === 'compra_usdt' ? `/api/compras-usdt/${id}` : `/api/compras-ves/${id}`;
+        const urlMap = { 'compra_usdt': `/api/compras-usdt/${id}`, 'compra_ves': `/api/compras-ves/${id}`, 'movimiento': `/api/movimientos-stock/${id}` };
+        const url = urlMap[tipo];
         try {
             const resp = await fetch(url, { method: 'DELETE' });
             const data = await resp.json();
