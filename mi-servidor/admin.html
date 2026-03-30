@@ -913,12 +913,13 @@
 
     async function loadHistorialStock() {
         try {
-            const historial = await (await fetch('/api/stock/historial')).json();
+            const resp = await fetch('/api/stock/historial');
+            const historial = resp.ok ? await resp.json() : [];
             const tbody = document.getElementById('tbodyStockHistorial');
             const info = document.getElementById('stockHistorialInfo');
             tbody.innerHTML = '';
 
-            if (!historial || historial.length === 0) {
+            if (!Array.isArray(historial) || historial.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--medium-grey);">Sin operaciones registradas</td></tr>';
                 info.textContent = '';
                 return;
