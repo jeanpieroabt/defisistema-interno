@@ -306,6 +306,13 @@ async function pollingResultadoPago(pedidoId, loteId, apiUrl, apiToken) {
                             [referencia, new Date().toISOString(), pedidoId]
                         );
 
+                        // Reingresar CLP del cliente al stock
+                        const pedidoClp = await dbGet('SELECT monto_origen FROM solicitudes_transferencia WHERE id = ?', [pedidoId]);
+                        if (pedidoClp && pedidoClp.monto_origen > 0) {
+                            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [pedidoClp.monto_origen]);
+                            console.log(`[STOCK] +${pedidoClp.monto_origen} CLP reingresado (pedido #${pedidoId})`);
+                        }
+
                         console.log(`[BOT PAGADOR] ✅ Pedido #${pedidoId} COMPLETADO - Ref: ${referencia}`);
 
                         // Obtener datos para notificación
@@ -10134,6 +10141,12 @@ app.put('/api/solicitudes-app/:id/estado', apiAuth, async (req, res) => {
             await actualizarProgresoReferido(solicitud.cliente_app_id, solicitud.monto_origen);
         }
 
+        // Reingresar CLP del cliente al stock cuando se completa
+        if (estado === 'completada' && solicitud.monto_origen > 0) {
+            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [solicitud.monto_origen]);
+            console.log(`[STOCK] +${solicitud.monto_origen} CLP reingresado (pedido #${id})`);
+        }
+
         // " Notificar cambio de estado a Telegram
         await notificarCambioEstado({
             id,
@@ -10214,6 +10227,12 @@ app.patch('/api/solicitudes-app/:id', apiAuth, async (req, res) => {
         // Actualizar progreso de referido si se completa
         if (estado === 'completada' && solicitud.cliente_app_id && solicitud.monto_origen) {
             await actualizarProgresoReferido(solicitud.cliente_app_id, solicitud.monto_origen);
+        }
+
+        // Reingresar CLP del cliente al stock cuando se completa
+        if (estado === 'completada' && solicitud.monto_origen > 0) {
+            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [solicitud.monto_origen]);
+            console.log(`[STOCK] +${solicitud.monto_origen} CLP reingresado (pedido #${id})`);
         }
 
         // Notificar cambio de estado a Telegram
