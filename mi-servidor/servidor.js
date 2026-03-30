@@ -1040,6 +1040,20 @@ const calcularCostoClpPorVes = (fecha, callback) => {
     });
 };
 // =================================================================
+// FUNCIONES DE PROMEDIO PONDERADO MULTI-MONEDA
+// =================================================================
+async function getPromedioUsdt() {
+    const row = await dbGet('SELECT SUM(clp_invertido) as totalClp, SUM(usdt_obtenido) as totalUsdt FROM compras_usdt');
+    if (!row || !row.totalClp || row.totalUsdt === 0) return 0;
+    return row.totalClp / row.totalUsdt; // CLP por 1 USDT
+}
+
+async function getPromedioVesEnUsdt() {
+    const row = await dbGet('SELECT SUM(usdt_invertido) as totalUsdt, SUM(ves_obtenido) as totalVes FROM compras_ves');
+    if (!row || !row.totalUsdt || row.totalVes === 0) return 0;
+    return row.totalVes / row.totalUsdt; // VES por 1 USDT
+}
+// =================================================================
 // FIN: L"GICA DE CÁLCULO DE COSTO REFINADA
 // =================================================================
 
@@ -1636,6 +1650,33 @@ const runMigrations = async () => {
                 await dbRun(`INSERT INTO usuarios(username,password,role) VALUES (?,?,?)`, ['master', hash, 'master']);
                 console.log('... Usuario semilla creado: master/master123');
             }
+            // Tablas de control de stock multi-moneda
+            await dbRun(`CREATE TABLE IF NOT EXISTS compras_usdt (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL,
+                clp_invertido REAL NOT NULL,
+                usdt_obtenido REAL NOT NULL,
+                tasa_clp_usdt REAL NOT NULL,
+                fecha TEXT NOT NULL,
+                comprobante_url TEXT,
+                observaciones TEXT,
+                FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+            )`);
+            await dbRun(`CREATE TABLE IF NOT EXISTS compras_ves (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL,
+                usdt_invertido REAL NOT NULL,
+                ves_obtenido REAL NOT NULL,
+                tasa_usdt_ves REAL NOT NULL,
+                fecha TEXT NOT NULL,
+                comprobante_url TEXT,
+                observaciones TEXT,
+                FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+            )`);
+            await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoUsdt', '0')`);
+            await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoClpDisponible', '0')`);
+            console.log('... Tablas de stock multi-moneda verificadas');
+
             // Migrar RUTs existentes al formato estándar XX.XXX.XXX-X
             try {
                 const clientesRut = await dbAll("SELECT id, documento_numero FROM clientes_app WHERE documento_tipo = 'rut' AND documento_numero IS NOT NULL");
@@ -3322,6 +3363,246 @@ app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
             });
         });
     });
+});
+
+// =================================================================
+// CONTROL DE STOCK MULTI-MONEDA
+// =================================================================
+
+// GET /api/stock — consulta de saldos y promedios ponderados
+app.get('/api/stock', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const saldoClp = Number(await readConfigValue('saldoClpDisponible') || 0);
+        const saldoUsdt = Number(await readConfigValue('saldoUsdt') || 0);
+        const saldoVes = Number(await readConfigValue('saldoVesOnline') || 0);
+        const pppUsdtClp = await getPromedioUsdt();       // CLP por 1 USDT
+        const pppVesUsdt = await getPromedioVesEnUsdt();   // VES por 1 USDT
+
+        const pppVesClp = (pppUsdtClp > 0 && pppVesUsdt > 0) ? (pppUsdtClp / pppVesUsdt) : 0;
+        const valorUsdtEnClp = saldoUsdt * pppUsdtClp;
+        const valorVesEnClp = saldoVes * pppVesClp;
+        const capitalTotal = saldoClp + valorUsdtEnClp + valorVesEnClp;
+
+        res.json({
+            saldoClp, saldoUsdt, saldoVes,
+            pppUsdtClp,   // ej: 950 CLP = 1 USDT
+            pppVesUsdt,   // ej: 85.5 VES = 1 USDT
+            pppVesClp,    // ej: 11.11 CLP = 1 VES
+            valorUsdtEnClp, valorVesEnClp, capitalTotal
+        });
+    } catch (error) {
+        console.error('Error en GET /api/stock:', error.message);
+        res.status(500).json({ error: 'Error al consultar stock' });
+    }
+});
+
+// POST /api/stock/operacion — parser de operaciones en lenguaje natural
+app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { mensaje } = req.body;
+        if (!mensaje || !mensaje.trim()) return res.status(400).json({ error: 'Escribe una operación' });
+
+        const msg = mensaje.trim().toLowerCase().replace(/,/g, '').replace(/\./g, '');
+        // Restaurar puntos decimales: "950000" queda, pero necesitamos manejar decimales
+        // Mejor: extraer números del mensaje original
+        const msgOriginal = mensaje.trim().replace(/,/g, '');
+
+        let tipo, resultado;
+
+        // Patrón: compré/compre/compra X USDT por Y CLP
+        const matchCompraUsdt = msgOriginal.match(/(?:compr[eéa]|compro)\s+([\d.]+)\s*(?:usdt|USDT)\s+(?:por|a|con)\s+([\d.]+)\s*(?:clp|CLP|pesos)/i);
+        if (matchCompraUsdt) {
+            const usdt = Number(matchCompraUsdt[1]);
+            const clp = Number(matchCompraUsdt[2]);
+            if (usdt <= 0 || clp <= 0) return res.status(400).json({ error: 'Los montos deben ser mayores a 0' });
+
+            const tasa = clp / usdt; // CLP por 1 USDT
+            const saldoClpActual = Number(await readConfigValue('saldoClpDisponible') || 0);
+            const saldoUsdtActual = Number(await readConfigValue('saldoUsdt') || 0);
+
+            await dbRun(
+                `INSERT INTO compras_usdt(usuario_id, clp_invertido, usdt_obtenido, tasa_clp_usdt, fecha, observaciones) VALUES (?,?,?,?,?,?)`,
+                [req.session.user.id, clp, usdt, tasa, hoyLocalYYYYMMDD(), msgOriginal]
+            );
+            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoClpDisponible'`, [clp]);
+            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoUsdt'`, [usdt]);
+
+            const pppUsdt = await getPromedioUsdt();
+            tipo = 'compra_usdt';
+            resultado = {
+                mensaje: `Compra USDT registrada`,
+                detalle: `${clp.toLocaleString('es-CL')} CLP → ${usdt.toLocaleString('es-CL')} USDT (tasa: ${tasa.toFixed(2)} CLP/USDT)`,
+                saldos: {
+                    clp: { antes: saldoClpActual, despues: saldoClpActual - clp },
+                    usdt: { antes: saldoUsdtActual, despues: saldoUsdtActual + usdt },
+                },
+                pppUsdt: pppUsdt.toFixed(2)
+            };
+        }
+
+        // Patrón: cambié/cambie/cambio X USDT por Y VES
+        if (!tipo) {
+            const matchCompraVes = msgOriginal.match(/(?:cambi[eéo]|cambio|compr[eéa]|compro)\s+([\d.]+)\s*(?:usdt|USDT)\s+(?:por|a)\s+([\d.]+)\s*(?:ves|VES|bol[ií]vares)/i);
+            if (matchCompraVes) {
+                const usdt = Number(matchCompraVes[1]);
+                const ves = Number(matchCompraVes[2]);
+                if (usdt <= 0 || ves <= 0) return res.status(400).json({ error: 'Los montos deben ser mayores a 0' });
+
+                const saldoUsdtActual = Number(await readConfigValue('saldoUsdt') || 0);
+                if (usdt > saldoUsdtActual) return res.status(400).json({ error: `No tienes suficiente USDT. Stock actual: ${saldoUsdtActual.toFixed(2)}` });
+
+                const tasa = ves / usdt; // VES por 1 USDT
+                const saldoVesActual = Number(await readConfigValue('saldoVesOnline') || 0);
+
+                await dbRun(
+                    `INSERT INTO compras_ves(usuario_id, usdt_invertido, ves_obtenido, tasa_usdt_ves, fecha, observaciones) VALUES (?,?,?,?,?,?)`,
+                    [req.session.user.id, usdt, ves, tasa, hoyLocalYYYYMMDD(), msgOriginal]
+                );
+                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoUsdt'`, [usdt]);
+                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [ves]);
+
+                const pppVes = await getPromedioVesEnUsdt();
+                tipo = 'compra_ves';
+                resultado = {
+                    mensaje: `Compra VES registrada`,
+                    detalle: `${usdt.toLocaleString('es-CL')} USDT → ${ves.toLocaleString('es-CL')} VES (tasa: ${tasa.toFixed(2)} VES/USDT)`,
+                    saldos: {
+                        usdt: { antes: saldoUsdtActual, despues: saldoUsdtActual - usdt },
+                        ves: { antes: saldoVesActual, despues: saldoVesActual + ves },
+                    },
+                    pppVesUsdt: pppVes.toFixed(2)
+                };
+            }
+        }
+
+        // Patrón: deposité/deposito/ingresé X CLP
+        if (!tipo) {
+            const matchDeposito = msgOriginal.match(/(?:deposit[eéo]|deposito|ingres[eéo]|ingreso|agreg[eéo]|agrego)\s+([\d.]+)\s*(?:clp|CLP|pesos)/i);
+            if (matchDeposito) {
+                const clp = Number(matchDeposito[1]);
+                if (clp <= 0) return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
+
+                const saldoClpActual = Number(await readConfigValue('saldoClpDisponible') || 0);
+                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [clp]);
+
+                tipo = 'deposito_clp';
+                resultado = {
+                    mensaje: `Depósito CLP registrado`,
+                    detalle: `+${clp.toLocaleString('es-CL')} CLP`,
+                    saldos: {
+                        clp: { antes: saldoClpActual, despues: saldoClpActual + clp }
+                    }
+                };
+            }
+        }
+
+        // Patrón: ajustar USDT/VES/CLP a X
+        if (!tipo) {
+            const matchAjuste = msgOriginal.match(/ajust(?:ar|e|o)\s+(usdt|ves|clp)\s+(?:a|en)\s+([\d.]+)/i);
+            if (matchAjuste) {
+                const moneda = matchAjuste[1].toUpperCase();
+                const nuevoSaldo = Number(matchAjuste[2]);
+
+                const claveMap = { 'CLP': 'saldoClpDisponible', 'USDT': 'saldoUsdt', 'VES': 'saldoVesOnline' };
+                const clave = claveMap[moneda];
+                const saldoAntes = Number(await readConfigValue(clave) || 0);
+                await dbRun(`UPDATE configuracion SET valor = ? WHERE clave = ?`, [String(nuevoSaldo), clave]);
+
+                tipo = 'ajuste';
+                resultado = {
+                    mensaje: `Ajuste de ${moneda} registrado`,
+                    detalle: `${moneda}: ${saldoAntes.toLocaleString('es-CL')} → ${nuevoSaldo.toLocaleString('es-CL')}`,
+                    saldos: { [moneda.toLowerCase()]: { antes: saldoAntes, despues: nuevoSaldo } }
+                };
+            }
+        }
+
+        if (!tipo) {
+            return res.status(400).json({
+                error: 'No entendí la operación. Ejemplos válidos:',
+                ejemplos: [
+                    'compré 1000 USDT por 950000 CLP',
+                    'cambié 500 USDT por 42500 VES',
+                    'deposité 2000000 CLP',
+                    'ajustar USDT a 320.5'
+                ]
+            });
+        }
+
+        res.json({ tipo, ...resultado });
+    } catch (error) {
+        console.error('Error en POST /api/stock/operacion:', error.message);
+        res.status(500).json({ error: 'Error procesando la operación' });
+    }
+});
+
+// GET /api/stock/historial — historial combinado de operaciones
+app.get('/api/stock/historial', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const comprasUsdt = await dbAll(
+            `SELECT id, 'compra_usdt' as tipo, clp_invertido, usdt_obtenido as monto_obtenido, tasa_clp_usdt as tasa, fecha, observaciones FROM compras_usdt ORDER BY fecha DESC, id DESC`
+        );
+        const comprasVes = await dbAll(
+            `SELECT id, 'compra_ves' as tipo, usdt_invertido, ves_obtenido as monto_obtenido, tasa_usdt_ves as tasa, fecha, observaciones FROM compras_ves ORDER BY fecha DESC, id DESC`
+        );
+
+        // Combinar y ordenar por fecha DESC
+        const historial = [
+            ...(comprasUsdt || []).map(c => ({
+                id: c.id, tipo: 'CLP → USDT', tipoKey: 'compra_usdt',
+                entrada: `${Number(c.monto_obtenido).toLocaleString('es-CL')} USDT`,
+                salida: `${Number(c.clp_invertido).toLocaleString('es-CL')} CLP`,
+                tasa: `${Number(c.tasa).toFixed(2)} CLP/USDT`,
+                fecha: c.fecha, observaciones: c.observaciones
+            })),
+            ...(comprasVes || []).map(c => ({
+                id: c.id, tipo: 'USDT → VES', tipoKey: 'compra_ves',
+                entrada: `${Number(c.monto_obtenido).toLocaleString('es-CL')} VES`,
+                salida: `${Number(c.usdt_invertido).toLocaleString('es-CL')} USDT`,
+                tasa: `${Number(c.tasa).toFixed(2)} VES/USDT`,
+                fecha: c.fecha, observaciones: c.observaciones
+            }))
+        ].sort((a, b) => b.fecha > a.fecha ? 1 : b.fecha < a.fecha ? -1 : 0);
+
+        res.json(historial);
+    } catch (error) {
+        console.error('Error en GET /api/stock/historial:', error.message);
+        res.status(500).json({ error: 'Error al consultar historial' });
+    }
+});
+
+// DELETE /api/compras-usdt/:id — borrar compra de USDT y revertir saldos
+app.delete('/api/compras-usdt/:id', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const compra = await dbGet('SELECT * FROM compras_usdt WHERE id = ?', [req.params.id]);
+        if (!compra) return res.status(404).json({ error: 'Compra no encontrada' });
+
+        await dbRun('DELETE FROM compras_usdt WHERE id = ?', [req.params.id]);
+        await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [compra.clp_invertido]);
+        await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoUsdt'`, [compra.usdt_obtenido]);
+
+        res.json({ message: 'Compra USDT eliminada y saldos revertidos' });
+    } catch (error) {
+        console.error('Error borrando compra USDT:', error.message);
+        res.status(500).json({ error: 'Error al eliminar' });
+    }
+});
+
+// DELETE /api/compras-ves/:id — borrar compra de VES y revertir saldos
+app.delete('/api/compras-ves/:id', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const compra = await dbGet('SELECT * FROM compras_ves WHERE id = ?', [req.params.id]);
+        if (!compra) return res.status(404).json({ error: 'Compra no encontrada' });
+
+        await dbRun('DELETE FROM compras_ves WHERE id = ?', [req.params.id]);
+        await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoUsdt'`, [compra.usdt_invertido]);
+        await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [compra.ves_obtenido]);
+
+        res.json({ message: 'Compra VES eliminada y saldos revertidos' });
+    } catch (error) {
+        console.error('Error borrando compra VES:', error.message);
+        res.status(500).json({ error: 'Error al eliminar' });
+    }
 });
 
 // =================================================================
