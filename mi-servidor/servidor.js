@@ -2710,13 +2710,16 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
                     const vesTotalNuevo = montoVesNuevo + comisionVesNuevo;
                     const deltaGanancia = gananciaNetaNueva - gananciaNetaOriginal;
                     const deltaVes = vesTotalOriginal - vesTotalNuevo;
-                    
+                    const deltaClp = montoClpNuevo - opOriginal.monto_clp;
+
                     db.serialize(() => {
                         db.run('BEGIN TRANSACTION');
                         db.run(`UPDATE operaciones SET cliente_id=?, fecha=?, monto_clp=?, monto_ves=?, tasa=?, observaciones=?, costo_clp=?, comision_ves=?, numero_recibo=? WHERE id = ?`,
                             [cliente.id, fecha, montoClpNuevo, montoVesNuevo, tasaNueva, observaciones || '', costoClpNuevo, comisionVesNuevo, numero_recibo, operacionId]);
                         db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'totalGananciaAcumuladaClp'`, [deltaGanancia]);
-                        db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
+                        db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes]);
+                        // Ajustar CLP en stock (delta entre monto nuevo y original)
+                        db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [deltaClp], (err) => {
                             if (err) {
                                 db.run('ROLLBACK');
                                 return res.status(500).json({ message: 'Error al actualizar saldos, se revirtió la operación.' });
@@ -2743,12 +2746,15 @@ app.delete('/api/operaciones/:id', apiAuth, onlyMaster, (req, res) => {
             db.run('BEGIN TRANSACTION');
             db.run('DELETE FROM operaciones WHERE id = ?', [operacionId]);
             db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaNetaARevertir]);
-            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [vesTotalARevertir], (err) => {
+            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [vesTotalARevertir]);
+            // Revertir CLP que se reingresó al stock
+            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoClpDisponible'`, [op.monto_clp], (err) => {
                 if (err) {
                     db.run('ROLLBACK');
                     return res.status(500).json({ message: 'Error al revertir saldos, se canceló el borrado.' });
                 }
                 db.run('COMMIT');
+                console.log(`[STOCK] -${op.monto_clp} CLP revertido (operación #${op.numero_recibo} borrada)`);
                 res.json({ message: 'Operación borrada y saldos revertidos con éxito.' });
             });
         });
