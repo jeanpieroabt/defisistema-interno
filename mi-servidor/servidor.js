@@ -3898,8 +3898,13 @@ app.delete('/api/movimientos-stock/:id', apiAuth, onlyMaster, async (req, res) =
         const clave = claveMap[mov.moneda];
 
         if (mov.tipo === 'deposito') {
+            // Depósito sumó monto → restar
             await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = ?`, [mov.monto, clave]);
+        } else if (mov.tipo === 'retiro' || mov.tipo === 'venta_usdt') {
+            // Retiro/venta restó monto → devolver
+            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = ?`, [mov.monto, clave]);
         } else if (mov.tipo === 'ajuste') {
+            // Ajuste cambió saldo → restaurar saldo anterior
             await dbRun(`UPDATE configuracion SET valor = ? WHERE clave = ?`, [String(mov.saldo_antes), clave]);
         }
         await dbRun('DELETE FROM movimientos_stock WHERE id = ?', [req.params.id]);
