@@ -3346,6 +3346,7 @@ app.get('/api/stock', apiAuth, onlyMaster, async (req, res) => {
         const totalGananciaAcumuladaClp = Number(await readConfigValue('totalGananciaAcumuladaClp') || 0);
         const capitalInicialClp = Number(await readConfigValue('capitalInicialClp') || 0);
 
+        // Ganancias del día: operaciones VES + ventas USDT otros países
         const opsDia = await new Promise((resolve) => {
             db.get(`SELECT
                 IFNULL(SUM(monto_clp),0) as clpRecibidoHoy,
@@ -3358,9 +3359,21 @@ app.get('/api/stock', apiAuth, onlyMaster, async (req, res) => {
             });
         });
 
+        // Ventas USDT del día (otros países)
+        const ventasUsdtDia = await dbGet(`SELECT
+            IFNULL(SUM(clp),0) as clpRecibidoUsdt,
+            IFNULL(SUM(usdt),0) as usdtVendidoHoy,
+            COUNT(*) as cantVentas
+            FROM ventas_usdt WHERE date(fecha)=date(?)`, [hoy]) || { clpRecibidoUsdt: 0, usdtVendidoHoy: 0, cantVentas: 0 };
+
+        const costoUsdtVendido = ventasUsdtDia.usdtVendidoHoy * pppUsdtClp;
+        const gananciaVentasUsdt = ventasUsdtDia.clpRecibidoUsdt - costoUsdtVendido;
+
         const gananciaBrutaHoy = opsDia.clpRecibidoHoy - opsDia.costoTotalHoy;
         const comisionHoy = opsDia.clpRecibidoHoy * 0.003;
-        const gananciaNetaHoy = gananciaBrutaHoy - comisionHoy;
+        const gananciaNetaOpsVes = gananciaBrutaHoy - comisionHoy;
+        const gananciaNetaHoy = gananciaNetaOpsVes + gananciaVentasUsdt;
+        const cantTotalOps = opsDia.cantOperaciones + (ventasUsdtDia.cantVentas || 0);
 
         res.json({
             saldoClp, saldoUsdt, saldoVes,
@@ -3371,9 +3384,11 @@ app.get('/api/stock', apiAuth, onlyMaster, async (req, res) => {
             // Datos de ganancias
             gananciaNetaHoy,
             gananciaBrutaHoy,
-            clpRecibidoHoy: opsDia.clpRecibidoHoy,
+            clpRecibidoHoy: opsDia.clpRecibidoHoy + ventasUsdtDia.clpRecibidoUsdt,
             vesEnviadoHoy: opsDia.vesEnviadoHoy,
-            cantOperacionesHoy: opsDia.cantOperaciones,
+            usdtVendidoHoy: ventasUsdtDia.usdtVendidoHoy,
+            gananciaVentasUsdt,
+            cantOperacionesHoy: cantTotalOps,
             totalGananciaAcumuladaClp,
             capitalInicialClp,
             capitalLegacy: capitalInicialClp + totalGananciaAcumuladaClp
