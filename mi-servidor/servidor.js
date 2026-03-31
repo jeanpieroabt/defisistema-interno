@@ -3570,6 +3570,60 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
             }
         }
 
+        // Patrón: vendí X USDT por Y CLP [país]
+        if (!tipo) {
+            const matchVentaUsdt = msgOriginal.match(/(?:vend[ií]|vendo|venta)\s+([\d.]+)\s*(?:usdt|USDT)\s+(?:por|a)\s+([\d.]+)\s*(?:clp|CLP|pesos)\s*(.*)/i);
+            if (matchVentaUsdt) {
+                const usdt = Number(matchVentaUsdt[1]);
+                const clp = Number(matchVentaUsdt[2]);
+                const paisRaw = matchVentaUsdt[3] ? matchVentaUsdt[3].trim() : '';
+                if (usdt <= 0 || clp <= 0) return res.status(400).json({ error: 'Los montos deben ser mayores a 0' });
+
+                const saldoUsdtActual = Number(await readConfigValue('saldoUsdt') || 0);
+                if (usdt > saldoUsdtActual) return res.status(400).json({ error: `Saldo USDT insuficiente. Disponible: ${saldoUsdtActual.toFixed(2)}` });
+
+                const saldoClpActual = Number(await readConfigValue('saldoClpDisponible') || 0);
+                const tasa = clp / usdt; // CLP por 1 USDT
+
+                // Mapear país
+                const paisMap = {
+                    've': 'Venezuela', 'venezuela': 'Venezuela',
+                    'co': 'Colombia', 'colombia': 'Colombia', 'col': 'Colombia',
+                    'pe': 'Peru', 'peru': 'Peru',
+                    'bo': 'Bolivia', 'bolivia': 'Bolivia',
+                    'ar': 'Argentina', 'argentina': 'Argentina',
+                    'us': 'EEUU', 'usa': 'EEUU', 'eeuu': 'EEUU', 'estados unidos': 'EEUU',
+                    'eu': 'Europa', 'europa': 'Europa', 'eur': 'Europa',
+                };
+                const pais = paisMap[paisRaw.toLowerCase()] || paisRaw || 'No especificado';
+                const observacion = `Venta USDT → ${pais} | ${msgOriginal}`;
+
+                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoUsdt'`, [usdt]);
+                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [clp]);
+                await dbRun(
+                    `INSERT INTO movimientos_stock(usuario_id, tipo, moneda, monto, saldo_antes, saldo_despues, fecha, observaciones) VALUES (?,?,?,?,?,?,?,?)`,
+                    [req.session.user.id, 'venta_usdt', 'USDT', usdt, saldoUsdtActual, saldoUsdtActual - usdt, hoyLocalYYYYMMDD(), observacion]
+                );
+
+                // Calcular ganancia de esta venta
+                const pppUsdtClp = await getPromedioUsdt(); // costo promedio de 1 USDT en CLP
+                const costoEnClp = usdt * pppUsdtClp;
+                const gananciaVenta = clp - costoEnClp;
+
+                tipo = 'venta_usdt';
+                resultado = {
+                    mensaje: `Venta USDT registrada (${pais})`,
+                    detalle: `${usdt.toLocaleString('es-CL')} USDT → ${clp.toLocaleString('es-CL')} CLP (tasa: ${tasa.toFixed(2)} CLP/USDT)`,
+                    pais,
+                    ganancia: `${gananciaVenta >= 0 ? '+' : ''}${gananciaVenta.toFixed(0)} CLP`,
+                    saldos: {
+                        usdt: { antes: saldoUsdtActual, despues: saldoUsdtActual - usdt },
+                        clp: { antes: saldoClpActual, despues: saldoClpActual + clp }
+                    }
+                };
+            }
+        }
+
         // Patrón: retiré/retiro X CLP/USDT/VES para/por [motivo]
         if (!tipo) {
             const matchRetiro = msgOriginal.match(/(?:retir[eéo]|retiro|saq[uú][eé]|saco|pag[uú][eé]|pago)\s+([\d.]+)\s*(clp|usdt|ves)\s*(?:para|por|de|motivo:?\s*)?\s*(.*)/i);
@@ -3610,9 +3664,10 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
                     'compré 500 USDT a tasa 932',
                     'cambié 500 USDT por 42500 VES',
                     'cambié 200 USDT a tasa 85.5 VES',
+                    'vendí 90 USDT por 100000 CLP Colombia',
+                    'vendí 50 USDT por 55000 CLP EEUU',
                     'deposité 2000000 CLP',
                     'retiré 50000 CLP para pago de servicios',
-                    'retiré 100 USDT para pago proveedor',
                     'ajustar USDT a 320.5'
                 ]
             });
@@ -3665,6 +3720,13 @@ app.get('/api/stock/historial', apiAuth, onlyMaster, async (req, res) => {
                     tipoDisplay = `Retiro ${m.moneda}`;
                     entrada = '-';
                     salida = `-${Number(m.monto).toLocaleString('es-CL')} ${m.moneda}`;
+                } else if (m.tipo === 'venta_usdt') {
+                    // Extraer país de observaciones: "Venta USDT → Colombia | ..."
+                    const paisMatch = m.observaciones ? m.observaciones.match(/→\s*([^|]+)/) : null;
+                    const pais = paisMatch ? paisMatch[1].trim() : '';
+                    tipoDisplay = `Venta USDT${pais ? ' → ' + pais : ''}`;
+                    entrada = `+${Number(m.saldo_antes - m.saldo_despues).toLocaleString('es-CL')} USDT vendido`;
+                    salida = `-${Number(m.monto).toLocaleString('es-CL')} USDT`;
                 } else {
                     tipoDisplay = `Ajuste ${m.moneda}`;
                     entrada = `${Number(m.saldo_despues).toLocaleString('es-CL')} ${m.moneda}`;
@@ -3673,7 +3735,7 @@ app.get('/api/stock/historial', apiAuth, onlyMaster, async (req, res) => {
                 return {
                     id: m.id, tipo: tipoDisplay, tipoKey: 'movimiento',
                     entrada, salida,
-                    tasa: m.tipo === 'retiro' ? m.observaciones || '-' : '-',
+                    tasa: (m.tipo === 'retiro' || m.tipo === 'venta_usdt') ? (m.observaciones || '-') : '-',
                     fecha: m.fecha, observaciones: m.observaciones
                 };
             })
