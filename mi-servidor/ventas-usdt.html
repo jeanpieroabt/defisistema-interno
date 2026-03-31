@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ventas USDT - Defi Oracle</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      background-image: url('logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.03;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .hdr {
+      background: linear-gradient(135deg, #1e3a5f, #3b82f6);
+      color: white;
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .logo-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-header img {
+      height: 45px;
+    }
+
+    .hdr h1 {
+      margin: 0;
+      font-size: 1.6rem;
+    }
+
+    .btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-back {
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+
+    .btn-back:hover {
+      background: rgba(255,255,255,0.25);
+    }
+
+    .content {
+      padding: 1.5rem 2rem;
+    }
+
+    .country-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .country-btn {
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .country-btn:hover {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+
+    .country-btn.active {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: white;
+    }
+
+    .country-btn .flag {
+      font-size: 1.8rem;
+      margin-bottom: 4px;
+    }
+
+    .country-btn .name {
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .country-btn .code {
+      font-size: 0.65rem;
+      opacity: 0.7;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-group input, .form-group select {
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+    }
+
+    .calc-preview {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      text-align: center;
+    }
+
+    .calc-item {
+      padding: 8px;
+    }
+
+    .calc-label {
+      font-size: 0.7rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .calc-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1e3a5f;
+      margin-top: 2px;
+    }
+
+    .calc-value.green { color: #059669; }
+    .calc-value.red { color: #dc2626; }
+
+    .btn-registrar {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #1e3a5f, #3b82f6);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .btn-registrar:hover {
+      opacity: 0.9;
+    }
+
+    .btn-registrar:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .resultado-box {
+      display: none;
+      padding: 14px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      font-size: 0.9rem;
+    }
+
+    .resultado-box.success {
+      background: #ecfdf5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+    }
+
+    .resultado-box.error {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+    }
+
+    /* Saldo USDT banner */
+    .saldo-banner {
+      background: linear-gradient(135deg, #065f46, #10b981);
+      border-radius: 12px;
+      padding: 14px 20px;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .saldo-banner .label {
+      font-size: 0.8rem;
+      opacity: 0.85;
+    }
+
+    .saldo-banner .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .saldo-banner .ppp {
+      font-size: 0.75rem;
+      opacity: 0.8;
+    }
+
+    /* Historial */
+    .historial-section {
+      margin-top: 20px;
+    }
+
+    .historial-section h4 {
+      margin-bottom: 10px;
+      color: #374151;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    thead th {
+      background: #f8fafc;
+      padding: 10px;
+      text-align: left;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: #6b7280;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    tbody td {
+      padding: 10px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .badge-pais {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .btn-delete {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .btn-delete:hover {
+      background: #dc2626;
+    }
+
+    @media (max-width: 600px) {
+      .content { padding: 1rem; }
+      .form-grid { grid-template-columns: 1fr; }
+      .calc-preview { grid-template-columns: 1fr; }
+      .country-grid { grid-template-columns: repeat(3, 1fr); }
+      .hdr { flex-direction: column; text-align: center; }
+      .btns { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div id="toast-container" class="toast-container"></div>
+
+  <div class="container">
+    <div class="card">
+      <div class="hdr">
+        <div class="logo-header">
+          <img src="logo.png" alt="Defi Oracle">
+          <h1>Envios Otros Paises</h1>
+        </div>
+        <div class="btns">
+          <a href="home.html" class="btn-back">Inicio</a>
+          <a href="stock.html" class="btn-back">Stock</a>
+        </div>
+      </div>
+
+      <div class="content">
+        <!-- Saldo USDT disponible -->
+        <div class="saldo-banner">
+          <div>
+            <div class="label">Saldo USDT Disponible</div>
+            <div id="saldoUsdt" class="value">0</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="label">PPP (Costo promedio)</div>
+            <div id="pppUsdt" class="ppp">-- CLP/USDT</div>
+            <div id="saldoClp" class="ppp" style="margin-top:4px;">CLP: --</div>
+          </div>
+        </div>
+
+        <!-- Selector de pais -->
+        <p style="color: #374151; font-size: 0.85rem; margin-bottom: 10px; font-weight: 600;">Pais destino:</p>
+        <div class="country-grid">
+          <div class="country-btn" data-pais="Colombia" onclick="selectPais(this)">
+            <div class="flag">&#127464;&#127476;</div>
+            <div class="name">Colombia</div>
+            <div class="code">COP</div>
+          </div>
+          <div class="country-btn" data-pais="Peru" onclick="selectPais(this)">
+            <div class="flag">&#127477;&#127466;</div>
+            <div class="name">Peru</div>
+            <div class="code">PEN</div>
+          </div>
+          <div class="country-btn" data-pais="Bolivia" onclick="selectPais(this)">
+            <div class="flag">&#127463;&#127476;</div>
+            <div class="name">Bolivia</div>
+            <div class="code">BOB</div>
+          </div>
+          <div class="country-btn" data-pais="Argentina" onclick="selectPais(this)">
+            <div class="flag">&#127462;&#127479;</div>
+            <div class="name">Argentina</div>
+            <div class="code">ARS</div>
+          </div>
+          <div class="country-btn" data-pais="EEUU" onclick="selectPais(this)">
+            <div class="flag">&#127482;&#127480;</div>
+            <div class="name">EEUU</div>
+            <div class="code">USD</div>
+          </div>
+          <div class="country-btn" data-pais="Europa" onclick="selectPais(this)">
+            <div class="flag">&#127466;&#127482;</div>
+            <div class="name">Europa</div>
+            <div class="code">EUR</div>
+          </div>
+          <div class="country-btn" data-pais="Venezuela" onclick="selectPais(this)">
+            <div class="flag">&#127483;&#127466;</div>
+            <div class="name">Venezuela</div>
+            <div class="code">VES</div>
+          </div>
+        </div>
+
+        <!-- Formulario -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label>USDT Gastados</label>
+            <input type="number" id="inputUsdt" step="0.01" placeholder="Ej: 90" oninput="calcularPreview()">
+          </div>
+          <div class="form-group">
+            <label>CLP Recibidos del cliente</label>
+            <input type="number" id="inputClp" step="1" placeholder="Ej: 100000" oninput="calcularPreview()">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label>Observaciones (opcional)</label>
+          <input type="text" id="inputObs" placeholder="Ej: Envio a cuenta Bancolombia de Juan">
+        </div>
+
+        <!-- Preview del calculo -->
+        <div id="calcPreview" class="calc-preview" style="display: none;">
+          <div class="calc-item">
+            <div class="calc-label">Tasa efectiva</div>
+            <div id="prevTasa" class="calc-value">0</div>
+          </div>
+          <div class="calc-item">
+            <div class="calc-label">Costo USDT en CLP</div>
+            <div id="prevCosto" class="calc-value">0</div>
+          </div>
+          <div class="calc-item">
+            <div class="calc-label">Ganancia</div>
+            <div id="prevGanancia" class="calc-value green">$0</div>
+          </div>
+        </div>
+
+        <!-- Resultado -->
+        <div id="resultado" class="resultado-box"></div>
+
+        <!-- Boton -->
+        <button id="btnRegistrar" class="btn-registrar" onclick="registrarVenta()" disabled>
+          Selecciona un pais para continuar
+        </button>
+
+        <!-- Historial -->
+        <div class="historial-section">
+          <h4>Historial de ventas USDT</h4>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Pais</th>
+                  <th>USDT</th>
+                  <th>CLP</th>
+                  <th>Tasa</th>
+                  <th>Obs</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tbodyHistorial"></tbody>
+            </table>
+          </div>
+          <div style="margin-top: 0.5rem; text-align: center;">
+            <span id="historialInfo" style="color: #6b7280; font-size: 0.85rem;"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let paisSeleccionado = '';
+    let pppUsdtClpGlobal = 0;
+
+    function showToast(msg, type) {
+      const c = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+    }
+
+    function fmtNum(n, decimals = 2) {
+      return Number(n || 0).toLocaleString('es-CL', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+
+    function selectPais(el) {
+      document.querySelectorAll('.country-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      paisSeleccionado = el.dataset.pais;
+      const btn = document.getElementById('btnRegistrar');
+      btn.disabled = false;
+      btn.textContent = `Registrar venta USDT → ${paisSeleccionado}`;
+      calcularPreview();
+    }
+
+    function calcularPreview() {
+      const usdt = Number(document.getElementById('inputUsdt').value || 0);
+      const clp = Number(document.getElementById('inputClp').value || 0);
+      const preview = document.getElementById('calcPreview');
+
+      if (usdt > 0 && clp > 0) {
+        preview.style.display = 'grid';
+        const tasa = clp / usdt;
+        const costo = usdt * pppUsdtClpGlobal;
+        const ganancia = clp - costo;
+
+        document.getElementById('prevTasa').textContent = fmtNum(tasa) + ' CLP/USDT';
+        document.getElementById('prevCosto').textContent = '$' + fmtNum(costo, 0);
+
+        const gEl = document.getElementById('prevGanancia');
+        gEl.textContent = (ganancia >= 0 ? '+$' : '-$') + fmtNum(Math.abs(ganancia), 0);
+        gEl.className = 'calc-value ' + (ganancia >= 0 ? 'green' : 'red');
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
+    async function loadSaldos() {
+      try {
+        const data = await (await fetch('/api/stock')).json();
+        document.getElementById('saldoUsdt').textContent = fmtNum(data.saldoUsdt);
+        document.getElementById('pppUsdt').textContent = data.pppUsdtClp > 0 ? fmtNum(data.pppUsdtClp) + ' CLP/USDT' : '-- CLP/USDT';
+        document.getElementById('saldoClp').textContent = 'CLP: $' + fmtNum(data.saldoClp, 0);
+        pppUsdtClpGlobal = data.pppUsdtClp || 0;
+      } catch (e) { console.error('Error cargando saldos:', e); }
+    }
+
+    async function registrarVenta() {
+      const usdt = Number(document.getElementById('inputUsdt').value || 0);
+      const clp = Number(document.getElementById('inputClp').value || 0);
+      const obs = document.getElementById('inputObs').value.trim();
+
+      if (!paisSeleccionado) return showToast('Selecciona un pais', 'error');
+      if (usdt <= 0 || clp <= 0) return showToast('Ingresa montos validos', 'error');
+
+      const btn = document.getElementById('btnRegistrar');
+      btn.disabled = true;
+      btn.textContent = 'Registrando...';
+
+      try {
+        const resp = await fetch('/api/ventas-usdt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usdt, clp, pais: paisSeleccionado, observaciones: obs })
+        });
+        const data = await resp.json();
+
+        const resultado = document.getElementById('resultado');
+        if (resp.ok) {
+          resultado.className = 'resultado-box success';
+          resultado.innerHTML = `<b>${data.mensaje}</b><br>${data.detalle}<br>Ganancia: ${data.ganancia}`;
+          resultado.style.display = 'block';
+          showToast('Venta registrada', 'success');
+          document.getElementById('inputUsdt').value = '';
+          document.getElementById('inputClp').value = '';
+          document.getElementById('inputObs').value = '';
+          document.getElementById('calcPreview').style.display = 'none';
+          loadSaldos();
+          loadHistorial();
+        } else {
+          resultado.className = 'resultado-box error';
+          resultado.innerHTML = data.error || data.message || 'Error desconocido';
+          resultado.style.display = 'block';
+          showToast(data.error || 'Error', 'error');
+        }
+      } catch (e) {
+        showToast('Error de conexion', 'error');
+      }
+
+      btn.disabled = false;
+      btn.textContent = `Registrar venta USDT → ${paisSeleccionado}`;
+    }
+
+    async function loadHistorial() {
+      try {
+        const resp = await fetch('/api/ventas-usdt');
+        if (!resp.ok) return;
+        const ventas = await resp.json();
+        const tbody = document.getElementById('tbodyHistorial');
+        const info = document.getElementById('historialInfo');
+        tbody.innerHTML = '';
+
+        if (!ventas || ventas.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: #9ca3af;">Sin ventas registradas</td></tr>';
+          info.textContent = '';
+          return;
+        }
+
+        const mostrar = ventas.slice(0, 30);
+        mostrar.forEach(v => {
+          const tr = document.createElement('tr');
+          const tasa = v.usdt > 0 ? (v.clp / v.usdt).toFixed(2) : '0';
+          tr.innerHTML = `
+            <td>${v.fecha}</td>
+            <td><span class="badge-pais">${v.pais}</span></td>
+            <td style="color: #dc2626; font-weight:600;">${fmtNum(v.usdt)}</td>
+            <td style="color: #059669; font-weight:600;">$${fmtNum(v.clp, 0)}</td>
+            <td>${tasa}</td>
+            <td style="font-size:0.75rem; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${v.observaciones || ''}">${v.observaciones || '-'}</td>
+            <td><button class="btn-delete" onclick="deleteVenta(${v.id})">Borrar</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        info.textContent = ventas.length > 30 ? `Mostrando 30 de ${ventas.length}` : `${ventas.length} ventas`;
+      } catch (e) { console.error('Error cargando historial:', e); }
+    }
+
+    async function deleteVenta(id) {
+      if (!confirm('Eliminar esta venta? Se revertiran los saldos USDT y CLP.')) return;
+      try {
+        const resp = await fetch(`/api/ventas-usdt/${id}`, { method: 'DELETE' });
+        const data = await resp.json();
+        showToast(data.message || data.error, resp.ok ? 'success' : 'error');
+        if (resp.ok) { loadSaldos(); loadHistorial(); }
+      } catch (e) { showToast('Error de conexion', 'error'); }
+    }
+
+    // Init
+    (async () => {
+      try {
+        const userResp = await fetch('/api/user-info');
+        if (!userResp.ok) { window.location.href = '/login.html'; return; }
+        const user = await userResp.json();
+        if (user.role !== 'master') { window.location.href = '/home.html'; return; }
+      } catch (e) { window.location.href = '/login.html'; return; }
+
+      await Promise.all([loadSaldos(), loadHistorial()]);
+    })();
+  </script>
+</body>
+</html>

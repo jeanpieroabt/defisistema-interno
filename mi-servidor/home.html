@@ -746,8 +746,16 @@
       <!-- Registro de Envíos -->
       <a href="app.html" class="module-card">
         <div class="module-icon">&#128181;</div>
-        <h3>Registro de Envíos</h3>
-        <p>Registra nuevas operaciones de envío y consulta el historial del día</p>
+        <h3>Registro de Envios</h3>
+        <p>Registra nuevas operaciones de envio y consulta el historial del dia</p>
+      </a>
+
+      <!-- Envíos Otros Países / Ventas USDT -->
+      <a href="ventas-usdt.html" class="module-card master-only" id="ventasUsdtCard" style="display:none">
+        <div class="module-icon">&#128178;</div>
+        <span class="module-badge">Master</span>
+        <h3>Envios Otros Paises</h3>
+        <p>Registra envios a CO, PE, BO, AR, EEUU, EU como ventas de USDT</p>
       </a>
       
       <!-- Gestión de Clientes -->
@@ -975,6 +983,7 @@
       
       // Mostrar módulos de Master
       if (user.role === 'master') {
+        document.getElementById('ventasUsdtCard').style.display = 'flex';
         document.getElementById('dashboardCard').style.display = 'flex';
         document.getElementById('analyticsCard').style.display = 'flex';
         document.getElementById('crecimientoCard').style.display = 'flex';

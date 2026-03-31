@@ -1675,6 +1675,17 @@ const runMigrations = async () => {
                 observaciones TEXT,
                 FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
             )`);
+            await dbRun(`CREATE TABLE IF NOT EXISTS ventas_usdt (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL,
+                usdt REAL NOT NULL,
+                clp REAL NOT NULL,
+                tasa REAL NOT NULL,
+                pais TEXT NOT NULL,
+                fecha TEXT NOT NULL,
+                observaciones TEXT,
+                FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+            )`);
             await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoUsdt', '0')`);
             await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoClpDisponible', '0')`);
             console.log('... Tablas de stock multi-moneda verificadas');
@@ -3370,6 +3381,86 @@ app.get('/api/stock', apiAuth, onlyMaster, async (req, res) => {
     } catch (error) {
         console.error('Error en GET /api/stock:', error.message);
         res.status(500).json({ error: 'Error al consultar stock' });
+    }
+});
+
+// =================================================================
+// VENTAS USDT — Envíos a otros países
+// =================================================================
+app.get('/api/ventas-usdt', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const ventas = await dbAll(`SELECT id, usuario_id, usdt, clp, pais, fecha, observaciones FROM ventas_usdt ORDER BY fecha DESC, id DESC`);
+        res.json(ventas || []);
+    } catch (e) {
+        console.error('Error en GET /api/ventas-usdt:', e.message);
+        res.status(500).json({ error: 'Error al listar ventas' });
+    }
+});
+
+app.post('/api/ventas-usdt', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { usdt, clp, pais, observaciones } = req.body;
+        const usdtNum = Number(usdt || 0);
+        const clpNum = Number(clp || 0);
+        if (usdtNum <= 0 || clpNum <= 0) return res.status(400).json({ error: 'Los montos deben ser mayores a 0' });
+        if (!pais) return res.status(400).json({ error: 'Selecciona un país destino' });
+
+        const saldoUsdtActual = Number(await readConfigValue('saldoUsdt') || 0);
+        if (usdtNum > saldoUsdtActual) {
+            return res.status(400).json({ error: `Saldo USDT insuficiente. Disponible: ${saldoUsdtActual.toFixed(2)}` });
+        }
+
+        const saldoClpActual = Number(await readConfigValue('saldoClpDisponible') || 0);
+        const tasa = clpNum / usdtNum;
+
+        // Registrar en tabla ventas_usdt
+        await dbRun(
+            `INSERT INTO ventas_usdt(usuario_id, usdt, clp, tasa, pais, fecha, observaciones) VALUES (?,?,?,?,?,?,?)`,
+            [req.session.user.id, usdtNum, clpNum, tasa, pais, hoyLocalYYYYMMDD(), observaciones || '']
+        );
+
+        // Actualizar saldos: USDT baja, CLP sube
+        await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoUsdt'`, [usdtNum]);
+        await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [clpNum]);
+
+        // Calcular ganancia
+        const pppUsdtClp = await getPromedioUsdt();
+        const costoEnClp = usdtNum * pppUsdtClp;
+        const ganancia = clpNum - costoEnClp;
+
+        console.log(`[VENTA USDT] ${usdtNum} USDT → ${clpNum} CLP (${pais}) | Ganancia: ${ganancia.toFixed(0)} CLP`);
+
+        res.json({
+            mensaje: `Venta USDT registrada (${pais})`,
+            detalle: `${usdtNum.toLocaleString('es-CL')} USDT → $${clpNum.toLocaleString('es-CL')} CLP (tasa: ${tasa.toFixed(2)})`,
+            pais,
+            ganancia: `${ganancia >= 0 ? '+' : ''}${ganancia.toFixed(0)} CLP`,
+            saldos: {
+                usdt: { antes: saldoUsdtActual, despues: saldoUsdtActual - usdtNum },
+                clp: { antes: saldoClpActual, despues: saldoClpActual + clpNum }
+            }
+        });
+    } catch (e) {
+        console.error('Error en POST /api/ventas-usdt:', e.message);
+        res.status(500).json({ error: 'Error al registrar venta' });
+    }
+});
+
+app.delete('/api/ventas-usdt/:id', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const venta = await dbGet('SELECT * FROM ventas_usdt WHERE id = ?', [req.params.id]);
+        if (!venta) return res.status(404).json({ error: 'Venta no encontrada' });
+
+        await dbRun('DELETE FROM ventas_usdt WHERE id = ?', [venta.id]);
+        // Revertir saldos: devolver USDT, quitar CLP
+        await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoUsdt'`, [venta.usdt]);
+        await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoClpDisponible'`, [venta.clp]);
+
+        console.log(`[VENTA USDT BORRADA] +${venta.usdt} USDT, -${venta.clp} CLP revertidos`);
+        res.json({ message: 'Venta eliminada y saldos revertidos.' });
+    } catch (e) {
+        console.error('Error en DELETE /api/ventas-usdt:', e.message);
+        res.status(500).json({ error: 'Error al eliminar venta' });
     }
 });
 
