@@ -3424,7 +3424,39 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
 
         let tipo, resultado;
 
+        // Patrón: compré X USDT a tasa Y (calcula CLP = X * Y)
+        const matchCompraUsdtTasa = msgOriginal.match(/(?:compr[eéa]|compro)\s+([\d.]+)\s*(?:usdt|USDT)\s+(?:a\s+)?tasa\s+([\d.]+)/i);
+        if (matchCompraUsdtTasa) {
+            const usdt = Number(matchCompraUsdtTasa[1]);
+            const tasa = Number(matchCompraUsdtTasa[2]);
+            if (usdt <= 0 || tasa <= 0) return res.status(400).json({ error: 'Los montos deben ser mayores a 0' });
+            const clp = usdt * tasa;
+
+            const saldoClpActual = Number(await readConfigValue('saldoClpDisponible') || 0);
+            const saldoUsdtActual = Number(await readConfigValue('saldoUsdt') || 0);
+
+            await dbRun(
+                `INSERT INTO compras_usdt(usuario_id, clp_invertido, usdt_obtenido, tasa_clp_usdt, fecha, observaciones) VALUES (?,?,?,?,?,?)`,
+                [req.session.user.id, clp, usdt, tasa, hoyLocalYYYYMMDD(), msgOriginal]
+            );
+            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoClpDisponible'`, [clp]);
+            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoUsdt'`, [usdt]);
+
+            const pppUsdt = await getPromedioUsdt();
+            tipo = 'compra_usdt';
+            resultado = {
+                mensaje: `Compra USDT registrada`,
+                detalle: `${clp.toLocaleString('es-CL')} CLP → ${usdt.toLocaleString('es-CL')} USDT (tasa: ${tasa.toFixed(2)} CLP/USDT)`,
+                saldos: {
+                    clp: { antes: saldoClpActual, despues: saldoClpActual - clp },
+                    usdt: { antes: saldoUsdtActual, despues: saldoUsdtActual + usdt },
+                },
+                pppUsdt: pppUsdt.toFixed(2)
+            };
+        }
+
         // Patrón: compré/compre/compra X USDT por Y CLP
+        if (!tipo) {
         const matchCompraUsdt = msgOriginal.match(/(?:compr[eéa]|compro)\s+([\d.]+)\s*(?:usdt|USDT)\s+(?:por|a|con)\s+([\d.]+)\s*(?:clp|CLP|pesos)/i);
         if (matchCompraUsdt) {
             const usdt = Number(matchCompraUsdt[1]);
@@ -3453,6 +3485,42 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
                 },
                 pppUsdt: pppUsdt.toFixed(2)
             };
+        }
+        }
+
+        // Patrón: cambié X USDT a tasa Y VES (calcula VES = X * Y)
+        if (!tipo) {
+            const matchCompraVesTasa = msgOriginal.match(/(?:cambi[eéo]|cambio|compr[eéa]|compro)\s+([\d.]+)\s*(?:usdt|USDT)\s+(?:a\s+)?tasa\s+([\d.]+)\s*(?:ves|VES|bol[ií]vares)?/i);
+            if (matchCompraVesTasa) {
+                const usdt = Number(matchCompraVesTasa[1]);
+                const tasa = Number(matchCompraVesTasa[2]);
+                if (usdt <= 0 || tasa <= 0) return res.status(400).json({ error: 'Los montos deben ser mayores a 0' });
+                const ves = usdt * tasa;
+
+                const saldoUsdtActual = Number(await readConfigValue('saldoUsdt') || 0);
+                if (usdt > saldoUsdtActual) return res.status(400).json({ error: `No tienes suficiente USDT. Stock actual: ${saldoUsdtActual.toFixed(2)}` });
+
+                const saldoVesActual = Number(await readConfigValue('saldoVesOnline') || 0);
+
+                await dbRun(
+                    `INSERT INTO compras_ves(usuario_id, usdt_invertido, ves_obtenido, tasa_usdt_ves, fecha, observaciones) VALUES (?,?,?,?,?,?)`,
+                    [req.session.user.id, usdt, ves, tasa, hoyLocalYYYYMMDD(), msgOriginal]
+                );
+                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoUsdt'`, [usdt]);
+                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [ves]);
+
+                const pppVes = await getPromedioVesEnUsdt();
+                tipo = 'compra_ves';
+                resultado = {
+                    mensaje: `Compra VES registrada`,
+                    detalle: `${usdt.toLocaleString('es-CL')} USDT → ${ves.toLocaleString('es-CL')} VES (tasa: ${tasa.toFixed(2)} VES/USDT)`,
+                    saldos: {
+                        usdt: { antes: saldoUsdtActual, despues: saldoUsdtActual - usdt },
+                        ves: { antes: saldoVesActual, despues: saldoVesActual + ves },
+                    },
+                    pppVesUsdt: pppVes.toFixed(2)
+                };
+            }
         }
 
         // Patrón: cambié/cambie/cambio X USDT por Y VES
@@ -3545,7 +3613,9 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
                 error: 'No entendí la operación. Ejemplos válidos:',
                 ejemplos: [
                     'compré 1000 USDT por 950000 CLP',
+                    'compré 500 USDT a tasa 932',
                     'cambié 500 USDT por 42500 VES',
+                    'cambié 200 USDT a tasa 85.5 VES',
                     'deposité 2000000 CLP',
                     'ajustar USDT a 320.5'
                 ]
