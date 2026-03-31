@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Stock - Defi Oracle</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      background-image: url('logo.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.03;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+
+    .hdr {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      color: white;
+      padding: 2rem;
+      border-radius: 16px 16px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo-header img {
+      height: 60px;
+      width: auto;
+      filter: brightness(0) invert(1);
+      object-fit: contain;
+    }
+
+    .hdr h1 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .hdr .btns {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-back {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-back:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .content {
+      padding: 2rem;
+    }
+
+    .stock-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stock-card-clp {
+      background: linear-gradient(135deg, #1e3a5f, #2563eb);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stock-card-usdt {
+      background: linear-gradient(135deg, #1e3a3f, #059669);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stock-card-ves {
+      background: linear-gradient(135deg, #3b1e5f, #7c3aed);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stock-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stock-value {
+      color: #fff;
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 4px 0;
+    }
+
+    .stock-ppp {
+      font-size: 0.7rem;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .chat-input-row input {
+      flex: 1;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      font-size: 0.95rem;
+    }
+
+    .chat-input-row button {
+      padding: 12px 20px;
+      white-space: nowrap;
+    }
+
+    .stock-resultado {
+      display: none;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        margin: 1rem auto;
+        padding: 0 0.5rem;
+      }
+
+      .hdr {
+        padding: 1.5rem;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .logo-header img {
+        height: 40px;
+      }
+
+      .hdr h1 {
+        font-size: 1.5rem;
+      }
+
+      .hdr .btns {
+        width: 100%;
+      }
+
+      .btn-back {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .content {
+        padding: 1rem;
+      }
+
+      .stock-cards {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="toast-container" class="toast-container"></div>
+
+  <div class="container">
+    <div class="card">
+      <div class="hdr">
+        <div class="logo-header">
+          <img src="logo.png" alt="Defi Oracle">
+          <h1>Control de Stock</h1>
+        </div>
+        <div class="btns">
+          <a href="admin.html" class="btn-back">Administracion</a>
+          <a href="home.html" class="btn-back">Inicio</a>
+        </div>
+      </div>
+
+      <div class="content">
+        <p style="color: var(--medium-grey); font-size: 0.9rem; margin-bottom: 15px;">
+          Registra operaciones de cambio escribiendo en lenguaje natural.
+        </p>
+
+        <!-- Cards de saldos -->
+        <div class="stock-cards">
+          <div class="stock-card-clp">
+            <div class="stock-label" style="color: #93c5fd;">CLP</div>
+            <div id="stockClp" class="stock-value">$0</div>
+          </div>
+          <div class="stock-card-usdt">
+            <div class="stock-label" style="color: #6ee7b7;">USDT</div>
+            <div id="stockUsdt" class="stock-value">0</div>
+            <div id="stockUsdtPpp" class="stock-ppp" style="color: #a7f3d0;">PPP: -- CLP</div>
+          </div>
+          <div class="stock-card-ves">
+            <div class="stock-label" style="color: #c4b5fd;">VES</div>
+            <div id="stockVes" class="stock-value">0</div>
+            <div id="stockVesPpp" class="stock-ppp" style="color: #ddd6fe;">PPP: -- VES/USDT</div>
+          </div>
+        </div>
+
+        <!-- Input chat -->
+        <div class="chat-input-row">
+          <input type="text" id="stockInput" placeholder="Ej: compre 1000 USDT por 950000 CLP" onkeydown="if(event.key==='Enter')enviarOperacionStock()">
+          <button onclick="enviarOperacionStock()" class="btn btn-primary">Ejecutar</button>
+        </div>
+        <div style="color: var(--medium-grey); font-size: 0.75rem; margin-bottom: 15px; line-height: 1.6;">
+          <b>Comandos:</b> "compre 500 USDT por 475000 CLP" - "cambie 200 USDT por 17000 VES" - "deposite 1000000 CLP" - "ajustar USDT a 320"
+        </div>
+
+        <!-- Resultado de operacion -->
+        <div id="stockResultado" class="stock-resultado"></div>
+
+        <!-- Historial -->
+        <h4 style="margin-top: 10px; margin-bottom: 10px;">Historial de operaciones</h4>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Entrada</th><th>Salida</th><th>Tasa</th><th>Accion</th></tr></thead>
+            <tbody id="tbodyStockHistorial"></tbody>
+          </table>
+        </div>
+        <div style="margin-top: 0.5rem; text-align: center;">
+          <span id="stockHistorialInfo" style="color: var(--medium-grey); font-size: 0.85rem;"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.classList.add('show'), 100);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 500);
+      }, 4000);
+    }
+
+    const fmtNum = (v, dec=2) => Number(v||0).toLocaleString('es-CL', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+
+    async function loadStock() {
+      try {
+        const data = await (await fetch('/api/stock')).json();
+        document.getElementById('stockClp').textContent = '$' + fmtNum(data.saldoClp, 0);
+        document.getElementById('stockUsdt').textContent = fmtNum(data.saldoUsdt);
+        document.getElementById('stockVes').textContent = fmtNum(data.saldoVes, 0);
+        document.getElementById('stockUsdtPpp').textContent = data.pppUsdtClp > 0 ? `PPP: ${fmtNum(data.pppUsdtClp)} CLP` : 'PPP: --';
+        document.getElementById('stockVesPpp').textContent = data.pppVesUsdt > 0 ? `PPP: ${fmtNum(data.pppVesUsdt)} VES/USDT` : 'PPP: --';
+      } catch (e) { console.error('Error cargando stock:', e); }
+    }
+
+    async function enviarOperacionStock() {
+      const input = document.getElementById('stockInput');
+      const mensaje = input.value.trim();
+      if (!mensaje) return;
+
+      const resultDiv = document.getElementById('stockResultado');
+      resultDiv.style.display = 'block';
+      resultDiv.style.background = '#f0f4f8';
+      resultDiv.style.border = '1px solid #d1d5db';
+      resultDiv.textContent = 'Procesando...';
+
+      try {
+        const resp = await fetch('/api/stock/operacion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mensaje })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          resultDiv.style.background = '#fef2f2';
+          resultDiv.style.border = '1px solid #fca5a5';
+          let html = `<b>Error: ${data.error}</b>`;
+          if (data.ejemplos) html += '<br>' + data.ejemplos.map(e => `- ${e}`).join('<br>');
+          resultDiv.innerHTML = html;
+          return;
+        }
+
+        resultDiv.style.background = '#f0fdf4';
+        resultDiv.style.border = '1px solid #86efac';
+        let html = `<b>${data.mensaje}</b><br>${data.detalle}`;
+        if (data.saldos) {
+          html += '<br><br><b>Saldos actualizados:</b>';
+          for (const [moneda, s] of Object.entries(data.saldos)) {
+            html += `<br>${moneda.toUpperCase()}: ${fmtNum(s.antes)} -> <b>${fmtNum(s.despues)}</b>`;
+          }
+        }
+        if (data.pppUsdt) html += `<br>PPP USDT: ${data.pppUsdt} CLP/USDT`;
+        if (data.pppVesUsdt) html += `<br>PPP VES: ${data.pppVesUsdt} VES/USDT`;
+        resultDiv.innerHTML = html;
+
+        input.value = '';
+        loadStock();
+        loadHistorialStock();
+      } catch (e) {
+        resultDiv.style.background = '#fef2f2';
+        resultDiv.style.border = '1px solid #fca5a5';
+        resultDiv.innerHTML = '<b>Error de conexion</b>';
+      }
+    }
+
+    async function loadHistorialStock() {
+      try {
+        const resp = await fetch('/api/stock/historial');
+        const historial = resp.ok ? await resp.json() : [];
+        const tbody = document.getElementById('tbodyStockHistorial');
+        const info = document.getElementById('stockHistorialInfo');
+        tbody.innerHTML = '';
+
+        if (!Array.isArray(historial) || historial.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--medium-grey);">Sin operaciones registradas</td></tr>';
+          info.textContent = '';
+          return;
+        }
+
+        const mostrar = historial.slice(0, 20);
+        mostrar.forEach(h => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${h.fecha}</td>
+            <td>${h.tipo}</td>
+            <td style="color: #10b981; font-weight: 600;">${h.entrada}</td>
+            <td style="color: #ef4444;">${h.salida}</td>
+            <td>${h.tasa}</td>
+            <td><button class="btn btn-danger" onclick="deleteStockOp('${h.tipoKey}', ${h.id})" style="padding: 2px 8px; font-size: 0.8rem;">Borrar</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        info.textContent = historial.length > 20 ? `Mostrando 20 de ${historial.length}` : `${historial.length} operaciones`;
+      } catch (e) { console.error('Error cargando historial stock:', e); }
+    }
+
+    async function deleteStockOp(tipo, id) {
+      if (!confirm('Eliminar esta operacion? Se revertiran los saldos.')) return;
+      const urlMap = { 'compra_usdt': `/api/compras-usdt/${id}`, 'compra_ves': `/api/compras-ves/${id}`, 'movimiento': `/api/movimientos-stock/${id}` };
+      const url = urlMap[tipo];
+      try {
+        const resp = await fetch(url, { method: 'DELETE' });
+        const data = await resp.json();
+        showToast(data.message || data.error, resp.ok ? 'success' : 'error');
+        if (resp.ok) { loadStock(); loadHistorialStock(); }
+      } catch (e) { showToast('Error de conexion', 'error'); }
+    }
+
+    (async () => {
+      // Verificar sesion y rol
+      const info = await fetch('/api/user-info');
+      if (!info.ok) return (location.href = '/login.html');
+      const user = await info.json();
+
+      // Solo master puede acceder
+      if (user.role !== 'master') {
+        alert('No tienes permisos para acceder a esta pagina');
+        location.href = '/home.html';
+        return;
+      }
+
+      // Cargar datos
+      await Promise.all([loadStock(), loadHistorialStock()]);
+    })();
+  </script>
+</body>
+</html>

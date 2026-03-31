@@ -347,54 +347,13 @@
           </div>
       </div>
 
-      <!-- CONTROL DE STOCK MULTI-MONEDA -->
-      <div class="box" style="margin-top:16px; border: 2px solid #10b981;">
+      <!-- ACCESO RÁPIDO: Control de Stock -->
+      <div class="box" style="margin-top:16px; border: 2px solid #10b981; text-align: center; padding: 20px;">
           <h3>💱 Control de Stock</h3>
           <p style="color: var(--medium-grey); font-size: 0.9rem; margin-bottom: 15px;">
-            Registra operaciones de cambio escribiendo en lenguaje natural.
+            El control de stock se ha movido a su propia página.
           </p>
-
-          <!-- Cards de saldos -->
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
-              <div style="background: linear-gradient(135deg, #1e3a5f, #2563eb); border-radius: 12px; padding: 16px; text-align: center;">
-                  <div style="color: #93c5fd; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">CLP</div>
-                  <div id="stockClp" style="color: #fff; font-size: 1.4rem; font-weight: 700; margin: 4px 0;">$0</div>
-              </div>
-              <div style="background: linear-gradient(135deg, #1e3a3f, #059669); border-radius: 12px; padding: 16px; text-align: center;">
-                  <div style="color: #6ee7b7; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">USDT</div>
-                  <div id="stockUsdt" style="color: #fff; font-size: 1.4rem; font-weight: 700; margin: 4px 0;">0</div>
-                  <div id="stockUsdtPpp" style="color: #a7f3d0; font-size: 0.7rem;">PPP: -- CLP</div>
-              </div>
-              <div style="background: linear-gradient(135deg, #3b1e5f, #7c3aed); border-radius: 12px; padding: 16px; text-align: center;">
-                  <div style="color: #c4b5fd; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">VES</div>
-                  <div id="stockVes" style="color: #fff; font-size: 1.4rem; font-weight: 700; margin: 4px 0;">0</div>
-                  <div id="stockVesPpp" style="color: #ddd6fe; font-size: 0.7rem;">PPP: -- VES/USDT</div>
-              </div>
-          </div>
-
-          <!-- Input chat -->
-          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <input type="text" id="stockInput" placeholder="Ej: compré 1000 USDT por 950000 CLP" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color, #374151); background: var(--input-bg, #1f2937); color: var(--text-color, #fff); font-size: 0.95rem;" onkeydown="if(event.key==='Enter')enviarOperacionStock()">
-              <button onclick="enviarOperacionStock()" class="btn btn-primary" style="padding: 12px 20px; white-space: nowrap;">Ejecutar</button>
-          </div>
-          <div style="color: var(--medium-grey); font-size: 0.75rem; margin-bottom: 15px; line-height: 1.6;">
-              <b>Comandos:</b> "compré 500 USDT por 475000 CLP" · "cambié 200 USDT por 17000 VES" · "deposité 1000000 CLP" · "ajustar USDT a 320"
-          </div>
-
-          <!-- Resultado de operación -->
-          <div id="stockResultado" style="display: none; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.6;"></div>
-
-          <!-- Historial -->
-          <h4 style="margin-top: 10px; margin-bottom: 10px;">Historial de operaciones</h4>
-          <div class="table-container">
-              <table>
-                  <thead><tr><th>Fecha</th><th>Tipo</th><th>Entrada</th><th>Salida</th><th>Tasa</th><th>Acción</th></tr></thead>
-                  <tbody id="tbodyStockHistorial"></tbody>
-              </table>
-          </div>
-          <div style="margin-top: 0.5rem; text-align: center;">
-              <span id="stockHistorialInfo" style="color: var(--medium-grey); font-size: 0.85rem;"></span>
-          </div>
+          <a href="stock.html" class="btn btn-primary" style="display: inline-block; padding: 12px 24px; text-decoration: none;">Ir a Control de Stock</a>
       </div>
 
       <!-- CONFIGURACIÓN BOT TELEGRAM -->
@@ -846,114 +805,6 @@
         if(resp.ok) e.target.reset();
     };
 
-    // ============ CONTROL DE STOCK MULTI-MONEDA ============
-    const fmtNum = (v, dec=2) => Number(v||0).toLocaleString('es-CL', {minimumFractionDigits: dec, maximumFractionDigits: dec});
-
-    async function loadStock() {
-        try {
-            const data = await (await fetch('/api/stock')).json();
-            document.getElementById('stockClp').textContent = '$' + fmtNum(data.saldoClp, 0);
-            document.getElementById('stockUsdt').textContent = fmtNum(data.saldoUsdt);
-            document.getElementById('stockVes').textContent = fmtNum(data.saldoVes, 0);
-            document.getElementById('stockUsdtPpp').textContent = data.pppUsdtClp > 0 ? `PPP: ${fmtNum(data.pppUsdtClp)} CLP` : 'PPP: --';
-            document.getElementById('stockVesPpp').textContent = data.pppVesUsdt > 0 ? `PPP: ${fmtNum(data.pppVesUsdt)} VES/USDT` : 'PPP: --';
-        } catch (e) { console.error('Error cargando stock:', e); }
-    }
-
-    async function enviarOperacionStock() {
-        const input = document.getElementById('stockInput');
-        const mensaje = input.value.trim();
-        if (!mensaje) return;
-
-        const resultDiv = document.getElementById('stockResultado');
-        resultDiv.style.display = 'block';
-        resultDiv.style.background = '#1f2937';
-        resultDiv.style.border = '1px solid #374151';
-        resultDiv.textContent = 'Procesando...';
-
-        try {
-            const resp = await fetch('/api/stock/operacion', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mensaje })
-            });
-            const data = await resp.json();
-
-            if (!resp.ok) {
-                resultDiv.style.background = '#451a1a';
-                resultDiv.style.border = '1px solid #dc2626';
-                let html = `<b>❌ ${data.error}</b>`;
-                if (data.ejemplos) html += '<br>' + data.ejemplos.map(e => `• ${e}`).join('<br>');
-                resultDiv.innerHTML = html;
-                return;
-            }
-
-            resultDiv.style.background = '#0a2e1a';
-            resultDiv.style.border = '1px solid #10b981';
-            let html = `<b>✅ ${data.mensaje}</b><br>${data.detalle}`;
-            if (data.saldos) {
-                html += '<br><br><b>Saldos actualizados:</b>';
-                for (const [moneda, s] of Object.entries(data.saldos)) {
-                    html += `<br>${moneda.toUpperCase()}: ${fmtNum(s.antes)} → <b>${fmtNum(s.despues)}</b>`;
-                }
-            }
-            if (data.pppUsdt) html += `<br>PPP USDT: ${data.pppUsdt} CLP/USDT`;
-            if (data.pppVesUsdt) html += `<br>PPP VES: ${data.pppVesUsdt} VES/USDT`;
-            resultDiv.innerHTML = html;
-
-            input.value = '';
-            loadStock();
-            loadHistorialStock();
-        } catch (e) {
-            resultDiv.style.background = '#451a1a';
-            resultDiv.style.border = '1px solid #dc2626';
-            resultDiv.innerHTML = '<b>❌ Error de conexión</b>';
-        }
-    }
-
-    async function loadHistorialStock() {
-        try {
-            const resp = await fetch('/api/stock/historial');
-            const historial = resp.ok ? await resp.json() : [];
-            const tbody = document.getElementById('tbodyStockHistorial');
-            const info = document.getElementById('stockHistorialInfo');
-            tbody.innerHTML = '';
-
-            if (!Array.isArray(historial) || historial.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--medium-grey);">Sin operaciones registradas</td></tr>';
-                info.textContent = '';
-                return;
-            }
-
-            const mostrar = historial.slice(0, 20);
-            mostrar.forEach(h => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${h.fecha}</td>
-                    <td>${h.tipo}</td>
-                    <td style="color: #10b981; font-weight: 600;">${h.entrada}</td>
-                    <td style="color: #ef4444;">${h.salida}</td>
-                    <td>${h.tasa}</td>
-                    <td><button class="btn btn-danger" onclick="deleteStockOp('${h.tipoKey}', ${h.id})" style="padding: 2px 8px; font-size: 0.8rem;">🗑</button></td>
-                `;
-                tbody.appendChild(tr);
-            });
-            info.textContent = historial.length > 20 ? `Mostrando 20 de ${historial.length}` : `${historial.length} operaciones`;
-        } catch (e) { console.error('Error cargando historial stock:', e); }
-    }
-
-    async function deleteStockOp(tipo, id) {
-        if (!confirm('¿Eliminar esta operación? Se revertirán los saldos.')) return;
-        const urlMap = { 'compra_usdt': `/api/compras-usdt/${id}`, 'compra_ves': `/api/compras-ves/${id}`, 'movimiento': `/api/movimientos-stock/${id}` };
-        const url = urlMap[tipo];
-        try {
-            const resp = await fetch(url, { method: 'DELETE' });
-            const data = await resp.json();
-            showToast(data.message || data.error, resp.ok ? 'success' : 'error');
-            if (resp.ok) { loadStock(); loadHistorialStock(); }
-        } catch (e) { showToast('Error de conexión', 'error'); }
-    }
-
     // ============ CONFIGURACIÓN TELEGRAM ============
     async function loadTelegramConfig() {
         try {
@@ -1088,7 +939,7 @@
     }
 
     (async ()=>{
-        await Promise.all([loadEstadoApp(), loadEstadoConciliacion(), loadConfigPagador(), loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig(), loadTasasApp(), loadBcvConfig(), loadStock(), loadHistorialStock()]);
+        await Promise.all([loadEstadoApp(), loadEstadoConciliacion(), loadConfigPagador(), loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig(), loadTasasApp(), loadBcvConfig()]);
     })();
   </script>
 </body>
