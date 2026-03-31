@@ -158,15 +158,35 @@
 
     .chat-input-row input {
       flex: 1;
+      min-width: 0;
       padding: 12px;
       border-radius: 8px;
       border: 1px solid #d1d5db;
-      font-size: 0.95rem;
+      font-size: 16px;
+      -webkit-appearance: none;
+      box-sizing: border-box;
     }
 
     .chat-input-row button {
-      padding: 12px 20px;
+      padding: 12px 16px;
       white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .btn-cargar-mas {
+      display: none;
+      margin: 10px auto;
+      padding: 8px 24px;
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: #374151;
+    }
+
+    .btn-cargar-mas:hover {
+      background: #e5e7eb;
     }
 
     .profit-section {
@@ -266,6 +286,27 @@
       .profit-section {
         grid-template-columns: 1fr;
       }
+
+      .chat-input-row {
+        flex-direction: column;
+      }
+
+      .chat-input-row input {
+        width: 100%;
+        font-size: 16px;
+      }
+
+      .chat-input-row button {
+        width: 100%;
+      }
+
+      table {
+        font-size: 0.75rem;
+      }
+
+      table th, table td {
+        padding: 6px 4px;
+      }
     }
   </style>
 </head>
@@ -354,6 +395,8 @@
         </div>
         <div style="margin-top: 0.5rem; text-align: center;">
           <span id="stockHistorialInfo" style="color: var(--medium-grey); font-size: 0.85rem;"></span>
+          <br>
+          <button id="btnCargarMasStock" class="btn-cargar-mas" onclick="cargarMasHistorial()">Cargar mas</button>
         </div>
       </div>
     </div>
@@ -446,35 +489,52 @@
       }
     }
 
+    let historialCompleto = [];
+    let historialVisibles = 10;
+
     async function loadHistorialStock() {
       try {
         const resp = await fetch('/api/stock/historial');
-        const historial = resp.ok ? await resp.json() : [];
-        const tbody = document.getElementById('tbodyStockHistorial');
-        const info = document.getElementById('stockHistorialInfo');
-        tbody.innerHTML = '';
-
-        if (!Array.isArray(historial) || historial.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--medium-grey);">Sin operaciones registradas</td></tr>';
-          info.textContent = '';
-          return;
-        }
-
-        const mostrar = historial.slice(0, 20);
-        mostrar.forEach(h => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${h.fecha}</td>
-            <td>${h.tipo}</td>
-            <td style="color: #10b981; font-weight: 600;">${h.entrada}</td>
-            <td style="color: #ef4444;">${h.salida}</td>
-            <td>${h.tasa}</td>
-            <td><button class="btn btn-danger" onclick="deleteStockOp('${h.tipoKey}', ${h.id})" style="padding: 2px 8px; font-size: 0.8rem;">Borrar</button></td>
-          `;
-          tbody.appendChild(tr);
-        });
-        info.textContent = historial.length > 20 ? `Mostrando 20 de ${historial.length}` : `${historial.length} operaciones`;
+        historialCompleto = resp.ok ? await resp.json() : [];
+        historialVisibles = 10;
+        renderHistorialStock();
       } catch (e) { console.error('Error cargando historial stock:', e); }
+    }
+
+    function renderHistorialStock() {
+      const tbody = document.getElementById('tbodyStockHistorial');
+      const info = document.getElementById('stockHistorialInfo');
+      const btnCargar = document.getElementById('btnCargarMasStock');
+      tbody.innerHTML = '';
+
+      if (!Array.isArray(historialCompleto) || historialCompleto.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--medium-grey);">Sin operaciones registradas</td></tr>';
+        info.textContent = '';
+        btnCargar.style.display = 'none';
+        return;
+      }
+
+      const mostrar = historialCompleto.slice(0, historialVisibles);
+      mostrar.forEach(h => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${h.fecha}</td>
+          <td>${h.tipo}</td>
+          <td style="color: #10b981; font-weight: 600;">${h.entrada}</td>
+          <td style="color: #ef4444;">${h.salida}</td>
+          <td>${h.tasa}</td>
+          <td><button class="btn btn-danger" onclick="deleteStockOp('${h.tipoKey}', ${h.id})" style="padding: 2px 8px; font-size: 0.8rem;">Borrar</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      info.textContent = `Mostrando ${mostrar.length} de ${historialCompleto.length}`;
+      btnCargar.style.display = historialVisibles < historialCompleto.length ? 'inline-block' : 'none';
+    }
+
+    function cargarMasHistorial() {
+      historialVisibles += 10;
+      renderHistorialStock();
     }
 
     async function deleteStockOp(tipo, id) {
