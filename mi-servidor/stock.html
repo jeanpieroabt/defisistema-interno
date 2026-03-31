@@ -169,6 +169,54 @@
       white-space: nowrap;
     }
 
+    .profit-section {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .profit-card {
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .profit-card-ganancia {
+      background: linear-gradient(135deg, #065f46, #10b981);
+    }
+
+    .profit-card-capital {
+      background: linear-gradient(135deg, #1e3a5f, #3b82f6);
+    }
+
+    .profit-card-acumulada {
+      background: linear-gradient(135deg, #713f12, #f59e0b);
+    }
+
+    .profit-card-operaciones {
+      background: linear-gradient(135deg, #4a1d5e, #8b5cf6);
+    }
+
+    .profit-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.8);
+    }
+
+    .profit-value {
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 4px 0;
+    }
+
+    .profit-sub {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.7);
+    }
+
     .stock-resultado {
       display: none;
       padding: 12px;
@@ -214,6 +262,10 @@
       .stock-cards {
         grid-template-columns: 1fr;
       }
+
+      .profit-section {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -253,6 +305,30 @@
             <div class="stock-label" style="color: #c4b5fd;">VES</div>
             <div id="stockVes" class="stock-value">0</div>
             <div id="stockVesPpp" class="stock-ppp" style="color: #ddd6fe;">PPP: -- VES/USDT</div>
+          </div>
+        </div>
+
+        <!-- Ganancias y Capital -->
+        <div class="profit-section">
+          <div class="profit-card profit-card-ganancia">
+            <div class="profit-label">Ganancia Neta Hoy</div>
+            <div id="gananciaNetaHoy" class="profit-value">$0</div>
+            <div id="gananciaDetalle" class="profit-sub">0 operaciones</div>
+          </div>
+          <div class="profit-card profit-card-acumulada">
+            <div class="profit-label">Ganancia Acumulada</div>
+            <div id="gananciaAcumulada" class="profit-value">$0</div>
+            <div class="profit-sub">Historica total</div>
+          </div>
+          <div class="profit-card profit-card-capital">
+            <div class="profit-label">Capital Total (Stock)</div>
+            <div id="capitalTotalStock" class="profit-value">$0</div>
+            <div id="capitalDetalle" class="profit-sub">CLP + USDT + VES valorizado</div>
+          </div>
+          <div class="profit-card profit-card-operaciones">
+            <div class="profit-label">Capital Legacy</div>
+            <div id="capitalLegacy" class="profit-value">$0</div>
+            <div id="capitalLegacyDetalle" class="profit-sub">Inicial + ganancias acumuladas</div>
           </div>
         </div>
 
@@ -307,6 +383,15 @@
         document.getElementById('stockVes').textContent = fmtNum(data.saldoVes, 0);
         document.getElementById('stockUsdtPpp').textContent = data.pppUsdtClp > 0 ? `PPP: ${fmtNum(data.pppUsdtClp)} CLP` : 'PPP: --';
         document.getElementById('stockVesPpp').textContent = data.pppVesUsdt > 0 ? `PPP: ${fmtNum(data.pppVesUsdt)} VES/USDT` : 'PPP: --';
+
+        // Ganancias y capital
+        document.getElementById('gananciaNetaHoy').textContent = '$' + fmtNum(data.gananciaNetaHoy || 0, 0);
+        document.getElementById('gananciaDetalle').textContent = `${data.cantOperacionesHoy || 0} ops | CLP recibido: $${fmtNum(data.clpRecibidoHoy || 0, 0)}`;
+        document.getElementById('gananciaAcumulada').textContent = '$' + fmtNum(data.totalGananciaAcumuladaClp || 0, 0);
+        document.getElementById('capitalTotalStock').textContent = '$' + fmtNum(data.capitalTotal || 0, 0);
+        document.getElementById('capitalDetalle').textContent = `USDT: $${fmtNum(data.valorUsdtEnClp || 0, 0)} | VES: $${fmtNum(data.valorVesEnClp || 0, 0)}`;
+        document.getElementById('capitalLegacy').textContent = '$' + fmtNum(data.capitalLegacy || 0, 0);
+        document.getElementById('capitalLegacyDetalle').textContent = `Inicial: $${fmtNum(data.capitalInicialClp || 0, 0)} + Gan: $${fmtNum(data.totalGananciaAcumuladaClp || 0, 0)}`;
       } catch (e) { console.error('Error cargando stock:', e); }
     }
 

@@ -298,14 +298,6 @@
 
       <div class="grid2" style="margin-top:16px">
         <div class="box">
-          <h3>Comprar VES (con CLP)</h3>
-          <form id="fCompras">
-            <label>CLP Invertidos</label><input type="number" step="0.01" name="clp_invertido" required>
-            <label>VES Obtenidos</label><input type="number" step="0.01" name="ves_obtenido" required>
-            <div style="margin-top:10px"><button class="btn btn-primary">Registrar Compra</button></div>
-          </form>
-        </div>
-        <div class="box">
             <h3>Ajuste Manual de Saldo VES</h3>
             <form id="fAjusteSaldo">
                 <label>Nuevo Saldo VES Online</label>
@@ -313,6 +305,11 @@
                 <div style="margin-top:10px"><button class="btn btn-warning">Forzar Actualización de Saldo</button></div>
             </form>
             <p style="font-size: 0.8rem; color: var(--medium-grey); margin-top: 10px;"><b>Cuidado:</b> Este valor reemplazará el saldo actual. Úselo solo para correcciones.</p>
+        </div>
+        <div class="box" style="border: 2px solid #10b981; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <h3>Compras y Stock</h3>
+            <p style="color: var(--medium-grey); font-size: 0.9rem; margin-bottom: 10px;">Registra compras CLP→USDT y cambios USDT→VES desde el Control de Stock</p>
+            <a href="stock.html" class="btn btn-primary" style="text-decoration: none;">Ir a Control de Stock</a>
         </div>
       </div>
       
@@ -333,19 +330,6 @@
           </div>
       </div>
 
-      <div class="box" style="margin-top:16px">
-          <h3>Historial de Compras</h3>
-          <div class="table-container">
-            <table>
-                <thead><tr><th>ID</th><th>Fecha</th><th>CLP Invertido</th><th>VES Obtenidos</th><th>Tasa (VES/CLP)</th><th>Acciones</th></tr></thead>
-                <tbody id="tbodyCompras"></tbody>
-            </table>
-          </div>
-          <div style="margin-top: 1rem; text-align: center;">
-            <span id="comprasInfo" style="color: var(--medium-grey); font-size: 0.9rem; margin-right: 1rem;"></span>
-            <button id="btnCargarMasCompras" class="btn btn-light" style="display: none;">Cargar 50 más</button>
-          </div>
-      </div>
 
       <!-- ACCESO RÁPIDO: Control de Stock -->
       <div class="box" style="margin-top:16px; border: 2px solid #10b981; text-align: center; padding: 20px;">
@@ -613,9 +597,7 @@
     }
 
     let usuarios = [];
-    let compras = [];
-    let comprasVisibles = 10;
-    let totalCompras = 0;
+    // compras legacy eliminadas - usar stock.html
 
     async function loadKpis(){
       const k = await (await fetch('/api/dashboard')).json();
@@ -675,79 +657,7 @@
         if (r.ok) fetchUsuarios();
     }
     
-    function renderCompras(){
-        const tbody = document.getElementById('tbodyCompras');
-        tbody.innerHTML = '';
-        
-        const comprasAMostrar = compras.slice(0, comprasVisibles);
-        
-        comprasAMostrar.forEach(c => {
-            const tasaMostrada = c.clp_invertido > 0 ? Number(c.ves_obtenido / c.clp_invertido).toFixed(6) : 0;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${c.id}</td>
-                <td><input type="date" id="compra-${c.id}-fecha" value="${c.fecha}"></td>
-                <td><input type="number" step="0.01" id="compra-${c.id}-clp" value="${c.clp_invertido}"></td>
-                <td><input type="number" step="0.01" id="compra-${c.id}-ves" value="${c.ves_obtenido}"></td>
-                <td>${tasaMostrada}</td>
-                <td class="actions-cell">
-                    <button class="btn btn-save" onclick="editCompra(${c.id})">Guardar</button>
-                    <button class="btn btn-danger" onclick="deleteCompra(${c.id})">Borrar</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-        
-        // Actualizar información de paginación
-        const info = document.getElementById('comprasInfo');
-        const btnCargar = document.getElementById('btnCargarMasCompras');
-        
-        info.textContent = `Mostrando ${comprasAMostrar.length} de ${totalCompras} compras`;
-        
-        if (comprasVisibles < totalCompras) {
-            btnCargar.style.display = 'inline-block';
-        } else {
-            btnCargar.style.display = 'none';
-        }
-    }
-
-    async function fetchCompras(){ 
-        compras = await (await fetch('/api/compras')).json(); 
-        totalCompras = compras.length;
-        comprasVisibles = 10; // Resetear a 10 al recargar
-        renderCompras(); 
-    }
-    
-    function cargarMasCompras() {
-        comprasVisibles += 50;
-        if (comprasVisibles > totalCompras) comprasVisibles = totalCompras;
-        renderCompras();
-    }
-    
-    async function editCompra(id){
-        const fecha = document.getElementById(`compra-${id}-fecha`).value;
-        const clp_invertido = document.getElementById(`compra-${id}-clp`).value;
-        const ves_obtenido = document.getElementById(`compra-${id}-ves`).value;
-        const body = { fecha, clp_invertido, ves_obtenido };
-        const r = await fetch(`/api/compras/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        const res = await r.json();
-        showToast(res.message || 'Error', r.ok ? 'success' : 'error');
-        if (r.ok) { 
-            fetchCompras(); 
-            loadKpis(); 
-        }
-    }
-
-    async function deleteCompra(id) {
-        if (!confirm('¿Estás seguro de que quieres borrar esta compra?\nEsta acción es irreversible y afectará los saldos globales.')) return;
-        const r = await fetch(`/api/compras/${id}`, { method: 'DELETE' });
-        const res = await r.json();
-        showToast(res.message || 'Error', r.ok ? 'success' : 'error');
-        if (r.ok) { 
-            fetchCompras(); 
-            loadKpis(); 
-        }
-    }
+    // Funciones legacy de compras eliminadas - todo se maneja desde stock.html
 
     document.getElementById('fCapital').onsubmit = async (e)=>{
       e.preventDefault();
@@ -770,17 +680,6 @@
       if(r.ok) loadTasas();
     };
 
-    document.getElementById('fCompras').onsubmit = async (e)=>{
-      e.preventDefault();
-      const body = Object.fromEntries(new FormData(e.target).entries());
-      const resp = await fetch('/api/compras',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-      const res = await resp.json();
-      showToast(res.message || 'Error', resp.ok ? 'success' : 'error');
-      if(resp.ok){ e.target.reset(); loadKpis(); fetchCompras(); }
-    };
-    
-    document.getElementById('btnCargarMasCompras').onclick = cargarMasCompras;
-    
     document.getElementById('fOper').onsubmit = async (e)=>{
       e.preventDefault();
       const body = Object.fromEntries(new FormData(e.target).entries());
@@ -939,7 +838,7 @@
     }
 
     (async ()=>{
-        await Promise.all([loadEstadoApp(), loadEstadoConciliacion(), loadConfigPagador(), loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), fetchCompras(), loadTelegramConfig(), loadTasasApp(), loadBcvConfig()]);
+        await Promise.all([loadEstadoApp(), loadEstadoConciliacion(), loadConfigPagador(), loadKpis(), loadTasas(), loadCapitalConfig(), fetchUsuarios(), loadTelegramConfig(), loadTasasApp(), loadBcvConfig()]);
     })();
   </script>
 </body>

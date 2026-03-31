@@ -990,57 +990,7 @@ const dbAll = (sql, params = []) => {
 };
 
 // =================================================================
-// INICIO: L"GICA DE CÁLCULO DE COSTO REFINADA
-// =================================================================
-const getAvgPurchaseRate = (date, callback) => {
-    const sql = `SELECT SUM(clp_invertido) as totalClp, SUM(ves_obtenido) as totalVes FROM compras WHERE date(fecha) = date(?)`;
-    db.get(sql, [date], (err, row) => {
-        if (err) return callback(err, 0);
-        if (!row || !row.totalClp || row.totalClp === 0) {
-            return callback(null, 0);
-        }
-        const rate = row.totalVes / row.totalClp;
-        return callback(null, rate);
-    });
-};
-
-const calcularCostoClpPorVes = (fecha, callback) => {
-    getAvgPurchaseRate(fecha, (err, rate) => {
-        if (err) {
-            console.error(`Error obteniendo tasa de compra para el día ${fecha}:`, err.message);
-            return callback(err);
-        }
-        if (rate > 0) {
-            return callback(null, 1 / rate);
-        }
-
-        db.get(`SELECT tasa_clp_ves FROM compras WHERE date(fecha) <= date(?) ORDER BY fecha DESC, id DESC LIMIT 1`, [fecha], (errLast, lastPurchase) => {
-            if (errLast) {
-                console.error(`Error obteniendo última tasa histórica para fecha ${fecha}:`, errLast.message);
-                return callback(errLast);
-            }
-            if (lastPurchase && lastPurchase.tasa_clp_ves > 0) {
-                return callback(null, 1 / lastPurchase.tasa_clp_ves);
-            }
-
-            db.get(`SELECT tasa_clp_ves FROM compras ORDER BY fecha ASC, id ASC LIMIT 1`, [], (errNext, nextPurchase) => {
-                if (errNext) {
-                    console.error(`Error obteniendo primera tasa histórica disponible:`, errNext.message);
-                    return callback(errNext);
-                }
-                if (nextPurchase && nextPurchase.tasa_clp_ves > 0) {
-                    return callback(null, 1 / nextPurchase.tasa_clp_ves);
-                }
-
-                readConfigValue('capitalCostoVesPorClp')
-                    .then(costoConfig => callback(null, costoConfig))
-                    .catch(e => callback(e));
-            });
-        });
-    });
-};
-// =================================================================
-// FUNCIONES DE PROMEDIO PONDERADO MULTI-MONEDA
+// FUNCIONES DE PROMEDIO PONDERADO MULTI-MONEDA (SISTEMA UNIFICADO)
 // =================================================================
 async function getPromedioUsdt() {
     const row = await dbGet('SELECT SUM(clp_invertido) as totalClp, SUM(usdt_obtenido) as totalUsdt FROM compras_usdt');
@@ -1053,8 +1003,48 @@ async function getPromedioVesEnUsdt() {
     if (!row || !row.totalUsdt || row.totalVes === 0) return 0;
     return row.totalVes / row.totalUsdt; // VES por 1 USDT
 }
+
+// Tasa VES/CLP derivada del sistema de stock (equivale a legacy tasa_clp_ves)
+async function getTasaVesPorClp() {
+    const pppUsdtClp = await getPromedioUsdt();    // CLP por 1 USDT
+    const pppVesUsdt = await getPromedioVesEnUsdt(); // VES por 1 USDT
+    if (pppUsdtClp <= 0 || pppVesUsdt <= 0) {
+        // Fallback: buscar en tabla legacy compras si no hay datos nuevos
+        const legacy = await dbGet('SELECT tasa_clp_ves FROM compras ORDER BY id DESC LIMIT 1');
+        return legacy && legacy.tasa_clp_ves > 0 ? legacy.tasa_clp_ves : 0;
+    }
+    return pppVesUsdt / pppUsdtClp; // VES por 1 CLP
+}
+
+// getAvgPurchaseRate: retorna VES/CLP (usado por dashboard y calculo de costo)
+const getAvgPurchaseRate = (date, callback) => {
+    getTasaVesPorClp()
+        .then(rate => callback(null, rate))
+        .catch(err => {
+            console.error(`Error obteniendo tasa de compra:`, err.message);
+            callback(err, 0);
+        });
+};
+
+// calcularCostoClpPorVes: retorna CLP por 1 VES (costo)
+const calcularCostoClpPorVes = (fecha, callback) => {
+    getTasaVesPorClp()
+        .then(rate => {
+            if (rate > 0) {
+                return callback(null, 1 / rate); // CLP por 1 VES
+            }
+            // Ultimo fallback
+            readConfigValue('capitalCostoVesPorClp')
+                .then(costoConfig => callback(null, costoConfig || 0))
+                .catch(e => callback(e));
+        })
+        .catch(err => {
+            console.error(`Error calculando costo CLP/VES:`, err.message);
+            callback(err);
+        });
+};
 // =================================================================
-// FIN: L"GICA DE CÁLCULO DE COSTO REFINADA
+// FIN: FUNCIONES DE PROMEDIO PONDERADO
 // =================================================================
 
 // =================================================================
@@ -2346,22 +2336,10 @@ app.get('/api/dashboard', apiAuth, async (req, res) => {
                     });
                 }),
                 new Promise(resolve => {
-                    getAvgPurchaseRate(hoy, (err, rateHoy) => {
-                        // Si hay tasa hoy, usarla
-                        if (!err && rateHoy > 0) return resolve({ tasaCompraPromedio: rateHoy });
-                        
-                        // Si no hay tasa hoy, buscar la última tasa histórica
-                        db.get(`SELECT tasa_clp_ves FROM compras WHERE date(fecha) <= date(?) ORDER BY fecha DESC, id DESC LIMIT 1`, 
-                            [hoy], 
-                            (errLast, lastPurchase) => {
-                                if (errLast || !lastPurchase || !lastPurchase.tasa_clp_ves) {
-                                    return resolve({ tasaCompraPromedio: 0 });
-                                }
-                                // tasa_clp_ves ya está en formato VES/CLP, usar directamente
-                                resolve({ tasaCompraPromedio: lastPurchase.tasa_clp_ves });
-                            }
-                        );
-                    });
+                    // Obtener tasa VES/CLP desde sistema de stock unificado
+                    getTasaVesPorClp()
+                        .then(tasa => resolve({ tasaCompraPromedio: tasa || 0 }))
+                        .catch(() => resolve({ tasaCompraPromedio: 0 }));
                 }),
                 new Promise(resolve => {
                     db.all(`SELECT clave, valor FROM configuracion WHERE clave IN ('capitalInicialClp', 'totalGananciaAcumuladaClp')`, (e, rows) => {
@@ -3314,70 +3292,18 @@ app.get('/api/compras', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
+// LEGACY: Endpoints /api/compras desconectados de saldoVesOnline
+// Los saldos ahora se manejan SOLO desde el sistema de stock (compras_usdt + compras_ves)
 app.post('/api/compras', apiAuth, onlyMaster, (req, res) => {
-    const { clp_invertido, ves_obtenido } = req.body;
-    const clp = Number(clp_invertido || 0);
-    const ves = Number(ves_obtenido || 0);
-    if (clp <= 0 || ves <= 0) return res.status(400).json({ message: 'Los montos deben ser mayores a cero.' });
-    const tasa = ves / clp;
-    db.run(`INSERT INTO compras(usuario_id, clp_invertido, ves_obtenido, tasa_clp_ves, fecha) VALUES (?, ?, ?, ?, ?)`,
-        [req.session.user.id, clp, ves, tasa, hoyLocalYYYYMMDD()],
-        function(err) {
-            if (err) {
-                console.error("Error en POST /api/compras:", err.message);
-                return res.status(500).json({ message: 'Error al guardar la compra.', error: err.message });
-            }
-            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [ves], (updateErr) => {
-                if(updateErr) return res.status(500).json({ message: 'Compra guardada, pero falló la actualización del saldo.' });
-                res.json({ message: 'Compra registrada con éxito.' });
-            });
-        }
-    );
+    return res.status(410).json({ message: 'Sistema legacy desactivado. Usa el Control de Stock para registrar operaciones.' });
 });
 
 app.put('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
-    const compraId = req.params.id;
-    const { clp_invertido, ves_obtenido, fecha } = req.body;
-    db.get('SELECT * FROM compras WHERE id = ?', [compraId], (err, compraOriginal) => {
-        if (err || !compraOriginal) return res.status(404).json({ message: 'Compra no encontrada.' });
-        const vesOriginal = compraOriginal.ves_obtenido;
-        const vesNuevo = Number(ves_obtenido || 0);
-        const deltaVes = vesNuevo - vesOriginal;
-        const clpNuevo = Number(clp_invertido || 0);
-        const tasaNueva = clpNuevo > 0 ? vesNuevo / clpNuevo : 0;
-        db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
-            db.run(`UPDATE compras SET clp_invertido = ?, ves_obtenido = ?, tasa_clp_ves = ?, fecha = ? WHERE id = ?`, [clpNuevo, vesNuevo, tasaNueva, fecha, compraId]);
-            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoVesOnline'`, [deltaVes], (err) => {
-                if (err) {
-                    db.run('ROLLBACK');
-                    return res.status(500).json({ message: 'Error al actualizar saldo, se revirtió la operación.' });
-                }
-                db.run('COMMIT');
-                res.json({ message: 'Compra y saldo actualizados con éxito.' });
-            });
-        });
-    });
+    return res.status(410).json({ message: 'Sistema legacy desactivado. Usa el Control de Stock para registrar operaciones.' });
 });
 
 app.delete('/api/compras/:id', apiAuth, onlyMaster, (req, res) => {
-    const compraId = req.params.id;
-    db.get('SELECT * FROM compras WHERE id = ?', [compraId], (err, compra) => {
-        if (err || !compra) return res.status(404).json({ message: 'Compra no encontrada.' });
-        const vesARevertir = compra.ves_obtenido;
-        db.serialize(() => {
-            db.run('BEGIN TRANSACTION');
-            db.run('DELETE FROM compras WHERE id = ?', [compraId]);
-            db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesARevertir], (err) => {
-                if (err) {
-                    db.run('ROLLBACK');
-                    return res.status(500).json({ message: 'Error al revertir saldo, se canceló el borrado.' });
-                }
-                db.run('COMMIT');
-                res.json({ message: 'Compra borrada y saldo revertido con éxito.' });
-            });
-        });
-    });
+    return res.status(410).json({ message: 'Sistema legacy desactivado. Usa el Control de Stock para registrar operaciones.' });
 });
 
 // =================================================================
@@ -3398,12 +3324,42 @@ app.get('/api/stock', apiAuth, onlyMaster, async (req, res) => {
         const valorVesEnClp = saldoVes * pppVesClp;
         const capitalTotal = saldoClp + valorUsdtEnClp + valorVesEnClp;
 
+        // Obtener ganancias del dia desde operaciones (sistema legacy)
+        const hoy = hoyLocalYYYYMMDD();
+        const totalGananciaAcumuladaClp = Number(await readConfigValue('totalGananciaAcumuladaClp') || 0);
+        const capitalInicialClp = Number(await readConfigValue('capitalInicialClp') || 0);
+
+        const opsDia = await new Promise((resolve) => {
+            db.get(`SELECT
+                IFNULL(SUM(monto_clp),0) as clpRecibidoHoy,
+                IFNULL(SUM(monto_ves),0) as vesEnviadoHoy,
+                IFNULL(SUM(costo_clp),0) as costoTotalHoy,
+                COUNT(*) as cantOperaciones
+                FROM operaciones WHERE date(fecha)=date(?)`, [hoy], (e, row) => {
+                if (e || !row) return resolve({ clpRecibidoHoy: 0, vesEnviadoHoy: 0, costoTotalHoy: 0, cantOperaciones: 0 });
+                resolve(row);
+            });
+        });
+
+        const gananciaBrutaHoy = opsDia.clpRecibidoHoy - opsDia.costoTotalHoy;
+        const comisionHoy = opsDia.clpRecibidoHoy * 0.003;
+        const gananciaNetaHoy = gananciaBrutaHoy - comisionHoy;
+
         res.json({
             saldoClp, saldoUsdt, saldoVes,
             pppUsdtClp,   // ej: 950 CLP = 1 USDT
             pppVesUsdt,   // ej: 85.5 VES = 1 USDT
             pppVesClp,    // ej: 11.11 CLP = 1 VES
-            valorUsdtEnClp, valorVesEnClp, capitalTotal
+            valorUsdtEnClp, valorVesEnClp, capitalTotal,
+            // Datos de ganancias
+            gananciaNetaHoy,
+            gananciaBrutaHoy,
+            clpRecibidoHoy: opsDia.clpRecibidoHoy,
+            vesEnviadoHoy: opsDia.vesEnviadoHoy,
+            cantOperacionesHoy: opsDia.cantOperaciones,
+            totalGananciaAcumuladaClp,
+            capitalInicialClp,
+            capitalLegacy: capitalInicialClp + totalGananciaAcumuladaClp
         });
     } catch (error) {
         console.error('Error en GET /api/stock:', error.message);
@@ -5098,30 +5054,26 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
         const matchDias = tarea.descripcion ? tarea.descripcion.match(/(\d+)\s*d[ií]as?/i) : null;
         const diasInactivo = tarea.dias_inactivo || (matchDias ? parseInt(matchDias[1]) : 0);
         
-        // Obtener última compra USDT
-        const ultimaCompra = await dbGet(`
-            SELECT tasa_clp_ves, fecha, id
-            FROM compras
-            ORDER BY id DESC
-            LIMIT 1
-        `);
-        
+        // Obtener tasa VES/CLP desde sistema de stock unificado
+        const tasaVesPorClpCalc = await getTasaVesPorClp();
+        const ultimaCompra = tasaVesPorClpCalc > 0 ? { tasa_clp_ves: tasaVesPorClpCalc, fecha: hoyLocalYYYYMMDD() } : null;
+
         if (!ultimaCompra || !ultimaCompra.tasa_clp_ves) {
             // Resolución ASISTIDA - Sin historial de compras
             await dbRun(`
                 UPDATE tareas
                 SET resolucion_agente = 'asistida',
                     accion_requerida = 'registrar_compra_usdt',
-                    observaciones = 'No hay historial de compras USDT para calcular tasa promocional',
+                    observaciones = 'No hay historial de compras en el sistema de stock para calcular tasa promocional',
                     estado = 'en_progreso'
                 WHERE id = ?
             `, [tareaId]);
-            
+
             return res.json({
                 success: false,
                 resolucion_agente: 'asistida',
                 problema: 'sin_historial_compras',
-                mensaje: 'No se puede resolver automáticamente porque no hay historial de compras USDT. Registra una compra en /admin.html'
+                mensaje: 'No se puede resolver automáticamente porque no hay historial de compras en el stock. Registra compras en /stock.html'
             });
         }
         
@@ -6975,35 +6927,26 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                             requierePromocion = false;
                         }
                         
-                        // Buscar última tasa de compra en el historial de compras (tabla compras)
-                        // IMPORTANTE: Esta es la tasa CLP†'VES de la última compra de USDT registrada
-                        // NO se usa la tasa de Binance P2P, sino la tasa real de compra
-                        db.get(
-                            `SELECT tasa_clp_ves, fecha
-                             FROM compras
-                             ORDER BY fecha DESC
-                             LIMIT 1`,
-                            [],
-                            (err, ultimaCompra) => {
+                        // Obtener tasa VES/CLP desde sistema de stock unificado
+                        getTasaVesPorClp().then(tasaVesPorClpMsg => {
                                 let tasaOriginal = null;
                                 let tasaPromocional = null;
                                 let mensajeSugerido = '';
                                 let fechaCompra = null;
-                                
-                                // Calcular tasa promocional si hay compra registrada
-                                // Ejemplo: Si tasa_clp_ves = 0.393651, descuento 3.3% = 0.01299, tasa promo = 0.3806
-                                if (!err && ultimaCompra && ultimaCompra.tasa_clp_ves > 0) {
-                                    tasaOriginal = ultimaCompra.tasa_clp_ves;
-                                    fechaCompra = ultimaCompra.fecha;
+
+                                // Calcular tasa promocional si hay datos en el stock
+                                if (tasaVesPorClpMsg > 0) {
+                                    tasaOriginal = tasaVesPorClpMsg;
+                                    fechaCompra = hoyLocalYYYYMMDD();
                                     // Aplicar 3.3% de DESCUENTO sobre la tasa de compra
                                     const descuento = tasaOriginal * 0.033;
                                     tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
                                 }
-                                
+
                                 // Generar mensaje según tipo de acción
                                 if (tipoAccion === 'inactivo_recordatorio') {
                                     mensajeSugerido = `Hola ${nombreCliente}! '‹\n\nHemos notado que hace ${diasInactivo} días no realizas una operación con nosotros. ˜\n\nTe esperamos pronto, siempre estamos atentos a tus operaciones. ¡Gracias por ser un cliente constante de DefiOracle! ‡‡‡‡`;
-                                    
+
                                 } else if (requierePromocion && tasaPromocional) {
                                     if (tipoAccion === 'reduccion_actividad') {
                                         mensajeSugerido = `Hola ${nombreCliente}! '‹\n\nHemos notado que últimamente has reducido tu actividad con nosotros. ˜\n\nNo queremos que te vayas, así que tenemos una tasa especial solo para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP '\n\n¡Aprovecha esta oferta! Estamos disponibles 08:00-21:00 todos los días. ‡‡‡‡`;
@@ -7011,7 +6954,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                         mensajeSugerido = `Hola ${nombreCliente}! '‹\n\nTe extrañamos! Hace tiempo que no haces una operación con nosotros. ˜\n\nPorque nos importa tu regreso, tenemos una tasa de regalo especial para ti: ${tasaPromocional.toFixed(3)} VES por cada CLP '\n\n¡Esperamos verte pronto! Disponibles 08:00-21:00 todos los días. ‡‡‡‡`;
                                     }
                                 } else if (requierePromocion && !tasaPromocional) {
-                                    mensajeSugerido = `️ No se pudo calcular la tasa promocional porque no hay historial de compras de USDT registrado.\n\nSugerencia: Revisa el historial de compras en /admin.html y registra al menos una compra de USDT para poder calcular tasas promocionales automáticamente.`;
+                                    mensajeSugerido = `No se pudo calcular la tasa promocional porque no hay datos en el stock.\n\nSugerencia: Registra compras de USDT y cambios USDT→VES en /stock.html para calcular tasas automaticamente.`;
                                 }
                                 
                                 resolve({
@@ -7025,8 +6968,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                     fecha_ultima_compra: fechaCompra,
                                     mensaje_sugerido: mensajeSugerido
                                 });
-                            }
-                        );
+                        });
                     });
                     break;
 
@@ -7099,30 +7041,26 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                             const matchDias = tarea.descripcion ? tarea.descripcion.match(/(\d+)\s*d[ií]as?/i) : null;
                             const diasInactivo = tarea.dias_inactivo || (matchDias ? parseInt(matchDias[1]) : 0);
                             
-                            // 4. Obtener última compra USDT
-                            const ultimaCompra = await dbGet(`
-                                SELECT tasa_clp_ves, fecha, id
-                                FROM compras
-                                ORDER BY id DESC
-                                LIMIT 1
-                            `);
-                            
+                            // 4. Obtener tasa VES/CLP desde sistema de stock unificado
+                            const tasaVesPorClpCalc2 = await getTasaVesPorClp();
+                            const ultimaCompra = tasaVesPorClpCalc2 > 0 ? { tasa_clp_ves: tasaVesPorClpCalc2, fecha: hoyLocalYYYYMMDD() } : null;
+
                             if (!ultimaCompra || !ultimaCompra.tasa_clp_ves) {
                                 // Resolución ASISTIDA - Sin historial de compras
                                 await dbRun(`
                                     UPDATE tareas
                                     SET resolucion_agente = 'asistida',
                                         accion_requerida = 'registrar_compra_usdt',
-                                        observaciones = 'No hay historial de compras USDT para calcular tasa promocional',
+                                        observaciones = 'No hay datos en el sistema de stock para calcular tasa promocional',
                                         estado = 'en_progreso'
                                     WHERE id = ?
                                 `, [tareaId]);
-                                
+
                                 resolve({
                                     success: false,
                                     resolucion_agente: 'asistida',
                                     problema: 'sin_historial_compras',
-                                    mensaje: `️ No se puede resolver automáticamente porque no hay historial de compras USDT.\n\n**Acción requerida:** Registra al menos una compra de USDT en el Historial de Compras (/admin.html) para poder calcular tasas promocionales.`
+                                    mensaje: `No se puede resolver automaticamente porque no hay datos en el stock.\n\n**Accion requerida:** Registra compras de USDT y cambios USDT→VES en /stock.html para poder calcular tasas promocionales.`
                                 });
                                 return;
                             }
