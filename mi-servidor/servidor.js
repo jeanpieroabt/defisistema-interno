@@ -3570,6 +3570,38 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
             }
         }
 
+        // Patrón: retiré/retiro X CLP/USDT/VES para/por [motivo]
+        if (!tipo) {
+            const matchRetiro = msgOriginal.match(/(?:retir[eéo]|retiro|saq[uú][eé]|saco|pag[uú][eé]|pago)\s+([\d.]+)\s*(clp|usdt|ves)\s*(?:para|por|de|motivo:?\s*)?\s*(.*)/i);
+            if (matchRetiro) {
+                const monto = Number(matchRetiro[1]);
+                const moneda = matchRetiro[2].toUpperCase();
+                const motivo = matchRetiro[3] ? matchRetiro[3].trim() : 'Sin justificación';
+                if (monto <= 0) return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
+
+                const claveMap = { 'CLP': 'saldoClpDisponible', 'USDT': 'saldoUsdt', 'VES': 'saldoVesOnline' };
+                const clave = claveMap[moneda];
+                const saldoActual = Number(await readConfigValue(clave) || 0);
+
+                if (monto > saldoActual) {
+                    return res.status(400).json({ error: `Saldo ${moneda} insuficiente. Disponible: ${saldoActual.toLocaleString('es-CL')}` });
+                }
+
+                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = ?`, [monto, clave]);
+                await dbRun(
+                    `INSERT INTO movimientos_stock(usuario_id, tipo, moneda, monto, saldo_antes, saldo_despues, fecha, observaciones) VALUES (?,?,?,?,?,?,?,?)`,
+                    [req.session.user.id, 'retiro', moneda, monto, saldoActual, saldoActual - monto, hoyLocalYYYYMMDD(), motivo]
+                );
+
+                tipo = 'retiro';
+                resultado = {
+                    mensaje: `Retiro de ${moneda} registrado`,
+                    detalle: `-${monto.toLocaleString('es-CL')} ${moneda} | Motivo: ${motivo}`,
+                    saldos: { [moneda.toLowerCase()]: { antes: saldoActual, despues: saldoActual - monto } }
+                };
+            }
+        }
+
         if (!tipo) {
             return res.status(400).json({
                 error: 'No entendí la operación. Ejemplos válidos:',
@@ -3579,6 +3611,8 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
                     'cambié 500 USDT por 42500 VES',
                     'cambié 200 USDT a tasa 85.5 VES',
                     'deposité 2000000 CLP',
+                    'retiré 50000 CLP para pago de servicios',
+                    'retiré 100 USDT para pago proveedor',
                     'ajustar USDT a 320.5'
                 ]
             });
@@ -3621,15 +3655,28 @@ app.get('/api/stock/historial', apiAuth, onlyMaster, async (req, res) => {
                 tasa: `${Number(c.tasa).toFixed(2)} VES/USDT`,
                 fecha: c.fecha, observaciones: c.observaciones
             })),
-            ...(movimientos || []).map(m => ({
-                id: m.id,
-                tipo: m.tipo === 'deposito' ? `Depósito ${m.moneda}` : `Ajuste ${m.moneda}`,
-                tipoKey: 'movimiento',
-                entrada: m.tipo === 'deposito' ? `+${Number(m.monto).toLocaleString('es-CL')} ${m.moneda}` : `${Number(m.saldo_despues).toLocaleString('es-CL')} ${m.moneda}`,
-                salida: m.tipo === 'deposito' ? '-' : `${Number(m.saldo_antes).toLocaleString('es-CL')} ${m.moneda}`,
-                tasa: '-',
-                fecha: m.fecha, observaciones: m.observaciones
-            }))
+            ...(movimientos || []).map(m => {
+                let tipoDisplay, entrada, salida;
+                if (m.tipo === 'deposito') {
+                    tipoDisplay = `Depósito ${m.moneda}`;
+                    entrada = `+${Number(m.monto).toLocaleString('es-CL')} ${m.moneda}`;
+                    salida = '-';
+                } else if (m.tipo === 'retiro') {
+                    tipoDisplay = `Retiro ${m.moneda}`;
+                    entrada = '-';
+                    salida = `-${Number(m.monto).toLocaleString('es-CL')} ${m.moneda}`;
+                } else {
+                    tipoDisplay = `Ajuste ${m.moneda}`;
+                    entrada = `${Number(m.saldo_despues).toLocaleString('es-CL')} ${m.moneda}`;
+                    salida = `${Number(m.saldo_antes).toLocaleString('es-CL')} ${m.moneda}`;
+                }
+                return {
+                    id: m.id, tipo: tipoDisplay, tipoKey: 'movimiento',
+                    entrada, salida,
+                    tasa: m.tipo === 'retiro' ? m.observaciones || '-' : '-',
+                    fecha: m.fecha, observaciones: m.observaciones
+                };
+            })
         ].sort((a, b) => b.fecha > a.fecha ? 1 : b.fecha < a.fecha ? -1 : 0);
 
         res.json(historial);
