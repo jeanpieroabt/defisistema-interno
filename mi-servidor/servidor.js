@@ -3959,44 +3959,42 @@ app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (re
         `);
 
         const hoy = new Date();
-        const analisis = clientes.map(c => {
+        const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const hace60 = new Date(hoy.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+        const analisis = [];
+        for (const c of clientes) {
             const ultimaOp = c.ultima_operacion ? new Date(c.ultima_operacion) : null;
             const primeraOp = c.primera_operacion ? new Date(c.primera_operacion) : null;
             const diasDesdeUltimo = ultimaOp ? Math.floor((hoy - ultimaOp) / (1000 * 60 * 60 * 24)) : null;
-            
+
             let frecuencia = 'Sin actividad';
             let tendencia = 'estable';
-            
+
             if (c.total_operaciones > 0 && primeraOp && ultimaOp) {
-                // Cliente con una sola operación
                 if (c.total_operaciones === 1) {
-                    frecuencia = 'nica operación';
+                    frecuencia = 'Única operación';
                 } else {
                     const diasActivo = Math.max(1, Math.floor((ultimaOp - primeraOp) / (1000 * 60 * 60 * 24)));
                     const promedioDias = diasActivo / Math.max(1, c.total_operaciones - 1);
-                    
-                    // Diario requiere al menos 5 operaciones y promedio muy bajo
+
                     if (c.total_operaciones >= 5 && promedioDias <= 2) frecuencia = 'Diario';
                     else if (promedioDias <= 7) frecuencia = 'Semanal';
                     else if (promedioDias <= 30) frecuencia = 'Mensual';
                     else frecuencia = 'Esporádico';
                 }
-                
-                // Análisis de tendencia: comparar últimos 30 días vs 30-60 días atrás
-                const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                const hace60 = new Date(hoy.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                
-                db.get(`SELECT COUNT(*) as recientes FROM operaciones WHERE cliente_id = ? AND fecha >= ?`, [c.id, hace30], (e1, r1) => {
-                    db.get(`SELECT COUNT(*) as anteriores FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [c.id, hace60, hace30], (e2, r2) => {
-                        if (r1 && r2) {
-                            if (r1.recientes > r2.anteriores * 1.2) tendencia = 'creciente';
-                            else if (r1.recientes < r2.anteriores * 0.8) tendencia = 'decreciente';
-                        }
-                    });
-                });
+
+                // Análisis de tendencia con await (fix race condition)
+                const recientes = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ?`, [c.id, hace30]);
+                const anteriores = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [c.id, hace60, hace30]);
+
+                if (recientes && anteriores) {
+                    if (recientes.cnt > anteriores.cnt * 1.2) tendencia = 'creciente';
+                    else if (recientes.cnt < anteriores.cnt * 0.8) tendencia = 'decreciente';
+                }
             }
-            
-            return {
+
+            analisis.push({
                 id: c.id,
                 nombre: c.nombre,
                 fecha_registro: c.fecha_creacion,
@@ -4007,8 +4005,8 @@ app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (re
                 tendencia,
                 dias_desde_ultimo: diasDesdeUltimo,
                 ultima_operacion: c.ultima_operacion
-            };
-        });
+            });
+        }
 
         res.json(analisis);
     } catch (error) {
