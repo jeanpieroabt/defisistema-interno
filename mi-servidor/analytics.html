@@ -286,6 +286,17 @@
       border-radius: 4px;
     }
 
+    /* Modal detalle compacto */
+    #modalDetalleContent .table-container table {
+      min-width: auto;
+      width: 100%;
+      font-size: 0.85rem;
+    }
+    #modalDetalleContent .table-container {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
     /* RESPONSIVE DESIGN */
     @media (max-width: 768px) {
       .container {
@@ -694,7 +705,7 @@
 
   <!-- MODAL DE DETALLE DE CLIENTE -->
   <div class="modal-overlay" id="modalDetalle" onclick="if(event.target===this)cerrarModalDetalle()">
-    <div class="modal-content" style="max-width: 800px; width: 95%; background: white; border-radius: 16px; padding: 2rem; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+    <div class="modal-content" id="modalDetalleContent" style="max-width: 700px; width: 92%; background: white; border-radius: 16px; padding: 1.5rem; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
 
       <button onclick="cerrarModalDetalle()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.5rem;cursor:pointer;color:#999;line-height:1;">✕</button>
 

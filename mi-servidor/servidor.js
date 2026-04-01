@@ -4197,10 +4197,11 @@ app.get('/api/analytics/clientes/detalle/:id', apiAuth, onlyMaster, async (req, 
         if (!cliente) return res.status(404).json({ message: 'Cliente no encontrado' });
         
         const operaciones = await dbAll(`
-            SELECT fecha, monto_clp, monto_ves, tasa 
-            FROM operaciones 
-            WHERE cliente_id = ? 
+            SELECT fecha, monto_clp, monto_ves, tasa
+            FROM operaciones
+            WHERE cliente_id = ?
             ORDER BY fecha DESC
+            LIMIT 10
         `, [clienteId]);
         
         const stats = await dbGet(`
@@ -4224,13 +4225,14 @@ app.get('/api/analytics/clientes/detalle/:id', apiAuth, onlyMaster, async (req, 
             WHERE cliente_id = ?
             GROUP BY mes
             ORDER BY mes DESC
+            LIMIT 6
         `, [clienteId]);
-        
+
         res.json({
             cliente,
             estadisticas: stats,
             historial_mensual: porMes,
-            ultimas_operaciones: operaciones.slice(0, 10)
+            ultimas_operaciones: operaciones
         });
     } catch (error) {
         console.error('Error en detalle de cliente:', error);
