@@ -4048,121 +4048,121 @@ app.get('/api/analytics/clientes/comportamiento', apiAuth, onlyMaster, async (re
 //  ENDPOINT 2: Alertas y clientes en riesgo
 app.get('/api/analytics/clientes/alertas', apiAuth, onlyMaster, async (req, res) => {
     try {
-        const alertas = [];
-        const hoy = new Date();
         const fechaHoy = hoyLocalYYYYMMDD();
-        
-        // Clientes inactivos (30-60 dias)
-        const inactivos = await dbAll(`
-            SELECT c.id, c.nombre, MAX(o.fecha) as ultima_operacion, COUNT(o.id) as total_ops
+
+        // 1. Desactivar alertas de clientes que volvieron a operar (< 30 días)
+        await dbRun(`
+            UPDATE alertas SET activa = 0
+            WHERE activa = 1 AND cliente_id IN (
+                SELECT c.id FROM clientes c
+                JOIN operaciones o ON c.id = o.cliente_id
+                GROUP BY c.id
+                HAVING julianday('now') - julianday(MAX(o.fecha)) < 30
+            )
+        `);
+
+        // 2. Query unificada: obtener todos los clientes inactivos con sus alertas existentes
+        const clientesInactivos = await dbAll(`
+            SELECT
+                c.id, c.nombre,
+                MAX(o.fecha) as ultima_operacion,
+                COUNT(o.id) as total_ops,
+                CAST(julianday('now') - julianday(MAX(o.fecha)) AS INTEGER) as dias_inactivo
             FROM clientes c
             JOIN operaciones o ON c.id = o.cliente_id
             GROUP BY c.id
-            HAVING julianday('now') - julianday(MAX(o.fecha)) BETWEEN 30 AND 60
+            HAVING dias_inactivo >= 30
+            ORDER BY dias_inactivo DESC
         `);
-        
-        for (const c of inactivos) {
-            const dias = Math.floor((hoy - new Date(c.ultima_operacion)) / (1000 * 60 * 60 * 24));
-            
-            // Verificar si ya existe alerta activa
-            const alertaExistente = await dbGet(`
-                SELECT * FROM alertas 
-                WHERE cliente_id = ? AND tipo = 'inactivo' AND activa = 1
-            `, [c.id]);
-            
-            if (!alertaExistente) {
-                // Crear nueva alerta
+
+        // 3. Obtener alertas activas existentes en una sola query
+        const alertasExistentes = await dbAll(`SELECT * FROM alertas WHERE activa = 1`);
+        const alertasPorCliente = {};
+        alertasExistentes.forEach(a => {
+            if (!alertasPorCliente[a.cliente_id]) alertasPorCliente[a.cliente_id] = [];
+            alertasPorCliente[a.cliente_id].push(a);
+        });
+
+        const alertas = [];
+
+        for (const c of clientesInactivos) {
+            const tipo = c.dias_inactivo > 60 ? 'critico' : 'inactivo';
+            const severidad = tipo === 'critico' ? 'danger' : 'warning';
+
+            // Buscar alerta existente de este tipo para este cliente
+            const existentes = alertasPorCliente[c.id] || [];
+            const alertaExistente = existentes.find(a => a.tipo === tipo);
+
+            let alertaId;
+            let accionRealizada = null;
+            let fechaAccion = null;
+
+            if (alertaExistente) {
+                // Actualizar dias_inactivo en la alerta existente
+                await dbRun(`UPDATE alertas SET dias_inactivo = ? WHERE id = ?`, [c.dias_inactivo, alertaExistente.id]);
+                alertaId = alertaExistente.id;
+                accionRealizada = alertaExistente.accion_realizada;
+                fechaAccion = alertaExistente.fecha_accion;
+
+                // Si era inactivo y ahora es critico, actualizar tipo
+                if (alertaExistente.tipo === 'inactivo' && tipo === 'critico') {
+                    await dbRun(`UPDATE alertas SET tipo = 'critico', severidad = 'danger' WHERE id = ?`, [alertaExistente.id]);
+                }
+            } else {
+                // Crear nueva alerta solo si no existe una del mismo tipo
                 const result = await dbRun(`
                     INSERT INTO alertas(cliente_id, tipo, severidad, dias_inactivo, ultima_operacion, fecha_creacion)
-                    VALUES (?, 'inactivo', 'warning', ?, ?, ?)
-                `, [c.id, dias, c.ultima_operacion, fechaHoy]);
-                
-                alertas.push({
-                    id: result.lastID,
-                    tipo: 'inactivo',
-                    severidad: 'warning',
-                    cliente_id: c.id,
-                    cliente_nombre: c.nombre,
-                    mensaje: `Cliente inactivo por ${dias} días`,
-                    dias_inactivo: dias,
-                    ultima_operacion: c.ultima_operacion,
-                    accion_realizada: null
-                });
-            } else {
-                // Retornar alerta existente con accion si existe
-                alertas.push({
-                    id: alertaExistente.id,
-                    tipo: alertaExistente.tipo,
-                    severidad: alertaExistente.severidad,
-                    cliente_id: c.id,
-                    cliente_nombre: c.nombre,
-                    mensaje: `Cliente inactivo por ${dias} días`,
-                    dias_inactivo: dias,
-                    ultima_operacion: c.ultima_operacion,
-                    accion_realizada: alertaExistente.accion_realizada,
-                    fecha_accion: alertaExistente.fecha_accion
-                });
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `, [c.id, tipo, severidad, c.dias_inactivo, c.ultima_operacion, fechaHoy]);
+                alertaId = result.lastID;
             }
-        }
-        
-        // Clientes criticos (+60 dias)
-        const criticos = await dbAll(`
-            SELECT c.id, c.nombre, MAX(o.fecha) as ultima_operacion
-            FROM clientes c
-            JOIN operaciones o ON c.id = o.cliente_id
-            GROUP BY c.id
-            HAVING julianday('now') - julianday(MAX(o.fecha)) > 60
-        `);
-        
-        for (const c of criticos) {
-            const dias = Math.floor((hoy - new Date(c.ultima_operacion)) / (1000 * 60 * 60 * 24));
-            
-            const alertaExistente = await dbGet(`
-                SELECT * FROM alertas 
-                WHERE cliente_id = ? AND tipo = 'critico' AND activa = 1
-            `, [c.id]);
-            
-            if (!alertaExistente) {
-                const result = await dbRun(`
-                    INSERT INTO alertas(cliente_id, tipo, severidad, dias_inactivo, ultima_operacion, fecha_creacion)
-                    VALUES (?, 'critico', 'danger', ?, ?, ?)
-                `, [c.id, dias, c.ultima_operacion, fechaHoy]);
-                
-                alertas.push({
-                    id: result.lastID,
-                    tipo: 'critico',
-                    severidad: 'danger',
-                    cliente_id: c.id,
-                    cliente_nombre: c.nombre,
-                    mensaje: `Cliente sin actividad por ${dias} días - RIESGO ALTO`,
-                    dias_inactivo: dias,
-                    ultima_operacion: c.ultima_operacion,
-                    accion_realizada: null
-                });
-            } else {
-                alertas.push({
-                    id: alertaExistente.id,
-                    tipo: alertaExistente.tipo,
-                    severidad: alertaExistente.severidad,
-                    cliente_id: c.id,
-                    cliente_nombre: c.nombre,
-                    mensaje: `Cliente sin actividad por ${dias} días - RIESGO ALTO`,
-                    dias_inactivo: dias,
-                    ultima_operacion: c.ultima_operacion,
-                    accion_realizada: alertaExistente.accion_realizada,
-                    fecha_accion: alertaExistente.fecha_accion
-                });
-            }
+
+            alertas.push({
+                id: alertaId,
+                tipo,
+                severidad,
+                cliente_id: c.id,
+                cliente_nombre: c.nombre,
+                mensaje: tipo === 'critico'
+                    ? `Sin actividad por ${c.dias_inactivo} días - RIESGO ALTO`
+                    : `Inactivo por ${c.dias_inactivo} días`,
+                dias_inactivo: c.dias_inactivo,
+                total_ops: c.total_ops,
+                ultima_operacion: c.ultima_operacion,
+                accion_realizada: accionRealizada,
+                fecha_accion: fechaAccion
+            });
         }
 
-        // ALERTAS DE DISMINUCION DE FRECUENCIA DESACTIVADAS
-        // Las alertas por cambios en la frecuencia de operaciones han sido desactivadas
-        // Se mantienen solo alertas de inactividad (30-60 dias) y criticas (+60 dias)
+        // 4. Resumen
+        const criticos = alertas.filter(a => a.tipo === 'critico');
+        const inactivos = alertas.filter(a => a.tipo === 'inactivo');
+        const conAccion = alertas.filter(a => a.accion_realizada);
 
-        res.json(alertas);
+        res.json({
+            alertas,
+            resumen: {
+                total: alertas.length,
+                criticos: criticos.length,
+                inactivos: inactivos.length,
+                con_accion: conAccion.length,
+                sin_accion: alertas.length - conAccion.length
+            }
+        });
     } catch (error) {
         console.error('Error en alertas:', error);
         res.status(500).json({ message: 'Error al generar alertas' });
+    }
+});
+
+// Descartar alerta manualmente
+app.post('/api/analytics/alertas/:id/descartar', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        await dbRun(`UPDATE alertas SET activa = 0, accion_realizada = 'mensaje_enviado', fecha_accion = ? WHERE id = ?`,
+            [hoyLocalYYYYMMDD(), req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ message: 'Error al descartar alerta' });
     }
 });
 

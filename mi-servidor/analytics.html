@@ -570,11 +570,34 @@
         <div class="section-header">
           <h2>🚨 Sistema de Alertas</h2>
           <div>
-            <span id="contadorAlertas" class="badge danger">0 alertas</span>
-            <button class="btn btn-primary" onclick="generarTareasAutomaticas()" id="btnGenerarTareas" style="margin-left: 10px;">⚙️ Generar Tareas Automáticas</button>
+            <button class="btn btn-primary" onclick="generarTareasAutomaticas()" id="btnGenerarTareas">⚙️ Generar Tareas</button>
           </div>
         </div>
-        
+
+        <!-- Resumen alertas -->
+        <div id="resumenAlertas" class="analytics-grid" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); margin-bottom:1.5rem; display:none;">
+          <div class="metric-card" style="border-left:4px solid #f44336;">
+            <h3>Críticos</h3>
+            <div class="value" id="alertasCriticos" style="color:#f44336;">0</div>
+            <div class="progress">+60 días</div>
+          </div>
+          <div class="metric-card" style="border-left:4px solid #ff9800;">
+            <h3>Inactivos</h3>
+            <div class="value" id="alertasInactivos" style="color:#ff9800;">0</div>
+            <div class="progress">30-60 días</div>
+          </div>
+          <div class="metric-card" style="border-left:4px solid #4caf50;">
+            <h3>Gestionados</h3>
+            <div class="value" id="alertasConAccion" style="color:#4caf50;">0</div>
+            <div class="progress">Mensaje enviado</div>
+          </div>
+          <div class="metric-card" style="border-left:4px solid #2196f3;">
+            <h3>Pendientes</h3>
+            <div class="value" id="alertasSinAccion" style="color:#2196f3;">0</div>
+            <div class="progress">Sin gestionar</div>
+          </div>
+        </div>
+
         <div id="listaAlertas"></div>
         <div id="sinAlertas" style="text-align:center; padding:2rem; color:var(--medium-grey); display:none;">
           <h3>✅ No hay alertas activas</h3>
@@ -835,10 +858,14 @@
     }
 
     // ========== ALERTAS ==========
+    let resumenAlertas = {};
+
     async function cargarAlertas() {
       try {
         const r = await fetch('/api/analytics/clientes/alertas');
-        datosAlertas = await r.json();
+        const data = await r.json();
+        datosAlertas = data.alertas || [];
+        resumenAlertas = data.resumen || {};
         renderAlertas();
       } catch (error) {
         console.error('Error cargando alertas:', error);
@@ -849,51 +876,83 @@
     function renderAlertas() {
       const contenedor = document.getElementById('listaAlertas');
       const sinAlertas = document.getElementById('sinAlertas');
-      const contador = document.getElementById('contadorAlertas');
-      
+      const panelResumen = document.getElementById('resumenAlertas');
+
       contenedor.innerHTML = '';
-      
+
       if (datosAlertas.length === 0) {
         sinAlertas.style.display = 'block';
-        contador.textContent = '0 alertas';
-        contador.className = 'badge success';
+        panelResumen.style.display = 'none';
         return;
       }
-      
+
       sinAlertas.style.display = 'none';
-      contador.textContent = `${datosAlertas.length} alertas`;
-      contador.className = 'badge danger';
-      
-      datosAlertas.forEach(alerta => {
-        const card = document.createElement('div');
-        card.className = `alert-card ${alerta.severidad}`;
-        
-        let icono = '⚠️';
-        if (alerta.tipo === 'critico') icono = '🔴';
-        else if (alerta.tipo === 'disminucion') icono = '📉';
-        
-        // Mostrar badge de acción realizada si existe
-        let badgeAccion = '';
-        if (alerta.accion_realizada) {
-          let iconoAccion = alerta.accion_realizada === 'mensaje_enviado' ? '✉️' : '🎁';
-          let textoAccion = alerta.accion_realizada === 'mensaje_enviado' ? 'Mensaje enviado' : 'Promoción enviada';
-          let fechaAccion = alerta.fecha_accion ? new Date(alerta.fecha_accion).toLocaleDateString() : '';
-          badgeAccion = `<div style="margin-top: 8px;"><span class="badge success" style="font-size: 0.85em;">${iconoAccion} ${textoAccion}${fechaAccion ? ' - ' + fechaAccion : ''}</span></div>`;
-        }
-        
-        card.innerHTML = `
-          <div class="alert-icon">${icono}</div>
-          <div class="alert-content">
-            <strong>${alerta.cliente_nombre}</strong>
-            <div>${alerta.mensaje}</div>
-            ${alerta.ultima_operacion ? `<small>Última operación: ${alerta.ultima_operacion}</small>` : ''}
-            ${badgeAccion}
-          </div>
-          <button class="btn btn-light" onclick="verDetalleCliente(${alerta.cliente_id})">Ver</button>
-        `;
-        
-        contenedor.appendChild(card);
-      });
+      panelResumen.style.display = 'grid';
+
+      // Actualizar resumen
+      document.getElementById('alertasCriticos').textContent = resumenAlertas.criticos || 0;
+      document.getElementById('alertasInactivos').textContent = resumenAlertas.inactivos || 0;
+      document.getElementById('alertasConAccion').textContent = resumenAlertas.con_accion || 0;
+      document.getElementById('alertasSinAccion').textContent = resumenAlertas.sin_accion || 0;
+
+      // Separar por tipo: primero criticos, luego inactivos
+      const criticos = datosAlertas.filter(a => a.tipo === 'critico');
+      const inactivos = datosAlertas.filter(a => a.tipo !== 'critico');
+
+      if (criticos.length > 0) {
+        const seccion = document.createElement('div');
+        seccion.innerHTML = `<h4 style="color:#f44336; margin:0 0 0.75rem 0;">🔴 Críticos — más de 60 días (${criticos.length})</h4>`;
+        criticos.forEach(a => seccion.appendChild(crearAlertaCard(a)));
+        contenedor.appendChild(seccion);
+      }
+
+      if (inactivos.length > 0) {
+        const seccion = document.createElement('div');
+        seccion.style.marginTop = '1.5rem';
+        seccion.innerHTML = `<h4 style="color:#ff9800; margin:0 0 0.75rem 0;">⚠️ Inactivos — 30 a 60 días (${inactivos.length})</h4>`;
+        inactivos.forEach(a => seccion.appendChild(crearAlertaCard(a)));
+        contenedor.appendChild(seccion);
+      }
+    }
+
+    function crearAlertaCard(alerta) {
+      const card = document.createElement('div');
+      card.className = `alert-card ${alerta.severidad}`;
+      card.id = `alerta-${alerta.id}`;
+
+      const icono = alerta.tipo === 'critico' ? '🔴' : '⚠️';
+
+      let badgeAccion = '';
+      if (alerta.accion_realizada) {
+        const iconoA = alerta.accion_realizada === 'mensaje_enviado' ? '✉️' : '🎁';
+        const textoA = alerta.accion_realizada === 'mensaje_enviado' ? 'Gestionado' : 'Promoción enviada';
+        badgeAccion = `<span class="badge success" style="font-size:0.8em; margin-left:0.5rem;">${iconoA} ${textoA}</span>`;
+      }
+
+      card.innerHTML = `
+        <div class="alert-icon">${icono}</div>
+        <div class="alert-content">
+          <strong>${alerta.cliente_nombre} ${badgeAccion}</strong>
+          <div>${alerta.mensaje}</div>
+          <small>Última op: ${alerta.ultima_operacion || '—'} · ${alerta.total_ops || 0} ops totales</small>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:0.35rem;">
+          <button class="btn btn-light" style="font-size:0.8rem;" onclick="verDetalleCliente(${alerta.cliente_id})">👁 Ver</button>
+          ${!alerta.accion_realizada ? `<button class="btn btn-light" style="font-size:0.8rem; color:#4caf50;" onclick="descartarAlerta(${alerta.id})">✅ OK</button>` : ''}
+        </div>
+      `;
+      return card;
+    }
+
+    async function descartarAlerta(id) {
+      try {
+        await fetch(`/api/analytics/alertas/${id}/descartar`, { method: 'POST' });
+        const el = document.getElementById(`alerta-${id}`);
+        if (el) el.style.display = 'none';
+        showToast('Alerta marcada como gestionada', 'success');
+      } catch (e) {
+        showToast('Error al descartar', 'error');
+      }
     }
 
     // ========== NUEVOS CLIENTES ==========
