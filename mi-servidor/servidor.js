@@ -991,17 +991,82 @@ const dbAll = (sql, params = []) => {
 
 // =================================================================
 // FUNCIONES DE PROMEDIO PONDERADO MULTI-MONEDA (SISTEMA UNIFICADO)
+// PPP calculado con método WAC (Weighted Average Cost):
+//   - En compras: PPP = (stock_actual * PPP_anterior + cantidad_nueva * precio_nuevo) / (stock_actual + cantidad_nueva)
+//   - En ventas/conversiones: PPP se mantiene, stock disminuye
 // =================================================================
 async function getPromedioUsdt() {
-    const row = await dbGet('SELECT SUM(clp_invertido) as totalClp, SUM(usdt_obtenido) as totalUsdt FROM compras_usdt');
-    if (!row || !row.totalClp || row.totalUsdt === 0) return 0;
-    return row.totalClp / row.totalUsdt; // CLP por 1 USDT
+    // Obtener todas las compras de USDT (entradas)
+    const compras = await dbAll(
+        `SELECT usdt_obtenido as cantidad, clp_invertido as costo, fecha, id, 'compra' as tipo FROM compras_usdt ORDER BY fecha ASC, id ASC`
+    );
+    // Obtener todas las conversiones USDT→VES (salidas de USDT)
+    const conversionesVes = await dbAll(
+        `SELECT usdt_invertido as cantidad, fecha, id, 'conversion_ves' as tipo FROM compras_ves ORDER BY fecha ASC, id ASC`
+    );
+    // Obtener todas las ventas de USDT a otros países (salidas de USDT)
+    const ventasUsdt = await dbAll(
+        `SELECT usdt as cantidad, fecha, id, 'venta_usdt' as tipo FROM ventas_usdt ORDER BY fecha ASC, id ASC`
+    );
+
+    if (!compras || compras.length === 0) return 0;
+
+    // Combinar todas las transacciones y ordenar cronológicamente
+    const transacciones = [
+        ...(compras || []),
+        ...(conversionesVes || []),
+        ...(ventasUsdt || [])
+    ].sort((a, b) => {
+        if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1;
+        // Dentro del mismo día, compras primero, luego salidas
+        if (a.tipo === 'compra' && b.tipo !== 'compra') return -1;
+        if (a.tipo !== 'compra' && b.tipo === 'compra') return 1;
+        return a.id - b.id;
+    });
+
+    let stockUsdt = 0;
+    let costoTotal = 0; // Costo acumulado del stock actual en CLP
+
+    for (const tx of transacciones) {
+        if (tx.tipo === 'compra') {
+            // Entrada: agregar al stock con su costo
+            costoTotal += tx.costo;
+            stockUsdt += tx.cantidad;
+        } else {
+            // Salida: reducir stock al PPP actual (costo proporcional sale)
+            if (stockUsdt > 0) {
+                const pppActual = costoTotal / stockUsdt;
+                const cantidadSale = Math.min(tx.cantidad, stockUsdt);
+                costoTotal -= cantidadSale * pppActual;
+                stockUsdt -= cantidadSale;
+            }
+        }
+    }
+
+    if (stockUsdt <= 0) return 0;
+    return costoTotal / stockUsdt; // PPP actual del inventario
 }
 
 async function getPromedioVesEnUsdt() {
-    const row = await dbGet('SELECT SUM(usdt_invertido) as totalUsdt, SUM(ves_obtenido) as totalVes FROM compras_ves');
-    if (!row || !row.totalUsdt || row.totalVes === 0) return 0;
-    return row.totalVes / row.totalUsdt; // VES por 1 USDT
+    // Obtener todas las compras de VES (entradas)
+    const compras = await dbAll(
+        `SELECT ves_obtenido as cantidad, usdt_invertido as costo, fecha, id, 'compra' as tipo FROM compras_ves ORDER BY fecha ASC, id ASC`
+    );
+    // Las operaciones que envían VES a clientes son salidas
+    // Por ahora mantenemos el cálculo simple para VES ya que las salidas
+    // se manejan como operaciones del negocio (no como conversiones de stock)
+    if (!compras || compras.length === 0) return 0;
+
+    let stockVes = 0;
+    let costoTotalUsdt = 0;
+
+    for (const tx of compras) {
+        costoTotalUsdt += tx.costo;
+        stockVes += tx.cantidad;
+    }
+
+    if (stockVes <= 0) return 0;
+    return stockVes / costoTotalUsdt; // VES por 1 USDT (tasa promedio)
 }
 
 // Tasa VES/CLP derivada del sistema de stock (equivale a legacy tasa_clp_ves)
