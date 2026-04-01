@@ -6922,20 +6922,29 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                 
                 case 'buscar_cliente':
                     functionResult = await new Promise((resolve) => {
-                        db.get(
-                            `SELECT id, nombre, rut, email, telefono, fecha_creacion 
-                             FROM clientes 
+                        // Buscar priorizando coincidencia exacta, luego inicio de nombre, luego parcial
+                        db.all(
+                            `SELECT id, nombre, rut, email, telefono, fecha_creacion,
+                                CASE
+                                    WHEN LOWER(nombre) = LOWER(?) THEN 1
+                                    WHEN LOWER(nombre) LIKE LOWER(?) THEN 2
+                                    ELSE 3
+                                END as relevancia
+                             FROM clientes
                              WHERE LOWER(nombre) LIKE LOWER(?)
-                             LIMIT 1`,
-                            [`%${functionArgs.nombre}%`],
-                            (err, cliente) => {
-                                if (!err && cliente) {
+                             ORDER BY relevancia ASC, nombre ASC
+                             LIMIT 5`,
+                            [functionArgs.nombre, `${functionArgs.nombre}%`, `%${functionArgs.nombre}%`],
+                            (err, clientes) => {
+                                if (!err && clientes && clientes.length > 0) {
+                                    // Tomar el más relevante como principal
+                                    const cliente = clientes[0];
                                     const faltan = [];
                                     if (!cliente.rut) faltan.push('RUT');
                                     if (!cliente.email) faltan.push('Email');
                                     if (!cliente.telefono) faltan.push('Teléfono');
-                                    
-                                    resolve({
+
+                                    const resultado = {
                                         encontrado: true,
                                         id: cliente.id,
                                         nombre: cliente.nombre,
@@ -6945,7 +6954,17 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                         fecha_creacion: cliente.fecha_creacion,
                                         datos_completos: !!(cliente.rut && cliente.email && cliente.telefono),
                                         faltan: faltan
-                                    });
+                                    };
+
+                                    // Si hay otros resultados, incluirlos
+                                    if (clientes.length > 1) {
+                                        resultado.otros_resultados = clientes.slice(1).map(c => ({
+                                            id: c.id,
+                                            nombre: c.nombre
+                                        }));
+                                    }
+
+                                    resolve(resultado);
                                 } else {
                                     resolve({ encontrado: false, mensaje: `No se encontró cliente con nombre similar a "${functionArgs.nombre}"` });
                                 }
