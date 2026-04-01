@@ -19,7 +19,7 @@ const multer = require('multer');
 const compression = require('compression');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const openaiHelper = require('./openai-helper');
+const claudeHelper = require('./claude-helper');
 
 // Configuracion de multer para uploads con validación estricta
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -5350,10 +5350,10 @@ app.post('/api/tareas/:id/resolver', apiAuth, async (req, res) => {
             tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
         }
         
-        // Generar mensaje con IA (OpenAI) usando helper optimizado
+        // Generar mensaje con IA (Claude) usando helper optimizado
         const nombreCliente = tarea.cliente_nombre || 'Cliente';
 
-        const resultIA = await openaiHelper.generateTaskMessage({
+        const resultIA = await claudeHelper.generateTaskMessage({
             nombreCliente,
             diasInactivo,
             tasaPromocional,
@@ -6058,11 +6058,8 @@ app.post('/api/chatbot', apiAuth, async (req, res) => {
             contextData.total_tareas_pendientes = 0;
         }
         
-        // Las consultas de clientes ahora se manejan automáticamente por OpenAI Function Calling
-        // Ya no necesitamos regex para detectar búsquedas - OpenAI decide cuándo llamar buscar_cliente()
-
-        // Las consultas ahora se manejan automáticamente por OpenAI Function Calling
-        // Ya no necesitamos regex para detectar consultas - OpenAI decide qué función llamar
+        // Las consultas se manejan automáticamente por Claude tool_use
+        // Claude decide cuándo llamar cada función según el contexto
 
         // Contexto del sistema para el chatbot - ASISTENTE INTERNO DE OPERACIONES
         const systemContext = ` PROMPT SISTEMA - ASISTENTE INTERNO DE OPERACIONES Y SUPERVISOR SUAVE (DEFIORACLE.CL)
@@ -6152,7 +6149,7 @@ Si falta información, informa al operador de forma conversacional y sugiere act
 
 - MODO AGENTE AUT'NOMO CON FUNCTION CALLING:
 
-Tienes acceso REAL a funciones para consultar la base de datos. OpenAI decide AUTOMÁTICAMENTE cuándo llamarlas según el contexto de la pregunta.
+Tienes acceso REAL a funciones (tools) para consultar la base de datos. Decides AUTOMÁTICAMENTE cuándo llamarlas según el contexto de la pregunta.
 
 FUNCIONES DISPONIBLES (llamadas automáticamente por ti):
 
@@ -6285,7 +6282,7 @@ FUNCIONES DISPONIBLES (llamadas automáticamente por ti):
 RAZONAMIENTO AUT'NOMO:
 
 ... T DECIDES qué función llamar según el contexto de la pregunta
-... OpenAI analiza la pregunta y elige la función apropiada automáticamente
+... Analizas la pregunta y eliges la función apropiada automáticamente
 ... NO necesitas que el usuario use palabras exactas
 ... Entiendes intención: "¿ya está listo Cris?" †' buscar_cliente("Cris") †' revisar datos_completos
 
@@ -6811,22 +6808,19 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
         return ` **Datos Bancarios DefiOracle.cl:**\n\nBanco: BancoEstado - Chequera Electrónica\nNombre: DEFI ORACLE SPA\nCuenta: 316-7-032793-3\nRUT: 77.354.262-7\n\n... Listo para copiar y pegar.`;
     }
     
-    // Para todo lo demás, usar OpenAI con Function Calling
+    // Para todo lo demás, usar Claude API con tool_use
     try {
-        // Usar variable de entorno OPENAI_API_KEY, o fallback a la key hardcodeada
-        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-        
-        // Validar que hay API key
-        if (!OPENAI_API_KEY || OPENAI_API_KEY === '' || OPENAI_API_KEY.includes('your-api-key-here')) {
-            console.error(' No se encontró API key de OpenAI válida');
-            return ' Lo siento, el chatbot no está configurado correctamente. Por favor contacta al administrador para configurar la API key de OpenAI.';
+        // Validar API key de Anthropic
+        const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+
+        if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === '') {
+            console.error(' No se encontró API key de Anthropic válida');
+            return ' Lo siento, el chatbot no está configurado correctamente. Por favor contacta al administrador para configurar la API key de Anthropic (ANTHROPIC_API_KEY).';
         }
-        
-        // Construir mensajes con historial de conversación
-        const messages = [
-            { role: 'system', content: systemContext }
-        ];
-        
+
+        // Construir mensajes para Claude (sin system en messages)
+        const messages = [];
+
         // Agregar historial de conversación (últimos 10 mensajes)
         if (historial && historial.length > 0) {
             historial.forEach(h => {
@@ -6834,31 +6828,31 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                 messages.push({ role: 'assistant', content: h.respuesta });
             });
         }
-        
+
         // Agregar mensaje actual del usuario
         messages.push({ role: 'user', content: userMessage });
-        
-        // Primera llamada a OpenAI con function calling usando helper optimizado
-        const resultChatbot = await openaiHelper.chatbotWithFunctions(messages, agentFunctions);
+
+        // Convertir agentFunctions de formato OpenAI a formato Claude tools
+        const claudeTools = claudeHelper.convertOpenAIFunctionsToClaude(agentFunctions);
+
+        // Primera llamada a Claude con tool_use
+        const resultChatbot = await claudeHelper.chatbotWithTools(systemContext, messages, claudeTools);
 
         if (!resultChatbot.success) {
-            console.error(' Error chatbot OpenAI:', resultChatbot.error);
+            console.error(' Error chatbot Claude:', resultChatbot.error);
 
-            // Error especifico de API key
-            if (resultChatbot.errorCode === 'invalid_api_key') {
-                return ` **Configuración pendiente**\n\nLo siento, la API key de OpenAI no está configurada correctamente.\n\n**Administrador:** Configure la variable de entorno \`OPENAI_API_KEY\` en Render con una key válida de https://platform.openai.com/api-keys`;
+            if (resultChatbot.statusCode === 401) {
+                return ` **Configuración pendiente**\n\nLo siento, la API key de Anthropic no está configurada correctamente.\n\n**Administrador:** Configure la variable de entorno \`ANTHROPIC_API_KEY\` en Render con una key válida de https://console.anthropic.com/`;
             }
 
-            // Respuesta generica humanizada
             return `Entiendo tu consulta, ${username}. Como asistente de DefiOracle.cl puedo ayudarte con conversiones, datos bancarios, tareas, y más. ¿Podrías darme más detalles de lo que necesitas?\n\n_Nota: El servicio de IA está experimentando problemas técnicos._`;
         }
 
-        let responseMessage = resultChatbot.message;
-        
-        // Si OpenAI decidió llamar una función
-        if (responseMessage.function_call) {
-            const functionName = responseMessage.function_call.name;
-            const functionArgs = JSON.parse(responseMessage.function_call.arguments);
+        // Si Claude decidió usar un tool
+        if (resultChatbot.stopReason === 'tool_use' && resultChatbot.toolUse) {
+            const functionName = resultChatbot.toolUse.name;
+            const functionArgs = resultChatbot.toolUse.input;
+            const toolUseId = resultChatbot.toolUse.id;
             
             console.log(`- Agente llamando función: ${functionName} con args:`, functionArgs);
             
@@ -7384,10 +7378,10 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                                 tasaPromocional = parseFloat((tasaOriginal - descuento).toFixed(4));
                             }
                             
-                            // 7. Generar mensaje con OpenAI usando helper optimizado
+                            // 7. Generar mensaje con Claude usando helper optimizado
                             const nombreCliente = tarea.cliente_nombre || 'Cliente';
 
-                            const resultIA = await openaiHelper.generateTaskMessage({
+                            const resultIA = await claudeHelper.generateTaskMessage({
                                 nombreCliente,
                                 diasInactivo,
                                 tasaPromocional,
@@ -7445,55 +7439,56 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
                     break;
             }
             
-            // Agregar el resultado de la función a los mensajes
-            messages.push(responseMessage);
+            // Agregar el assistant response con tool_use y el tool_result al historial
             messages.push({
-                role: 'function',
-                name: functionName,
-                content: JSON.stringify(functionResult)
+                role: 'assistant',
+                content: resultChatbot.content
             });
-            
-            // Segunda llamada a OpenAI para que genere respuesta final con los datos (sin functions)
-            const resultFinal = await openaiHelper.callOpenAI({
-                model: 'gpt-4o-mini',
-                messages: messages,
-                maxTokens: 500,
-                temperature: 0.8,
-                useCache: false
+            messages.push({
+                role: 'user',
+                content: [{
+                    type: 'tool_result',
+                    tool_use_id: toolUseId,
+                    content: JSON.stringify(functionResult)
+                }]
             });
 
-            return resultFinal.message.content;
+            // Segunda llamada a Claude para que genere respuesta final con los datos
+            const resultFinal = await claudeHelper.chatbotContinue(systemContext, messages);
+
+            if (resultFinal.success) {
+                return resultFinal.text;
+            }
+            return `Entiendo tu consulta, ${username}. Hubo un error procesando los datos. ¿Podrías intentarlo de nuevo?`;
         }
-        
-        // Si no llamó ninguna función, retornar respuesta directa
-        return responseMessage.content;
-        
+
+        // Si no llamó ninguna herramienta, retornar respuesta directa
+        return resultChatbot.text;
+
     } catch (error) {
-        console.error(' Error API OpenAI:', error.response?.data || error.message);
-        
-        // Si el error es de API key inválida, dar mensaje específico
-        if (error.response?.data?.error?.code === 'invalid_api_key') {
-            return ` **Configuración pendiente**\n\nLo siento, la API key de OpenAI no está configurada correctamente.\n\n**Administrador:** Configure la variable de entorno \`OPENAI_API_KEY\` en Render con una key válida de https://platform.openai.com/api-keys`;
+        console.error(' Error API Claude:', error.message);
+
+        if (error.status === 401) {
+            return ` **Configuración pendiente**\n\nLo siento, la API key de Anthropic no está configurada correctamente.\n\n**Administrador:** Configure la variable de entorno \`ANTHROPIC_API_KEY\` en Render con una key válida de https://console.anthropic.com/`;
         }
-        
-        // Si falla OpenAI por otro motivo, respuesta genérica humanizada
+
         return `Entiendo tu consulta, ${username}. Como asistente de DefiOracle.cl puedo ayudarte con conversiones, datos bancarios, tareas, y más. ¿Podrías darme más detalles de lo que necesitas?\n\n_Nota: El servicio de IA está experimentando problemas técnicos._`;
     }
 }
 
 // =====================================================
-// ENDPOINT: Estadisticas de uso de OpenAI
+// ENDPOINT: Estadisticas de uso de Claude
 // =====================================================
 app.get('/api/openai/stats', apiAuth, onlyMaster, (req, res) => {
     try {
-        const stats = openaiHelper.getStats();
+        const stats = claudeHelper.getStats();
         res.json({
             success: true,
             stats: stats,
-            mensaje: 'Estadisticas de uso de OpenAI obtenidas exitosamente'
+            mensaje: 'Estadisticas de uso de Claude obtenidas exitosamente'
         });
     } catch (error) {
-        console.error('Error obteniendo stats de OpenAI:', error);
+        console.error('Error obteniendo stats de IA:', error);
         res.status(500).json({
             error: true,
             mensaje: 'Error al obtener estadisticas'
@@ -7501,10 +7496,10 @@ app.get('/api/openai/stats', apiAuth, onlyMaster, (req, res) => {
     }
 });
 
-// Endpoint para resetear estadisticas de OpenAI (solo master)
+// Endpoint para resetear estadisticas de IA (solo master)
 app.post('/api/openai/stats/reset', apiAuth, onlyMaster, (req, res) => {
     try {
-        openaiHelper.resetStats();
+        claudeHelper.resetStats();
         res.json({
             success: true,
             mensaje: 'Estadisticas reseteadas exitosamente'
@@ -7518,10 +7513,10 @@ app.post('/api/openai/stats/reset', apiAuth, onlyMaster, (req, res) => {
     }
 });
 
-// Endpoint para limpiar cache de OpenAI (solo master)
+// Endpoint para limpiar cache de IA (solo master)
 app.post('/api/openai/cache/clear', apiAuth, onlyMaster, (req, res) => {
     try {
-        openaiHelper.clearCache();
+        claudeHelper.clearCache();
         res.json({
             success: true,
             mensaje: 'Cache limpiado exitosamente'
