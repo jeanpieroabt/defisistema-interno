@@ -1008,11 +1008,19 @@
                     <button class="btn-crear-tarea" id="btnModoSeleccion" onclick="toggleModoSeleccion()" style="display: none; background: linear-gradient(135deg, #6c757d 0%, #495057 100%);">
                         ☑️ Modo Selección
                     </button>
+                    <button class="btn-crear-tarea" id="btnEliminarTodas" onclick="eliminarTodasLasTareas()" style="display: none; background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);">
+                        🗑️ Eliminar TODAS
+                    </button>
+                </div>
+                <div id="tareasInfoTotal" style="display:none; margin-top:8px; padding:8px 12px; background:#fef3c7; border-radius:8px; font-size:0.85rem; color:#92400e;">
                 </div>
             </div>
 
             <div id="tareasGrid" class="tareas-grid">
                 <!-- Las tareas se cargarán aquí dinámicamente -->
+            </div>
+            <div style="text-align:center; margin-top:10px;">
+                <button id="btnCargarMasTareas" onclick="cargarMasTareas()" style="display:none; padding:8px 24px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:8px; cursor:pointer; font-size:0.85rem; color:#374151;">Cargar mas tareas</button>
             </div>
 
             <!-- Barra de acciones múltiples -->
@@ -1246,42 +1254,77 @@
         let modoSeleccion = false;
         let tareasSeleccionadas = new Set();
 
+        let todasLasTareas = [];
+        let tareasVisibles = 50;
+
         async function cargarTareas() {
             try {
                 const estado = document.getElementById('filtroEstado').value;
                 const asignado = document.getElementById('filtroAsignado').value;
-                
+
                 let url = '/api/tareas?';
                 if (estado) url += `estado=${estado}&`;
                 if (asignado) url += `asignado_a=${asignado}`;
-                
+
                 const response = await fetch(url);
-                const tareas = await response.json();
-                
-                const grid = document.getElementById('tareasGrid');
-                const noTareas = document.getElementById('noTareas');
-                
-                if (tareas.length === 0) {
-                    grid.innerHTML = '';
-                    noTareas.style.display = 'block';
-                    return;
-                }
-                
-                noTareas.style.display = 'none';
-                grid.innerHTML = tareas.map(tarea => crearTarjetaTarea(tarea)).join('');
-                
-                // Restaurar estado de checkboxes si está en modo selección
-                if (modoSeleccion) {
-                    tareasSeleccionadas.forEach(id => {
-                        const checkbox = document.querySelector(`input[data-tarea-id="${id}"]`);
-                        const card = document.querySelector(`.tarea-card[data-tarea-id="${id}"]`);
-                        if (checkbox) checkbox.checked = true;
-                        if (card) card.classList.add('selected');
-                    });
-                }
+                todasLasTareas = await response.json();
+                tareasVisibles = 50;
+                renderTareas();
             } catch (error) {
                 console.error('Error cargando tareas:', error);
             }
+        }
+
+        function renderTareas() {
+            const grid = document.getElementById('tareasGrid');
+            const noTareas = document.getElementById('noTareas');
+            const btnCargar = document.getElementById('btnCargarMasTareas');
+            const infoTotal = document.getElementById('tareasInfoTotal');
+            const btnEliminarTodas = document.getElementById('btnEliminarTodas');
+
+            if (todasLasTareas.length === 0) {
+                grid.innerHTML = '';
+                noTareas.style.display = 'block';
+                btnCargar.style.display = 'none';
+                infoTotal.style.display = 'none';
+                if (btnEliminarTodas) btnEliminarTodas.style.display = 'none';
+                return;
+            }
+
+            noTareas.style.display = 'none';
+
+            // Mostrar info si hay muchas
+            if (todasLasTareas.length > 50) {
+                infoTotal.style.display = 'block';
+                infoTotal.textContent = `Hay ${todasLasTareas.length} tareas en total. Mostrando ${Math.min(tareasVisibles, todasLasTareas.length)}. Usa "Eliminar TODAS" para limpiar.`;
+            } else {
+                infoTotal.style.display = 'none';
+            }
+
+            // Mostrar botón eliminar todas si es master
+            if (btnEliminarTodas && todasLasTareas.length > 0) {
+                btnEliminarTodas.style.display = 'inline-flex';
+            }
+
+            const mostrar = todasLasTareas.slice(0, tareasVisibles);
+            grid.innerHTML = mostrar.map(tarea => crearTarjetaTarea(tarea)).join('');
+
+            btnCargar.style.display = tareasVisibles < todasLasTareas.length ? 'inline-block' : 'none';
+
+            // Restaurar estado de checkboxes si está en modo selección
+            if (modoSeleccion) {
+                tareasSeleccionadas.forEach(id => {
+                    const checkbox = document.querySelector(`input[data-tarea-id="${id}"]`);
+                    const card = document.querySelector(`.tarea-card[data-tarea-id="${id}"]`);
+                    if (checkbox) checkbox.checked = true;
+                    if (card) card.classList.add('selected');
+                });
+            }
+        }
+
+        function cargarMasTareas() {
+            tareasVisibles += 50;
+            renderTareas();
         }
 
         function toggleModoSeleccion() {
