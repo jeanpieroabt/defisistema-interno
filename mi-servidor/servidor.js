@@ -5495,6 +5495,45 @@ app.delete('/api/tareas/:id', apiAuth, onlyMaster, (req, res) => {
     });
 });
 
+// Borrado masivo de tareas
+app.post('/api/tareas/bulk-delete', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { ids, deleteAll, filtroEstado } = req.body;
+
+        if (deleteAll) {
+            // Borrar todas (o filtradas por estado)
+            let whereClause = '';
+            const params = [];
+            if (filtroEstado && filtroEstado !== 'todos') {
+                whereClause = ' WHERE estado = ?';
+                params.push(filtroEstado);
+            }
+
+            const countRow = await dbGet(`SELECT COUNT(*) as total FROM tareas${whereClause}`, params);
+            const total = countRow ? countRow.total : 0;
+
+            await dbRun(`DELETE FROM notificaciones WHERE tarea_id IN (SELECT id FROM tareas${whereClause})`, params);
+            await dbRun(`DELETE FROM tareas${whereClause}`, params);
+
+            console.log(`[TAREAS] Borrado masivo: ${total} tareas eliminadas (filtro: ${filtroEstado || 'todos'})`);
+            res.json({ message: `${total} tareas eliminadas.`, total });
+        } else if (ids && Array.isArray(ids) && ids.length > 0) {
+            // Borrar por IDs específicos
+            const placeholders = ids.map(() => '?').join(',');
+            await dbRun(`DELETE FROM notificaciones WHERE tarea_id IN (${placeholders})`, ids);
+            await dbRun(`DELETE FROM tareas WHERE id IN (${placeholders})`, ids);
+
+            console.log(`[TAREAS] Borrado masivo: ${ids.length} tareas eliminadas por IDs`);
+            res.json({ message: `${ids.length} tareas eliminadas.`, total: ids.length });
+        } else {
+            res.status(400).json({ message: 'Especifica IDs o deleteAll: true' });
+        }
+    } catch (e) {
+        console.error('Error en borrado masivo de tareas:', e.message);
+        res.status(500).json({ message: 'Error al eliminar tareas.' });
+    }
+});
+
 // Listar notificaciones
 app.get('/api/notificaciones', apiAuth, (req, res) => {
     const userId = req.session.user.id;

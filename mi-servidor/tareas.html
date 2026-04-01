@@ -1021,6 +1021,7 @@
                 <button class="btn-select-all" onclick="selectAllTareas()">✓ Seleccionar todas</button>
                 <button class="btn-cancel-selected" onclick="cancelarTareasSeleccionadas()" style="background: linear-gradient(135deg, #ffa726 0%, #fb8c00 100%);">🚫 Cancelar seleccionadas</button>
                 <button class="btn-delete-selected" onclick="eliminarTareasSeleccionadas()">🗑️ Eliminar seleccionadas</button>
+                <button class="btn-delete-selected" onclick="eliminarTodasLasTareas()" style="background: #7c3aed;">🗑️ Eliminar TODAS</button>
                 <button class="btn-cancel-selection" onclick="cancelarSeleccion()">✗ Cancelar selección</button>
             </div>
 
@@ -1356,18 +1357,47 @@
 
         async function eliminarTareasSeleccionadas() {
             if (tareasSeleccionadas.size === 0) return;
-            
-            const confirmacion = confirm(`¿Estás seguro de eliminar ${tareasSeleccionadas.size} tarea(s)? Esta acción no se puede deshacer.`);
+
+            const confirmacion = confirm(`¿Eliminar ${tareasSeleccionadas.size} tarea(s)? Esta acción no se puede deshacer.`);
             if (!confirmacion) return;
-            
+
             try {
-                const promesas = Array.from(tareasSeleccionadas).map(id => 
-                    fetch(`/api/tareas/${id}`, { method: 'DELETE' })
-                );
-                
-                await Promise.all(promesas);
-                
-                alert(`Se eliminaron ${tareasSeleccionadas.size} tarea(s) correctamente`);
+                const resp = await fetch('/api/tareas/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: Array.from(tareasSeleccionadas) })
+                });
+                const data = await resp.json();
+
+                alert(data.message || `${tareasSeleccionadas.size} tarea(s) eliminadas`);
+                tareasSeleccionadas.clear();
+                actualizarBarraAcciones();
+                await cargarTareas();
+            } catch (error) {
+                console.error('Error eliminando tareas:', error);
+                alert('Error al eliminar las tareas');
+            }
+        }
+
+        async function eliminarTodasLasTareas() {
+            const filtroActual = document.getElementById('filtroEstado')?.value || 'todos';
+            const textoFiltro = filtroActual === 'todos' ? 'TODAS las tareas' : `todas las tareas con estado "${filtroActual}"`;
+
+            const confirmacion = confirm(`¿Eliminar ${textoFiltro}?\n\nEsta acción eliminará TODAS las tareas de la base de datos y no se puede deshacer.`);
+            if (!confirmacion) return;
+
+            const confirmacion2 = confirm('¿Estás completamente seguro? Escribe OK para confirmar.');
+            if (!confirmacion2) return;
+
+            try {
+                const resp = await fetch('/api/tareas/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deleteAll: true, filtroEstado: filtroActual })
+                });
+                const data = await resp.json();
+
+                alert(data.message);
                 tareasSeleccionadas.clear();
                 actualizarBarraAcciones();
                 await cargarTareas();
@@ -1379,21 +1409,21 @@
 
         async function cancelarTareasSeleccionadas() {
             if (tareasSeleccionadas.size === 0) return;
-            
-            const confirmacion = confirm(`¿Estás seguro de cancelar ${tareasSeleccionadas.size} tarea(s)?`);
+
+            const confirmacion = confirm(`¿Cancelar ${tareasSeleccionadas.size} tarea(s)?`);
             if (!confirmacion) return;
-            
+
             try {
-                const promesas = Array.from(tareasSeleccionadas).map(id => 
+                const promesas = Array.from(tareasSeleccionadas).map(id =>
                     fetch(`/api/tareas/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ estado: 'cancelada' })
                     })
                 );
-                
+
                 await Promise.all(promesas);
-                
+
                 alert(`Se cancelaron ${tareasSeleccionadas.size} tarea(s) correctamente`);
                 tareasSeleccionadas.clear();
                 actualizarBarraAcciones();
