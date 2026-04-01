@@ -634,7 +634,10 @@
                         <option value="operador" ${u.role === 'operador' ? 'selected' : ''}>Operador</option>
                     </select>
                 </td>
-                <td class="actions-cell"><button class="btn btn-save" onclick="editUser(${u.id})">Guardar</button></td>
+                <td class="actions-cell">
+                    <button class="btn btn-save" onclick="editUser(${u.id})">Guardar</button>
+                    <button class="btn btn-danger" onclick="deleteUser(${u.id}, '${u.username}')">Eliminar</button>
+                </td>
             `;
             tbody.appendChild(tr);
         });
@@ -657,7 +660,13 @@
         if (r.ok) fetchUsuarios();
     }
     
-    // Funciones legacy de compras eliminadas - todo se maneja desde stock.html
+    async function deleteUser(id, username) {
+        if (!confirm(`¿Eliminar al operador "${username}"?\nEsta acción no se puede deshacer.`)) return;
+        const r = await fetch(`/api/usuarios/${id}`, { method: 'DELETE' });
+        const res = await r.json();
+        showToast(res.message || 'Error', r.ok ? 'success' : 'error');
+        if (r.ok) fetchUsuarios();
+    }
 
     document.getElementById('fCapital').onsubmit = async (e)=>{
       e.preventDefault();

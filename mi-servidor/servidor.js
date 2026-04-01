@@ -3279,6 +3279,25 @@ app.put('/api/usuarios/:id', apiAuth, onlyMaster, async (req, res) => {
     });
 });
 
+app.delete('/api/usuarios/:id', apiAuth, onlyMaster, async (req, res) => {
+    const userId = req.params.id;
+    // No permitir eliminar el propio usuario
+    if (Number(userId) === req.session.user.id) {
+        return res.status(400).json({ message: 'No puedes eliminarte a ti mismo.' });
+    }
+    try {
+        const user = await dbGet('SELECT id, username, role FROM usuarios WHERE id = ?', [userId]);
+        if (!user) return res.status(404).json({ message: 'Usuario no encontrado.' });
+
+        await dbRun('DELETE FROM usuarios WHERE id = ?', [userId]);
+        console.log(`[ADMIN] Usuario "${user.username}" (ID: ${userId}, rol: ${user.role}) eliminado por ${req.session.user.username}`);
+        res.json({ message: `Operador "${user.username}" eliminado con éxito.` });
+    } catch (e) {
+        console.error('Error eliminando usuario:', e.message);
+        res.status(500).json({ message: 'Error al eliminar usuario.' });
+    }
+});
+
 app.post('/api/create-operator', apiAuth, onlyMaster, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ message: 'Datos incompletos' });
