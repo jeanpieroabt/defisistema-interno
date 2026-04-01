@@ -16,8 +16,8 @@ const MODEL_COSTS = {
     'claude-haiku-4-20250414': { input: 0.80, output: 4.00 }
 };
 
-// Modelo por defecto - Haiku es rapido y barato para chatbot
-const DEFAULT_MODEL = 'claude-haiku-4-20250414';
+// Modelo por defecto - Sonnet 4 para chatbot con tool_use
+const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 
 // Cache simple para respuestas (evita llamadas duplicadas)
 const responseCache = new Map();
