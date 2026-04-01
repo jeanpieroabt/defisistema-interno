@@ -11109,6 +11109,62 @@ app.put('/api/clientes-app/:id/verificacion', apiAuth, async (req, res) => {
     }
 });
 
+// POST /api/clientes-app/:id/subir-documentos — Admin sube docs de verificación por el usuario
+app.post('/api/clientes-app/:id/subir-documentos', apiAuth, upload.fields([
+    { name: 'doc_frente', maxCount: 1 },
+    { name: 'doc_reverso', maxCount: 1 }
+]), async (req, res) => {
+    try {
+        const clienteId = req.params.id;
+        const cliente = await dbGet('SELECT id, nombre FROM clientes_app WHERE id = ?', [clienteId]);
+        if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+        if (!req.files || (!req.files['doc_frente'] && !req.files['doc_reverso'])) {
+            return res.status(400).json({ error: 'Debes enviar al menos un documento (frente o reverso)' });
+        }
+
+        const uploadsBaseDir = process.env.DATA_DIR || __dirname;
+        const uploadsDir = path.join(uploadsBaseDir, 'uploads', 'verificaciones', clienteId.toString());
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        const updates = [];
+        const params = [];
+
+        if (req.files['doc_frente']) {
+            const docFrente = req.files['doc_frente'][0];
+            const frenteExt = path.extname(docFrente.originalname).toLowerCase().replace(/[^.a-z]/g, '') || '.jpg';
+            const frenteFilename = `frente_${Date.now()}${frenteExt}`;
+            fs.writeFileSync(path.join(uploadsDir, frenteFilename), docFrente.buffer);
+            updates.push('verificacion_doc_frente = ?');
+            params.push(`/uploads/verificaciones/${clienteId}/${frenteFilename}`);
+        }
+
+        if (req.files['doc_reverso']) {
+            const docReverso = req.files['doc_reverso'][0];
+            const reversoExt = path.extname(docReverso.originalname).toLowerCase().replace(/[^.a-z]/g, '') || '.jpg';
+            const reversoFilename = `reverso_${Date.now()}${reversoExt}`;
+            fs.writeFileSync(path.join(uploadsDir, reversoFilename), docReverso.buffer);
+            updates.push('verificacion_doc_reverso = ?');
+            params.push(`/uploads/verificaciones/${clienteId}/${reversoFilename}`);
+        }
+
+        // Marcar como pendiente si estaba sin solicitar, y registrar fecha de solicitud
+        updates.push("verificacion_fecha_solicitud = datetime('now')");
+        updates.push("verificacion_estado = CASE WHEN verificacion_estado = 'no_verificado' THEN 'pendiente' ELSE verificacion_estado END");
+
+        params.push(clienteId);
+        await dbRun(`UPDATE clientes_app SET ${updates.join(', ')} WHERE id = ?`, params);
+
+        console.log(`[ADMIN] Documentos subidos para cliente ${cliente.nombre} (ID: ${clienteId})`);
+        res.json({ success: true, mensaje: `Documentos subidos para ${cliente.nombre}` });
+    } catch (error) {
+        console.error('Error subiendo documentos admin:', error.message);
+        res.status(500).json({ error: 'Error al subir documentos' });
+    }
+});
+
 // DELETE /api/clientes-app/:id - Eliminar usuario de la app
 app.delete('/api/clientes-app/:id', apiAuth, async (req, res) => {
     try {

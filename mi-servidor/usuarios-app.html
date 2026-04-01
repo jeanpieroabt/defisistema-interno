@@ -1013,6 +1013,132 @@
     .bono-stat-card.reclamados .value { color: #d97706; }
     .bono-stat-card.completados .value { color: #16a34a; }
     .bono-stat-card.pagados .value { color: #2563eb; }
+
+    /* Upload manual de documentos */
+    .upload-section {
+      margin-top: 1.5rem;
+      padding: 1.5rem;
+      background: #f0f9ff;
+      border: 2px dashed #93c5fd;
+      border-radius: 12px;
+    }
+
+    .upload-section h3 {
+      margin: 0 0 0.5rem 0;
+      color: #1e40af;
+      font-size: 1.05rem;
+    }
+
+    .upload-section p {
+      font-size: 0.82rem;
+      color: #64748b;
+      margin: 0 0 1rem 0;
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .upload-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .upload-item label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .upload-item input[type="file"] {
+      font-size: 0.82rem;
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+    }
+
+    .upload-item input[type="file"]::file-selector-button {
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.78rem;
+      margin-right: 0.5rem;
+    }
+
+    .upload-preview {
+      width: 100%;
+      max-height: 120px;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      display: none;
+    }
+
+    .btn-upload {
+      width: 100%;
+      padding: 0.85rem;
+      background: linear-gradient(135deg, #2D8CDB 0%, #2EC7A3 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn-upload:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(45,140,219,0.4);
+    }
+
+    .btn-upload:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .upload-status {
+      text-align: center;
+      padding: 0.5rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+      display: none;
+    }
+
+    .upload-status.success {
+      display: block;
+      background: #dcfce7;
+      color: #16a34a;
+    }
+
+    .upload-status.error {
+      display: block;
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    @media (max-width: 768px) {
+      .upload-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1417,7 +1543,7 @@
               <div class="doc-card">
                 <div class="doc-label">Frente del Documento</div>
                 <div class="doc-image">
-                  ${user.verificacion_doc_frente 
+                  ${user.verificacion_doc_frente
                     ? `<a href="${user.verificacion_doc_frente}" target="_blank"><img src="${user.verificacion_doc_frente}" alt="Documento Frente"></a>`
                     : '<span class="no-doc">No subido</span>'
                   }
@@ -1426,7 +1552,7 @@
               <div class="doc-card">
                 <div class="doc-label">Reverso del Documento</div>
                 <div class="doc-image">
-                  ${user.verificacion_doc_reverso 
+                  ${user.verificacion_doc_reverso
                     ? `<a href="${user.verificacion_doc_reverso}" target="_blank"><img src="${user.verificacion_doc_reverso}" alt="Documento Reverso"></a>`
                     : '<span class="no-doc">No subido</span>'
                   }
@@ -1435,45 +1561,57 @@
             </div>
           </div>
 
+          <!-- Carga manual de documentos (admin) -->
+          <div class="upload-section">
+            <h3>📤 Cargar Documentos Manualmente</h3>
+            <p>Si el usuario tiene problemas para subir sus documentos desde la app, puedes cargarlos aquí. Selecciona las imágenes que te envió el cliente.</p>
+            <div class="upload-grid">
+              <div class="upload-item">
+                <label>Frente del Documento</label>
+                <input type="file" id="adminDocFrente" accept="image/jpeg,image/png,image/webp" onchange="previewUpload(this, 'previewFrente')">
+                <img id="previewFrente" class="upload-preview" alt="Preview frente">
+              </div>
+              <div class="upload-item">
+                <label>Reverso del Documento</label>
+                <input type="file" id="adminDocReverso" accept="image/jpeg,image/png,image/webp" onchange="previewUpload(this, 'previewReverso')">
+                <img id="previewReverso" class="upload-preview" alt="Preview reverso">
+              </div>
+            </div>
+            <button class="btn-upload" onclick="handleAdminUpload()" id="btnUploadDocs">
+              📤 Subir Documentos
+            </button>
+            <div class="upload-status" id="uploadStatus"></div>
+          </div>
+
           <!-- Acciones de verificación -->
-          ${canVerify ? `
           <div class="verification-actions">
             <h3>✅ Acciones de Verificación</h3>
-            <textarea class="notes-input" id="verificationNotes" placeholder="Notas (opcional) - Motivo del rechazo si aplica..."></textarea>
+            ${user.verificacion_estado === 'verificado' ? `
+              <p style="font-size:13px; color:#64748B; margin-bottom:10px;">Este usuario ya está verificado. Puedes revocar su verificación si es necesario.</p>
+            ` : user.verificacion_estado === 'rechazado' ? `
+              <p style="font-size:13px; color:#64748B; margin-bottom:10px;">Este usuario fue rechazado. Puedes aprobarlo si deseas otorgarle la verificación.</p>
+            ` : user.verificacion_estado === 'no_verificado' ? `
+              <p style="font-size:13px; color:#64748B; margin-bottom:10px;">Puedes aprobar directamente si ya verificaste su identidad por otro medio, o subir los documentos primero.</p>
+            ` : ''}
+            <textarea class="notes-input" id="verificationNotes" placeholder="Notas (opcional) - Motivo del rechazo o aprobación..."></textarea>
             <div class="action-buttons">
-              <button class="verify-btn approve" onclick="handleVerification('aprobar')">
-                ✅ Aprobar Verificación
-              </button>
-              <button class="verify-btn reject" onclick="handleVerification('rechazar')">
-                ❌ Rechazar Verificación
-              </button>
+              ${user.verificacion_estado !== 'verificado' ? `
+                <button class="verify-btn approve" onclick="handleVerification('aprobar')">
+                  ✅ Aprobar Verificación
+                </button>
+              ` : ''}
+              ${user.verificacion_estado === 'pendiente' ? `
+                <button class="verify-btn reject" onclick="handleVerification('rechazar')">
+                  ❌ Rechazar
+                </button>
+              ` : ''}
+              ${user.verificacion_estado === 'verificado' ? `
+                <button class="verify-btn reject" onclick="handleVerification('revocar')">
+                  🔄 Revocar Verificación
+                </button>
+              ` : ''}
             </div>
           </div>
-          ` : ''}
-          ${user.verificacion_estado === 'verificado' ? `
-          <div class="verification-actions">
-            <h3>🔄 Revocar Verificación</h3>
-            <p style="font-size:13px; color:#64748B; margin-bottom:10px;">Al revocar, el usuario deberá enviar sus documentos nuevamente para verificarse.</p>
-            <textarea class="notes-input" id="verificationNotes" placeholder="Motivo de la revocación (opcional)..."></textarea>
-            <div class="action-buttons">
-              <button class="verify-btn reject" onclick="handleVerification('revocar')">
-                🔄 Revocar Verificación
-              </button>
-            </div>
-          </div>
-          ` : ''}
-          ${user.verificacion_estado === 'rechazado' ? `
-          <div class="verification-actions">
-            <h3>⚙️ Cambiar Estado</h3>
-            <p style="font-size:13px; color:#64748B; margin-bottom:10px;">Este usuario fue rechazado. Puedes aprobarlo si deseas otorgarle la verificación.</p>
-            <textarea class="notes-input" id="verificationNotes" placeholder="Notas (opcional)..."></textarea>
-            <div class="action-buttons">
-              <button class="verify-btn approve" onclick="handleVerification('aprobar')">
-                ✅ Aprobar Verificación
-              </button>
-            </div>
-          </div>
-          ` : ''}
 
           <!-- Eliminar usuario -->
           <div class="verification-actions" style="margin-top: 20px; border-top: 2px solid #FEE2E2; padding-top: 15px;">
@@ -1614,6 +1752,72 @@
 
     function formatMoney(amount) {
       return new Intl.NumberFormat('es-CL').format(Math.round(amount));
+    }
+
+    // Preview de imagen antes de subir
+    function previewUpload(input, previewId) {
+      const preview = document.getElementById(previewId);
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
+    // Subir documentos como admin
+    async function handleAdminUpload() {
+      if (!currentUserId) return;
+
+      const frenteInput = document.getElementById('adminDocFrente');
+      const reversoInput = document.getElementById('adminDocReverso');
+
+      if (!frenteInput.files.length && !reversoInput.files.length) {
+        alert('Selecciona al menos un documento (frente o reverso)');
+        return;
+      }
+
+      const btn = document.getElementById('btnUploadDocs');
+      const statusDiv = document.getElementById('uploadStatus');
+      btn.disabled = true;
+      btn.textContent = '⏳ Subiendo...';
+      statusDiv.className = 'upload-status';
+      statusDiv.style.display = 'none';
+
+      try {
+        const formData = new FormData();
+        if (frenteInput.files.length) formData.append('doc_frente', frenteInput.files[0]);
+        if (reversoInput.files.length) formData.append('doc_reverso', reversoInput.files[0]);
+
+        const res = await fetch(`/api/clientes-app/${currentUserId}/subir-documentos`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          statusDiv.textContent = '✅ ' + data.mensaje;
+          statusDiv.className = 'upload-status success';
+          // Recargar el modal para ver las imágenes subidas
+          setTimeout(() => openUserDetail(currentUserId), 1500);
+        } else {
+          statusDiv.textContent = '❌ ' + (data.error || 'Error al subir');
+          statusDiv.className = 'upload-status error';
+          btn.disabled = false;
+          btn.innerHTML = '📤 Subir Documentos';
+        }
+      } catch (error) {
+        console.error('Error subiendo documentos:', error);
+        statusDiv.textContent = '❌ Error de conexión';
+        statusDiv.className = 'upload-status error';
+        btn.disabled = false;
+        btn.innerHTML = '📤 Subir Documentos';
+      }
     }
 
     // Cerrar modal con ESC
