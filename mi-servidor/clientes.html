@@ -801,92 +801,136 @@
             const duplicadosContent = document.getElementById('duplicadosContent');
             
             document.getElementById('btnDetectarDuplicados').addEventListener('click', async () => {
-                duplicadosContent.innerHTML = '<p style="text-align:center">🔍 Buscando duplicados...</p>';
+                duplicadosContent.innerHTML = '<p style="text-align:center; padding:2rem;">🔍 Analizando clientes...</p>';
                 duplicadosModal.style.display = 'flex';
-                
+
                 try {
                     const res = await fetch('/api/clientes/duplicados');
                     if (!res.ok) throw new Error('Error al buscar duplicados');
-                    
-                    const duplicados = await res.json();
-                    
-                    if (duplicados.length === 0) {
+
+                    const data = await res.json();
+                    const { fantasmas, grupos, resumen } = data;
+
+                    if (resumen.total_grupos === 0 && fantasmas.length === 0) {
                         duplicadosContent.innerHTML = `
                             <div style="text-align:center; padding:2rem; color:var(--success);">
                                 <h3>✅ No se encontraron duplicados</h3>
-                                <p>Todos los nombres de clientes son únicos.</p>
-                            </div>
-                        `;
+                                <p>Todos los clientes son únicos y no hay registros fantasma.</p>
+                            </div>`;
                         return;
                     }
-                    
-                    duplicadosContent.innerHTML = `
-                        <div style="background:#fff3cd; padding:1rem; border-radius:8px; margin-bottom:1rem;">
-                            <strong>⚠️ Se encontraron ${duplicados.length} grupos de clientes duplicados.</strong>
-                            <p style="margin:0.5rem 0 0 0; font-size:0.9rem;">Selecciona el cliente principal (MANTENER) y marca los que deseas fusionar en cada grupo.</p>
+
+                    let html = '';
+
+                    // ========= RESUMEN =========
+                    html += `<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap:0.75rem; margin-bottom:1.5rem;">
+                        <div style="background:#fef2f2; padding:0.75rem; border-radius:8px; text-align:center;">
+                            <div style="font-size:1.5rem; font-weight:800; color:#dc2626;">${fantasmas.length}</div>
+                            <div style="font-size:0.8rem; color:#991b1b;">Fantasmas</div>
                         </div>
-                        <div style="text-align:right; margin-bottom:1rem;">
-                            <button id="btnFusionarTodos" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                                🔗 Fusionar Todos los Grupos Seleccionados
+                        <div style="background:#fef3c7; padding:0.75rem; border-radius:8px; text-align:center;">
+                            <div style="font-size:1.5rem; font-weight:800; color:#d97706;">${resumen.total_exactos}</div>
+                            <div style="font-size:0.8rem; color:#92400e;">Nombre exacto</div>
+                        </div>
+                        <div style="background:#dbeafe; padding:0.75rem; border-radius:8px; text-align:center;">
+                            <div style="font-size:1.5rem; font-weight:800; color:#2563eb;">${resumen.total_parciales}</div>
+                            <div style="font-size:0.8rem; color:#1e40af;">Re-registro</div>
+                        </div>
+                        <div style="background:#ede9fe; padding:0.75rem; border-radius:8px; text-align:center;">
+                            <div style="font-size:1.5rem; font-weight:800; color:#7c3aed;">${resumen.total_datos_compartidos}</div>
+                            <div style="font-size:0.8rem; color:#5b21b6;">Datos iguales</div>
+                        </div>
+                    </div>`;
+
+                    // ========= FANTASMAS =========
+                    if (fantasmas.length > 0) {
+                        html += `<div style="background:#fef2f2; border:2px solid #fca5a5; border-radius:12px; padding:1.25rem; margin-bottom:1.5rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                                <h4 style="margin:0; color:#dc2626;">👻 Registros Fantasma (${fantasmas.length})</h4>
+                                <button id="btnEliminarFantasmas" class="btn" style="background:#dc2626; color:white; padding:0.5rem 1rem; font-size:0.85rem;">
+                                    🗑️ Eliminar todos
+                                </button>
+                            </div>
+                            <p style="font-size:0.85rem; color:#991b1b; margin:0 0 1rem 0;">Clientes sin datos (RUT, email, teléfono) y sin operaciones. Solo tienen el nombre registrado.</p>
+                            <div style="max-height:200px; overflow-y:auto; display:flex; flex-wrap:wrap; gap:0.5rem;">
+                                ${fantasmas.map(f => `<span style="background:white; padding:0.35rem 0.75rem; border-radius:6px; font-size:0.85rem; border:1px solid #fca5a5;">${f.nombre} <small style="color:#9ca3af;">ID:${f.id}</small></span>`).join('')}
+                            </div>
+                        </div>`;
+                    }
+
+                    // ========= GRUPOS DUPLICADOS =========
+                    if (grupos.length > 0) {
+                        html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <h4 style="margin:0;">📋 Grupos Duplicados (${grupos.length})</h4>
+                            <button id="btnFusionarTodos" class="btn" style="background:linear-gradient(135deg,#10b981,#059669); color:white; padding:0.5rem 1rem; font-size:0.85rem;">
+                                🔗 Fusionar Seleccionados
                             </button>
-                        </div>
-                    `;
-                    
-                    duplicados.forEach((grupo, idx) => {
-                        const grupoDiv = document.createElement('div');
-                        grupoDiv.style.cssText = 'background:white; border:2px solid #dee2e6; border-radius:12px; padding:1.5rem; margin-bottom:1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08);';
-                        grupoDiv.dataset.grupoId = idx;
-                        
-                        let clientesHTML = grupo.clientes.map(c => {
-                            const tieneDatos = c.rut || c.email || c.telefono;
-                            const datosExtra = [];
-                            if (c.rut) datosExtra.push(`<span style="background:#e0f2fe; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.85rem;">📋 RUT: ${c.rut}</span>`);
-                            if (c.email) datosExtra.push(`<span style="background:#dbeafe; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.85rem;">📧 ${c.email}</span>`);
-                            if (c.telefono) datosExtra.push(`<span style="background:#e0e7ff; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.85rem;">📱 ${c.telefono}</span>`);
-                            
-                            return `
-                                <div style="padding:1rem; background:${tieneDatos ? '#f0fdf4' : '#f8f9fa'}; border-radius:8px; margin-bottom:0.75rem; border-left: 4px solid ${tieneDatos ? '#10b981' : '#d1d5db'};">
-                                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:0.5rem;">
-                                        <div style="flex:1;">
-                                            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
-                                                <strong style="font-size:1.1rem;">${c.nombre}</strong>
-                                                <span style="background:#e5e7eb; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.8rem; color:#6b7280;">ID: ${c.id}</span>
-                                                ${!tieneDatos ? '<span style="background:#fef3c7; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.8rem; color:#92400e;">⚠️ Solo nombre</span>' : ''}
+                        </div>`;
+
+                        grupos.forEach((grupo, idx) => {
+                            const colores = { exacto: '#f59e0b', parcial: '#3b82f6', datos: '#7c3aed' };
+                            const iconos = { exacto: '⚠️', parcial: '🔄', datos: '🔗' };
+                            const color = colores[grupo.tipo] || '#6b7280';
+                            const icono = iconos[grupo.tipo] || '📋';
+
+                            let clientesHTML = grupo.clientes.map(c => {
+                                const tieneDatos = c.rut || c.email || c.telefono;
+                                const datosExtra = [];
+                                if (c.rut) datosExtra.push(`<span style="background:#e0f2fe; padding:0.2rem 0.4rem; border-radius:4px; font-size:0.8rem;">RUT: ${c.rut}</span>`);
+                                if (c.email) datosExtra.push(`<span style="background:#dbeafe; padding:0.2rem 0.4rem; border-radius:4px; font-size:0.8rem;">📧 ${c.email}</span>`);
+                                if (c.telefono) datosExtra.push(`<span style="background:#e0e7ff; padding:0.2rem 0.4rem; border-radius:4px; font-size:0.8rem;">📱 ${c.telefono}</span>`);
+
+                                return `<div style="padding:0.75rem; background:${tieneDatos ? '#f0fdf4' : '#f8f9fa'}; border-radius:8px; margin-bottom:0.5rem; border-left:4px solid ${tieneDatos ? '#10b981' : '#d1d5db'};">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                                        <div style="flex:1; min-width:200px;">
+                                            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                                                <strong>${c.nombre}</strong>
+                                                <span style="background:#e5e7eb; padding:0.15rem 0.4rem; border-radius:4px; font-size:0.75rem; color:#6b7280;">ID:${c.id}</span>
+                                                ${c.sin_datos ? '<span style="background:#fef3c7; padding:0.15rem 0.4rem; border-radius:4px; font-size:0.75rem; color:#92400e;">Solo nombre</span>' : ''}
                                             </div>
-                                            <div style="font-size:0.9rem; color:#6b7280; margin-bottom:0.5rem;">
-                                                📊 ${c.operaciones} operaciones registradas
+                                            <div style="font-size:0.8rem; color:#6b7280; margin-top:0.25rem;">
+                                                📊 ${c.operaciones} ops | 📅 ${c.fecha_creacion || '—'}
                                             </div>
-                                            ${datosExtra.length > 0 ? `<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;">${datosExtra.join('')}</div>` : ''}
+                                            ${datosExtra.length > 0 ? `<div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.35rem;">${datosExtra.join('')}</div>` : ''}
                                         </div>
-                                        <div style="display:flex; flex-direction:column; gap:0.5rem; align-items:end;">
-                                            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; background:#3b82f6; color:white; padding:0.5rem 1rem; border-radius:6px; font-weight:600; font-size:0.9rem;">
-                                                <input type="radio" name="principal_${idx}" value="${c.id}" style="transform:scale(1.3);">
-                                                MANTENER
+                                        <div style="display:flex; gap:0.35rem; align-items:center;">
+                                            <label style="display:flex; align-items:center; gap:0.3rem; cursor:pointer; background:#3b82f6; color:white; padding:0.4rem 0.7rem; border-radius:6px; font-weight:600; font-size:0.8rem;">
+                                                <input type="radio" name="principal_${idx}" value="${c.id}" ${tieneDatos && c.operaciones > 0 ? 'checked' : ''}>
+                                                Mantener
                                             </label>
-                                            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; background:#f3f4f6; color:#374151; padding:0.5rem 1rem; border-radius:6px; font-weight:600; font-size:0.9rem;">
-                                                <input type="checkbox" class="fusionar_${idx}" value="${c.id}" style="transform:scale(1.3);">
+                                            <label style="display:flex; align-items:center; gap:0.3rem; cursor:pointer; background:#f3f4f6; color:#374151; padding:0.4rem 0.7rem; border-radius:6px; font-weight:600; font-size:0.8rem;">
+                                                <input type="checkbox" class="fusionar_${idx}" value="${c.id}" ${c.sin_datos && c.operaciones === 0 ? 'checked' : ''}>
                                                 Fusionar
                                             </label>
                                         </div>
                                     </div>
+                                </div>`;
+                            }).join('');
+
+                            html += `<div style="background:white; border:2px solid #dee2e6; border-radius:12px; padding:1.25rem; margin-bottom:0.75rem; box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+                                    <span style="font-size:1.2rem;">${icono}</span>
+                                    <strong style="font-size:1.05rem; color:#374151;">${grupo.nombre_base}</strong>
+                                    <span style="background:${color}20; color:${color}; padding:0.2rem 0.6rem; border-radius:6px; font-size:0.75rem; font-weight:700;">${grupo.razon}</span>
+                                    <span style="background:#e5e7eb; padding:0.2rem 0.5rem; border-radius:6px; font-size:0.75rem;">${grupo.clientes.length} clientes</span>
                                 </div>
-                            `;
-                        }).join('');
-                        
-                        grupoDiv.innerHTML = `
-                            <h4 style="margin:0 0 1rem 0; color:#374151; font-size:1.2rem; display:flex; align-items:center; gap:0.5rem;">
-                                📋 Grupo: "${grupo.nombre_base}"
-                                <span style="background:#e5e7eb; padding:0.25rem 0.75rem; border-radius:6px; font-size:0.9rem; font-weight:normal;">${grupo.clientes.length} clientes</span>
-                            </h4>
-                            ${clientesHTML}
-                        `;
-                        
-                        duplicadosContent.appendChild(grupoDiv);
-                    });
-                    
-                    // Event listener para el botón de fusión masiva
-                    document.getElementById('btnFusionarTodos').addEventListener('click', () => fusionarTodosLosGrupos(duplicados));
-                    
+                                ${clientesHTML}
+                            </div>`;
+                        });
+                    }
+
+                    duplicadosContent.innerHTML = html;
+
+                    // Listeners
+                    const btnFantasmas = document.getElementById('btnEliminarFantasmas');
+                    if (btnFantasmas) {
+                        btnFantasmas.addEventListener('click', () => eliminarFantasmas(fantasmas));
+                    }
+                    const btnFusionar = document.getElementById('btnFusionarTodos');
+                    if (btnFusionar) {
+                        btnFusionar.addEventListener('click', () => fusionarTodosLosGrupos(grupos));
+                    }
+
                 } catch (error) {
                     console.error(error);
                     duplicadosContent.innerHTML = `<p style="color:red; text-align:center;">Error: ${error.message}</p>`;
@@ -1066,6 +1110,26 @@
                 duplicadosModal.style.display = 'none';
             });
             
+            // Función para eliminar clientes fantasma
+            window.eliminarFantasmas = async function(fantasmas) {
+                if (!confirm(`🗑️ ELIMINAR ${fantasmas.length} CLIENTES FANTASMA\n\nEstos clientes solo tienen nombre registrado:\n- Sin RUT, email ni teléfono\n- Sin operaciones\n\n⚠️ Esta acción NO se puede deshacer.\n¿Continuar?`)) return;
+
+                try {
+                    const res = await fetch('/api/clientes/eliminar-fantasmas', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ids: fantasmas.map(f => f.id) })
+                    });
+                    const result = await res.json();
+                    alert(`✅ ${result.eliminados} clientes fantasma eliminados.`);
+                    duplicadosModal.style.display = 'none';
+                    currentPage = 1;
+                    cargarClientes(currentPage, currentSearch, false);
+                } catch (error) {
+                    alert(`❌ Error: ${error.message}`);
+                }
+            };
+
             // Función para fusionar todos los grupos seleccionados
             window.fusionarTodosLosGrupos = async function(grupos) {
                 const gruposAFusionar = [];

@@ -2046,156 +2046,186 @@ app.get('/api/clientes', apiAuth, async (req, res) => {
 // " ENDPOINT PARA BUSCAR POSIBLES DUPLICADOS (debe ir ANTES de /api/clientes/:id)
 app.get('/api/clientes/duplicados', apiAuth, onlyMaster, async (req, res) => {
     try {
-        const clientes = await dbAll(`SELECT id, nombre, rut, email, telefono FROM clientes ORDER BY LOWER(nombre)`);
-        const duplicados = [];
-        const procesados = new Set();
-        
-        // Función para normalizar texto (sin acentos, minúsculas, sin espacios múltiples)
+        const clientes = await dbAll(`SELECT id, nombre, rut, email, telefono, fecha_creacion FROM clientes ORDER BY LOWER(nombre)`);
+
+        // Obtener operaciones de cada cliente en una sola query
+        const opsMap = {};
+        const allOps = await dbAll(`SELECT cliente_id, COUNT(*) as total FROM operaciones GROUP BY cliente_id`);
+        allOps.forEach(o => { opsMap[o.cliente_id] = o.total; });
+
         const normalizar = (texto) => {
-            return texto
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
-                .trim()
-                .replace(/\s+/g, ' '); // Normalizar espacios
+            return (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ');
         };
-        
-        // Función para calcular similitud de Levenshtein
-        const levenshteinDistance = (str1, str2) => {
-            const len1 = str1.length;
-            const len2 = str2.length;
-            const matrix = [];
-            
-            for (let i = 0; i <= len1; i++) {
-                matrix[i] = [i];
-            }
-            for (let j = 0; j <= len2; j++) {
-                matrix[0][j] = j;
-            }
-            
-            for (let i = 1; i <= len1; i++) {
-                for (let j = 1; j <= len2; j++) {
-                    const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
-                    matrix[i][j] = Math.min(
-                        matrix[i - 1][j] + 1,
-                        matrix[i][j - 1] + 1,
-                        matrix[i - 1][j - 1] + cost
-                    );
-                }
-            }
-            
-            return matrix[len1][len2];
-        };
-        
-        // Función para verificar similitud (más flexible)
-        const sonSimilares = (nombre1, nombre2) => {
-            const n1 = normalizar(nombre1);
-            const n2 = normalizar(nombre2);
-            
-            // Exactos
-            if (n1 === n2) return true;
-            
-            const palabras1 = n1.split(' ').filter(p => p.length > 0);
-            const palabras2 = n2.split(' ').filter(p => p.length > 0);
-            
-            // Si uno contiene al otro completamente
-            if (n1.includes(n2) || n2.includes(n1)) {
-                const longitudMin = Math.min(n1.length, n2.length);
-                // Solo si el más corto tiene al menos 4 caracteres
-                if (longitudMin >= 4) return true;
-            }
-            
-            // Calcular similitud con Levenshtein (para nombres cortos similares)
-            const longitudMax = Math.max(n1.length, n2.length);
-            if (longitudMax <= 15) { // Solo para nombres relativamente cortos
-                const distancia = levenshteinDistance(n1, n2);
-                const similitud = 1 - (distancia / longitudMax);
-                // Si tienen más del 75% de similitud
-                if (similitud >= 0.75) return true;
-            }
-            
-            // Verificar si comparten al menos una palabra significativa (>3 chars)
-            const palabrasSignificativas1 = palabras1.filter(p => p.length > 3);
-            const palabrasSignificativas2 = palabras2.filter(p => p.length > 3);
-            
-            for (const p1 of palabrasSignificativas1) {
-                for (const p2 of palabrasSignificativas2) {
-                    // Palabras iguales o muy similares
-                    if (p1 === p2) return true;
-                    
-                    // Similitud entre palabras individuales
-                    if (p1.length >= 4 && p2.length >= 4) {
-                        const distPalabra = levenshteinDistance(p1, p2);
-                        const similitudPalabra = 1 - (distPalabra / Math.max(p1.length, p2.length));
-                        if (similitudPalabra >= 0.8) return true; // 80% similitud en palabra
-                    }
-                    
-                    // Una palabra contiene a la otra
-                    if ((p1.length > 4 && p2.includes(p1)) || (p2.length > 4 && p1.includes(p2))) {
-                        return true;
-                    }
-                }
-            }
-            
-            // Verificar coincidencia de apellidos (última palabra si hay varias)
-            if (palabras1.length >= 2 && palabras2.length >= 2) {
-                const apellido1 = palabras1[palabras1.length - 1];
-                const apellido2 = palabras2[palabras2.length - 1];
-                
-                if (apellido1.length > 3 && apellido2.length > 3) {
-                    // Apellidos iguales o muy similares
-                    if (apellido1 === apellido2) return true;
-                    
-                    const distApellido = levenshteinDistance(apellido1, apellido2);
-                    const similApellido = 1 - (distApellido / Math.max(apellido1.length, apellido2.length));
-                    if (similApellido >= 0.85) return true; // 85% similitud en apellido
-                }
-            }
-            
-            return false;
-        };
-        
+
+        // ========== CATEGORIA 1: Registros fantasma (solo nombre, sin datos, sin operaciones) ==========
+        const fantasmas = clientes.filter(c => {
+            const ops = opsMap[c.id] || 0;
+            const sinDatos = !c.rut && !c.email && !c.telefono;
+            return sinDatos && ops === 0;
+        });
+
+        // ========== CATEGORIA 2: Nombres exactamente iguales (normalizado) ==========
+        const porNombre = {};
+        clientes.forEach(c => {
+            const key = normalizar(c.nombre);
+            if (!porNombre[key]) porNombre[key] = [];
+            porNombre[key].push(c);
+        });
+        const exactos = Object.entries(porNombre)
+            .filter(([_, grupo]) => grupo.length > 1)
+            .map(([nombre, grupo]) => ({
+                tipo: 'exacto',
+                razon: 'Mismo nombre exacto',
+                nombre_base: grupo[0].nombre,
+                clientes: grupo.map(c => ({
+                    id: c.id, nombre: c.nombre, rut: c.rut || '', email: c.email || '',
+                    telefono: c.telefono || '', fecha_creacion: c.fecha_creacion,
+                    operaciones: opsMap[c.id] || 0,
+                    sin_datos: !c.rut && !c.email && !c.telefono
+                }))
+            }));
+
+        // ========== CATEGORIA 3: Nombre parcial (uno contiene al otro) ==========
+        // Ej: "Ali" y "Ali Rodriguez", "Maria" y "Maria Gonzalez"
+        const parciales = [];
+        const procesadosParcial = new Set();
+        // IDs que ya están en exactos
+        const idsEnExactos = new Set();
+        exactos.forEach(g => g.clientes.forEach(c => idsEnExactos.add(c.id)));
+
         for (let i = 0; i < clientes.length; i++) {
-            if (procesados.has(clientes[i].id)) continue;
-            
+            if (procesadosParcial.has(clientes[i].id) || idsEnExactos.has(clientes[i].id)) continue;
+            const n1 = normalizar(clientes[i].nombre);
+            if (n1.length < 3) continue; // Ignorar nombres muy cortos
+
             const similares = [];
-            
             for (let j = i + 1; j < clientes.length; j++) {
-                if (procesados.has(clientes[j].id)) continue;
-                
-                if (sonSimilares(clientes[i].nombre, clientes[j].nombre)) {
+                if (procesadosParcial.has(clientes[j].id) || idsEnExactos.has(clientes[j].id)) continue;
+                const n2 = normalizar(clientes[j].nombre);
+                if (n2.length < 3) continue;
+
+                // Uno es el inicio del otro (nombre corto = parte del nombre largo)
+                // Ej: "ali" es inicio de "ali rodriguez"
+                const corto = n1.length <= n2.length ? n1 : n2;
+                const largo = n1.length <= n2.length ? n2 : n1;
+
+                if (largo.startsWith(corto + ' ') || largo === corto) {
                     similares.push(clientes[j]);
-                    procesados.add(clientes[j].id);
+                    procesadosParcial.add(clientes[j].id);
                 }
             }
-            
+
             if (similares.length > 0) {
                 const grupo = [clientes[i], ...similares];
-                const opsPromises = grupo.map(c => 
-                    dbGet(`SELECT COUNT(*) as total FROM operaciones WHERE cliente_id = ?`, [c.id])
-                );
-                const opsCounts = await Promise.all(opsPromises);
-                
-                duplicados.push({
+                procesadosParcial.add(clientes[i].id);
+                parciales.push({
+                    tipo: 'parcial',
+                    razon: 'Nombre incompleto (posible re-registro)',
                     nombre_base: clientes[i].nombre,
-                    clientes: grupo.map((c, idx) => ({
-                        id: c.id,
-                        nombre: c.nombre,
-                        rut: c.rut || '',
-                        email: c.email || '',
-                        telefono: c.telefono || '',
-                        operaciones: opsCounts[idx].total
+                    clientes: grupo.map(c => ({
+                        id: c.id, nombre: c.nombre, rut: c.rut || '', email: c.email || '',
+                        telefono: c.telefono || '', fecha_creacion: c.fecha_creacion,
+                        operaciones: opsMap[c.id] || 0,
+                        sin_datos: !c.rut && !c.email && !c.telefono
                     }))
                 });
-                
-                procesados.add(clientes[i].id);
             }
         }
-        
-        res.json(duplicados);
+
+        // ========== CATEGORIA 4: Mismo RUT, email o telefono en clientes diferentes ==========
+        const porDato = { rut: {}, email: {}, telefono: {} };
+        clientes.forEach(c => {
+            if (c.rut && c.rut.trim()) {
+                const key = c.rut.trim().toLowerCase();
+                if (!porDato.rut[key]) porDato.rut[key] = [];
+                porDato.rut[key].push(c);
+            }
+            if (c.email && c.email.trim()) {
+                const key = c.email.trim().toLowerCase();
+                if (!porDato.email[key]) porDato.email[key] = [];
+                porDato.email[key].push(c);
+            }
+            if (c.telefono && c.telefono.trim()) {
+                const key = c.telefono.trim().replace(/\D/g, '');
+                if (key.length >= 7) {
+                    if (!porDato.telefono[key]) porDato.telefono[key] = [];
+                    porDato.telefono[key].push(c);
+                }
+            }
+        });
+
+        const datosCompartidos = [];
+        const idsEnDatos = new Set();
+        ['rut', 'email', 'telefono'].forEach(campo => {
+            Object.entries(porDato[campo]).forEach(([valor, grupo]) => {
+                if (grupo.length > 1) {
+                    // Verificar que no esten ya todos en exactos
+                    const ids = grupo.map(c => c.id);
+                    const todosEnExactos = ids.every(id => idsEnExactos.has(id));
+                    if (!todosEnExactos) {
+                        datosCompartidos.push({
+                            tipo: 'datos',
+                            razon: `Mismo ${campo.toUpperCase()}: ${valor}`,
+                            nombre_base: grupo[0].nombre,
+                            clientes: grupo.map(c => ({
+                                id: c.id, nombre: c.nombre, rut: c.rut || '', email: c.email || '',
+                                telefono: c.telefono || '', fecha_creacion: c.fecha_creacion,
+                                operaciones: opsMap[c.id] || 0,
+                                sin_datos: !c.rut && !c.email && !c.telefono
+                            }))
+                        });
+                    }
+                }
+            });
+        });
+
+        // Respuesta organizada
+        res.json({
+            fantasmas: fantasmas.map(c => ({
+                id: c.id, nombre: c.nombre, fecha_creacion: c.fecha_creacion
+            })),
+            grupos: [...exactos, ...parciales, ...datosCompartidos],
+            resumen: {
+                total_fantasmas: fantasmas.length,
+                total_exactos: exactos.length,
+                total_parciales: parciales.length,
+                total_datos_compartidos: datosCompartidos.length,
+                total_grupos: exactos.length + parciales.length + datosCompartidos.length
+            }
+        });
     } catch (error) {
         console.error('Error buscando duplicados:', error);
         res.status(500).json({ message: 'Error al buscar duplicados.' });
+    }
+});
+
+// ENDPOINT PARA ELIMINAR CLIENTES FANTASMA (sin datos, sin operaciones)
+app.post('/api/clientes/eliminar-fantasmas', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ message: 'Se requiere un array de IDs.' });
+        }
+
+        // Verificar que cada ID realmente es fantasma (sin ops y sin datos)
+        let eliminados = 0;
+        for (const id of ids) {
+            const cliente = await dbGet(`SELECT id, nombre, rut, email, telefono FROM clientes WHERE id = ?`, [id]);
+            if (!cliente) continue;
+
+            const ops = await dbGet(`SELECT COUNT(*) as total FROM operaciones WHERE cliente_id = ?`, [id]);
+            if (ops.total > 0) continue; // Tiene operaciones, no eliminar
+
+            if (cliente.rut || cliente.email || cliente.telefono) continue; // Tiene datos, no eliminar
+
+            await dbRun(`DELETE FROM clientes WHERE id = ?`, [id]);
+            eliminados++;
+        }
+
+        res.json({ message: `${eliminados} clientes fantasma eliminados.`, eliminados });
+    } catch (error) {
+        console.error('Error eliminando fantasmas:', error);
+        res.status(500).json({ message: 'Error al eliminar clientes fantasma.' });
     }
 });
 
