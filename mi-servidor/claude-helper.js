@@ -251,6 +251,7 @@ async function chatbotWithTools(system, messages, tools) {
         };
 
     } catch (error) {
+        console.error('❌ chatbotWithTools error completo:', error.status, error.message, JSON.stringify(error.error || ''));
         return {
             success: false,
             error: error.message,
@@ -358,15 +359,21 @@ async function generateTaskMessage(params) {
  * Convierte agentFunctions de formato OpenAI a formato Claude tools
  */
 function convertOpenAIFunctionsToClaude(openAIFunctions) {
-    return openAIFunctions.map(fn => ({
-        name: fn.name,
-        description: fn.description,
-        input_schema: {
+    return openAIFunctions.map(fn => {
+        const schema = {
             type: 'object',
-            properties: fn.parameters.properties || {},
-            required: fn.parameters.required || []
+            properties: fn.parameters.properties || {}
+        };
+        // Solo agregar required si tiene elementos
+        if (fn.parameters.required && fn.parameters.required.length > 0) {
+            schema.required = fn.parameters.required;
         }
-    }));
+        return {
+            name: fn.name,
+            description: fn.description,
+            input_schema: schema
+        };
+    });
 }
 
 /**

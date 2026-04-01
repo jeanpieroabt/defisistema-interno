@@ -6839,7 +6839,7 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
         const resultChatbot = await claudeHelper.chatbotWithTools(systemContext, messages, claudeTools);
 
         if (!resultChatbot.success) {
-            console.error(' Error chatbot Claude:', resultChatbot.error);
+            console.error('❌ Error chatbot Claude:', resultChatbot.error, 'Status:', resultChatbot.statusCode);
 
             if (resultChatbot.statusCode === 401) {
                 return ` **Configuración pendiente**\n\nLo siento, la API key de Anthropic no está configurada correctamente.\n\n**Administrador:** Configure la variable de entorno \`ANTHROPIC_API_KEY\` en Render con una key válida de https://console.anthropic.com/`;
@@ -7477,6 +7477,23 @@ async function generateChatbotResponse(userMessage, systemContext, userRole, use
 }
 
 // =====================================================
+// ENDPOINT: Test de conexion Claude API
+// =====================================================
+app.get('/api/claude/test', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const result = await claudeHelper.callClaude({
+            system: 'Responde en una sola linea corta en español.',
+            messages: [{ role: 'user', content: 'Di hola' }],
+            maxTokens: 30,
+            useCache: false,
+            maxRetries: 1
+        });
+        res.json({ success: true, response: result.text, model: result.model, usage: result.usage });
+    } catch (error) {
+        res.json({ success: false, error: error.message, status: error.status, details: error.error || null });
+    }
+});
+
 // ENDPOINT: Estadisticas de uso de Claude
 // =====================================================
 app.get('/api/openai/stats', apiAuth, onlyMaster, (req, res) => {
