@@ -1056,6 +1056,79 @@ async function getPromedioVesEnUsdt() {
     return row.totalVes / row.totalUsdt; // VES por 1 USDT
 }
 
+// Recalcular ganancias de todas las ventas USDT usando WAC cronológico
+// Se llama automáticamente al agregar/borrar compras USDT
+async function recalcularGananciasStock() {
+    // Obtener todas las compras de USDT (entradas)
+    const compras = await dbAll(
+        `SELECT usdt_obtenido as cantidad, clp_invertido as costo, fecha, id, 'compra' as tipo FROM compras_usdt ORDER BY fecha ASC, id ASC`
+    );
+    // Obtener todas las conversiones USDT→VES (salidas de USDT)
+    const conversionesVes = await dbAll(
+        `SELECT usdt_invertido as cantidad, fecha, id, 'conversion_ves' as tipo FROM compras_ves ORDER BY fecha ASC, id ASC`
+    );
+    // Obtener todas las ventas de USDT (salidas con ganancia)
+    const ventas = await dbAll(
+        `SELECT id, usdt as cantidad, clp, fecha, 'venta_usdt' as tipo FROM ventas_usdt ORDER BY fecha ASC, id ASC`
+    );
+
+    if (!compras || compras.length === 0) return;
+
+    // Combinar todas las transacciones y ordenar cronológicamente
+    const transacciones = [
+        ...(compras || []),
+        ...(conversionesVes || []),
+        ...(ventas || [])
+    ].sort((a, b) => {
+        if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1;
+        if (a.tipo === 'compra' && b.tipo !== 'compra') return -1;
+        if (a.tipo !== 'compra' && b.tipo === 'compra') return 1;
+        return a.id - b.id;
+    });
+
+    let stockUsdt = 0;
+    let costoTotal = 0;
+    let totalGananciaVentas = 0;
+
+    for (const tx of transacciones) {
+        if (tx.tipo === 'compra') {
+            costoTotal += tx.costo;
+            stockUsdt += tx.cantidad;
+        } else if (tx.tipo === 'venta_usdt') {
+            // Calcular ganancia con PPP del momento
+            const pppMomento = stockUsdt > 0 ? costoTotal / stockUsdt : 0;
+            const costoVenta = tx.cantidad * pppMomento;
+            const ganancia = tx.clp - costoVenta;
+            // Actualizar ganancia guardada en la venta
+            await dbRun(`UPDATE ventas_usdt SET ganancia = ? WHERE id = ?`, [ganancia, tx.id]);
+            totalGananciaVentas += ganancia;
+            // Reducir stock WAC
+            if (stockUsdt > 0) {
+                const cantidadSale = Math.min(tx.cantidad, stockUsdt);
+                costoTotal -= cantidadSale * pppMomento;
+                stockUsdt -= cantidadSale;
+            }
+        } else {
+            // conversion_ves: solo reduce stock
+            if (stockUsdt > 0) {
+                const pppActual = costoTotal / stockUsdt;
+                const cantidadSale = Math.min(tx.cantidad, stockUsdt);
+                costoTotal -= cantidadSale * pppActual;
+                stockUsdt -= cantidadSale;
+            }
+        }
+    }
+
+    // Recalcular totalGananciaAcumuladaClp = ganancias operaciones + ganancias ventas USDT
+    const gananciaOps = await dbGet(`SELECT IFNULL(SUM(monto_clp - costo_clp - (monto_clp * 0.003)), 0) as total FROM operaciones`);
+    const totalGananciaOps = gananciaOps ? gananciaOps.total : 0;
+    const nuevoTotal = totalGananciaOps + totalGananciaVentas;
+    await dbRun(`UPDATE configuracion SET valor = ? WHERE clave = 'totalGananciaAcumuladaClp'`, [String(nuevoTotal)]);
+
+    console.log(`[RECALCULO STOCK] Ganancias ops: ${totalGananciaOps.toFixed(0)} + ventas USDT: ${totalGananciaVentas.toFixed(0)} = ${nuevoTotal.toFixed(0)} CLP`);
+    return { totalGananciaOps, totalGananciaVentas, totalGananciaAcumulada: nuevoTotal };
+}
+
 // Tasa VES/CLP derivada del sistema de stock (equivale a legacy tasa_clp_ves)
 async function getTasaVesPorClp() {
     const pppUsdtClp = await getPromedioUsdt();    // CLP por 1 USDT
@@ -1774,6 +1847,11 @@ const runMigrations = async () => {
             )`);
             await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoUsdt', '0')`);
             await dbRun(`INSERT OR IGNORE INTO configuracion(clave, valor) VALUES ('saldoClpDisponible', '0')`);
+            // Migración: agregar columna ganancia a ventas_usdt si no existe
+            try {
+                await dbRun(`ALTER TABLE ventas_usdt ADD COLUMN ganancia REAL DEFAULT 0`);
+                console.log('... Columna ganancia agregada a ventas_usdt');
+            } catch (e) { /* ya existe */ }
             console.log('... Tablas de stock multi-moneda verificadas');
 
             // Migrar RUTs existentes al formato estándar XX.XXX.XXX-X
@@ -3566,20 +3644,20 @@ app.post('/api/ventas-usdt', apiAuth, onlyMaster, async (req, res) => {
         const saldoClpActual = Number(await readConfigValue('saldoClpDisponible') || 0);
         const tasa = clpNum / usdtNum;
 
-        // Registrar en tabla ventas_usdt
+        // Calcular ganancia antes de insertar
+        const pppUsdtClp = await getPromedioUsdt();
+        const costoEnClp = usdtNum * pppUsdtClp;
+        const ganancia = clpNum - costoEnClp;
+
+        // Registrar en tabla ventas_usdt con ganancia
         await dbRun(
-            `INSERT INTO ventas_usdt(usuario_id, usdt, clp, tasa, pais, fecha, observaciones) VALUES (?,?,?,?,?,?,?)`,
-            [req.session.user.id, usdtNum, clpNum, tasa, pais, hoyLocalYYYYMMDD(), observaciones || '']
+            `INSERT INTO ventas_usdt(usuario_id, usdt, clp, tasa, pais, fecha, observaciones, ganancia) VALUES (?,?,?,?,?,?,?,?)`,
+            [req.session.user.id, usdtNum, clpNum, tasa, pais, hoyLocalYYYYMMDD(), observaciones || '', ganancia]
         );
 
         // Actualizar saldos: USDT baja, CLP sube
         await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoUsdt'`, [usdtNum]);
         await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [clpNum]);
-
-        // Calcular ganancia
-        const pppUsdtClp = await getPromedioUsdt();
-        const costoEnClp = usdtNum * pppUsdtClp;
-        const ganancia = clpNum - costoEnClp;
 
         // Acumular ganancia de venta USDT al total
         if (ganancia !== 0) {
@@ -3609,22 +3687,16 @@ app.delete('/api/ventas-usdt/:id', apiAuth, onlyMaster, async (req, res) => {
         const venta = await dbGet('SELECT * FROM ventas_usdt WHERE id = ?', [req.params.id]);
         if (!venta) return res.status(404).json({ error: 'Venta no encontrada' });
 
-        // Recalcular ganancia que se había acumulado para revertirla
-        const pppUsdtClp = await getPromedioUsdt();
-        const costoOriginal = venta.usdt * pppUsdtClp;
-        const gananciaARevertir = venta.clp - costoOriginal;
-
         await dbRun('DELETE FROM ventas_usdt WHERE id = ?', [venta.id]);
         // Revertir saldos: devolver USDT, quitar CLP
         await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoUsdt'`, [venta.usdt]);
         await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoClpDisponible'`, [venta.clp]);
-        // Revertir ganancia acumulada
-        if (gananciaARevertir !== 0) {
-            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'totalGananciaAcumuladaClp'`, [gananciaARevertir]);
-        }
 
-        console.log(`[VENTA USDT BORRADA] +${venta.usdt} USDT, -${venta.clp} CLP revertidos | Ganancia revertida: ${gananciaARevertir.toFixed(0)} CLP`);
-        res.json({ message: 'Venta eliminada y saldos revertidos.' });
+        // Recalcular todas las ganancias de stock (WAC completo)
+        await recalcularGananciasStock();
+
+        console.log(`[VENTA USDT BORRADA] +${venta.usdt} USDT, -${venta.clp} CLP revertidos`);
+        res.json({ message: 'Venta eliminada, saldos y ganancias recalculados.' });
     } catch (e) {
         console.error('Error en DELETE /api/ventas-usdt:', e.message);
         res.status(500).json({ error: 'Error al eliminar venta' });
@@ -3662,6 +3734,7 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
             await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoClpDisponible'`, [clp]);
             await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoUsdt'`, [usdt]);
 
+            await recalcularGananciasStock();
             const pppUsdt = await getPromedioUsdt();
             tipo = 'compra_usdt';
             resultado = {
@@ -3694,6 +3767,7 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
             await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoClpDisponible'`, [clp]);
             await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoUsdt'`, [usdt]);
 
+            await recalcularGananciasStock();
             const pppUsdt = await getPromedioUsdt();
             tipo = 'compra_usdt';
             resultado = {
@@ -3778,26 +3852,71 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
             }
         }
 
-        // Patrón: deposité/deposito/ingresé X CLP
+        // Patrón: deposité X USDT a tasa Y [motivo] — depósito con costo (afecta PPP, NO debita CLP)
         if (!tipo) {
-            const matchDeposito = msgOriginal.match(/(?:deposit[eéo]|deposito|ingres[eéo]|ingreso|agreg[eéo]|agrego)\s+([\d.]+)\s*(?:clp|CLP|pesos)/i);
-            if (matchDeposito) {
-                const clp = Number(matchDeposito[1]);
-                if (clp <= 0) return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
+            const matchDepTasa = msgOriginal.match(/(?:deposit[eéo]|deposito|ingres[eéo]|ingreso|agreg[eéo]|agrego)\s+([\d.,]+)\s*(usdt)\s+(?:a\s+)?tasa\s+([\d.,]+)\s*(.*)/i);
+            if (matchDepTasa) {
+                const usdt = Number(matchDepTasa[1].replace(/,/g, '.'));
+                const tasa = Number(matchDepTasa[3].replace(/,/g, '.'));
+                const motivo = matchDepTasa[4] ? matchDepTasa[4].trim() : '';
+                if (usdt <= 0 || tasa <= 0) return res.status(400).json({ error: 'USDT y tasa deben ser mayores a 0' });
 
-                const saldoClpActual = Number(await readConfigValue('saldoClpDisponible') || 0);
-                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [clp]);
+                const clpEquivalente = usdt * tasa;
+                const saldoUsdtActual = Number(await readConfigValue('saldoUsdt') || 0);
+
+                // Registrar como compra en compras_usdt (afecta PPP) pero NO debita CLP
+                await dbRun(
+                    `INSERT INTO compras_usdt(usuario_id, clp_invertido, usdt_obtenido, tasa_clp_usdt, fecha, observaciones) VALUES (?,?,?,?,?,?)`,
+                    [req.session.user.id, clpEquivalente, usdt, tasa, hoyLocalYYYYMMDD(), `Depósito con costo | ${motivo || msgOriginal}`]
+                );
+                // Solo sube saldo USDT, CLP NO baja
+                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoUsdt'`, [usdt]);
                 await dbRun(
                     `INSERT INTO movimientos_stock(usuario_id, tipo, moneda, monto, saldo_antes, saldo_despues, fecha, observaciones) VALUES (?,?,?,?,?,?,?,?)`,
-                    [req.session.user.id, 'deposito', 'CLP', clp, saldoClpActual, saldoClpActual + clp, hoyLocalYYYYMMDD(), msgOriginal]
+                    [req.session.user.id, 'deposito', 'USDT', usdt, saldoUsdtActual, saldoUsdtActual + usdt, hoyLocalYYYYMMDD(), `Depósito con costo tasa ${tasa} | ${motivo || msgOriginal}`]
                 );
 
-                tipo = 'deposito_clp';
+                await recalcularGananciasStock();
+                const pppUsdt = await getPromedioUsdt();
+
+                tipo = 'deposito_usdt_con_tasa';
                 resultado = {
-                    mensaje: `Depósito CLP registrado`,
-                    detalle: `+${clp.toLocaleString('es-CL')} CLP`,
+                    mensaje: `Depósito USDT con costo registrado`,
+                    detalle: `+${usdt.toLocaleString('es-CL')} USDT a tasa ${tasa} (costo ref: ${clpEquivalente.toLocaleString('es-CL')} CLP)${motivo ? ` | ${motivo}` : ''}`,
+                    nota: 'CLP NO fue debitado. Solo se registró el costo para el PPP.',
                     saldos: {
-                        clp: { antes: saldoClpActual, despues: saldoClpActual + clp }
+                        usdt: { antes: saldoUsdtActual, despues: saldoUsdtActual + usdt }
+                    },
+                    pppUsdt: pppUsdt.toFixed(2)
+                };
+            }
+        }
+
+        // Patrón: deposité/deposito/ingresé X CLP/USDT/VES [motivo]
+        if (!tipo) {
+            const matchDeposito = msgOriginal.match(/(?:deposit[eéo]|deposito|ingres[eéo]|ingreso|agreg[eéo]|agrego)\s+([\d.,]+)\s*(clp|usdt|ves|pesos)\s*(?:para|por|de|motivo:?\s*)?\s*(.*)/i);
+            if (matchDeposito) {
+                const monto = Number(matchDeposito[1].replace(/,/g, '.'));
+                let moneda = matchDeposito[2].toUpperCase();
+                if (moneda === 'PESOS') moneda = 'CLP';
+                const motivo = matchDeposito[3] ? matchDeposito[3].trim() : '';
+                if (monto <= 0) return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
+
+                const claveMap = { 'CLP': 'saldoClpDisponible', 'USDT': 'saldoUsdt', 'VES': 'saldoVesOnline' };
+                const clave = claveMap[moneda];
+                const saldoActual = Number(await readConfigValue(clave) || 0);
+                await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = ?`, [monto, clave]);
+                await dbRun(
+                    `INSERT INTO movimientos_stock(usuario_id, tipo, moneda, monto, saldo_antes, saldo_despues, fecha, observaciones) VALUES (?,?,?,?,?,?,?,?)`,
+                    [req.session.user.id, 'deposito', moneda, monto, saldoActual, saldoActual + monto, hoyLocalYYYYMMDD(), motivo || msgOriginal]
+                );
+
+                tipo = 'deposito';
+                resultado = {
+                    mensaje: `Depósito ${moneda} registrado`,
+                    detalle: `+${monto.toLocaleString('es-CL')} ${moneda}${motivo ? ` | Motivo: ${motivo}` : ''}`,
+                    saldos: {
+                        [moneda.toLowerCase()]: { antes: saldoActual, despues: saldoActual + monto }
                     }
                 };
             }
@@ -3856,17 +3975,25 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
                 const pais = paisMap[paisRaw.toLowerCase()] || paisRaw || 'No especificado';
                 const observacion = `Venta USDT → ${pais} | ${msgOriginal}`;
 
+                // Calcular ganancia antes de insertar
+                const pppUsdtClp = await getPromedioUsdt();
+                const costoEnClp = usdt * pppUsdtClp;
+                const gananciaVenta = clp - costoEnClp;
+
                 await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoUsdt'`, [usdt]);
                 await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [clp]);
+                // Registrar en ventas_usdt (tabla principal) con ganancia
+                await dbRun(
+                    `INSERT INTO ventas_usdt(usuario_id, usdt, clp, tasa, pais, fecha, observaciones, ganancia) VALUES (?,?,?,?,?,?,?,?)`,
+                    [req.session.user.id, usdt, clp, tasa, pais, hoyLocalYYYYMMDD(), observacion, gananciaVenta]
+                );
                 await dbRun(
                     `INSERT INTO movimientos_stock(usuario_id, tipo, moneda, monto, saldo_antes, saldo_despues, fecha, observaciones) VALUES (?,?,?,?,?,?,?,?)`,
                     [req.session.user.id, 'venta_usdt', 'USDT', usdt, saldoUsdtActual, saldoUsdtActual - usdt, hoyLocalYYYYMMDD(), observacion]
                 );
 
-                // Calcular ganancia de esta venta
-                const pppUsdtClp = await getPromedioUsdt(); // costo promedio de 1 USDT en CLP
-                const costoEnClp = usdt * pppUsdtClp;
-                const gananciaVenta = clp - costoEnClp;
+                // Recalcular ganancias acumuladas
+                await recalcularGananciasStock();
 
                 tipo = 'venta_usdt';
                 resultado = {
@@ -3925,6 +4052,9 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
                     'vendí 90 USDT por 100000 CLP Colombia',
                     'vendí 50 USDT por 55000 CLP EEUU',
                     'deposité 2000000 CLP',
+                    'deposité 3000 USDT préstamo personal',
+                    'deposité 3000 USDT a tasa 918 capital socio',
+                    'deposité 50000 VES ingreso externo',
                     'retiré 50000 CLP para pago de servicios',
                     'ajustar USDT a 320.5'
                 ]
@@ -3993,7 +4123,7 @@ app.get('/api/stock/historial', apiAuth, onlyMaster, async (req, res) => {
                 return {
                     id: m.id, tipo: tipoDisplay, tipoKey: 'movimiento',
                     entrada, salida,
-                    tasa: (m.tipo === 'retiro' || m.tipo === 'venta_usdt') ? (m.observaciones || '-') : '-',
+                    tasa: (m.tipo === 'retiro' || m.tipo === 'venta_usdt' || m.tipo === 'deposito') ? (m.observaciones || '-') : '-',
                     fecha: m.fecha, observaciones: m.observaciones
                 };
             })
@@ -4016,7 +4146,10 @@ app.delete('/api/compras-usdt/:id', apiAuth, onlyMaster, async (req, res) => {
         await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [compra.clp_invertido]);
         await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoUsdt'`, [compra.usdt_obtenido]);
 
-        res.json({ message: 'Compra USDT eliminada y saldos revertidos' });
+        // Recalcular ganancias de ventas USDT con nuevo PPP
+        await recalcularGananciasStock();
+
+        res.json({ message: 'Compra USDT eliminada, saldos y ganancias recalculados' });
     } catch (error) {
         console.error('Error borrando compra USDT:', error.message);
         res.status(500).json({ error: 'Error al eliminar' });
