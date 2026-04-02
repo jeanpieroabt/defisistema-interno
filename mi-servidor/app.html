@@ -644,7 +644,7 @@
                 return;
             }
             // Obtener fecha del formulario para validar recibo por día
-            const fechaInput = fechaInputId ? document.getElementById(fechaInputId) : document.getElementById('fecha');
+            const fechaInput = fechaInputId ? document.getElementById(fechaInputId) : document.getElementById('fch');
             const fecha = fechaInput ? fechaInput.value : '';
             let url = `/api/recibo/check?numero=${encodeURIComponent(numero)}`;
             if (fecha) url += `&fecha=${encodeURIComponent(fecha)}`;
@@ -740,7 +740,7 @@
       // VALIDACIÓN AJAX DE RECIBO EN TIEMPO REAL (verifica por fecha)
       const revalidarRecibo = () => checkRecibo(document.getElementById('recibo'), document.getElementById('reciboStatus'), document.getElementById('btnGuardar'));
       document.getElementById('recibo').addEventListener('input', revalidarRecibo);
-      document.getElementById('fecha').addEventListener('change', revalidarRecibo);
+      document.getElementById('fch').addEventListener('change', revalidarRecibo);
       
       document.getElementById('frm').addEventListener('submit', async (e) => {
         // Bloquea el submit si el recibo no está libre
