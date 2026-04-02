@@ -6075,6 +6075,31 @@ app.post('/api/tareas/generar-desde-alertas', apiAuth, onlyMaster, async (req, r
     }
 });
 
+// Limpieza única de tareas pendientes duplicadas (Master) — cancela duplicados, conserva la más reciente por cliente
+app.post('/api/tareas/limpiar-duplicadas', apiAuth, onlyMaster, async (req, res) => {
+    try {
+        const resultado = await dbRun(`
+            UPDATE tareas
+            SET estado = 'cancelada',
+                observaciones = 'Limpieza: tarea duplicada por bug de generación diaria'
+            WHERE tipo = 'automatica'
+            AND estado = 'pendiente'
+            AND id NOT IN (
+                SELECT MAX(id)
+                FROM tareas
+                WHERE tipo = 'automatica'
+                AND estado = 'pendiente'
+                GROUP BY cliente_id
+            )
+        `);
+        console.log(`Limpieza de duplicados: ${resultado.changes} tareas canceladas`);
+        res.json({ message: `Limpieza completada: ${resultado.changes} tareas duplicadas canceladas` });
+    } catch (error) {
+        console.error('Error limpiando tareas duplicadas:', error);
+        res.status(500).json({ message: 'Error al limpiar tareas duplicadas' });
+    }
+});
+
 // Rendimiento de operadores (Master)
 app.get('/api/operadores/rendimiento', apiAuth, onlyMaster, async (req, res) => {
     try {
@@ -8286,23 +8311,24 @@ async function generarTareasAutomaticas() {
         console.log('"‹ Generando tareas automáticas desde alertas...');
         const fechaHoy = hoyLocalYYYYMMDD();
         
-        // Obtener alertas activas SIN acción realizada (sin mensaje_enviado ni promocion_enviada)
-        // Permitir reasignar si: 1) sin tarea, 2) tarea eliminada, 3) tarea cancelada, 4) tarea de días anteriores
+        // Obtener alertas activas SIN acción realizada, excluyendo disminucion
+        // Crear tarea solo si: 1) sin tarea vinculada, 2) tarea eliminada, 3) tarea completada o cancelada
         const alertasSinResolver = await dbAll(`
-            SELECT a.* 
+            SELECT a.*
             FROM alertas a
-            WHERE a.activa = 1 
+            WHERE a.activa = 1
             AND a.accion_realizada IS NULL
+            AND a.tipo != 'disminucion'
             AND (
-                a.tarea_id IS NULL 
+                a.tarea_id IS NULL
                 OR NOT EXISTS (SELECT 1 FROM tareas t WHERE t.id = a.tarea_id)
                 OR EXISTS (
-                    SELECT 1 FROM tareas t 
-                    WHERE t.id = a.tarea_id 
-                    AND (t.estado = 'cancelada' OR t.fecha_creacion < ?)
+                    SELECT 1 FROM tareas t
+                    WHERE t.id = a.tarea_id
+                    AND t.estado IN ('completada', 'cancelada')
                 )
             )
-        `, [fechaHoy]);
+        `);
         
         if (alertasSinResolver.length === 0) {
             console.log('... No hay alertas pendientes para crear tareas');
@@ -8351,20 +8377,19 @@ async function generarTareasAutomaticas() {
             if (alerta.tipo === 'critico' && diasInactivo <= 60) {
                 continue; // Saltar si ya no cumple (debe ser más de 60 días)
             }
-            
-            // Para reducción de frecuencia, verificar AHORA
-            if (alerta.tipo === 'disminucion') {
-                const hace30 = new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                const hace60 = new Date(new Date().getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-                
-                const recientes = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ?`, [alerta.cliente_id, hace30]);
-                const anteriores = await dbGet(`SELECT COUNT(*) as cnt FROM operaciones WHERE cliente_id = ? AND fecha >= ? AND fecha < ?`, [alerta.cliente_id, hace60, hace30]);
-                
-                if (anteriores.cnt < 3 || recientes.cnt >= anteriores.cnt * 0.5) {
-                    continue; // Saltar si ya no hay reducción
-                }
+
+            // Verificar que el cliente no tenga ya una tarea automática activa (pendiente o en_progreso)
+            const tareaActivaCliente = await dbGet(`
+                SELECT id FROM tareas
+                WHERE cliente_id = ?
+                AND tipo = 'automatica'
+                AND estado IN ('pendiente', 'en_progreso')
+                LIMIT 1
+            `, [alerta.cliente_id]);
+            if (tareaActivaCliente) {
+                continue; // Ya tiene tarea activa, no duplicar
             }
-            
+
             // Determinar prioridad según días REALES de inactividad
             let prioridad = 'normal';
             if (diasInactivo > 60) prioridad = 'urgente';
