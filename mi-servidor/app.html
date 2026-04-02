@@ -630,7 +630,7 @@
     let debounceTimeout;
 
     // ----------- VALIDACIÓN EN TIEMPO REAL DE RECIBO (NUEVO Y EDICIÓN) -----------
-    function checkRecibo(inputEl, statusEl, btnEl, excludeId = null) {
+    function checkRecibo(inputEl, statusEl, btnEl, excludeId = null, fechaInputId = null) {
         clearTimeout(debounceTimeout);
         statusEl.textContent = 'Verificando...';
         statusEl.style.color = 'var(--medium-grey)';
@@ -643,7 +643,11 @@
                 btnEl.disabled = true;
                 return;
             }
+            // Obtener fecha del formulario para validar recibo por día
+            const fechaInput = fechaInputId ? document.getElementById(fechaInputId) : document.getElementById('fecha');
+            const fecha = fechaInput ? fechaInput.value : '';
             let url = `/api/recibo/check?numero=${encodeURIComponent(numero)}`;
+            if (fecha) url += `&fecha=${encodeURIComponent(fecha)}`;
             if (excludeId) {
                 url += `&excludeId=${excludeId}`;
             }
@@ -733,8 +737,10 @@
       mclp.addEventListener('input', () => { aplicarTasaAutomatica(); actualizarPreview(); });
       tasa.addEventListener('input', actualizarPreview);
       
-      // VALIDACIÓN AJAX DE RECIBO EN TIEMPO REAL
-      document.getElementById('recibo').addEventListener('input', () => checkRecibo(document.getElementById('recibo'), document.getElementById('reciboStatus'), document.getElementById('btnGuardar')));
+      // VALIDACIÓN AJAX DE RECIBO EN TIEMPO REAL (verifica por fecha)
+      const revalidarRecibo = () => checkRecibo(document.getElementById('recibo'), document.getElementById('reciboStatus'), document.getElementById('btnGuardar'));
+      document.getElementById('recibo').addEventListener('input', revalidarRecibo);
+      document.getElementById('fecha').addEventListener('change', revalidarRecibo);
       
       document.getElementById('frm').addEventListener('submit', async (e) => {
         // Bloquea el submit si el recibo no está libre

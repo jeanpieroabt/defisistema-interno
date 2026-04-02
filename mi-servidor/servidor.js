@@ -1126,9 +1126,43 @@ const runMigrations = async () => {
     await addColumn('clientes', 'telefono TEXT');
     await addColumn('clientes', 'datos_bancarios TEXT');
 
-    await dbRun(`CREATE TABLE IF NOT EXISTS operaciones(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, cliente_id INTEGER NOT NULL, fecha TEXT NOT NULL, monto_clp REAL NOT NULL, monto_ves REAL NOT NULL, tasa REAL NOT NULL, observaciones TEXT, numero_recibo TEXT UNIQUE, FOREIGN KEY(usuario_id) REFERENCES usuarios(id), FOREIGN KEY(cliente_id) REFERENCES clientes(id))`);
+    await dbRun(`CREATE TABLE IF NOT EXISTS operaciones(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, cliente_id INTEGER NOT NULL, fecha TEXT NOT NULL, monto_clp REAL NOT NULL, monto_ves REAL NOT NULL, tasa REAL NOT NULL, observaciones TEXT, numero_recibo TEXT, FOREIGN KEY(usuario_id) REFERENCES usuarios(id), FOREIGN KEY(cliente_id) REFERENCES clientes(id))`);
     await addColumn('operaciones', 'costo_clp REAL DEFAULT 0');
     await addColumn('operaciones', 'comision_ves REAL DEFAULT 0');
+
+    // Migrar: quitar UNIQUE global de numero_recibo, usar UNIQUE(numero_recibo, fecha)
+    // SQLite no permite DROP CONSTRAINT, así que recreamos la tabla si tiene el constraint viejo
+    try {
+        const tableInfo = await dbGet("SELECT sql FROM sqlite_master WHERE type='table' AND name='operaciones'");
+        if (tableInfo && tableInfo.sql && tableInfo.sql.includes('numero_recibo TEXT UNIQUE')) {
+            console.log('... Migrando constraint de numero_recibo: UNIQUE global → UNIQUE(numero_recibo, fecha)');
+            await dbRun('BEGIN TRANSACTION');
+            await dbRun(`CREATE TABLE operaciones_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL,
+                cliente_id INTEGER NOT NULL,
+                fecha TEXT NOT NULL,
+                monto_clp REAL NOT NULL,
+                monto_ves REAL NOT NULL,
+                tasa REAL NOT NULL,
+                observaciones TEXT,
+                numero_recibo TEXT,
+                costo_clp REAL DEFAULT 0,
+                comision_ves REAL DEFAULT 0,
+                FOREIGN KEY(usuario_id) REFERENCES usuarios(id),
+                FOREIGN KEY(cliente_id) REFERENCES clientes(id),
+                UNIQUE(numero_recibo, fecha)
+            )`);
+            await dbRun('INSERT INTO operaciones_new SELECT id, usuario_id, cliente_id, fecha, monto_clp, monto_ves, tasa, observaciones, numero_recibo, costo_clp, comision_ves FROM operaciones');
+            await dbRun('DROP TABLE operaciones');
+            await dbRun('ALTER TABLE operaciones_new RENAME TO operaciones');
+            await dbRun('COMMIT');
+            console.log('... Migración de numero_recibo completada');
+        }
+    } catch (migErr) {
+        console.error('Error en migración numero_recibo:', migErr.message);
+        try { await dbRun('ROLLBACK'); } catch(e) {}
+    }
 
     await dbRun(`CREATE TABLE IF NOT EXISTS compras(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL, clp_invertido REAL NOT NULL, ves_obtenido REAL NOT NULL, tasa_clp_ves REAL NOT NULL, fecha TEXT NOT NULL, FOREIGN KEY(usuario_id) REFERENCES usuarios(id))`);
     await addColumn('compras', 'tasa_clp_ves REAL DEFAULT 0');
@@ -2025,14 +2059,16 @@ app.get('/api/actividad/operadores', apiAuth, onlyMaster, async (req, res) => {
 });
 
 // --- Endpoint para verificar número de recibo ---
+// Solo verifica duplicado en el mismo día (el banco puede reutilizar números en días distintos)
 app.get('/api/recibo/check', apiAuth, (req, res) => {
-    const { numero, excludeId } = req.query;
+    const { numero, excludeId, fecha } = req.query;
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     if (!numero) return res.json({ usado: false });
-    let sql = `SELECT id FROM operaciones WHERE numero_recibo = ?`;
-    const params = [numero];
+    let sql = `SELECT id FROM operaciones WHERE numero_recibo = ? AND date(fecha) = date(?)`;
+    const fechaCheck = fecha || hoyLocalYYYYMMDD();
+    const params = [numero, fechaCheck];
     if (excludeId) {
         sql += ' AND id != ?';
         params.push(excludeId);
@@ -2699,7 +2735,7 @@ app.post('/api/operaciones', apiAuth, (req, res) => {
               [req.session.user.id, cliente_id, fechaGuardado, montoClpNum, montoVesNum, Number(tasa || 0), observaciones || '', costoVesEnviadoClp, comisionVes, numero_recibo],
               function (err) {
                 if (err) {
-                    if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Error: El número de recibo ya existe.' });
+                    if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ message: 'Error: El número de recibo ya fue usado en esta fecha.' });
                     return res.status(500).json({ message: 'Error inesperado al guardar la operación.' });
                 }
                 db.run(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [vesTotalDescontar]);
@@ -2774,7 +2810,8 @@ app.put('/api/operaciones/:id', apiAuth, (req, res) => {
     const { cliente_nombre, monto_clp, tasa, observaciones, fecha, numero_recibo } = req.body;
     if (!numero_recibo) return res.status(400).json({ message: 'El número de recibo es obligatorio.' });
     
-    db.get('SELECT id FROM operaciones WHERE numero_recibo = ? AND id != ?', [numero_recibo, operacionId], (err, existing) => {
+    const fechaCheck = fecha || hoyLocalYYYYMMDD();
+    db.get('SELECT id FROM operaciones WHERE numero_recibo = ? AND date(fecha) = date(?) AND id != ?', [numero_recibo, fechaCheck, operacionId], (err, existing) => {
         if (err) return res.status(500).json({ message: 'Error de base de datos al verificar recibo.' });
         if (existing) return res.status(400).json({ message: 'El número de recibo ya está en uso por otra operación.' });
         

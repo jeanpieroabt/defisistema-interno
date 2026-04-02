@@ -510,7 +510,7 @@
     }
     
     let debounceTimeout;
-    function checkRecibo(inputEl, statusEl, btnEl, excludeId = null) {
+    function checkRecibo(inputEl, statusEl, btnEl, excludeId = null, fechaInputId = null) {
         clearTimeout(debounceTimeout);
         statusEl.textContent = 'Verificando...';
         statusEl.style.color = 'var(--muted)';
@@ -523,7 +523,10 @@
                 btnEl.disabled = true;
                 return;
             }
+            const fechaInput = fechaInputId ? document.getElementById(fechaInputId) : document.getElementById('editFecha');
+            const fecha = fechaInput ? fechaInput.value : '';
             let url = `/api/recibo/check?numero=${encodeURIComponent(numero)}`;
+            if (fecha) url += `&fecha=${encodeURIComponent(fecha)}`;
             if (excludeId) url += `&excludeId=${excludeId}`;
             
             const r = await fetch(url);
