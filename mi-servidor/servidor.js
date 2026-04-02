@@ -1048,49 +1048,12 @@ async function getPromedioUsdt() {
 }
 
 async function getPromedioVesEnUsdt() {
-    // Obtener todas las compras de VES (entradas)
-    const compras = await dbAll(
-        `SELECT ves_obtenido as cantidad, usdt_invertido as costo, fecha, id, 'compra' as tipo FROM compras_ves ORDER BY fecha ASC, id ASC`
-    );
-    // Obtener salidas de VES: operaciones que envían VES a clientes
-    const operaciones = await dbAll(
-        `SELECT monto_ves as cantidad, fecha, id, 'operacion' as tipo FROM operaciones WHERE monto_ves > 0 ORDER BY fecha ASC, id ASC`
-    );
-
-    if (!compras || compras.length === 0) return 0;
-
-    // Combinar y ordenar cronológicamente
-    const transacciones = [
-        ...(compras || []),
-        ...(operaciones || [])
-    ].sort((a, b) => {
-        if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1;
-        if (a.tipo === 'compra' && b.tipo !== 'compra') return -1;
-        if (a.tipo !== 'compra' && b.tipo === 'compra') return 1;
-        return a.id - b.id;
-    });
-
-    let stockVes = 0;
-    let costoTotalUsdt = 0; // Costo en USDT del VES en inventario
-
-    for (const tx of transacciones) {
-        if (tx.tipo === 'compra') {
-            // Entrada: agregar VES con su costo en USDT
-            costoTotalUsdt += tx.costo;
-            stockVes += tx.cantidad;
-        } else {
-            // Salida (operación): VES sale al PPP actual
-            if (stockVes > 0) {
-                const costoPorVes = costoTotalUsdt / stockVes; // USDT por 1 VES
-                const cantidadSale = Math.min(tx.cantidad, stockVes);
-                costoTotalUsdt -= cantidadSale * costoPorVes;
-                stockVes -= cantidadSale;
-            }
-        }
-    }
-
-    if (stockVes <= 0 || costoTotalUsdt <= 0) return 0;
-    return stockVes / costoTotalUsdt; // VES por 1 USDT (tasa promedio del inventario actual)
+    // PPP de VES = tasa promedio ponderada de compra (VES por 1 USDT)
+    // No se usa WAC con operaciones porque las operaciones (envíos a clientes)
+    // son el negocio, no ventas de inventario. El PPP refleja el costo de adquisición.
+    const row = await dbGet('SELECT SUM(usdt_invertido) as totalUsdt, SUM(ves_obtenido) as totalVes FROM compras_ves');
+    if (!row || !row.totalUsdt || row.totalVes === 0) return 0;
+    return row.totalVes / row.totalUsdt; // VES por 1 USDT
 }
 
 // Tasa VES/CLP derivada del sistema de stock (equivale a legacy tasa_clp_ves)
