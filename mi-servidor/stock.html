@@ -246,6 +246,58 @@
       line-height: 1.6;
     }
 
+    .saldo-negativo {
+      color: #fca5a5 !important;
+    }
+
+    .comandos-toggle {
+      color: var(--medium-grey);
+      font-size: 0.75rem;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .comandos-toggle:hover {
+      color: #059669;
+    }
+
+    .comandos-toggle .arrow {
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+
+    .comandos-toggle.open .arrow {
+      transform: rotate(90deg);
+    }
+
+    .comandos-content {
+      display: none;
+      color: var(--medium-grey);
+      font-size: 0.75rem;
+      margin-bottom: 15px;
+      line-height: 1.8;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    .comandos-content.open {
+      display: block;
+    }
+
+    .comandos-content code {
+      background: #e5e7eb;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+
     @media (max-width: 768px) {
       .container {
         margin: 1rem auto;
@@ -301,11 +353,20 @@
       }
 
       table {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
       }
 
       table th, table td {
-        padding: 6px 4px;
+        padding: 6px 3px;
+      }
+
+      .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      table th:nth-child(6), table td:nth-child(6) {
+        max-width: 100px;
       }
     }
   </style>
@@ -378,8 +439,23 @@
           <input type="text" id="stockInput" placeholder="Ej: compre 1000 USDT por 950000 CLP" onkeydown="if(event.key==='Enter')enviarOperacionStock()">
           <button onclick="enviarOperacionStock()" class="btn btn-primary">Ejecutar</button>
         </div>
-        <div style="color: var(--medium-grey); font-size: 0.75rem; margin-bottom: 15px; line-height: 1.6;">
-          <b>Comandos:</b> "compre 500 USDT por 475000 CLP" - "compre 500 USDT a tasa 932" - "cambie 200 USDT por 17000 VES" - "cambie 200 USDT a tasa 85.5 VES" - "vendi 90 USDT por 100000 CLP Colombia" - "deposite 1000000 CLP" - "deposite 3000 USDT préstamo" - "deposite 3000 USDT a tasa 918 capital socio" - "deposite 50000 VES ingreso externo" - "retire 50000 CLP para pago servicios" - "ajustar USDT a 320"
+        <div class="comandos-toggle" onclick="this.classList.toggle('open'); document.getElementById('comandosContent').classList.toggle('open');">
+          <span class="arrow">&#9654;</span> <b>Ver comandos disponibles</b>
+        </div>
+        <div id="comandosContent" class="comandos-content">
+          <b>Compras:</b><br>
+          <code>compre 500 USDT por 475000 CLP</code> &nbsp; <code>compre 500 USDT a tasa 932</code><br><br>
+          <b>Cambios USDT a VES:</b><br>
+          <code>cambie 200 USDT por 17000 VES</code> &nbsp; <code>cambie 200 USDT a tasa 85.5 VES</code><br><br>
+          <b>Ventas USDT:</b><br>
+          <code>vendi 90 USDT por 100000 CLP Colombia</code><br><br>
+          <b>Depositos:</b><br>
+          <code>deposite 1000000 CLP</code> &nbsp; <code>deposite 3000 USDT prestamo</code><br>
+          <code>deposite 3000 USDT a tasa 918 capital socio</code> &nbsp; <code>deposite 50000 VES ingreso</code><br><br>
+          <b>Retiros:</b><br>
+          <code>retire 50000 CLP para pago servicios</code><br><br>
+          <b>Ajustes:</b><br>
+          <code>ajustar USDT a 320</code>
         </div>
 
         <!-- Resultado de operacion -->
@@ -389,7 +465,7 @@
         <h4 style="margin-top: 10px; margin-bottom: 10px;">Historial de operaciones</h4>
         <div class="table-container">
           <table>
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>Entrada</th><th>Salida</th><th>Tasa</th><th>Accion</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Tipo</th><th>Entrada</th><th>Salida</th><th>Tasa</th><th>Observaciones</th><th>Accion</th></tr></thead>
             <tbody id="tbodyStockHistorial"></tbody>
           </table>
         </div>
@@ -421,18 +497,36 @@
     async function loadStock() {
       try {
         const data = await (await fetch('/api/stock')).json();
-        document.getElementById('stockClp').textContent = '$' + fmtNum(data.saldoClp, 0);
-        document.getElementById('stockUsdt').textContent = fmtNum(data.saldoUsdt);
-        document.getElementById('stockVes').textContent = fmtNum(data.saldoVes, 0);
+        const elClp = document.getElementById('stockClp');
+        const elUsdt = document.getElementById('stockUsdt');
+        const elVes = document.getElementById('stockVes');
+
+        elClp.textContent = '$' + fmtNum(data.saldoClp, 0);
+        elUsdt.textContent = fmtNum(data.saldoUsdt);
+        elVes.textContent = fmtNum(data.saldoVes, 0);
+
+        // Resaltar saldos negativos en rojo
+        elClp.classList.toggle('saldo-negativo', data.saldoClp < 0);
+        elUsdt.classList.toggle('saldo-negativo', data.saldoUsdt < 0);
+        elVes.classList.toggle('saldo-negativo', data.saldoVes < 0);
+
         document.getElementById('stockUsdtPpp').textContent = data.pppUsdtClp > 0 ? `PPP: ${fmtNum(data.pppUsdtClp)} CLP` : 'PPP: --';
         document.getElementById('stockVesPpp').textContent = data.pppVesUsdt > 0 ? `PPP: ${fmtNum(data.pppVesUsdt)} VES/USDT` : 'PPP: --';
 
         // Ganancias y capital
-        document.getElementById('gananciaNetaHoy').textContent = '$' + fmtNum(data.gananciaNetaHoy || 0, 0);
+        const gananciaHoy = data.gananciaNetaHoy || 0;
+        const elGananciaHoy = document.getElementById('gananciaNetaHoy');
+        elGananciaHoy.textContent = '$' + fmtNum(gananciaHoy, 0);
+        elGananciaHoy.style.color = gananciaHoy < 0 ? '#fca5a5' : '#fff';
+
         document.getElementById('gananciaDetalle').textContent = `${data.cantOperacionesHoy || 0} ops | CLP recibido: $${fmtNum(data.clpRecibidoHoy || 0, 0)}`;
         document.getElementById('gananciaAcumulada').textContent = '$' + fmtNum(data.totalGananciaAcumuladaClp || 0, 0);
         document.getElementById('capitalTotalStock').textContent = '$' + fmtNum(data.capitalTotal || 0, 0);
-        document.getElementById('capitalDetalle').textContent = `USDT: $${fmtNum(data.valorUsdtEnClp || 0, 0)} | VES: $${fmtNum(data.valorVesEnClp || 0, 0)}`;
+
+        const usdtClp = data.valorUsdtEnClp || 0;
+        const vesClp = data.valorVesEnClp || 0;
+        const detalle = document.getElementById('capitalDetalle');
+        detalle.innerHTML = `USDT: <span style="color:${usdtClp < 0 ? '#fca5a5' : 'inherit'}">$${fmtNum(usdtClp, 0)}</span> | VES: <span style="color:${vesClp < 0 ? '#fca5a5' : 'inherit'}">$${fmtNum(vesClp, 0)}</span>`;
         document.getElementById('capitalLegacy').textContent = '$' + fmtNum(data.capitalLegacy || 0, 0);
         document.getElementById('capitalLegacyDetalle').textContent = `Inicial: $${fmtNum(data.capitalInicialClp || 0, 0)} + Gan: $${fmtNum(data.totalGananciaAcumuladaClp || 0, 0)}`;
       } catch (e) { console.error('Error cargando stock:', e); }
@@ -508,7 +602,7 @@
       tbody.innerHTML = '';
 
       if (!Array.isArray(historialCompleto) || historialCompleto.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--medium-grey);">Sin operaciones registradas</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--medium-grey);">Sin operaciones registradas</td></tr>';
         info.textContent = '';
         btnCargar.style.display = 'none';
         return;
@@ -523,6 +617,7 @@
           <td style="color: #10b981; font-weight: 600;">${h.entrada}</td>
           <td style="color: #ef4444;">${h.salida}</td>
           <td>${h.tasa}</td>
+          <td style="font-size: 0.8rem; color: #6b7280; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${h.observaciones || ''}">${h.observaciones || '-'}</td>
           <td><button class="btn btn-danger" onclick="deleteStockOp('${h.tipoKey}', ${h.id})" style="padding: 2px 8px; font-size: 0.8rem;">Borrar</button></td>
         `;
         tbody.appendChild(tr);

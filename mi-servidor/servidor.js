@@ -3865,16 +3865,13 @@ app.post('/api/stock/operacion', apiAuth, onlyMaster, async (req, res) => {
                 const saldoUsdtActual = Number(await readConfigValue('saldoUsdt') || 0);
 
                 // Registrar como compra en compras_usdt (afecta PPP) pero NO debita CLP
+                // Se marca con "[DEPOSITO]" en observaciones para distinguirla en el historial
                 await dbRun(
                     `INSERT INTO compras_usdt(usuario_id, clp_invertido, usdt_obtenido, tasa_clp_usdt, fecha, observaciones) VALUES (?,?,?,?,?,?)`,
-                    [req.session.user.id, clpEquivalente, usdt, tasa, hoyLocalYYYYMMDD(), `Depósito con costo | ${motivo || msgOriginal}`]
+                    [req.session.user.id, clpEquivalente, usdt, tasa, hoyLocalYYYYMMDD(), `[DEPOSITO] ${motivo || msgOriginal}`]
                 );
                 // Solo sube saldo USDT, CLP NO baja
                 await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoUsdt'`, [usdt]);
-                await dbRun(
-                    `INSERT INTO movimientos_stock(usuario_id, tipo, moneda, monto, saldo_antes, saldo_despues, fecha, observaciones) VALUES (?,?,?,?,?,?,?,?)`,
-                    [req.session.user.id, 'deposito', 'USDT', usdt, saldoUsdtActual, saldoUsdtActual + usdt, hoyLocalYYYYMMDD(), `Depósito con costo tasa ${tasa} | ${motivo || msgOriginal}`]
-                );
 
                 await recalcularGananciasStock();
                 const pppUsdt = await getPromedioUsdt();
@@ -4084,13 +4081,19 @@ app.get('/api/stock/historial', apiAuth, onlyMaster, async (req, res) => {
 
         // Combinar y ordenar por fecha DESC
         const historial = [
-            ...(comprasUsdt || []).map(c => ({
-                id: c.id, tipo: 'CLP → USDT', tipoKey: 'compra_usdt',
-                entrada: `${Number(c.monto_obtenido).toLocaleString('es-CL')} USDT`,
-                salida: `${Number(c.clp_invertido).toLocaleString('es-CL')} CLP`,
-                tasa: `${Number(c.tasa).toFixed(2)} CLP/USDT`,
-                fecha: c.fecha, observaciones: c.observaciones
-            })),
+            ...(comprasUsdt || []).map(c => {
+                const esDeposito = c.observaciones && c.observaciones.startsWith('[DEPOSITO]');
+                const obsLimpia = esDeposito ? c.observaciones.replace('[DEPOSITO] ', '') : (c.observaciones || '');
+                return {
+                    id: c.id,
+                    tipo: esDeposito ? 'Depósito USDT (con costo)' : 'CLP → USDT',
+                    tipoKey: 'compra_usdt',
+                    entrada: `${Number(c.monto_obtenido).toLocaleString('es-CL')} USDT`,
+                    salida: esDeposito ? '-' : `${Number(c.clp_invertido).toLocaleString('es-CL')} CLP`,
+                    tasa: `${Number(c.tasa).toFixed(2)} CLP/USDT`,
+                    fecha: c.fecha, observaciones: obsLimpia
+                };
+            }),
             ...(comprasVes || []).map(c => ({
                 id: c.id, tipo: 'USDT → VES', tipoKey: 'compra_ves',
                 entrada: `${Number(c.monto_obtenido).toLocaleString('es-CL')} VES`,
@@ -4123,8 +4126,8 @@ app.get('/api/stock/historial', apiAuth, onlyMaster, async (req, res) => {
                 return {
                     id: m.id, tipo: tipoDisplay, tipoKey: 'movimiento',
                     entrada, salida,
-                    tasa: (m.tipo === 'retiro' || m.tipo === 'venta_usdt' || m.tipo === 'deposito') ? (m.observaciones || '-') : '-',
-                    fecha: m.fecha, observaciones: m.observaciones
+                    tasa: '-',
+                    fecha: m.fecha, observaciones: m.observaciones || ''
                 };
             })
         ].sort((a, b) => b.fecha > a.fecha ? 1 : b.fecha < a.fecha ? -1 : 0);
