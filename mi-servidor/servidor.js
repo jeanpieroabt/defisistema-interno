@@ -4145,14 +4145,17 @@ app.delete('/api/compras-usdt/:id', apiAuth, onlyMaster, async (req, res) => {
         const compra = await dbGet('SELECT * FROM compras_usdt WHERE id = ?', [req.params.id]);
         if (!compra) return res.status(404).json({ error: 'Compra no encontrada' });
 
+        const esDeposito = compra.observaciones && compra.observaciones.startsWith('[DEPOSITO]');
+
         await dbRun('DELETE FROM compras_usdt WHERE id = ?', [req.params.id]);
-        await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [compra.clp_invertido]);
+        // Solo devolver CLP si fue una compra real (no un depósito con tasa)
+        if (!esDeposito) {
+            await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoClpDisponible'`, [compra.clp_invertido]);
+        }
         await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoUsdt'`, [compra.usdt_obtenido]);
 
         // Recalcular ganancias de ventas USDT con nuevo PPP
         await recalcularGananciasStock();
-
-        const esDeposito = compra.observaciones && compra.observaciones.startsWith('[DEPOSITO]');
         console.log(`[STOCK BORRADO] ${esDeposito ? 'Depósito' : 'Compra'} USDT eliminada por ${req.session.user.username} | ${compra.usdt_obtenido} USDT, ${compra.clp_invertido} CLP, tasa ${compra.tasa_clp_usdt} | Fecha: ${compra.fecha} | Obs: ${compra.observaciones || '-'}`);
 
         res.json({ message: 'Compra USDT eliminada, saldos y ganancias recalculados' });
