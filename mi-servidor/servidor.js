@@ -4152,6 +4152,9 @@ app.delete('/api/compras-usdt/:id', apiAuth, onlyMaster, async (req, res) => {
         // Recalcular ganancias de ventas USDT con nuevo PPP
         await recalcularGananciasStock();
 
+        const esDeposito = compra.observaciones && compra.observaciones.startsWith('[DEPOSITO]');
+        console.log(`[STOCK BORRADO] ${esDeposito ? 'Depósito' : 'Compra'} USDT eliminada por ${req.session.user.username} | ${compra.usdt_obtenido} USDT, ${compra.clp_invertido} CLP, tasa ${compra.tasa_clp_usdt} | Fecha: ${compra.fecha} | Obs: ${compra.observaciones || '-'}`);
+
         res.json({ message: 'Compra USDT eliminada, saldos y ganancias recalculados' });
     } catch (error) {
         console.error('Error borrando compra USDT:', error.message);
@@ -4168,6 +4171,8 @@ app.delete('/api/compras-ves/:id', apiAuth, onlyMaster, async (req, res) => {
         await dbRun('DELETE FROM compras_ves WHERE id = ?', [req.params.id]);
         await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) + ? WHERE clave = 'saldoUsdt'`, [compra.usdt_invertido]);
         await dbRun(`UPDATE configuracion SET valor = CAST(valor AS REAL) - ? WHERE clave = 'saldoVesOnline'`, [compra.ves_obtenido]);
+
+        console.log(`[STOCK BORRADO] Compra VES eliminada por ${req.session.user.username} | ${compra.ves_obtenido} VES, ${compra.usdt_invertido} USDT, tasa ${compra.tasa_usdt_ves} | Fecha: ${compra.fecha} | Obs: ${compra.observaciones || '-'}`);
 
         res.json({ message: 'Compra VES eliminada y saldos revertidos' });
     } catch (error) {
@@ -4196,6 +4201,8 @@ app.delete('/api/movimientos-stock/:id', apiAuth, onlyMaster, async (req, res) =
             await dbRun(`UPDATE configuracion SET valor = ? WHERE clave = ?`, [String(mov.saldo_antes), clave]);
         }
         await dbRun('DELETE FROM movimientos_stock WHERE id = ?', [req.params.id]);
+
+        console.log(`[STOCK BORRADO] ${mov.tipo} ${mov.moneda} eliminado por ${req.session.user.username} | Monto: ${mov.monto} | Saldo: ${mov.saldo_antes} → ${mov.saldo_despues} (revertido) | Fecha: ${mov.fecha} | Obs: ${mov.observaciones || '-'}`);
 
         res.json({ message: 'Movimiento eliminado y saldo revertido' });
     } catch (error) {
