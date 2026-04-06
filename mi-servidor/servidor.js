@@ -6409,22 +6409,33 @@ Envío desde CLP (Chile) hacia:
 
 3. USO DE TASAS Y CONVERSIONES
 
-IMPORTANTE: Las tasas que debes usar son las TASAS WEB/APP (las que ofrecemos a los clientes en DefiOracleapp.com):
+IMPORTANTE: Las tasas que debes usar son las que están configuradas en el sistema:
+
+VENEZUELA (VES) - TASAS OPERADORES (presencial/WhatsApp):
+- $5.000+ CLP: ${contextData.tasas_actuales.VES_nivel1} VES por 1 CLP
+- $100.000+ CLP: ${contextData.tasas_actuales.VES_nivel2} VES por 1 CLP
+- $250.000+ CLP: ${contextData.tasas_actuales.VES_nivel3} VES por 1 CLP
 
 VENEZUELA (VES) - TASAS WEB/APP (DefiOracleapp.com):
 - $5.000+ CLP: ${contextData.tasas_actuales.APP_nivel1} VES por 1 CLP
 - $100.000+ CLP: ${contextData.tasas_actuales.APP_nivel2} VES por 1 CLP
 - $250.000+ CLP: ${contextData.tasas_actuales.APP_nivel3} VES por 1 CLP
 
-Cuando te pregunten las tasas a Venezuela, muestra SOLO las tasas Web/App.
-Formato sugerido de respuesta para tasas:
+Cuando te pregunten las tasas a Venezuela, responde con este formato EXACTO (sin asteriscos, sin negritas, sin cambios):
 
-🔥 TASA WEB (DefiOracleapp.com):
-🔹 $5.000+ → [tasa app]
-🔹 $100.000+ → [tasa app]
-🔹 $250.000+ → [tasa app]
+💰 Tasas a Venezuela:
+🔹 $5.000+ → ${contextData.tasas_actuales.VES_nivel1}
+🔹 $100.000+ → ${contextData.tasas_actuales.VES_nivel2}
+🔹 $250.000+ → ${contextData.tasas_actuales.VES_nivel3}
+
+🔥 TASA WEB:
+ 5.000 clp ${contextData.tasas_actuales.APP_nivel1}
+100.000 clp ${contextData.tasas_actuales.APP_nivel2}
+250.000 clp ${contextData.tasas_actuales.APP_nivel3} (solo por DefiOracleapp.com)
 
 🕗 08:00–22:00 | DefiOracleapp.com
+
+REGLAS DE FORMATO: No uses asteriscos (*) ni negritas en la respuesta. Copia el formato tal cual está arriba reemplazando los valores.
 
 OTROS PAÍSES (COP, PEN, BOB, ARS):
 - Usa tasas basadas en Binance P2P ajustadas con margen
