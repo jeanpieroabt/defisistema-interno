@@ -6761,33 +6761,32 @@ Usa estos datos cuando sea necesario para responder consultas sobre tasas, clien
 
         const reply = await generateChatbotResponse(message, systemContext, userRole, username, contextData, historial, userId);
         
-        // CRÍTICO: Solo marcar notificaciones como leídas si el chatbot las mencionó en su respuesta
-        // Verificamos si la respuesta contiene palabras clave de notificaciones
+        // Solo marcar notificaciones como leídas si el USUARIO preguntó explícitamente por ellas
+        // (no basarse en keywords del reply que son muy imprecisas y marcan todo como leído)
         if (contextData.notificaciones_pendientes && contextData.notificaciones_pendientes.length > 0) {
-            const replyLower = reply.toLowerCase();
-            const mencionoNotificaciones = 
-                replyLower.includes('notificaci') || 
-                replyLower.includes('pendiente') || 
-                replyLower.includes('falta') || 
-                replyLower.includes('incompleto') ||
-                replyLower.includes('datos') ||
-                replyLower.includes('alerta');
-            
-            // Solo marcar como leídas si el chatbot realmente las mencionó
-            if (mencionoNotificaciones) {
+            const msgLower = message.toLowerCase();
+            const usuarioPreguntoPorNotificaciones =
+                msgLower.includes('notificacion') ||
+                msgLower.includes('notificación') ||
+                msgLower.includes('alertas pendientes') ||
+                msgLower.includes('que tengo pendiente') ||
+                msgLower.includes('mis pendientes') ||
+                msgLower.includes('mis alertas');
+
+            if (usuarioPreguntoPorNotificaciones) {
                 const notifIds = contextData.notificaciones_pendientes.map(n => parseInt(n.id)).filter(id => !isNaN(id));
-                const placeholders = notifIds.map(() => '?').join(',');
-                db.run(
-                    `UPDATE notificaciones SET leida = 1 WHERE id IN (${placeholders})`,
-                    notifIds,
-                    (err) => {
-                        if (!err) {
-                            console.log(`... ${notifIds.length} notificación(es) marcada(s) como leída(s) (chatbot las mencionó en su respuesta)`);
+                if (notifIds.length > 0) {
+                    const placeholders = notifIds.map(() => '?').join(',');
+                    db.run(
+                        `UPDATE notificaciones SET leida = 1 WHERE id IN (${placeholders})`,
+                        notifIds,
+                        (err) => {
+                            if (!err) {
+                                console.log(`✅ ${notifIds.length} notificación(es) marcada(s) como leída(s) (usuario preguntó por notificaciones)`);
+                            }
                         }
-                    }
-                );
-            } else {
-                console.log(`"️ Notificaciones NO marcadas como leídas - el chatbot no las mencionó en esta respuesta`);
+                    );
+                }
             }
         }
         
@@ -8036,9 +8035,16 @@ app.get('/api/logs/sistema', apiAuth, onlyMaster, (req, res) => {
 // - SISTEMA DE MONITOREO PROACTIVO DEL CHATBOT
 // =================================================================
 
+let generandoMensajesProactivos = false; // Mutex para evitar ejecución simultánea
+
 async function generarMensajesProactivos() {
+    if (generandoMensajesProactivos) {
+        console.log('⏭️ generarMensajesProactivos ya en ejecución, omitiendo...');
+        return;
+    }
+    generandoMensajesProactivos = true;
     console.log('" Ejecutando monitoreo proactivo...');
-    
+
     try {
         // Obtener todos los usuarios activos
         const usuarios = await new Promise((resolve) => {
@@ -8192,14 +8198,14 @@ async function generarMensajesProactivos() {
             // Guardar mensajes generados en la base de datos
             console.log(`"‹ Usuario ${usuario.username}: ${mensajesGenerados.length} mensajes candidatos`);
             for (const msg of mensajesGenerados) {
-                // Verificar que no exista un mensaje similar reciente (últimas 6 horas)
+                // Verificar que no exista un mensaje similar reciente (últimas 24 horas)
                 // IMPORTANTE: Incluir mensajes mostrados para evitar repetir el mismo mensaje
                 const mensajeDuplicado = await new Promise((resolve) => {
                     db.get(`
                         SELECT id, mostrado FROM chatbot_mensajes_proactivos
                         WHERE usuario_id = ?
                         AND tipo = ?
-                        AND datetime(fecha_creacion) >= datetime('now', '-6 hours')
+                        AND datetime(fecha_creacion) >= datetime('now', '-24 hours')
                     `, [usuario.id, msg.tipo], (err, row) => {
                         if (err) return resolve(null);
                         resolve(row);
@@ -8229,6 +8235,8 @@ async function generarMensajesProactivos() {
         }
     } catch (error) {
         console.error(' Error en monitoreo proactivo:', error);
+    } finally {
+        generandoMensajesProactivos = false;
     }
 }
 
@@ -8241,14 +8249,12 @@ async function limpiarMensajesAntiguos() {
         hace24Horas.setHours(hace24Horas.getHours() - 24);
         const fecha24HorasStr = hace24Horas.toISOString();
 
-        // Solo eliminar mensajes:
-        // 1. Más antiguos de 24 horas (sin importar si están mostrados o no)
-        // 2. Mostrados hace más de 6 horas (para evitar duplicados durante ese período)
+        // Solo eliminar mensajes más antiguos de 48 horas
+        // NO borrar mostrados antes de 48h para que el dedup de 24h funcione correctamente
         db.run(`
             DELETE FROM chatbot_mensajes_proactivos
-            WHERE fecha_creacion < ?
-            OR (mostrado = 1 AND datetime(fecha_mostrado) < datetime('now', '-6 hours'))
-        `, [fecha24HorasStr], function(err) {
+            WHERE datetime(fecha_creacion) < datetime('now', '-48 hours')
+        `, [], function(err) {
             if (err) {
                 console.error(' Error limpiando mensajes antiguos:', err);
             } else if (this.changes > 0) {
@@ -8258,6 +8264,20 @@ async function limpiarMensajesAntiguos() {
     } catch (error) {
         console.error(' Error en limpieza de mensajes:', error);
     }
+}
+
+// Limpieza de historial de chatbot (mantener solo últimos 30 días)
+function limpiarHistorialChatbot() {
+    db.run(`
+        DELETE FROM chatbot_history
+        WHERE datetime(fecha_creacion) < datetime('now', '-30 days')
+    `, [], function(err) {
+        if (err) {
+            console.error('Error limpiando historial chatbot:', err);
+        } else if (this.changes > 0) {
+            console.log(`🧹 Limpiados ${this.changes} registros antiguos de chatbot_history`);
+        }
+    });
 }
 
 // Endpoint para obtener mensajes proactivos
@@ -8331,8 +8351,8 @@ app.get('/api/chatbot/mensajes-proactivos/debug', apiAuth, (req, res) => {
     });
 });
 
-// Ejecutar monitoreo cada 30 segundos (para pruebas - cambiar a 10 min en producción)
-const INTERVALO_MONITOREO = 30 * 1000; // 30 segundos
+// Ejecutar monitoreo cada 10 minutos
+const INTERVALO_MONITOREO = 10 * 60 * 1000; // 10 minutos
 const INTERVALO_LIMPIEZA = 60 * 60 * 1000; // 1 hora
 const INTERVALO_GENERACION_TAREAS = 24 * 60 * 60 * 1000; // 24 horas
 let intervaloMonitoreo = null;
@@ -8343,10 +8363,19 @@ let intervaloGeneracionTareas = null;
  * Genera tareas automáticamente desde alertas pendientes
  * Distribuye equitativamente entre operadores
  */
+let ultimaGeneracionTareas = null; // Track last execution date
+
 async function generarTareasAutomaticas() {
     try {
-        console.log('"‹ Generando tareas automáticas desde alertas...');
         const fechaHoy = hoyLocalYYYYMMDD();
+
+        // Evitar ejecutar más de una vez por día (previene duplicados al reiniciar servidor)
+        if (ultimaGeneracionTareas === fechaHoy) {
+            console.log('⏭️ generarTareasAutomaticas ya ejecutado hoy, omitiendo...');
+            return;
+        }
+        ultimaGeneracionTareas = fechaHoy;
+        console.log('📋 Generando tareas automáticas desde alertas...');
         
         // Obtener alertas activas SIN acción realizada, excluyendo disminucion
         // Crear tarea solo si: 1) sin tarea vinculada, 2) tarea eliminada, 3) tarea completada o cancelada
@@ -8481,12 +8510,15 @@ function iniciarMonitoreoProactivo() {
     // Ejecutar inmediatamente
     setTimeout(generarMensajesProactivos, 3000); // 3 segundos después del inicio
     
-    // Luego cada 30 segundos
+    // Luego cada 10 minutos
     intervaloMonitoreo = setInterval(generarMensajesProactivos, INTERVALO_MONITOREO);
-    console.log('- Sistema de monitoreo proactivo iniciado (cada 30 segundos)');
+    console.log('- Sistema de monitoreo proactivo iniciado (cada 10 minutos)');
     
     // Limpieza de mensajes antiguos cada hora
-    intervaloLimpieza = setInterval(limpiarMensajesAntiguos, INTERVALO_LIMPIEZA);
+    intervaloLimpieza = setInterval(() => {
+        limpiarMensajesAntiguos();
+        limpiarHistorialChatbot();
+    }, INTERVALO_LIMPIEZA);
     console.log(' Sistema de limpieza de mensajes iniciado (cada 1 hora)');
     
     // Generar tareas automáticas cada 24 horas
