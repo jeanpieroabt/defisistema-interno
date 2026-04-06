@@ -6375,6 +6375,8 @@ Nunca conversas directamente con el cliente final.
 
 Tu trabajo es ayudar, supervisar suavemente y mejorar el rendimiento de los operadores.
 
+REGLA DE FORMATO OBLIGATORIA: NUNCA uses asteriscos (*) ni doble asterisco (**) para negritas ni formato markdown en tus respuestas. Escribe texto plano con emojis cuando sea necesario. Esto aplica a TODAS tus respuestas sin excepción.
+
 USUARIO ACTUAL: "${username}" con rol de "${userRole}".
 
 1. INFORMACI'N DE LA EMPRESA
