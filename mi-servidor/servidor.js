@@ -6409,25 +6409,15 @@ Envío desde CLP (Chile) hacia:
 
 3. USO DE TASAS Y CONVERSIONES
 
-IMPORTANTE: Las tasas que debes usar son las TASAS DE VENTA (las que ofrecemos a los clientes):
+IMPORTANTE: Las tasas que debes usar son las TASAS WEB/APP (las que ofrecemos a los clientes en DefiOracleapp.com):
 
-VENEZUELA (VES) - TASAS OPERADORES (las que ofrecemos presencialmente/WhatsApp):
-- $5.000+ CLP: ${contextData.tasas_actuales.VES_nivel1} VES por 1 CLP
-- $100.000+ CLP: ${contextData.tasas_actuales.VES_nivel2} VES por 1 CLP
-- $250.000+ CLP: ${contextData.tasas_actuales.VES_nivel3} VES por 1 CLP
-
-VENEZUELA (VES) - TASAS WEB/APP (DefiOracleapp.com - modo: ${contextData.tasas_actuales.APP_modo}):
+VENEZUELA (VES) - TASAS WEB/APP (DefiOracleapp.com):
 - $5.000+ CLP: ${contextData.tasas_actuales.APP_nivel1} VES por 1 CLP
 - $100.000+ CLP: ${contextData.tasas_actuales.APP_nivel2} VES por 1 CLP
 - $250.000+ CLP: ${contextData.tasas_actuales.APP_nivel3} VES por 1 CLP
 
-Cuando te pregunten las tasas a Venezuela, SIEMPRE muestra AMBAS: las tasas normales (operadores) y las tasas Web/App.
+Cuando te pregunten las tasas a Venezuela, muestra SOLO las tasas Web/App.
 Formato sugerido de respuesta para tasas:
-
-💰 Tasas a Venezuela:
-🔹 $5.000+ → [tasa operador]
-🔹 $100.000+ → [tasa operador]
-🔹 $250.000+ → [tasa operador]
 
 🔥 TASA WEB (DefiOracleapp.com):
 🔹 $5.000+ → [tasa app]
@@ -6857,8 +6847,9 @@ async function obtenerContextoSistema(userId, userRole) {
         context.total_clientes = totalClientes;
         
         // Obtener tasas App Clientes
-        const [tasaAppModo, tasaAppNivel1, tasaAppNivel2, tasaAppNivel3] = await Promise.all([
-            readConfigValue('tasaAppModo').catch(() => 'enlazada'),
+        const tasaAppModoRow = await dbGet("SELECT valor FROM configuracion WHERE clave = 'tasaAppModo'");
+        const tasaAppModo = tasaAppModoRow ? tasaAppModoRow.valor : 'enlazada';
+        const [tasaAppNivel1, tasaAppNivel2, tasaAppNivel3] = await Promise.all([
             readConfigValue('tasaAppNivel1').catch(() => 0),
             readConfigValue('tasaAppNivel2').catch(() => 0),
             readConfigValue('tasaAppNivel3').catch(() => 0)
