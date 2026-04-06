@@ -6386,12 +6386,30 @@ Envío desde CLP (Chile) hacia:
 
 IMPORTANTE: Las tasas que debes usar son las TASAS DE VENTA (las que ofrecemos a los clientes):
 
-VENEZUELA (VES) - TASAS DE VENTA:
-- ‰ 5.000 CLP: ${contextData.tasas_actuales.VES_nivel1} VES por 1 CLP
-- ‰ 100.000 CLP: ${contextData.tasas_actuales.VES_nivel2} VES por 1 CLP
-- ‰ 250.000 CLP: ${contextData.tasas_actuales.VES_nivel3} VES por 1 CLP
+VENEZUELA (VES) - TASAS OPERADORES (las que ofrecemos presencialmente/WhatsApp):
+- $5.000+ CLP: ${contextData.tasas_actuales.VES_nivel1} VES por 1 CLP
+- $100.000+ CLP: ${contextData.tasas_actuales.VES_nivel2} VES por 1 CLP
+- $250.000+ CLP: ${contextData.tasas_actuales.VES_nivel3} VES por 1 CLP
 
-Estas son las tasas que los operadores ofrecen a los clientes finales.
+VENEZUELA (VES) - TASAS WEB/APP (DefiOracleapp.com - modo: ${contextData.tasas_actuales.APP_modo}):
+- $5.000+ CLP: ${contextData.tasas_actuales.APP_nivel1} VES por 1 CLP
+- $100.000+ CLP: ${contextData.tasas_actuales.APP_nivel2} VES por 1 CLP
+- $250.000+ CLP: ${contextData.tasas_actuales.APP_nivel3} VES por 1 CLP
+
+Cuando te pregunten las tasas a Venezuela, SIEMPRE muestra AMBAS: las tasas normales (operadores) y las tasas Web/App.
+Formato sugerido de respuesta para tasas:
+
+💰 Tasas a Venezuela:
+🔹 $5.000+ → [tasa operador]
+🔹 $100.000+ → [tasa operador]
+🔹 $250.000+ → [tasa operador]
+
+🔥 TASA WEB (DefiOracleapp.com):
+🔹 $5.000+ → [tasa app]
+🔹 $100.000+ → [tasa app]
+🔹 $250.000+ → [tasa app]
+
+🕗 08:00–22:00 | DefiOracleapp.com
 
 OTROS PAÍSES (COP, PEN, BOB, ARS):
 - Usa tasas basadas en Binance P2P ajustadas con margen
@@ -6813,11 +6831,28 @@ async function obtenerContextoSistema(userId, userRole) {
 
         context.total_clientes = totalClientes;
         
+        // Obtener tasas App Clientes
+        const [tasaAppModo, tasaAppNivel1, tasaAppNivel2, tasaAppNivel3] = await Promise.all([
+            readConfigValue('tasaAppModo').catch(() => 'enlazada'),
+            readConfigValue('tasaAppNivel1').catch(() => 0),
+            readConfigValue('tasaAppNivel2').catch(() => 0),
+            readConfigValue('tasaAppNivel3').catch(() => 0)
+        ]);
+        // Si modo enlazada, las tasas app son las mismas que las normales
+        const appN1 = tasaAppModo === 'independiente' ? Number(tasaAppNivel1) : tasasVenta.nivel1;
+        const appN2 = tasaAppModo === 'independiente' ? Number(tasaAppNivel2) : tasasVenta.nivel2;
+        const appN3 = tasaAppModo === 'independiente' ? Number(tasaAppNivel3) : tasasVenta.nivel3;
+
         context.tasas_actuales = {
             VES_nivel1: tasasVenta.nivel1,
             VES_nivel2: tasasVenta.nivel2,
             VES_nivel3: tasasVenta.nivel3,
             VES_descripcion: "Tasas de VENTA a clientes (‰5K, ‰100K, ‰250K CLP). Estas son las que ofrecemos.",
+            APP_nivel1: appN1,
+            APP_nivel2: appN2,
+            APP_nivel3: appN3,
+            APP_modo: tasaAppModo,
+            APP_descripcion: "Tasas de la App/Web clientes (DefiOracleapp.com). Pueden ser iguales o distintas a las normales.",
             COP: tasaCOP,
             COP_descripcion: "Tasa base Binance P2P ajustada con margen",
             PEN: tasaPEN,
