@@ -1069,14 +1069,37 @@ async function getPromedioVesEnUsdt() {
     const retiros = await dbAll(
         `SELECT monto as cantidad, fecha, id, 'retiro' as tipo FROM movimientos_stock WHERE tipo = 'retiro' AND moneda = 'VES' ORDER BY fecha ASC, id ASC`
     );
+    // Ajustes VES (pueden ser salida o entrada según si saldo bajó o subió)
+    const ajustes = await dbAll(
+        `SELECT saldo_antes, saldo_despues, fecha, id, 'ajuste' as tipo FROM movimientos_stock WHERE tipo = 'ajuste' AND moneda = 'VES' ORDER BY fecha ASC, id ASC`
+    );
+    // Depósitos VES (entradas sin costo USDT)
+    const depositos = await dbAll(
+        `SELECT monto as cantidad, fecha, id, 'deposito_ves' as tipo FROM movimientos_stock WHERE tipo = 'deposito' AND moneda = 'VES' ORDER BY fecha ASC, id ASC`
+    );
 
     if (!compras || compras.length === 0) return 0;
+
+    // Procesar ajustes: convertir a entradas o salidas según diferencia
+    const ajustesProcesados = (ajustes || []).map(a => {
+        const diff = a.saldo_despues - a.saldo_antes;
+        if (diff < 0) {
+            // Ajuste hacia abajo = salida de VES
+            return { cantidad: Math.abs(diff), fecha: a.fecha, id: a.id, tipo: 'ajuste_salida' };
+        } else if (diff > 0) {
+            // Ajuste hacia arriba = entrada de VES sin costo
+            return { cantidad: diff, fecha: a.fecha, id: a.id, tipo: 'deposito_ves' };
+        }
+        return null;
+    }).filter(Boolean);
 
     // Combinar y ordenar cronológicamente
     const transacciones = [
         ...(compras || []),
         ...(operaciones || []),
-        ...(retiros || [])
+        ...(retiros || []),
+        ...ajustesProcesados,
+        ...(depositos || [])
     ].sort((a, b) => {
         if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1;
         // Compras primero dentro del mismo día
@@ -1090,15 +1113,17 @@ async function getPromedioVesEnUsdt() {
 
     for (const tx of transacciones) {
         if (tx.tipo === 'compra') {
-            // Entrada: agregar VES con su costo en USDT
+            // Entrada con costo: agregar VES con su costo en USDT
             costoTotalUsdt += tx.costo;
             stockVes += tx.cantidad;
+        } else if (tx.tipo === 'deposito_ves') {
+            // Entrada sin costo: VES gratis (depósito o ajuste hacia arriba)
+            // Se agrega al stock con costo 0, lo que baja el PPP
+            stockVes += tx.cantidad;
         } else {
-            // Salida: reducir stock al PPP actual
+            // Salida: reducir stock al PPP actual (operacion, retiro, ajuste_salida)
             if (stockVes > 0) {
-                const pppActual = stockVes / costoTotalUsdt; // VES por 1 USDT actual
                 const cantidadSale = Math.min(tx.cantidad, stockVes);
-                // Proporcionalmente reducir costo
                 const costoSale = costoTotalUsdt * (cantidadSale / stockVes);
                 costoTotalUsdt -= costoSale;
                 stockVes -= cantidadSale;
