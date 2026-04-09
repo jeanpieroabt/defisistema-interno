@@ -1056,8 +1056,14 @@ async function getPromedioVesEnUsdt() {
         `SELECT ves_obtenido as cantidad, usdt_invertido as costo, fecha, id, 'compra' as tipo FROM compras_ves ORDER BY fecha ASC, id ASC`
     );
     // Salidas: operaciones (envíos a clientes consumen VES)
+    // IMPORTANTE: normalizar fechas DD-MM-YYYY → YYYY-MM-DD para ordenamiento correcto
     const operaciones = await dbAll(
-        `SELECT (monto_ves + IFNULL(comision_ves, 0)) as cantidad, fecha, id, 'operacion' as tipo FROM operaciones ORDER BY fecha ASC, id ASC`
+        `SELECT (monto_ves + IFNULL(comision_ves, 0)) as cantidad,
+                CASE
+                    WHEN fecha LIKE '__-__-____' THEN substr(fecha, 7, 4) || '-' || substr(fecha, 4, 2) || '-' || substr(fecha, 1, 2)
+                    ELSE fecha
+                END as fecha,
+                id, 'operacion' as tipo FROM operaciones ORDER BY fecha ASC, id ASC`
     );
     // Salidas: retiros directos de VES
     const retiros = await dbAll(
