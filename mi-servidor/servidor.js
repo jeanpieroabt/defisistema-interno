@@ -1048,12 +1048,60 @@ async function getPromedioUsdt() {
 }
 
 async function getPromedioVesEnUsdt() {
-    // PPP de VES = tasa promedio ponderada de compra (VES por 1 USDT)
-    // No se usa WAC con operaciones porque las operaciones (envíos a clientes)
-    // son el negocio, no ventas de inventario. El PPP refleja el costo de adquisición.
-    const row = await dbGet('SELECT SUM(usdt_invertido) as totalUsdt, SUM(ves_obtenido) as totalVes FROM compras_ves');
-    if (!row || !row.totalUsdt || row.totalVes === 0) return 0;
-    return row.totalVes / row.totalUsdt; // VES por 1 USDT
+    // PPP de VES con WAC: conversiones USDT→VES son entradas, operaciones y retiros son salidas
+    // Así el PPP refleja el costo del inventario ACTUAL, no el promedio histórico
+
+    // Entradas: conversiones USDT→VES
+    const compras = await dbAll(
+        `SELECT ves_obtenido as cantidad, usdt_invertido as costo, fecha, id, 'compra' as tipo FROM compras_ves ORDER BY fecha ASC, id ASC`
+    );
+    // Salidas: operaciones (envíos a clientes consumen VES)
+    const operaciones = await dbAll(
+        `SELECT (monto_ves + IFNULL(comision_ves, 0)) as cantidad, fecha, id, 'operacion' as tipo FROM operaciones ORDER BY fecha ASC, id ASC`
+    );
+    // Salidas: retiros directos de VES
+    const retiros = await dbAll(
+        `SELECT monto as cantidad, fecha, id, 'retiro' as tipo FROM movimientos_stock WHERE tipo = 'retiro' AND moneda = 'VES' ORDER BY fecha ASC, id ASC`
+    );
+
+    if (!compras || compras.length === 0) return 0;
+
+    // Combinar y ordenar cronológicamente
+    const transacciones = [
+        ...(compras || []),
+        ...(operaciones || []),
+        ...(retiros || [])
+    ].sort((a, b) => {
+        if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1;
+        // Compras primero dentro del mismo día
+        if (a.tipo === 'compra' && b.tipo !== 'compra') return -1;
+        if (a.tipo !== 'compra' && b.tipo === 'compra') return 1;
+        return a.id - b.id;
+    });
+
+    let stockVes = 0;
+    let costoTotalUsdt = 0; // Costo acumulado en USDT
+
+    for (const tx of transacciones) {
+        if (tx.tipo === 'compra') {
+            // Entrada: agregar VES con su costo en USDT
+            costoTotalUsdt += tx.costo;
+            stockVes += tx.cantidad;
+        } else {
+            // Salida: reducir stock al PPP actual
+            if (stockVes > 0) {
+                const pppActual = stockVes / costoTotalUsdt; // VES por 1 USDT actual
+                const cantidadSale = Math.min(tx.cantidad, stockVes);
+                // Proporcionalmente reducir costo
+                const costoSale = costoTotalUsdt * (cantidadSale / stockVes);
+                costoTotalUsdt -= costoSale;
+                stockVes -= cantidadSale;
+            }
+        }
+    }
+
+    if (stockVes <= 0 || costoTotalUsdt <= 0) return 0;
+    return stockVes / costoTotalUsdt; // VES por 1 USDT
 }
 
 // Recalcular ganancias de todas las ventas USDT usando WAC cronológico
