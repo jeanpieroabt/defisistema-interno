@@ -1048,91 +1048,37 @@ async function getPromedioUsdt() {
 }
 
 async function getPromedioVesEnUsdt() {
-    // PPP de VES con WAC: conversiones USDT→VES son entradas, operaciones y retiros son salidas
-    // Así el PPP refleja el costo del inventario ACTUAL, no el promedio histórico
+    // PPP de VES = promedio ponderado de las compras del día actual
+    // Si no hay compras hoy, usa el último día con compras
+    // Esto refleja el costo REAL del VES en stock, no un promedio histórico acumulado
 
-    // Entradas: conversiones USDT→VES
-    const compras = await dbAll(
-        `SELECT ves_obtenido as cantidad, usdt_invertido as costo, fecha, id, 'compra' as tipo FROM compras_ves ORDER BY fecha ASC, id ASC`
+    const hoy = hoyLocalYYYYMMDD();
+
+    // Intentar obtener compras de hoy primero
+    let compras = await dbAll(
+        `SELECT ves_obtenido as cantidad, usdt_invertido as costo FROM compras_ves WHERE fecha = ? ORDER BY id ASC`,
+        [hoy]
     );
-    // Salidas: operaciones (envíos a clientes consumen VES)
-    // IMPORTANTE: normalizar fechas DD-MM-YYYY → YYYY-MM-DD para ordenamiento correcto
-    const operaciones = await dbAll(
-        `SELECT (monto_ves + IFNULL(comision_ves, 0)) as cantidad,
-                CASE
-                    WHEN fecha LIKE '__-__-____' THEN substr(fecha, 7, 4) || '-' || substr(fecha, 4, 2) || '-' || substr(fecha, 1, 2)
-                    ELSE fecha
-                END as fecha,
-                id, 'operacion' as tipo FROM operaciones ORDER BY fecha ASC, id ASC`
-    );
-    // Salidas: retiros directos de VES
-    const retiros = await dbAll(
-        `SELECT monto as cantidad, fecha, id, 'retiro' as tipo FROM movimientos_stock WHERE tipo = 'retiro' AND moneda = 'VES' ORDER BY fecha ASC, id ASC`
-    );
-    // Ajustes VES (pueden ser salida o entrada según si saldo bajó o subió)
-    const ajustes = await dbAll(
-        `SELECT saldo_antes, saldo_despues, fecha, id, 'ajuste' as tipo FROM movimientos_stock WHERE tipo = 'ajuste' AND moneda = 'VES' ORDER BY fecha ASC, id ASC`
-    );
-    // Depósitos VES (entradas sin costo USDT)
-    const depositos = await dbAll(
-        `SELECT monto as cantidad, fecha, id, 'deposito_ves' as tipo FROM movimientos_stock WHERE tipo = 'deposito' AND moneda = 'VES' ORDER BY fecha ASC, id ASC`
-    );
+
+    // Si no hay compras hoy, obtener las del último día con compras
+    if (!compras || compras.length === 0) {
+        compras = await dbAll(
+            `SELECT ves_obtenido as cantidad, usdt_invertido as costo FROM compras_ves WHERE fecha = (SELECT MAX(fecha) FROM compras_ves) ORDER BY id ASC`
+        );
+    }
 
     if (!compras || compras.length === 0) return 0;
 
-    // Procesar ajustes: convertir a entradas o salidas según diferencia
-    const ajustesProcesados = (ajustes || []).map(a => {
-        const diff = a.saldo_despues - a.saldo_antes;
-        if (diff < 0) {
-            // Ajuste hacia abajo = salida de VES
-            return { cantidad: Math.abs(diff), fecha: a.fecha, id: a.id, tipo: 'ajuste_salida' };
-        } else if (diff > 0) {
-            // Ajuste hacia arriba = entrada de VES sin costo
-            return { cantidad: diff, fecha: a.fecha, id: a.id, tipo: 'deposito_ves' };
-        }
-        return null;
-    }).filter(Boolean);
-
-    // Combinar y ordenar cronológicamente
-    const transacciones = [
-        ...(compras || []),
-        ...(operaciones || []),
-        ...(retiros || []),
-        ...ajustesProcesados,
-        ...(depositos || [])
-    ].sort((a, b) => {
-        if (a.fecha !== b.fecha) return a.fecha < b.fecha ? -1 : 1;
-        // Compras primero dentro del mismo día
-        if (a.tipo === 'compra' && b.tipo !== 'compra') return -1;
-        if (a.tipo !== 'compra' && b.tipo === 'compra') return 1;
-        return a.id - b.id;
-    });
-
-    let stockVes = 0;
-    let costoTotalUsdt = 0; // Costo acumulado en USDT
-
-    for (const tx of transacciones) {
-        if (tx.tipo === 'compra') {
-            // Entrada con costo: agregar VES con su costo en USDT
-            costoTotalUsdt += tx.costo;
-            stockVes += tx.cantidad;
-        } else if (tx.tipo === 'deposito_ves') {
-            // Entrada sin costo: VES gratis (depósito o ajuste hacia arriba)
-            // Se agrega al stock con costo 0, lo que baja el PPP
-            stockVes += tx.cantidad;
-        } else {
-            // Salida: reducir stock al PPP actual (operacion, retiro, ajuste_salida)
-            if (stockVes > 0) {
-                const cantidadSale = Math.min(tx.cantidad, stockVes);
-                const costoSale = costoTotalUsdt * (cantidadSale / stockVes);
-                costoTotalUsdt -= costoSale;
-                stockVes -= cantidadSale;
-            }
-        }
+    // Promedio ponderado del día: total VES / total USDT
+    let totalVes = 0;
+    let totalUsdt = 0;
+    for (const c of compras) {
+        totalVes += c.cantidad;
+        totalUsdt += c.costo;
     }
 
-    if (stockVes <= 0 || costoTotalUsdt <= 0) return 0;
-    return stockVes / costoTotalUsdt; // VES por 1 USDT
+    if (totalUsdt <= 0) return 0;
+    return totalVes / totalUsdt; // VES por 1 USDT
 }
 
 // Recalcular ganancias de todas las ventas USDT usando WAC cronológico
