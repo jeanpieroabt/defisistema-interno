@@ -6735,7 +6735,7 @@ CUANDO MUESTRES DATOS DE UN CLIENTE:
 
 FORMATO DE RESPUESTA OBLIGATORIO:
 - PROHIBIDO usar asteriscos (*) o doble asterisco (**) para negritas
-- PROHIBIDO usar formato markdown (###, **, *, ```)
+- PROHIBIDO usar formato markdown (###, **, *, backticks)
 - Usa texto plano con emojis para destacar
 - Para listas usa emojis como viñetas (👤, 🔹, ✅, etc.), NO guiones ni asteriscos
 - Los títulos o secciones van con emoji + texto, sin formato especial
