@@ -599,18 +599,34 @@ async function procesarMensajeGrupoPagador(message) {
             const refMatch = texto.match(/Referencia:\s*(\d+)/);
             const montoMatch = texto.match(/Monto:\s*Bs\.?\s*([\d.,]+)/);
             const benefMatch = texto.match(/Beneficiario:\s*(.+)/);
+            const pedidoIdMatch = texto.match(/Pedido\s*#(\d+)/i);
 
             const referencia = refMatch ? refMatch[1] : null;
             const montoTexto = montoMatch ? montoMatch[1].replace(/\./g, '').replace(',', '.') : null;
             const beneficiario = benefMatch ? benefMatch[1].trim() : null;
+            const pedidoIdFromMsg = pedidoIdMatch ? parseInt(pedidoIdMatch[1]) : null;
 
-            console.log(`[WEBHOOK] Pago EXITOSO - Ref: ${referencia}, Monto: ${montoTexto}, Benef: ${beneficiario}`);
+            console.log(`[WEBHOOK] Pago EXITOSO - Ref: ${referencia}, Monto: ${montoTexto}, Benef: ${beneficiario}, PedidoID: ${pedidoIdFromMsg}`);
 
-            // Buscar pedido en procesando que matchee
+            // Buscar pedido: primero por ID exacto (del concepto), si no, por monto
             let pedido = null;
-            if (montoTexto) {
+
+            // 1) Match por pedido ID exacto (más confiable)
+            if (pedidoIdFromMsg) {
+                pedido = await dbGet(
+                    `SELECT s.id, s.monto_destino, s.telegram_message_id, s.monto_origen,
+                            c.nombre as cliente_nombre, b.nombre_completo as beneficiario_nombre
+                     FROM solicitudes_transferencia s
+                     JOIN clientes_app c ON s.cliente_app_id = c.id
+                     JOIN beneficiarios b ON s.beneficiario_id = b.id
+                     WHERE s.id = ? AND s.estado = 'procesando'`,
+                    [pedidoIdFromMsg]
+                );
+            }
+
+            // 2) Fallback: match por monto (si el bot no devolvió el concepto)
+            if (!pedido && montoTexto) {
                 const montoNum = parseFloat(montoTexto);
-                // Buscar por monto_destino (bolívares) con tolerancia de 1
                 pedido = await dbGet(
                     `SELECT s.id, s.monto_destino, s.telegram_message_id, s.monto_origen,
                             c.nombre as cliente_nombre, b.nombre_completo as beneficiario_nombre
@@ -624,6 +640,9 @@ async function procesarMensajeGrupoPagador(message) {
                      LIMIT 1`,
                     [montoNum]
                 );
+                if (pedido) {
+                    console.log(`[WEBHOOK] ⚠️ Match por monto (fallback) - Pedido #${pedido.id}`);
+                }
             }
 
             if (pedido) {
