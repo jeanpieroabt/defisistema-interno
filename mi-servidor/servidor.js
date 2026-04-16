@@ -611,37 +611,49 @@ async function procesarMensajeGrupoPagador(message) {
             // Buscar pedido: primero por ID exacto (del concepto), si no, por monto
             let pedido = null;
 
-            // 1) Match por pedido ID exacto (más confiable)
-            if (pedidoIdFromMsg) {
-                pedido = await dbGet(
-                    `SELECT s.id, s.monto_destino, s.telegram_message_id, s.monto_origen,
-                            c.nombre as cliente_nombre, b.nombre_completo as beneficiario_nombre
-                     FROM solicitudes_transferencia s
-                     JOIN clientes_app c ON s.cliente_app_id = c.id
-                     JOIN beneficiarios b ON s.beneficiario_id = b.id
-                     WHERE s.id = ? AND s.estado = 'procesando'`,
-                    [pedidoIdFromMsg]
-                );
-            }
-
-            // 2) Fallback: match por monto (si el bot no devolvió el concepto)
-            if (!pedido && montoTexto) {
+            // Match por monto + beneficiario (más preciso)
+            if (montoTexto) {
                 const montoNum = parseFloat(montoTexto);
-                pedido = await dbGet(
-                    `SELECT s.id, s.monto_destino, s.telegram_message_id, s.monto_origen,
-                            c.nombre as cliente_nombre, b.nombre_completo as beneficiario_nombre
-                     FROM solicitudes_transferencia s
-                     JOIN clientes_app c ON s.cliente_app_id = c.id
-                     JOIN beneficiarios b ON s.beneficiario_id = b.id
-                     WHERE s.estado = 'procesando'
-                       AND s.tomado_por_nombre = 'Bot Conciliación'
-                       AND ABS(s.monto_destino - ?) < 1
-                     ORDER BY s.fecha_tomado DESC
-                     LIMIT 1`,
-                    [montoNum]
-                );
-                if (pedido) {
-                    console.log(`[WEBHOOK] ⚠️ Match por monto (fallback) - Pedido #${pedido.id}`);
+
+                // 1) Intentar match por monto + nombre beneficiario
+                if (beneficiario) {
+                    pedido = await dbGet(
+                        `SELECT s.id, s.monto_destino, s.telegram_message_id, s.monto_origen,
+                                c.nombre as cliente_nombre, b.nombre_completo as beneficiario_nombre
+                         FROM solicitudes_transferencia s
+                         JOIN clientes_app c ON s.cliente_app_id = c.id
+                         JOIN beneficiarios b ON s.beneficiario_id = b.id
+                         WHERE s.estado = 'procesando'
+                           AND s.tomado_por_nombre = 'Bot Conciliación'
+                           AND ABS(s.monto_destino - ?) < 1
+                           AND UPPER(b.nombre_completo) LIKE '%' || UPPER(?) || '%'
+                         ORDER BY s.fecha_tomado DESC
+                         LIMIT 1`,
+                        [montoNum, beneficiario.split(' ')[0]]
+                    );
+                    if (pedido) {
+                        console.log(`[WEBHOOK] ✅ Match por monto + beneficiario - Pedido #${pedido.id}`);
+                    }
+                }
+
+                // 2) Fallback: solo monto (si no matcheó con beneficiario)
+                if (!pedido) {
+                    pedido = await dbGet(
+                        `SELECT s.id, s.monto_destino, s.telegram_message_id, s.monto_origen,
+                                c.nombre as cliente_nombre, b.nombre_completo as beneficiario_nombre
+                         FROM solicitudes_transferencia s
+                         JOIN clientes_app c ON s.cliente_app_id = c.id
+                         JOIN beneficiarios b ON s.beneficiario_id = b.id
+                         WHERE s.estado = 'procesando'
+                           AND s.tomado_por_nombre = 'Bot Conciliación'
+                           AND ABS(s.monto_destino - ?) < 1
+                         ORDER BY s.fecha_tomado DESC
+                         LIMIT 1`,
+                        [montoNum]
+                    );
+                    if (pedido) {
+                        console.log(`[WEBHOOK] ⚠️ Match solo por monto (fallback) - Pedido #${pedido.id}`);
+                    }
                 }
             }
 
