@@ -4764,7 +4764,14 @@ function normalizarRut(rut) {
     return rut.replace(/[\.\-\s]/g, '').toUpperCase().trim();
 }
 
+let conciliandoPedidos = false;
+
 async function conciliarPedidos() {
+    if (conciliandoPedidos) {
+        console.log('[CONCILIACIÓN] Ya hay una ejecución en curso, saltando...');
+        return;
+    }
+    conciliandoPedidos = true;
     try {
         // Verificar si la conciliación está activa
         const configActiva = await dbGet("SELECT valor FROM configuracion WHERE clave = 'conciliacion_activa'");
@@ -4982,6 +4989,8 @@ async function conciliarPedidos() {
         }
     } catch (error) {
         console.error('[CONCILIACIÓN] Error:', error.message);
+    } finally {
+        conciliandoPedidos = false;
     }
 }
 
