@@ -11860,9 +11860,13 @@ app.post('/api/cliente/usar-codigo', clienteAuth, async (req, res) => {
 // =================================================================
 
 // Token de autenticación para el bot (sin sesión de cookies)
-const BOT_TOKEN = process.env.DEFI_BOT_TOKEN || 'bot-defi-2026';
+const BOT_TOKEN = process.env.DEFI_BOT_TOKEN;
 
 const botAuth = (req, res, next) => {
+    if (!BOT_TOKEN) {
+        console.error('[BOT AUTH] DEFI_BOT_TOKEN no configurado en variables de entorno');
+        return res.status(503).json({ error: 'Token de bot no configurado en el servidor' });
+    }
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.replace('Bearer ', '');
     if (token === BOT_TOKEN) return next();
