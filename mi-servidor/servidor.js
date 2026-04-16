@@ -295,16 +295,22 @@ async function pollingResultadoPago(pedidoId, loteId, apiUrl, apiToken) {
                 if (data.status === 'completed' && data.resultados?.length > 0) {
                     const resultado = data.resultados[0];
                     if (resultado.success) {
-                        // PAGO EXITOSO - Completar pedido
+                        // PAGO EXITOSO - Completar pedido (solo si aún está en procesando)
                         const referencia = resultado.referencia || null;
-                        await dbRun(
+                        const updateResult = await dbRun(
                             `UPDATE solicitudes_transferencia
                              SET estado = 'completada',
                                  referencia_pago = ?,
                                  fecha_completada = ?
-                             WHERE id = ?`,
+                             WHERE id = ? AND estado = 'procesando'`,
                             [referencia, new Date().toISOString(), pedidoId]
                         );
+
+                        // Si ya fue completado por otro canal (ej: Telegram), no duplicar notificaciones
+                        if (updateResult.changes === 0) {
+                            console.log(`[BOT PAGADOR] ⏭️ Pedido #${pedidoId} ya completado por otro canal, omitiendo`);
+                            return;
+                        }
 
                         console.log(`[BOT PAGADOR] ✅ Pedido #${pedidoId} COMPLETADO - Ref: ${referencia}`);
 
@@ -621,15 +627,21 @@ async function procesarMensajeGrupoPagador(message) {
             }
 
             if (pedido) {
-                // Completar pedido automáticamente
-                await dbRun(
+                // Completar pedido automáticamente (solo si aún está en procesando)
+                const updateResult = await dbRun(
                     `UPDATE solicitudes_transferencia
                      SET estado = 'completada',
                          referencia_pago = ?,
                          fecha_completada = ?
-                     WHERE id = ?`,
+                     WHERE id = ? AND estado = 'procesando'`,
                     [referencia, new Date().toISOString(), pedido.id]
                 );
+
+                // Si ya fue completado por otro canal (ej: polling API), no duplicar
+                if (updateResult.changes === 0) {
+                    console.log(`[WEBHOOK] ⏭️ Pedido #${pedido.id} ya completado por otro canal, omitiendo`);
+                    return;
+                }
 
                 console.log(`[WEBHOOK] Pedido #${pedido.id} COMPLETADO automáticamente - Ref: ${referencia}`);
 
